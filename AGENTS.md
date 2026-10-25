@@ -55,3 +55,7 @@ cd tools && uv run pytest    # Python bridge, fixtures, schema
   `swift` and `cc` from `/usr/bin` fail with exit 69. Run them with
   `DEVELOPER_DIR=/Library/Developer/CommandLineTools` to use the Command Line
   Tools instead.
+- The Command Line Tools have no XCTest; host tests use swift-testing. Its
+  macro plugin needs the `-plugin-path` workaround that `host/Package.swift`
+  applies when `DEVELOPER_DIR` is the Command Line Tools (see
+  `host/README.md`).

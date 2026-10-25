@@ -90,7 +90,7 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - **Unit tests**: required for every task.
   - `flipper/tests`: host-compiled C tests (`make -C flipper/tests test`), a
     tiny assert-based runner, no Flipper needed.
-  - `host/`: `swift test` (XCTest) in the `SpoolBuddyCore` package.
+  - `host/`: `swift test` (swift-testing; the Command Line Tools ship no XCTest) in the `SpoolBuddyCore` package.
   - `tools/`: `uv run pytest` for the Python bridge and the fixture/schema
     checks.
 - **Fixtures**: `protocol/fixtures/` holds sample messages and tag dumps.
@@ -228,11 +228,12 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] ➕ `new` refuses when the tag already matches a spool (no duplicates); `tag_type` is `bambulab` / `ntag` (Bambuddy model comment: tag vendor); only successful or definitive results are cached, transient Bambuddy errors are retried on a repeated id
 
 ### Task 11: Swift package skeleton and protocol models
-- [ ] create `host/Package.swift` (swift-tools 6.0, macOS 14+): library `SpoolBuddyCore`, executable `SpoolBuddyMac` (SwiftUI `@main`), test target `SpoolBuddyCoreTests`; no third-party dependencies
-- [ ] write `SpoolBuddyCoreTests/ProtocolTests.swift` first: every fixture in `protocol/fixtures/messages` round-trips through `Codable` (decode → encode → decode equal); invalid fixtures fail to decode; NDJSON framer splits partial packets and drops over-long lines
-- [ ] implement `Sources/SpoolBuddyCore/Protocol/Message.swift` (enum with associated values keyed by `t`), `TagDump.swift`, `Intent.swift`, `NDJSONFramer.swift`
-- [ ] make fixtures reachable from tests as package resources (symlink or copy step documented in `host/README.md`)
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] create `host/Package.swift` (swift-tools 6.0, macOS 14+): library `SpoolBuddyCore`, executable `SpoolBuddyMac` (SwiftUI `@main`), test target `SpoolBuddyCoreTests`; no third-party dependencies
+- [x] write `SpoolBuddyCoreTests/ProtocolTests.swift` first: every fixture in `protocol/fixtures/messages` round-trips through `Codable` (decode → encode → decode equal); invalid fixtures fail to decode; NDJSON framer splits partial packets and drops over-long lines
+- [x] implement `Sources/SpoolBuddyCore/Protocol/Message.swift` (enum with associated values keyed by `t`), `TagDump.swift`, `Intent.swift`, `NDJSONFramer.swift`
+- [x] make fixtures reachable from tests as package resources (symlink or copy step documented in `host/README.md`)
+- [x] run `cd host && swift test` - must pass before next task
+- ⚠️ the Command Line Tools have no XCTest, so the Swift suites use swift-testing (`import Testing`); the CLT macro plugin has a broken rpath, worked around with `host/Toolchain/clt-testing-plugin` symlinks and a `-plugin-path` added by `Package.swift` when `DEVELOPER_DIR` is the CLT (see `host/README.md`)
 
 ### Task 12: Swift tag parser
 - [ ] write `TagParserTests.swift` first: synthetic Bambu fixture → `ParsedTag(kind: .bambu, uid, trayUuidCandidates: [block9, blocks4+5], material: "PLA", detailedType: "PLA Basic", rgba: "RRGGBBAA", labelWeight: 1000, nozzleMin/Max, dryingTemp)`; missing sector 1 → material `nil` and `hasPrefill == false`; NTAG fixture → `.ntag` with UID and `hasPrefill == false`
