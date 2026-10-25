@@ -190,11 +190,15 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ⚠️ on-device behaviour (USB re-enumeration, DTR detection, hello with a real host) is not verified yet; see Post-Completion
 
 ### Task 8: NFC reading on the Flipper (Bambu MIFARE Classic and NTAG)
-- [ ] implement `flipper/src/nfc_read.{c,h}` behind an interface `tag_reader_read(TagDump*)` : `nfc_scanner` detects ISO14443-3A → `iso14443_3a_poller_sync_read` for UID/SAK/ATQA → SAK `0x08`/`0x18`: derive keys, fill `MfClassicDeviceKeys` (`key_a_mask = 0xFFFF`), `mf_classic_poller_sync_read`, copy readable blocks and mark missing sectors; SAK `0x00`: `mf_ultralight_poller_sync_read_card`, copy pages
-- [ ] `Reading` scene: start the reader in a worker thread, show progress, emit `tag_read` or `read_failed` events; stop the NFC on back
-- [ ] on `tag_read`: encode `scan`, send it when connected, else go to `Result{NoHost}` showing UID, type, and for Bambu tags the ASCII of blocks 2 and 4 (material / detailed type) and the block-9 hex
-- [ ] write `flipper/tests/test_nfc_classify.c` first for the pure helper `tag_type_from_sak()` and the "no host" display-string builder
-- [ ] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- [x] implement `flipper/src/nfc_read.{c,h}` behind an interface `tag_reader_read(TagDump*)` : `nfc_scanner` detects ISO14443-3A → `iso14443_3a_poller_sync_read` for UID/SAK/ATQA → SAK `0x08`/`0x18`: derive keys, fill `MfClassicDeviceKeys` (`key_a_mask = 0xFFFF`), `mf_classic_poller_sync_read`, copy readable blocks and mark missing sectors; SAK `0x00`: `mf_ultralight_poller_sync_read_card`, copy pages
+- [x] `Reading` scene: start the reader in a worker thread, show progress, emit `tag_read` or `read_failed` events; stop the NFC on back
+- [x] on `tag_read`: encode `scan`, send it when connected, else go to `Result{NoHost}` showing UID, type, and for Bambu tags the ASCII of blocks 2 and 4 (material / detailed type) and the block-9 hex
+- [x] write `flipper/tests/test_nfc_classify.c` first for the pure helper `tag_type_from_sak()` and the "no host" display-string builder
+- [x] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- ➕ the pure helpers live in `flipper/src/nfc_classify.{c,h}`: `tag_type_from_sak()` (0x08/0x18 → mfc, 0x00 → ntag, anything else unsupported) and `tag_summary_text()` (type, UID, block 2/4 ASCII sanitized like the JSON reader, block 9 hex on two lines, sectors read N/16 or page count)
+- ➕ `nfc_read.h` is `TagReader` (`start`/`stop`/`is_started`) plus `tag_reader_read(TagReader*, TagDump*)`; one start reads at most one tag, and the app runs it while the screen is Idle or Reading (`sync_reader` in `spoolbuddy_app.c`), so it scans continuously on Idle. A MIFARE Classic with a non-4-byte UID, or one where no sector opens while the tag still answers, is sent with every sector missing so the host can still match the UID; an NTAG with no page read counts as failed (the schema needs one page)
+- ➕ every state change goes through `spoolbuddy_reduce()`, which runs the effect, syncs the reader and switches to the scene of the new `AppScreen` (or redraws it via `SpoolBuddyEventRedraw`, which replaces `SpoolBuddyEventStatus`). Scenes added now: `reading` (Reading, WaitingLookup, WaitingResult), `result` (text only: the summary for NoHost, the host's lines otherwise; Back closes) and `done` (Done/Error text with an OK button). Task 9 adds the Result submenu and the EnterWeight/WaitingResult scenes on top
+- ⚠️ on-device reading (sync poller behaviour with derived keys, partial reads, NTAG through a refill box) is not verified yet; see Post-Completion
 
 ### Task 9: Result, weight entry, intent and done/error screens on the Flipper
 - [ ] `Result` scene (widget + submenu): Found → lines from host + items **Enter weight**, **Close**; UnknownPrefill → items **New**, **Link on host**, **Close**; UnknownBare → **Create on host**, **Link on host**, **Close**
@@ -351,6 +355,7 @@ host/Tests/SpoolBuddyCoreTests/*.swift
 **Phase 0 manual checks (owner with Flipper, spools and the NAS):**
 - Install ufbt, run `cd flipper && ufbt launch` with the Flipper on USB; confirm firmware 1.5.1 on the device.
 - With the app open, check the USB link: the Mac sees a new `/dev/cu.usbmodemflip_*`, opening it (e.g. `python -m serial.tools.miniterm`) yields the Flipper `hello`, typing a host `hello` line within 2 s turns the Idle status line to `USB`, closing it shows `no host`, and the CLI/qFlipper work again after leaving the app.
+- Without a host connected, scan a Bambu spool and an NTAG: the Flipper shows the UID, the type and for the Bambu tag the material, detailed type, tray hex and "Sectors read 16/16"; Back while "Reading tag" returns to Idle and scanning resumes.
 - Create a Bambuddy API key with inventory read + update and settings read; put the URL (`http://<BAMBUDDY_LAN_IP>:8000`) and key into the Mac host settings or the Python bridge flags.
 - Scan a sealed Bambu spool: confirm all 16 sectors read (no `missing`), save the dump with `--dump-dir protocol/fixtures/tags/`, replace the synthetic fixture with the real one.
 - Compare the tray UUID candidates with the `tray_uuid` Bambuddy already holds for a spool an AMS has reported (`GET /inventory/spools`): record which block wins, drop the losing candidate from both parsers, and file an upstream issue on maziggy/bambuddy if the daemon's blocks 4+5 reading is wrong.

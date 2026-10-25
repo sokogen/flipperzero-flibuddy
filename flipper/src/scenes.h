@@ -1,9 +1,15 @@
-/* Scene list of the FAP. One scene per AppScreen, added task by task. */
+/* Scene list of the FAP. spoolbuddy_app.c maps each AppScreen to one of
+ * them (scene_for); scenes render from the state and send user input to
+ * spoolbuddy_reduce(). */
 #pragma once
 
 #include <gui/scene_manager.h>
 
-#define SPOOLBUDDY_SCENES(X) X(idle, Idle)
+#define SPOOLBUDDY_SCENES(X) \
+    X(idle, Idle)            \
+    X(reading, Reading)      \
+    X(result, Result)        \
+    X(done, Done)
 
 #define SPOOLBUDDY_SCENE_ENUM(name, Name) SpoolBuddyScene##Name,
 typedef enum {

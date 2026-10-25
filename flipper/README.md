@@ -21,6 +21,15 @@ CLI are unavailable until it exits) and gives it back on exit. A host that
 opens the port gets a `hello`; a host `hello` within 2 s marks it connected
 (`src/host_link.h`).
 
+On the Idle screen the app keeps the NFC scanning for an ISO 14443-3A tag
+and reads it (`src/nfc_read.h`): a MIFARE Classic (SAK 0x08/0x18) with the
+Bambu Key A derived from its UID, sectors that do not open stay missing; an
+NTAG (SAK 0x00) page by page. With a host the dump goes out as `scan`;
+without one the Flipper shows the UID, the type and, for a Bambu tag, the
+ASCII of blocks 2 and 4 and the block 9 hex (`src/nfc_classify.h`). Every
+screen change goes through the reducer in `src/app_state.h`;
+`spoolbuddy_app.c` picks the scene for the new screen.
+
 ## Tests
 
 Host-compiled unit tests live in `tests/`: `make -C flipper/tests test`

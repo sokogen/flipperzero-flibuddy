@@ -27,7 +27,7 @@ void spoolbuddy_scene_idle_on_enter(void* ctx) {
 
 bool spoolbuddy_scene_idle_on_event(void* ctx, SceneManagerEvent event) {
     SpoolBuddyApp* app = ctx;
-    if(event.type == SceneManagerEventTypeCustom && event.event == SpoolBuddyEventStatus) {
+    if(event.type == SceneManagerEventTypeCustom && event.event == SpoolBuddyEventRedraw) {
         render(app);
         return true;
     }

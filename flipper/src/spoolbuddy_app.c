@@ -40,7 +40,60 @@ static void send_hello(SpoolBuddyApp* app) {
     send_text(app, proto_encode_hello(SPOOLBUDDY_HELLO_APP, fw, app->tx_buf, PROTO_LINE_MAX));
 }
 
-static void reduce(SpoolBuddyApp* app, const AppEvent* event) {
+static SpoolBuddyScene scene_for(AppScreen screen) {
+    switch(screen) {
+    case AppScreenIdle:
+        return SpoolBuddySceneIdle;
+    case AppScreenReading:
+    case AppScreenWaitingLookup:
+    case AppScreenWaitingResult:
+        return SpoolBuddySceneReading;
+    case AppScreenResult:
+    case AppScreenEnterWeight:
+        return SpoolBuddySceneResult;
+    case AppScreenDone:
+    case AppScreenError:
+        return SpoolBuddySceneDone;
+    }
+    return SpoolBuddySceneIdle;
+}
+
+/* NFC worker thread. */
+static void on_reader_event(TagReaderEvent event, void* ctx) {
+    SpoolBuddyApp* app = ctx;
+    static const uint32_t custom[] = {
+        [TagReaderEventDetected] = SpoolBuddyEventTagDetected,
+        [TagReaderEventRead] = SpoolBuddyEventTagRead,
+        [TagReaderEventFailed] = SpoolBuddyEventReadFailed,
+    };
+    view_dispatcher_send_custom_event(app->view_dispatcher, custom[event]);
+}
+
+/* The reader scans on Idle and reads on Reading; leaving Reading stops it,
+ * so a Back while reading also restarts the scan from Idle. */
+static void sync_reader(SpoolBuddyApp* app, AppScreen before) {
+    AppScreen now = app->state.screen;
+    if(before == AppScreenReading && now != AppScreenReading) tag_reader_stop(app->reader);
+    if(now == AppScreenIdle || now == AppScreenReading) {
+        tag_reader_start(app->reader, app->read_dump, on_reader_event, app);
+    } else {
+        tag_reader_stop(app->reader);
+    }
+}
+
+static void sync_scene(SpoolBuddyApp* app) {
+    SpoolBuddyScene target = scene_for(app->state.screen);
+    if(scene_manager_get_current_scene(app->scene_manager) == target) {
+        scene_manager_handle_custom_event(app->scene_manager, SpoolBuddyEventRedraw);
+    } else if(target == SpoolBuddySceneIdle) {
+        scene_manager_search_and_switch_to_previous_scene(app->scene_manager, SpoolBuddySceneIdle);
+    } else {
+        scene_manager_search_and_switch_to_another_scene(app->scene_manager, target);
+    }
+}
+
+void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
+    AppScreen before = app->state.screen;
     switch(app_reduce(&app->state, event)) {
     case AppEffectSendScan:
         send_text(
@@ -56,18 +109,24 @@ static void reduce(SpoolBuddyApp* app, const AppEvent* event) {
     case AppEffectNone:
         break;
     }
+    sync_reader(app, before);
+    sync_scene(app);
+}
+
+void spoolbuddy_reduce_type(SpoolBuddyApp* app, AppEventType type) {
+    spoolbuddy_reduce(app, &(AppEvent){.type = type});
 }
 
 static void apply_link(SpoolBuddyApp* app, HostLinkOutput out) {
     if(out.send_hello) send_hello(app);
-    if(out.host_connected) reduce(app, &(AppEvent){.type = AppEventHostConnected});
-    if(out.host_lost) reduce(app, &(AppEvent){.type = AppEventHostLost});
+    if(out.host_connected) spoolbuddy_reduce_type(app, AppEventHostConnected);
+    if(out.host_lost) spoolbuddy_reduce_type(app, AppEventHostLost);
 }
 
 /* Tells the scene when the status line changed since `was_up`. */
 static void notify_status(SpoolBuddyApp* app, bool was_up) {
     if(host_link_is_up(&app->link) != was_up) {
-        scene_manager_handle_custom_event(app->scene_manager, SpoolBuddyEventStatus);
+        scene_manager_handle_custom_event(app->scene_manager, SpoolBuddyEventRedraw);
     }
 }
 
@@ -79,10 +138,12 @@ static void handle_message(SpoolBuddyApp* app, const ProtoMessage* msg) {
         notify_status(app, was_up);
         break;
     case ProtoMsgLookup:
-        reduce(app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
+        spoolbuddy_reduce(
+            app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
         break;
     case ProtoMsgResult:
-        reduce(app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
+        spoolbuddy_reduce(
+            app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
         break;
     case ProtoMsgNone:
         break;
@@ -107,7 +168,19 @@ static bool on_custom_event(void* ctx, uint32_t event) {
         }
         return true;
     }
-    return scene_manager_handle_custom_event(app->scene_manager, event);
+    switch(event) {
+    case SpoolBuddyEventTagDetected:
+        spoolbuddy_reduce_type(app, AppEventTagDetected);
+        return true;
+    case SpoolBuddyEventTagRead:
+        spoolbuddy_reduce(app, &(AppEvent){.type = AppEventTagRead, .tag = app->read_dump});
+        return true;
+    case SpoolBuddyEventReadFailed:
+        spoolbuddy_reduce_type(app, AppEventReadFailed);
+        return true;
+    default:
+        return scene_manager_handle_custom_event(app->scene_manager, event);
+    }
 }
 
 static bool on_back(void* ctx) {
@@ -141,6 +214,8 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
     host_link_init(&app->link);
 
     app->tx_buf = malloc(PROTO_LINE_MAX);
+    app->read_dump = malloc(sizeof(TagDump));
+    app->reader = tag_reader_alloc();
     app->rx_queue = furi_message_queue_alloc(RX_QUEUE_LEN, sizeof(ProtoMessage));
 
     app->gui = furi_record_open(RECORD_GUI);
@@ -164,7 +239,8 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
 }
 
 static void spoolbuddy_app_free(SpoolBuddyApp* app) {
-    /* the worker stops first, so nothing posts events into freed objects */
+    /* the workers stop first, so nothing posts events into freed objects */
+    tag_reader_free(app->reader);
     transport_usb_free(app->transport);
 
     view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewWidget);
@@ -174,6 +250,7 @@ static void spoolbuddy_app_free(SpoolBuddyApp* app) {
     furi_record_close(RECORD_GUI);
 
     furi_message_queue_free(app->rx_queue);
+    free(app->read_dump);
     free(app->tx_buf);
     free(app);
 }
@@ -182,6 +259,7 @@ int32_t spoolbuddy_app(void* p) {
     UNUSED(p);
     SpoolBuddyApp* app = spoolbuddy_app_alloc();
     scene_manager_next_scene(app->scene_manager, SpoolBuddySceneIdle);
+    sync_reader(app, app->state.screen);
     view_dispatcher_run(app->view_dispatcher);
     spoolbuddy_app_free(app);
     return 0;
