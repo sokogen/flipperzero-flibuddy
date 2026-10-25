@@ -25,7 +25,6 @@
 #define PROTO_LINE_CHARS 40
 #define PROTO_ERROR_MAX 200
 #define PROTO_HELLO_FIELD_MAX 40
-#define PROTO_GRAMS_MAX 9999
 
 typedef enum {
     ProtoDecodeOk,

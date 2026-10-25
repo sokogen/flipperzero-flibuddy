@@ -1,6 +1,6 @@
 #include "proto_encode.h"
 
-static size_t proto_line_cap(size_t cap) {
+size_t proto_line_cap(size_t cap) {
     /* PROTO_LINE_MAX - 1 bytes of text plus the writer's NUL. */
     return cap > PROTO_LINE_MAX ? PROTO_LINE_MAX : cap;
 }

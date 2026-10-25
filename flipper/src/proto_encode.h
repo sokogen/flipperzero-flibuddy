@@ -16,9 +16,14 @@
 #define PROTO_VERSION 1
 #define PROTO_LINE_MAX 8192 /* bytes per line including the '\n' */
 #define PROTO_ID_MAX 32
+#define PROTO_GRAMS_MAX 9999 /* grams in intent.grams and lookup.defaults */
 
 /* Whether `id` is a protocol identifier: 1-32 chars of A-Z a-z 0-9 _ . : - */
 bool proto_id_valid(const char* id);
+
+/* The JsonWriter capacity an encoder uses for a caller buffer of `cap`
+ * bytes, so that no line exceeds PROTO_LINE_MAX - 1 bytes. */
+size_t proto_line_cap(size_t cap);
 
 /* Writes `"t":<type>,"v":1` into an open object. */
 bool proto_write_header(JsonWriter* w, const char* type);
