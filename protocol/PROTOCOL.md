@@ -169,7 +169,9 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
 - **Timeouts.** The Flipper waits 10 s for a `result`, then shows an error.
   The host does not time out on the Flipper.
 - **Wording.** The host owns all user-visible text. The Flipper renders
-  `lines` verbatim and never parses them.
+  `lines` verbatim and never parses them. Its screen is ASCII-only: each
+  control character or non-ASCII character in a string shows as `?`, so
+  the host keeps `lines` ASCII where it can.
 - **New items.** The Flipper never sends `new` without `prefill: true`, and
   the host refuses to create a spool without `material`.
 
