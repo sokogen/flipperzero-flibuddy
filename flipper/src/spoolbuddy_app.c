@@ -46,11 +46,13 @@ static SpoolBuddyScene scene_for(AppScreen screen) {
         return SpoolBuddySceneIdle;
     case AppScreenReading:
     case AppScreenWaitingLookup:
-    case AppScreenWaitingResult:
         return SpoolBuddySceneReading;
     case AppScreenResult:
-    case AppScreenEnterWeight:
         return SpoolBuddySceneResult;
+    case AppScreenEnterWeight:
+        return SpoolBuddySceneEnterWeight;
+    case AppScreenWaitingResult:
+        return SpoolBuddySceneWaiting;
     case AppScreenDone:
     case AppScreenError:
         return SpoolBuddySceneDone;
@@ -93,8 +95,10 @@ static void sync_scene(SpoolBuddyApp* app) {
 }
 
 void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
+    AppEvent stamped = *event;
+    stamped.now_ms = now_ms();
     AppScreen before = app->state.screen;
-    switch(app_reduce(&app->state, event)) {
+    switch(app_reduce(&app->state, &stamped)) {
     case AppEffectSendScan:
         send_text(
             app,
@@ -201,6 +205,9 @@ static void on_tick(void* ctx) {
     }
     apply_link(app, host_link_tick(&app->link, now_ms()));
     notify_status(app, was_up);
+    if(app_result_timed_out(&app->state, now_ms())) {
+        spoolbuddy_reduce_type(app, AppEventTimeout);
+    }
     scene_manager_handle_tick_event(app->scene_manager);
 }
 
@@ -230,6 +237,12 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
     app->widget = widget_alloc();
     view_dispatcher_add_view(
         app->view_dispatcher, SpoolBuddyViewWidget, widget_get_view(app->widget));
+    app->submenu = submenu_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, SpoolBuddyViewSubmenu, submenu_get_view(app->submenu));
+    app->number_input = number_input_alloc();
+    view_dispatcher_add_view(
+        app->view_dispatcher, SpoolBuddyViewNumberInput, number_input_get_view(app->number_input));
     view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
     app->transport = transport_usb_alloc();
@@ -243,6 +256,10 @@ static void spoolbuddy_app_free(SpoolBuddyApp* app) {
     tag_reader_free(app->reader);
     transport_usb_free(app->transport);
 
+    view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewNumberInput);
+    number_input_free(app->number_input);
+    view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewSubmenu);
+    submenu_free(app->submenu);
     view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewWidget);
     widget_free(app->widget);
     scene_manager_free(app->scene_manager);

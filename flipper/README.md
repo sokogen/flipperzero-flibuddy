@@ -30,6 +30,16 @@ ASCII of blocks 2 and 4 and the block 9 hex (`src/nfc_classify.h`). Every
 screen change goes through the reducer in `src/app_state.h`;
 `spoolbuddy_app.c` picks the scene for the new screen.
 
+With a host, the Result screen shows the host's `lookup` lines; OK opens
+the actions: a found spool offers **Enter weight** and **Mode: gross/net**
+(kept for the session), an unknown tag with prefill **New** and **Link on
+host**, a bare one **Create on host** and **Link on host**. The weight
+input is pre-filled for the current mode (gross: the last gross weight or
+label + core; net: gross - core or the label weight). An intent waits up to
+10 s for its `result`, then the Flipper shows an error; Done/Error close
+with OK or Back. The wording lives in `src/screen_text.h` and is tested on
+the host.
+
 ## Tests
 
 Host-compiled unit tests live in `tests/`: `make -C flipper/tests test`

@@ -3,17 +3,13 @@
 #include "scenes.h"
 #include "spoolbuddy_app.h"
 
-/* Progress while the NFC reads the tag or the host works on it. */
+/* Progress while the NFC reads the tag or the host looks it up. */
 static void render(SpoolBuddyApp* app) {
     const char* title = "Reading tag";
     const char* hint = "Keep the spool still";
     switch(app->state.screen) {
     case AppScreenWaitingLookup:
         title = "Looking up";
-        hint = "Waiting for the host";
-        break;
-    case AppScreenWaitingResult:
-        title = "Saving";
         hint = "Waiting for the host";
         break;
     default:

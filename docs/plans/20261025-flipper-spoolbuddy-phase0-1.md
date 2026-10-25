@@ -201,13 +201,19 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ⚠️ on-device reading (sync poller behaviour with derived keys, partial reads, NTAG through a refill box) is not verified yet; see Post-Completion
 
 ### Task 9: Result, weight entry, intent and done/error screens on the Flipper
-- [ ] `Result` scene (widget + submenu): Found → lines from host + items **Enter weight**, **Close**; UnknownPrefill → items **New**, **Link on host**, **Close**; UnknownBare → **Create on host**, **Link on host**, **Close**
-- [ ] `EnterWeight` scene: `number_input` pre-filled from `defaults.gross` (fallback `label + core`), range 0–9999, header shows current mode; a submenu item **Mode: net/gross** toggles and persists for the session
-- [ ] `WaitingResult` scene with a 10 s timeout → Error
-- [ ] `Done`/`Error` scene: shows `result.lines` or the error; OK/back → Idle
-- [ ] wire the reducer from Task 6 to the scenes; all state transitions go through it
-- [ ] extend `flipper/tests/test_app_state.c` for the timeout and the mode toggle paths
-- [ ] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- [x] `Result` scene (widget + submenu): Found → lines from host + items **Enter weight**, **Close**; UnknownPrefill → items **New**, **Link on host**, **Close**; UnknownBare → **Create on host**, **Link on host**, **Close**
+- [x] `EnterWeight` scene: `number_input` pre-filled from `defaults.gross` (fallback `label + core`), range 0–9999, header shows current mode; a submenu item **Mode: net/gross** toggles and persists for the session
+- [x] `WaitingResult` scene with a 10 s timeout → Error
+- [x] `Done`/`Error` scene: shows `result.lines` or the error; OK/back → Idle
+- [x] wire the reducer from Task 6 to the scenes; all state transitions go through it
+- [x] extend `flipper/tests/test_app_state.c` for the timeout and the mode toggle paths
+- [x] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- ➕ the Result scene shows the text (host lines, or the tag summary without a host) with an **Actions** button (**Close** without a host) that opens the submenu; Back from the submenu returns to the text, the scene state remembers which is open and Idle resets it, so Back from EnterWeight lands on the menu again
+- ➕ **Mode: net/gross** is an item of the Found menu (`AppEventToggleMode` now also applies on Result{Found}); the EnterWeight pre-fill follows the mode: gross = `defaults.gross` (fallback label + core), net = gross - core (fallback the label weight), capped to 0–9999
+- ➕ the 10 s timeout lives in the reducer: every `AppEvent` carries `now_ms` (stamped by `spoolbuddy_reduce`), sending an intent records it, and `app_result_timed_out()` (wrap-safe, `APP_RESULT_TIMEOUT_MS`) tells the 250 ms tick when to send `AppEventTimeout`
+- ➕ screen wording is pure and host-tested in `flipper/src/screen_text.{c,h}` (`flipper/tests/test_screen_text.c`): host lines, Done/Error text (host lines + error for a failed lookup or intent, local messages otherwise), the waiting screen's intent summary, the weight header and the mode item
+- ➕ new scenes `enter_weight` (number input; a redraw does not reset the digits being typed) and `waiting` (WaitingResult; Back cannot cancel); `reading` now covers Reading and WaitingLookup only
+- ⚠️ on-device behaviour of the menus, the number input and the timeout is not verified yet; see Post-Completion
 
 ### Task 10: Python dev bridge (Phase 0 spike tool)
 - [ ] write `tools/tests/test_bambu_tag.py` first: parse the synthetic fixture → material `PLA`, detailed `PLA Basic`, RGBA, label weight 1000, tray UUID candidates in order [block 9, blocks 4+5]; NTAG fixture → UID only
@@ -355,6 +361,7 @@ host/Tests/SpoolBuddyCoreTests/*.swift
 **Phase 0 manual checks (owner with Flipper, spools and the NAS):**
 - Install ufbt, run `cd flipper && ufbt launch` with the Flipper on USB; confirm firmware 1.5.1 on the device.
 - With the app open, check the USB link: the Mac sees a new `/dev/cu.usbmodemflip_*`, opening it (e.g. `python -m serial.tools.miniterm`) yields the Flipper `hello`, typing a host `hello` line within 2 s turns the Idle status line to `USB`, closing it shows `no host`, and the CLI/qFlipper work again after leaving the app.
+- With the Python bridge or the Mac host connected: scan a known spool → Actions → Enter weight sends a `weigh` intent and shows the host's result; toggle Mode: net and check the pre-fill drops by the core weight; an unknown tag offers New / Link on host (or Create on host / Link on host without prefill); stop the host while "Saving" and check the error after 10 s.
 - Without a host connected, scan a Bambu spool and an NTAG: the Flipper shows the UID, the type and for the Bambu tag the material, detailed type, tray hex and "Sectors read 16/16"; Back while "Reading tag" returns to Idle and scanning resumes.
 - Create a Bambuddy API key with inventory read + update and settings read; put the URL (`http://<BAMBUDDY_LAN_IP>:8000`) and key into the Mac host settings or the Python bridge flags.
 - Scan a sealed Bambu spool: confirm all 16 sectors read (no `missing`), save the dump with `--dump-dir protocol/fixtures/tags/`, replace the synthetic fixture with the real one.

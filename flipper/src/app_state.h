@@ -12,8 +12,14 @@
  *
  * On AppEffectSendScan the caller sends proto_encode_scan(&s->scan.tag,
  * s->scan.id); on AppEffectSendIntent it sends
- * intent_encode(intent_store_current(s->intents)) and starts the result
- * timeout, which comes back as AppEventTimeout.
+ * intent_encode(intent_store_current(s->intents)). The caller stamps every
+ * event with its clock (now_ms) and sends AppEventTimeout once
+ * app_result_timed_out() says the `result` is overdue.
+ *
+ * The net/gross mode belongs to the session. It toggles on the Found menu
+ * and on EnterWeight; the EnterWeight pre-fill follows it: gross is the
+ * last gross weight (fallback label + core), net is gross - core (fallback
+ * the label weight).
  */
 #pragma once
 
@@ -23,6 +29,9 @@
 #include "intents.h"
 #include "proto_decode.h"
 #include "tag_dump.h"
+
+/* How long the Flipper waits for a `result` (PROTOCOL.md, Timeouts). */
+#define APP_RESULT_TIMEOUT_MS 10000u
 
 typedef enum {
     AppScreenIdle,
@@ -65,12 +74,13 @@ typedef enum {
     AppEventToggleMode,
     AppEventWeightEntered, /* .grams */
     AppEventResultReceived, /* .result */
-    AppEventTimeout,
+    AppEventTimeout, /* see app_result_timed_out() */
     AppEventBack, /* back, or OK on Done / Error */
 } AppEventType;
 
 typedef struct {
     AppEventType type;
+    uint32_t now_ms; /* the caller's millisecond clock; may wrap */
     union {
         const TagDump* tag;
         const ProtoLookup* lookup;
@@ -91,7 +101,8 @@ typedef struct {
     AppError error; /* on Error */
     bool connected;
     WeightMode mode; /* kept for the whole session */
-    uint16_t weight_default; /* pre-fill of EnterWeight */
+    uint16_t weight_default; /* pre-fill of EnterWeight, follows mode */
+    uint32_t intent_sent_ms; /* now_ms of the event that sent the intent */
     Scan scan; /* the tag on screen */
     ProtoLookup lookup; /* the host's answer for scan */
     ProtoResult result; /* the host's answer for the last intent */
@@ -110,3 +121,7 @@ void app_state_init(
     uint32_t first_intent);
 
 AppEffect app_reduce(AppState* s, const AppEvent* e);
+
+/* True while WaitingResult once APP_RESULT_TIMEOUT_MS have passed since the
+ * intent went out (wrap-safe). */
+bool app_result_timed_out(const AppState* s, uint32_t now_ms);

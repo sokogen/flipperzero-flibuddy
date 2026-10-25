@@ -30,12 +30,26 @@ static void go_result(AppState* s, AppResultKind kind) {
     s->result_kind = kind;
 }
 
-/* Last gross weight when known, else label + core, capped to the input range. */
-static uint16_t weight_default(const ProtoDefaults* d) {
-    if(d->has_gross) return d->gross;
-    if(!d->has_label) return 0;
-    unsigned sum = (unsigned)d->label + (d->has_core ? d->core : 0);
-    return (uint16_t)(sum > PROTO_GRAMS_MAX ? PROTO_GRAMS_MAX : sum);
+static uint16_t cap_grams(unsigned grams) {
+    return (uint16_t)(grams > PROTO_GRAMS_MAX ? PROTO_GRAMS_MAX : grams);
+}
+
+/* Gross: the last gross weight when known, else label + core. Net: gross -
+ * core (0 when below the core), else the label weight. Capped to the input
+ * range; 0 when nothing is known. */
+static uint16_t weight_default(const ProtoDefaults* d, WeightMode mode) {
+    unsigned core = d->has_core ? d->core : 0;
+    if(mode == WeightModeNet) {
+        if(d->has_gross) return cap_grams(d->gross > core ? d->gross - core : 0);
+        return d->has_label ? cap_grams(d->label) : 0;
+    }
+    if(d->has_gross) return cap_grams(d->gross);
+    return d->has_label ? cap_grams((unsigned)d->label + core) : 0;
+}
+
+static void toggle_mode(AppState* s) {
+    s->mode = s->mode == WeightModeGross ? WeightModeNet : WeightModeGross;
+    s->weight_default = weight_default(&s->lookup.defaults, s->mode);
 }
 
 static AppEffect on_tag_read(AppState* s, const TagDump* tag) {
@@ -70,14 +84,15 @@ static void on_lookup(AppState* s, const ProtoLookup* lookup) {
     }
 }
 
-static AppEffect send_intent(AppState* s, const Intent* intent) {
+static AppEffect send_intent(AppState* s, const Intent* intent, uint32_t now_ms) {
     if(!intent_store_put(s->intents, intent)) return AppEffectNone;
     memset(&s->result, 0, sizeof(s->result));
     s->screen = AppScreenWaitingResult;
+    s->intent_sent_ms = now_ms;
     return AppEffectSendIntent;
 }
 
-static AppEffect on_menu_action(AppState* s, IntentAction action) {
+static AppEffect on_menu_action(AppState* s, IntentAction action, uint32_t now_ms) {
     bool offered = false;
     switch(s->result_kind) {
     case AppResultUnknownPrefill:
@@ -92,13 +107,13 @@ static AppEffect on_menu_action(AppState* s, IntentAction action) {
     }
     if(!offered || !s->connected) return AppEffectNone;
     if(!intent_new_action(&s->draft, &s->intent_ids, &s->scan, action)) return AppEffectNone;
-    return send_intent(s, &s->draft);
+    return send_intent(s, &s->draft, now_ms);
 }
 
-static AppEffect on_weight(AppState* s, uint16_t grams) {
+static AppEffect on_weight(AppState* s, uint16_t grams, uint32_t now_ms) {
     if(!s->connected) return AppEffectNone;
     if(!intent_new_weigh(&s->draft, &s->intent_ids, &s->scan, grams, s->mode)) return AppEffectNone;
-    return send_intent(s, &s->draft);
+    return send_intent(s, &s->draft, now_ms);
 }
 
 static void on_result(AppState* s, const ProtoResult* result) {
@@ -161,16 +176,19 @@ static AppEffect reduce_result(AppState* s, const AppEvent* e) {
     switch(e->type) {
     case AppEventMenuWeigh:
         if(s->result_kind == AppResultFound && s->connected) {
-            s->weight_default = weight_default(&s->lookup.defaults);
+            s->weight_default = weight_default(&s->lookup.defaults, s->mode);
             s->screen = AppScreenEnterWeight;
         }
         break;
+    case AppEventToggleMode:
+        if(s->result_kind == AppResultFound) toggle_mode(s);
+        break;
     case AppEventMenuNew:
-        return on_menu_action(s, IntentActionNew);
+        return on_menu_action(s, IntentActionNew, e->now_ms);
     case AppEventMenuCreateOnHost:
-        return on_menu_action(s, IntentActionCreateOnHost);
+        return on_menu_action(s, IntentActionCreateOnHost, e->now_ms);
     case AppEventMenuLinkOnHost:
-        return on_menu_action(s, IntentActionLinkOnHost);
+        return on_menu_action(s, IntentActionLinkOnHost, e->now_ms);
     case AppEventBack:
         go_idle(s);
         break;
@@ -183,10 +201,10 @@ static AppEffect reduce_result(AppState* s, const AppEvent* e) {
 static AppEffect reduce_enter_weight(AppState* s, const AppEvent* e) {
     switch(e->type) {
     case AppEventToggleMode:
-        s->mode = s->mode == WeightModeGross ? WeightModeNet : WeightModeGross;
+        toggle_mode(s);
         break;
     case AppEventWeightEntered:
-        return on_weight(s, e->grams);
+        return on_weight(s, e->grams, e->now_ms);
     case AppEventBack:
         s->screen = AppScreenResult;
         break;
@@ -232,4 +250,9 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         break;
     }
     return AppEffectNone;
+}
+
+bool app_result_timed_out(const AppState* s, uint32_t now_ms) {
+    return s->screen == AppScreenWaitingResult &&
+           (uint32_t)(now_ms - s->intent_sent_ms) >= APP_RESULT_TIMEOUT_MS;
 }

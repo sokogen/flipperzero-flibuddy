@@ -5,10 +5,12 @@
 
 #include <gui/scene_manager.h>
 
-#define SPOOLBUDDY_SCENES(X) \
-    X(idle, Idle)            \
-    X(reading, Reading)      \
-    X(result, Result)        \
+#define SPOOLBUDDY_SCENES(X)     \
+    X(idle, Idle)                \
+    X(reading, Reading)          \
+    X(result, Result)            \
+    X(enter_weight, EnterWeight) \
+    X(waiting, Waiting)          \
     X(done, Done)
 
 #define SPOOLBUDDY_SCENE_ENUM(name, Name) SpoolBuddyScene##Name,
@@ -17,8 +19,8 @@ typedef enum {
 } SpoolBuddyScene;
 #undef SPOOLBUDDY_SCENE_ENUM
 
-#define SPOOLBUDDY_SCENE_DECLARE(name, Name)                                  \
-    void spoolbuddy_scene_##name##_on_enter(void* ctx);                     \
+#define SPOOLBUDDY_SCENE_DECLARE(name, Name)                                     \
+    void spoolbuddy_scene_##name##_on_enter(void* ctx);                          \
     bool spoolbuddy_scene_##name##_on_event(void* ctx, SceneManagerEvent event); \
     void spoolbuddy_scene_##name##_on_exit(void* ctx);
 SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_DECLARE)

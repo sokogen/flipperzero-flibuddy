@@ -34,8 +34,17 @@ static AppEffect send_result(const ProtoResult* result) {
     return app_reduce(&app, &e);
 }
 
+static AppEffect send_weight_at(uint16_t grams, uint32_t now_ms) {
+    AppEvent e = {.type = AppEventWeightEntered, .now_ms = now_ms, .grams = grams};
+    return app_reduce(&app, &e);
+}
+
 static AppEffect send_weight(uint16_t grams) {
-    AppEvent e = {.type = AppEventWeightEntered, .grams = grams};
+    return send_weight_at(grams, 0);
+}
+
+static AppEffect send_at(AppEventType type, uint32_t now_ms) {
+    AppEvent e = {.type = type, .now_ms = now_ms};
     return app_reduce(&app, &e);
 }
 
@@ -444,10 +453,136 @@ static void test_mode_toggle_persists_across_scans(void) {
     CHECK(app.mode == WeightModeNet);
     send(AppEventToggleMode);
     CHECK(app.mode == WeightModeGross);
-    /* The toggle belongs to the weight screen. */
+}
+
+static void test_mode_toggles_from_the_found_menu(void) {
+    setup();
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_found.json"));
+    CHECK(send(AppEventToggleMode) == AppEffectNone);
+    CHECK(app.mode == WeightModeNet);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultFound);
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 484); /* gross 734 - core 250 */
     send(AppEventBack);
     CHECK(send(AppEventToggleMode) == AppEffectNone);
     CHECK(app.mode == WeightModeGross);
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 734);
+}
+
+static void test_mode_toggle_only_where_weighing_is_offered(void) {
+    setup();
+    CHECK(send(AppEventToggleMode) == AppEffectNone); /* Idle */
+    CHECK(app.mode == WeightModeGross);
+    scan_mfc();
+    CHECK(send(AppEventToggleMode) == AppEffectNone); /* WaitingLookup */
+    CHECK(app.mode == WeightModeGross);
+    send_lookup(fixture_lookup("lookup_unknown.json"));
+    CHECK(send(AppEventToggleMode) == AppEffectNone);
+    CHECK(app.mode == WeightModeGross);
+    send(AppEventMenuNew);
+    CHECK(send(AppEventToggleMode) == AppEffectNone); /* WaitingResult */
+    CHECK(app.mode == WeightModeGross);
+
+    setup();
+    send(AppEventHostLost);
+    send(AppEventTagDetected);
+    send_tag(&mfc);
+    CHECK(app.result_kind == AppResultNoHost);
+    CHECK(send(AppEventToggleMode) == AppEffectNone);
+    CHECK(app.mode == WeightModeGross);
+}
+
+static void test_toggle_on_enter_weight_updates_the_default(void) {
+    setup();
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_found.json"));
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 734);
+    send(AppEventToggleMode);
+    CHECK_EQ_INT(app.weight_default, 484);
+    send(AppEventToggleMode);
+    CHECK_EQ_INT(app.weight_default, 734);
+}
+
+static void test_net_weight_default(void) {
+    ProtoLookup l = lookup_with(ProtoLookupFound, false);
+    l.defaults.has_gross = true;
+    l.defaults.gross = 200;
+    l.defaults.has_core = true;
+    l.defaults.core = 250;
+    l.defaults.has_label = true;
+    l.defaults.label = 1000;
+
+    /* gross below the core clamps to 0 */
+    setup();
+    send(AppEventToggleMode); /* ignored on Idle */
+    scan_mfc();
+    send_lookup(&l);
+    send(AppEventToggleMode);
+    send(AppEventMenuWeigh);
+    CHECK(app.mode == WeightModeNet);
+    CHECK_EQ_INT(app.weight_default, 0);
+
+    /* without a core the gross is all there is */
+    setup();
+    scan_mfc();
+    l.defaults.has_core = false;
+    send_lookup(&l);
+    send(AppEventToggleMode);
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 200);
+
+    /* without a gross: the label weight */
+    setup();
+    scan_mfc();
+    l.defaults.has_gross = false;
+    l.defaults.has_core = true;
+    send_lookup(&l);
+    send(AppEventToggleMode);
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 1000);
+
+    /* nothing known */
+    setup();
+    scan_mfc();
+    l = lookup_with(ProtoLookupFound, false);
+    send_lookup(&l);
+    send(AppEventToggleMode);
+    send(AppEventMenuWeigh);
+    CHECK_EQ_INT(app.weight_default, 0);
+}
+
+static void test_result_times_out_after_10_s(void) {
+    setup();
+    CHECK(!app_result_timed_out(&app, 60000)); /* nothing in flight */
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_found.json"));
+    send(AppEventMenuWeigh);
+    CHECK(!app_result_timed_out(&app, 60000)); /* not sent yet */
+    CHECK(send_weight_at(600, 5000) == AppEffectSendIntent);
+    CHECK(!app_result_timed_out(&app, 5000));
+    CHECK(!app_result_timed_out(&app, 5000 + APP_RESULT_TIMEOUT_MS - 1));
+    CHECK(app_result_timed_out(&app, 5000 + APP_RESULT_TIMEOUT_MS));
+    CHECK_EQ_INT(APP_RESULT_TIMEOUT_MS, 10000);
+    send(AppEventTimeout);
+    CHECK(app.screen == AppScreenError);
+    CHECK(!app_result_timed_out(&app, 5000 + APP_RESULT_TIMEOUT_MS));
+}
+
+static void test_result_timeout_for_menu_intents_and_tick_wrap(void) {
+    setup();
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_unknown.json"));
+    CHECK(send_at(AppEventMenuNew, UINT32_MAX - 999) == AppEffectSendIntent);
+    CHECK(!app_result_timed_out(&app, 8999)); /* 9999 ms after, past the wrap */
+    CHECK(app_result_timed_out(&app, 9000));
+    ProtoResult ok = result_for("i-000003", true);
+    send_result(&ok);
+    CHECK(app.screen == AppScreenDone);
+    CHECK(!app_result_timed_out(&app, 9000));
 }
 
 int main(void) {
@@ -472,5 +607,11 @@ int main(void) {
     RUN_TEST(test_weight_out_of_range_is_ignored);
     RUN_TEST(test_weight_default_falls_back_to_label_plus_core);
     RUN_TEST(test_mode_toggle_persists_across_scans);
+    RUN_TEST(test_mode_toggles_from_the_found_menu);
+    RUN_TEST(test_mode_toggle_only_where_weighing_is_offered);
+    RUN_TEST(test_toggle_on_enter_weight_updates_the_default);
+    RUN_TEST(test_net_weight_default);
+    RUN_TEST(test_result_times_out_after_10_s);
+    RUN_TEST(test_result_timeout_for_menu_intents_and_tick_wrap);
     return MINITEST_RESULT();
 }

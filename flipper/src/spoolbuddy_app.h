@@ -16,6 +16,8 @@
 
 #include <furi.h>
 #include <gui/gui.h>
+#include <gui/modules/number_input.h>
+#include <gui/modules/submenu.h>
 #include <gui/modules/widget.h>
 #include <gui/scene_manager.h>
 #include <gui/view_dispatcher.h>
@@ -25,13 +27,16 @@
 #include "intents.h"
 #include "nfc_read.h"
 #include "proto_decode.h"
+#include "screen_text.h"
 #include "transport.h"
 
 #define SPOOLBUDDY_HELLO_APP "spoolbuddy-fap/0.1.0"
-#define SPOOLBUDDY_TEXT_MAX 256 /* tag summary or host lines on screen */
+#define SPOOLBUDDY_TEXT_MAX (SCREEN_TEXT_MAX + 16) /* screen text and a title */
 
 typedef enum {
     SpoolBuddyViewWidget,
+    SpoolBuddyViewSubmenu,
+    SpoolBuddyViewNumberInput,
 } SpoolBuddyView;
 
 typedef enum {
@@ -41,6 +46,8 @@ typedef enum {
     SpoolBuddyEventTagRead, /* NFC worker, read_dump is filled */
     SpoolBuddyEventReadFailed, /* NFC worker */
     SpoolBuddyEventOk, /* OK button of a widget */
+    SpoolBuddyEventWeightEntered, /* number input, entered_grams is set */
+    SpoolBuddyEventMenuItem = 200, /* + the index of the chosen submenu item */
 } SpoolBuddyEvent;
 
 typedef struct {
@@ -48,6 +55,8 @@ typedef struct {
     ViewDispatcher* view_dispatcher;
     SceneManager* scene_manager;
     Widget* widget;
+    Submenu* submenu;
+    NumberInput* number_input;
 
     Transport* transport;
     FuriMessageQueue* rx_queue; /* ProtoMessage */
@@ -58,6 +67,8 @@ typedef struct {
     TagReader* reader;
     TagDump* read_dump;
     char text[SPOOLBUDDY_TEXT_MAX];
+    uint32_t menu_item; /* last chosen submenu item, kept across redraws */
+    int32_t entered_grams;
 
     HostLink link;
     bool port_open;
@@ -65,8 +76,9 @@ typedef struct {
     SingleSlotIntentStore intents;
 } SpoolBuddyApp;
 
-/* Applies an event to the state, performs its effect and shows the scene
- * of the new screen (or redraws the current one). */
+/* Stamps the event with the clock, applies it to the state, performs its
+ * effect and shows the scene of the new screen (or redraws the current
+ * one). */
 void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event);
 
 /* Shorthand for events without data. */

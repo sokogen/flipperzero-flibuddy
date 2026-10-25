@@ -21,6 +21,9 @@ static void render(SpoolBuddyApp* app) {
 
 void spoolbuddy_scene_idle_on_enter(void* ctx) {
     SpoolBuddyApp* app = ctx;
+    /* the next result opens on its text */
+    scene_manager_set_scene_state(app->scene_manager, SpoolBuddySceneResult, 0);
+    app->menu_item = 0;
     render(app);
     view_dispatcher_switch_to_view(app->view_dispatcher, SpoolBuddyViewWidget);
 }

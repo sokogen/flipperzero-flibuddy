@@ -3,36 +3,15 @@
 #include "scenes.h"
 #include "spoolbuddy_app.h"
 
-static const char* error_text(const AppState* s) {
-    switch(s->error) {
-    case AppErrorReadFailed:
-        return "Could not read the tag";
-    case AppErrorLookup:
-        return s->lookup.error[0] ? s->lookup.error : "Lookup failed";
-    case AppErrorHost:
-        return s->result.error[0] ? s->result.error : "Not saved";
-    case AppErrorTimeout:
-        return "No answer from the host";
-    case AppErrorHostLost:
-        return "Host disconnected";
-    case AppErrorNone:
-        break;
-    }
-    return "Error";
-}
-
-/* Done: the host's result lines. Error: what went wrong. */
+/* Done: the host's result lines. Error: what went wrong, under a title. */
 static void build_text(SpoolBuddyApp* app) {
-    const AppState* s = &app->state;
-    if(s->screen == AppScreenError) {
-        snprintf(app->text, sizeof(app->text), "\e#Error\n%s", error_text(s));
-        return;
+    static const char title[] = "\e#Error\n";
+    size_t head = 0;
+    if(app->state.screen == AppScreenError) {
+        memcpy(app->text, title, sizeof(title) - 1);
+        head = sizeof(title) - 1;
     }
-    app->text[0] = '\0';
-    for(uint8_t i = 0; i < s->result.lines.count; i++) {
-        if(i > 0) strlcat(app->text, "\n", sizeof(app->text));
-        strlcat(app->text, s->result.lines.line[i], sizeof(app->text));
-    }
+    screen_outcome_text(&app->state, app->text + head, sizeof(app->text) - head);
 }
 
 static void on_button(GuiButtonType button, InputType type, void* ctx) {
