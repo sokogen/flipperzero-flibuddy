@@ -12,5 +12,10 @@ uv run python -m fixtures.make_ntag_dump
 uv run python -m fixtures.make_message_fixtures
 ```
 
+`uv run python -m fixtures.make_key_vectors` writes the crypto known-answer
+vectors (SHA-256, HMAC RFC 4231, HKDF RFC 5869, Bambu keys for two UIDs) to
+`flipper/tests/vectors/bambu_keys.h`; `tests/test_bambu_keys.py` checks the
+same tables and fails when the header is stale.
+
 `tests/test_fixtures.py` fails when a committed fixture differs from what
 its generator produces.

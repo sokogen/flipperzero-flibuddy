@@ -4,3 +4,4 @@ host/.build/
 .venv/
 __pycache__/
 .DS_Store
+flipper/tests/build/

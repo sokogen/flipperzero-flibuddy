@@ -138,12 +138,13 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] ➕ `tools/bambu_keys.py` (`hkdf_sha256`, `derive_keys`) created here because the synthetic dump needs derived Key A in its trailers; RFC 5869 case 1 tested in `test_fixtures.py`. Task 3 adds the remaining vectors, its own test module and the C header generator
 
 ### Task 3: Bambu key derivation in C (SHA-256, HMAC, HKDF)
-- [ ] write `tools/bambu_keys.py` (port of the daemon's `hkdf_derive_keys`) and `tools/tests/test_bambu_keys.py` with vectors: SHA-256 and HMAC RFC 4231 cases, HKDF RFC 5869 test case 1, and two UIDs → 16 keys each; emit `flipper/tests/vectors/bambu_keys.h` from a script `tools/fixtures/make_key_vectors.py`
-- [ ] write `flipper/tests/test_bambu_keys.c` first (TDD): SHA-256 known answers, HMAC RFC 4231, HKDF RFC 5869 case 1, UID → keys equal to the generated vectors
-- [ ] implement `flipper/src/crypto/sha256.{c,h}`, `hmac_sha256.{c,h}` (small, public-domain-style, no dynamic allocation)
-- [ ] implement `flipper/src/bambu_keys.{c,h}`: `bambu_derive_keys(const uint8_t uid[4], uint8_t out[96])` and `bambu_sector_key(const uint8_t keys[96], uint8_t sector, uint8_t out[6])`
-- [ ] write `flipper/tests/Makefile` (`cc -std=c11 -Wall -Wextra -Werror`, builds all `test_*.c` with `../src/**` that have no Flipper dependency, target `test`) and `flipper/tests/minitest.h` (assert macros, counts)
-- [ ] run `make -C flipper/tests test` - must pass before next task
+- [x] write `tools/bambu_keys.py` (port of the daemon's `hkdf_derive_keys`) and `tools/tests/test_bambu_keys.py` with vectors: SHA-256 and HMAC RFC 4231 cases, HKDF RFC 5869 test case 1, and two UIDs → 16 keys each; emit `flipper/tests/vectors/bambu_keys.h` from a script `tools/fixtures/make_key_vectors.py`
+- [x] write `flipper/tests/test_bambu_keys.c` first (TDD): SHA-256 known answers, HMAC RFC 4231, HKDF RFC 5869 case 1, UID → keys equal to the generated vectors
+- [x] implement `flipper/src/crypto/sha256.{c,h}`, `hmac_sha256.{c,h}` (small, public-domain-style, no dynamic allocation)
+- [x] implement `flipper/src/bambu_keys.{c,h}`: `bambu_derive_keys(const uint8_t uid[4], uint8_t out[96])` and `bambu_sector_key(const uint8_t keys[96], uint8_t sector, uint8_t out[6])`
+- [x] write `flipper/tests/Makefile` (`cc -std=c11 -Wall -Wextra -Werror`, builds all `test_*.c` with `../src/**` that have no Flipper dependency, target `test`) and `flipper/tests/minitest.h` (assert macros, counts)
+- [x] run `make -C flipper/tests test` - must pass before next task
+- [x] ➕ HKDF lives in its own `flipper/src/crypto/hkdf_sha256.{c,h}`; crypto symbols carry an `sb_` prefix (`sb_sha256`, `sb_hmac_sha256`, `sb_hkdf_sha256`) to stay clear of any SDK names. Vectors also cover RFC 4231 cases 1-7, RFC 5869 cases 2-3, SHA-256 padding boundaries and one million `a`. The Makefile picks up every `../src/**/*.c` that includes no Flipper SDK header and builds with ASan/UBSan (`SANITIZE=` to disable); objects go to `flipper/tests/build/` (gitignored)
 
 ### Task 4: Tag dump model and `scan` JSON writer (C, host-testable)
 - [ ] write `flipper/tests/test_tag_dump.c` first: a `TagDump` with type `mfc`, UID, SAK, 64 blocks with sector 7 missing serializes to exactly the fixture `protocol/fixtures/messages/scan_mfc.json` (compare after whitespace-insensitive normalization); an `ntag` dump with 135 pages serializes to `scan_ntag.json`; a dump too large for the 8192-byte line buffer returns an error
