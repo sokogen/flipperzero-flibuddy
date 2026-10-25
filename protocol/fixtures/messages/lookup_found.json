@@ -1,0 +1,9 @@
+{
+  "t": "lookup",
+  "v": 1,
+  "scan_id": "s-000012",
+  "status": "found",
+  "spool_id": 42,
+  "lines": ["PLA Basic", "Jade White", "484 g left of 1000", "core 250 g"],
+  "defaults": { "gross": 734, "label": 1000, "core": 250 }
+}

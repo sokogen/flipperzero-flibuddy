@@ -1,0 +1,8 @@
+{
+  "t": "lookup",
+  "v": 1,
+  "scan_id": "s-000012",
+  "status": "error",
+  "lines": ["Bambuddy unreachable"],
+  "error": "connection timed out"
+}

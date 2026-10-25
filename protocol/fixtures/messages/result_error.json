@@ -1,0 +1,8 @@
+{
+  "t": "result",
+  "v": 1,
+  "id": "i-000003",
+  "ok": false,
+  "lines": ["Not saved"],
+  "error": "spool 42 not found"
+}

@@ -1,0 +1,9 @@
+{
+  "t": "lookup",
+  "v": 1,
+  "scan_id": "s-000012",
+  "status": "unknown",
+  "prefill": true,
+  "lines": ["PLA Basic", "#FFFFFFFF", "label 1000 g"],
+  "defaults": { "label": 1000, "core": 250 }
+}

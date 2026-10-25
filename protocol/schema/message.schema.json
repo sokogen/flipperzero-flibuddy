@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:flipper-spoolbuddy:protocol:v1:message",
+  "title": "flipper-spoolbuddy wire message (protocol v1)",
+  "description": "One NDJSON line between the Flipper and the host. The `t` field selects the message type. See protocol/PROTOCOL.md.",
+  "type": "object",
+  "required": ["t", "v"],
+  "properties": {
+    "t": { "enum": ["hello", "scan", "lookup", "intent", "result"] },
+    "v": { "const": 1 }
+  },
+  "allOf": [
+    { "if": { "properties": { "t": { "const": "hello" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/hello" } },
+    { "if": { "properties": { "t": { "const": "scan" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/scan" } },
+    { "if": { "properties": { "t": { "const": "lookup" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/lookup" } },
+    { "if": { "properties": { "t": { "const": "intent" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/intent" } },
+    { "if": { "properties": { "t": { "const": "result" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/result" } }
+  ],
+  "$defs": {
+    "id": {
+      "description": "Opaque identifier chosen by the sender (scan ids `s-NNNNNN`, intent ids `i-NNNNNN` on the Flipper).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{1,32}$"
+    },
+    "grams": { "type": "integer", "minimum": 0, "maximum": 9999 },
+    "line": { "type": "string", "maxLength": 40 },
+    "lines": {
+      "description": "Display strings the Flipper renders verbatim, one per screen line.",
+      "type": "array",
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/line" }
+    },
+    "hexBlock": { "type": "string", "pattern": "^[0-9A-F]{32}$" },
+    "hexPage": { "type": "string", "pattern": "^[0-9A-F]{8}$" },
+
+    "tag": {
+      "description": "Raw tag dump as read by the Flipper. Hex is upper-case.",
+      "type": "object",
+      "required": ["type", "uid", "sak", "atqa"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["mfc", "ntag"] },
+        "uid": { "type": "string", "pattern": "^(?:[0-9A-F]{8}|[0-9A-F]{14}|[0-9A-F]{20})$" },
+        "sak": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "atqa": { "type": "string", "pattern": "^[0-9A-F]{4}$" },
+        "blocks": {
+          "description": "MIFARE Classic data blocks by number (0-63). Sector trailers and blocks of missing sectors are absent.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^(?:[0-9]|[1-5][0-9]|6[0-3])$" },
+          "additionalProperties": { "$ref": "#/$defs/hexBlock" }
+        },
+        "missing": {
+          "description": "MIFARE Classic sectors (0-15) that failed authentication or reading.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0, "maximum": 15 }
+        },
+        "pages": {
+          "description": "NTAG pages by number (0-230).",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^(?:[0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-2][0-9]|230)$" },
+          "additionalProperties": { "$ref": "#/$defs/hexPage" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "mfc" } } },
+          "then": { "required": ["blocks"], "not": { "required": ["pages"] } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "ntag" } } },
+          "then": {
+            "required": ["pages"],
+            "allOf": [
+              { "not": { "required": ["blocks"] } },
+              { "not": { "required": ["missing"] } }
+            ]
+          }
+        }
+      ]
+    },
+
+    "hello": {
+      "description": "First line each side sends after connecting. The Flipper sends `fw`, the host sends `os`.",
+      "type": "object",
+      "required": ["t", "v", "app"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "const": "hello" },
+        "v": { "const": 1 },
+        "app": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "fw": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "os": { "type": "string", "minLength": 1, "maxLength": 40 }
+      },
+      "oneOf": [{ "required": ["fw"] }, { "required": ["os"] }]
+    },
+
+    "scan": {
+      "description": "Flipper -> host: a tag was read.",
+      "type": "object",
+      "required": ["t", "v", "scan_id", "tag"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "const": "scan" },
+        "v": { "const": 1 },
+        "scan_id": { "$ref": "#/$defs/id" },
+        "tag": { "$ref": "#/$defs/tag" }
+      }
+    },
+
+    "lookup": {
+      "description": "Host -> Flipper: what Bambuddy knows about the scanned tag.",
+      "type": "object",
+      "required": ["t", "v", "scan_id", "status", "lines"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "const": "lookup" },
+        "v": { "const": 1 },
+        "scan_id": { "$ref": "#/$defs/id" },
+        "status": { "enum": ["found", "unknown", "error"] },
+        "spool_id": { "type": "integer", "minimum": 1 },
+        "prefill": {
+          "description": "unknown only: the tag carries enough data (material) for the Flipper to offer New.",
+          "type": "boolean"
+        },
+        "lines": { "$ref": "#/$defs/lines" },
+        "defaults": {
+          "description": "Weights for the Enter weight screen: last gross weight, label (filament) weight and core (empty spool) weight.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gross": { "$ref": "#/$defs/grams" },
+            "label": { "$ref": "#/$defs/grams" },
+            "core": { "$ref": "#/$defs/grams" }
+          }
+        },
+        "error": { "type": "string", "minLength": 1, "maxLength": 200 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "found" } } },
+          "then": { "required": ["spool_id"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "error" } } },
+          "then": { "required": ["error"] }
+        }
+      ]
+    },
+
+    "intent": {
+      "description": "Flipper -> host: a user action. Self-contained (repeats the tag) and idempotent by id.",
+      "type": "object",
+      "required": ["t", "v", "id", "scan_id", "action", "tag"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "const": "intent" },
+        "v": { "const": 1 },
+        "id": { "$ref": "#/$defs/id" },
+        "scan_id": { "$ref": "#/$defs/id" },
+        "action": { "enum": ["weigh", "new", "create_on_host", "link_on_host"] },
+        "grams": { "$ref": "#/$defs/grams" },
+        "mode": { "enum": ["net", "gross"] },
+        "tag": { "$ref": "#/$defs/tag" }
+      },
+      "if": { "properties": { "action": { "const": "weigh" } } },
+      "then": { "required": ["grams", "mode"] }
+    },
+
+    "result": {
+      "description": "Host -> Flipper: outcome of the intent with the same id.",
+      "type": "object",
+      "required": ["t", "v", "id", "ok", "lines"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "const": "result" },
+        "v": { "const": 1 },
+        "id": { "$ref": "#/$defs/id" },
+        "ok": { "type": "boolean" },
+        "lines": { "$ref": "#/$defs/lines" },
+        "error": { "type": "string", "minLength": 1, "maxLength": 200 }
+      },
+      "if": { "properties": { "ok": { "const": false } } },
+      "then": { "required": ["error"] }
+    }
+  }
+}

@@ -127,13 +127,15 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] make the initial commit
 
 ### Task 2: Protocol contract: PROTOCOL.md, JSON schema, fixtures
-- [ ] write `protocol/PROTOCOL.md`: NDJSON framing, `v: 1`, `hello` handshake, messages `scan`, `lookup`, `intent`, `result` with every field and its type, max line length 8192 bytes, examples
-- [ ] write `protocol/schema/message.schema.json` (one schema with a `t` discriminator covering all five messages; `intent.action` enum `weigh|new|create_on_host|link_on_host`; `mode` enum `net|gross`; `tag.type` enum `mfc|ntag`)
-- [ ] write `tools/fixtures/make_bambu_dump.py` that builds a synthetic MIFARE Classic 1K dump from the documented layout (block 1 variant/material ids, block 2 filament type, block 4 detailed type, block 5 RGBA + label weight uint16 LE + diameter float32, block 6 temps, block 9 tray UID 16 bytes, trailers with derived Key A) and writes `protocol/fixtures/tags/bambu_pla_basic_synthetic.json`
-- [ ] write `protocol/fixtures/tags/ntag215_blank.json` (UID + pages)
-- [ ] write `protocol/fixtures/messages/*.json`: one valid example per message type plus `invalid_missing_t.json`, `invalid_bad_action.json`
-- [ ] write `tools/tests/test_fixtures.py` (TDD: fails until fixtures exist): every `messages/*.json` validates or fails against the schema as its name says; every `tags/*.json` has `uid`, `type`, and either 64 `blocks` or `pages`
-- [ ] run `cd tools && uv run pytest` - must pass before next task
+- [x] write `protocol/PROTOCOL.md`: NDJSON framing, `v: 1`, `hello` handshake, messages `scan`, `lookup`, `intent`, `result` with every field and its type, max line length 8192 bytes, examples
+- [x] write `protocol/schema/message.schema.json` (one schema with a `t` discriminator covering all five messages; `intent.action` enum `weigh|new|create_on_host|link_on_host`; `mode` enum `net|gross`; `tag.type` enum `mfc|ntag`)
+- [x] write `tools/fixtures/make_bambu_dump.py` that builds a synthetic MIFARE Classic 1K dump from the documented layout (block 1 variant/material ids, block 2 filament type, block 4 detailed type, block 5 RGBA + label weight uint16 LE + diameter float32, block 6 temps, block 9 tray UID 16 bytes, trailers with derived Key A) and writes `protocol/fixtures/tags/bambu_pla_basic_synthetic.json`
+- [x] write `protocol/fixtures/tags/ntag215_blank.json` (UID + pages)
+- [x] write `protocol/fixtures/messages/*.json`: one valid example per message type plus `invalid_missing_t.json`, `invalid_bad_action.json`
+- [x] write `tools/tests/test_fixtures.py` (TDD: fails until fixtures exist): every `messages/*.json` validates or fails against the schema as its name says; every `tags/*.json` has `uid`, `type`, and either 64 `blocks` or `pages`
+- [x] run `cd tools && uv run pytest` - must pass before next task
+- [x] ➕ `tools/fixtures/make_ntag_dump.py` and `tools/fixtures/make_message_fixtures.py` generate the NTAG dump and the `scan_*`/`intent_*` messages (they embed whole dumps); `test_fixtures.py` fails when a committed fixture is stale
+- [x] ➕ `tools/bambu_keys.py` (`hkdf_sha256`, `derive_keys`) created here because the synthetic dump needs derived Key A in its trailers; RFC 5869 case 1 tested in `test_fixtures.py`. Task 3 adds the remaining vectors, its own test module and the C header generator
 
 ### Task 3: Bambu key derivation in C (SHA-256, HMAC, HKDF)
 - [ ] write `tools/bambu_keys.py` (port of the daemon's `hkdf_derive_keys`) and `tools/tests/test_bambu_keys.py` with vectors: SHA-256 and HMAC RFC 4231 cases, HKDF RFC 5869 test case 1, and two UIDs → 16 keys each; emit `flipper/tests/vectors/bambu_keys.h` from a script `tools/fixtures/make_key_vectors.py`
