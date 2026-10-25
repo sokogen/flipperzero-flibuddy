@@ -90,17 +90,15 @@ static AppEffect on_menu_action(AppState* s, IntentAction action) {
     case AppResultNoHost:
         break;
     }
-    Intent intent;
     if(!offered || !s->connected) return AppEffectNone;
-    if(!intent_new_action(&intent, &s->intent_ids, &s->scan, action)) return AppEffectNone;
-    return send_intent(s, &intent);
+    if(!intent_new_action(&s->draft, &s->intent_ids, &s->scan, action)) return AppEffectNone;
+    return send_intent(s, &s->draft);
 }
 
 static AppEffect on_weight(AppState* s, uint16_t grams) {
-    Intent intent;
     if(!s->connected) return AppEffectNone;
-    if(!intent_new_weigh(&intent, &s->intent_ids, &s->scan, grams, s->mode)) return AppEffectNone;
-    return send_intent(s, &intent);
+    if(!intent_new_weigh(&s->draft, &s->intent_ids, &s->scan, grams, s->mode)) return AppEffectNone;
+    return send_intent(s, &s->draft);
 }
 
 static void on_result(AppState* s, const ProtoResult* result) {

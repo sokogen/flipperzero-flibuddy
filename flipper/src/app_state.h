@@ -98,6 +98,7 @@ typedef struct {
     IdSeq scan_ids;
     IdSeq intent_ids;
     IntentStore* intents;
+    Intent draft; /* scratch for the intent being built: too big for the 4 KB app stack */
 } AppState;
 
 /* Idle, no host, gross mode. `first_scan` and `first_intent` seed the id

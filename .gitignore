@@ -1,5 +1,6 @@
 flipper/.ufbt/
 flipper/dist/
+flipper/.vscode/
 host/.build/
 .venv/
 __pycache__/

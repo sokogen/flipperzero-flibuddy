@@ -187,6 +187,21 @@ static void test_single_slot_store_replaces_the_intent_in_flight(void) {
     CHECK(intent_store_resolve(store, "i-000002"));
 }
 
+static void test_id_seed_from_time(void) {
+    /* a thousand ids per second of the previous run before a reuse */
+    CHECK_EQ_INT(id_seed_from_time(0), 0);
+    CHECK_EQ_INT(id_seed_from_time(1), 1000);
+    CHECK_EQ_INT(id_seed_from_time(1793000123), 123000);
+    CHECK_EQ_INT(id_seed_from_time(1793999999), 999999000);
+    CHECK_EQ_INT(id_seed_from_time(UINT32_MAX), 967295000);
+
+    IdSeq seq;
+    char id[PROTO_ID_MAX + 1];
+    id_seq_init(&seq, 's', id_seed_from_time(1793999999));
+    CHECK(id_seq_next(&seq, id));
+    CHECK_STR_EQ(id, "s-999999000");
+}
+
 int main(void) {
     RUN_TEST(test_id_seq_formats_zero_padded_counter);
     RUN_TEST(test_weigh_matches_fixture);
@@ -198,5 +213,6 @@ int main(void) {
     RUN_TEST(test_largest_intent_fits_in_a_line);
     RUN_TEST(test_single_slot_store_resolves_matching_result_only);
     RUN_TEST(test_single_slot_store_replaces_the_intent_in_flight);
+    RUN_TEST(test_id_seed_from_time);
     return MINITEST_RESULT();
 }

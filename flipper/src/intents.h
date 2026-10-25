@@ -34,6 +34,11 @@ typedef struct {
 
 void id_seq_init(IdSeq* seq, char prefix, uint32_t first);
 
+/* A first counter value from the RTC: (seconds mod 10^6) * 1000. A new run
+ * reuses no id of an earlier run that issued fewer than a thousand ids per
+ * second it ran, until the seed wraps after about 11.5 days. */
+uint32_t id_seed_from_time(uint32_t unix_seconds);
+
 /* Writes the next id into `out` and advances the counter (wrapping at
  * UINT32_MAX); false when the prefix makes it an invalid protocol id. */
 bool id_seq_next(IdSeq* seq, char out[PROTO_ID_MAX + 1]);

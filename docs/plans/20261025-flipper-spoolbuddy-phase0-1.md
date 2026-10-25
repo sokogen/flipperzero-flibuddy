@@ -175,13 +175,19 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ moved `PROTO_GRAMS_MAX` to `proto_encode.h` and made `proto_line_cap()` public for the intent encoder; test dump loaders shared via `flipper/tests/dump_loaders.h`
 
 ### Task 7: FAP skeleton with ufbt, USB CDC transport, idle screen
-- [ ] create `flipper/application.fam` (appid `spoolbuddy`, category Tools, entry `spoolbuddy_app`, icon placeholder, `fap_version`, stack 4 KB), `flipper/.env` via `ufbt dotenv_create`, `ufbt update --branch=1.5.1`
-- [ ] implement `flipper/src/transport.h` interface (`open`, `close`, `send_line`, `set_rx_callback`, `is_connected`) and `flipper/src/transport_usb.c` using `furi_hal_usb_set_config(&usb_cdc_single)`, `furi_hal_cdc_set_callbacks`, a 8192-byte RX line accumulator, restore previous USB config on close
-- [ ] implement `flipper/src/line_buffer.{c,h}` (accumulate bytes, emit complete lines, drop over-long lines) with `flipper/tests/test_line_buffer.c` written first (split packets, two lines in one packet, CRLF, overflow)
-- [ ] implement `flipper/src/spoolbuddy_app.c`: view dispatcher, scene manager, `Idle` scene (widget: "Hold a spool to the back", status line `USB` / `no host` from transport state + received `hello`)
-- [ ] send `hello` on connect; treat a host `hello` within 2 s as connected
-- [ ] `ufbt` build succeeds (`cd flipper && ufbt`), produces `dist/spoolbuddy.fap`
-- [ ] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- [x] create `flipper/application.fam` (appid `spoolbuddy`, category Tools, entry `spoolbuddy_app`, icon placeholder, `fap_version`, stack 4 KB), `flipper/.env` via `ufbt dotenv_create`, `ufbt update --branch=1.5.1`
+- [x] implement `flipper/src/transport.h` interface (`open`, `close`, `send_line`, `set_rx_callback`, `is_connected`) and `flipper/src/transport_usb.c` using `furi_hal_usb_set_config(&usb_cdc_single)`, `furi_hal_cdc_set_callbacks`, a 8192-byte RX line accumulator, restore previous USB config on close
+- [x] implement `flipper/src/line_buffer.{c,h}` (accumulate bytes, emit complete lines, drop over-long lines) with `flipper/tests/test_line_buffer.c` written first (split packets, two lines in one packet, CRLF, overflow)
+- [x] implement `flipper/src/spoolbuddy_app.c`: view dispatcher, scene manager, `Idle` scene (widget: "Hold a spool to the back", status line `USB` / `no host` from transport state + received `hello`)
+- [x] send `hello` on connect; treat a host `hello` within 2 s as connected
+- [x] `ufbt` build succeeds (`cd flipper && ufbt`), produces `dist/spoolbuddy.fap`
+- [x] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must pass before next task
+- ➕ `flipper/src/host_link.{c,h}`: the `hello` handshake as a pure state machine (Closed → Waiting → Up, or NoHost after 2 s without an answer; a later host `hello` connects and is answered; port close loses the host), with `flipper/tests/test_host_link.c`; the app polls the transport's DTR state every 250 ms
+- ➕ `id_seed_from_time()` in `intents.{c,h}` seeds the scan and intent id counters from the RTC (`(s mod 10^6) * 1000`), tested in `test_intents.c`
+- ➕ `AppState.draft` holds the intent being built: the ~2.2 KB `Intent` local in `app_reduce` was too big for the 4 KB app stack
+- ➕ scenes live in `flipper/src/scenes.h` (X-macro list) and `scene_<name>.c`; every SDK-dependent `.c` includes an SDK header directly so the host test build skips it (noted in `flipper/README.md`)
+- ➕ `transport_usb` disables the CLI VCP (`cli_vcp_disable`) while the app runs and re-enables it on close; packets go out in 64-byte chunks with a zero-length packet after a full last chunk
+- ⚠️ on-device behaviour (USB re-enumeration, DTR detection, hello with a real host) is not verified yet; see Post-Completion
 
 ### Task 8: NFC reading on the Flipper (Bambu MIFARE Classic and NTAG)
 - [ ] implement `flipper/src/nfc_read.{c,h}` behind an interface `tag_reader_read(TagDump*)` : `nfc_scanner` detects ISO14443-3A → `iso14443_3a_poller_sync_read` for UID/SAK/ATQA → SAK `0x08`/`0x18`: derive keys, fill `MfClassicDeviceKeys` (`key_a_mask = 0xFFFF`), `mf_classic_poller_sync_read`, copy readable blocks and mark missing sectors; SAK `0x00`: `mf_ultralight_poller_sync_read_card`, copy pages
@@ -344,6 +350,7 @@ host/Tests/SpoolBuddyCoreTests/*.swift
 
 **Phase 0 manual checks (owner with Flipper, spools and the NAS):**
 - Install ufbt, run `cd flipper && ufbt launch` with the Flipper on USB; confirm firmware 1.5.1 on the device.
+- With the app open, check the USB link: the Mac sees a new `/dev/cu.usbmodemflip_*`, opening it (e.g. `python -m serial.tools.miniterm`) yields the Flipper `hello`, typing a host `hello` line within 2 s turns the Idle status line to `USB`, closing it shows `no host`, and the CLI/qFlipper work again after leaving the app.
 - Create a Bambuddy API key with inventory read + update and settings read; put the URL (`http://<BAMBUDDY_LAN_IP>:8000`) and key into the Mac host settings or the Python bridge flags.
 - Scan a sealed Bambu spool: confirm all 16 sectors read (no `missing`), save the dump with `--dump-dir protocol/fixtures/tags/`, replace the synthetic fixture with the real one.
 - Compare the tray UUID candidates with the `tray_uuid` Bambuddy already holds for a spool an AMS has reported (`GET /inventory/spools`): record which block wins, drop the losing candidate from both parsers, and file an upstream issue on maziggy/bambuddy if the daemon's blocks 4+5 reading is wrong.

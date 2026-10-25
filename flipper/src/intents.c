@@ -8,6 +8,10 @@ void id_seq_init(IdSeq* seq, char prefix, uint32_t first) {
     seq->next = first;
 }
 
+uint32_t id_seed_from_time(uint32_t unix_seconds) {
+    return (unix_seconds % 1000000u) * 1000u;
+}
+
 bool id_seq_next(IdSeq* seq, char out[PROTO_ID_MAX + 1]) {
     snprintf(out, PROTO_ID_MAX + 1, "%c-%06lu", seq->prefix, (unsigned long)seq->next);
     if(!proto_id_valid(out)) return false;
