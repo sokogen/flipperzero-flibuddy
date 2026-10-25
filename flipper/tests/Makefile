@@ -1,6 +1,7 @@
 # Host-compiled unit tests for the parts of flipper/src that do not touch the
 # Flipper SDK. Every test_*.c becomes its own binary linked against every
-# source in ../src that includes no Flipper header.
+# source in ../src that includes no Flipper header. Tests read the shared
+# protocol fixtures through fixture.h (PROTOCOL_DIR).
 #
 #   make test            build and run all tests
 #   make clean
@@ -8,7 +9,7 @@
 CC ?= cc
 CFLAGS ?= -std=c11 -Wall -Wextra -Werror -O1 -g
 SANITIZE ?= -fsanitize=address,undefined -fno-omit-frame-pointer
-CPPFLAGS += -I../src -I.
+CPPFLAGS += -I../src -I. -DPROTOCOL_DIR='"$(abspath $(CURDIR)/../../protocol)"'
 
 BUILD := build
 FLIPPER_HEADERS := '\#include <(furi|furi_hal|gui|nfc|lib/nfc|storage|notification|input|dialogs|toolbox|applications)'

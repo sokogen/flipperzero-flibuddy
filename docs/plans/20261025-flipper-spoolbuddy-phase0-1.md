@@ -147,12 +147,13 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] ➕ HKDF lives in its own `flipper/src/crypto/hkdf_sha256.{c,h}`; crypto symbols carry an `sb_` prefix (`sb_sha256`, `sb_hmac_sha256`, `sb_hkdf_sha256`) to stay clear of any SDK names. Vectors also cover RFC 4231 cases 1-7, RFC 5869 cases 2-3, SHA-256 padding boundaries and one million `a`. The Makefile picks up every `../src/**/*.c` that includes no Flipper SDK header and builds with ASan/UBSan (`SANITIZE=` to disable); objects go to `flipper/tests/build/` (gitignored)
 
 ### Task 4: Tag dump model and `scan` JSON writer (C, host-testable)
-- [ ] write `flipper/tests/test_tag_dump.c` first: a `TagDump` with type `mfc`, UID, SAK, 64 blocks with sector 7 missing serializes to exactly the fixture `protocol/fixtures/messages/scan_mfc.json` (compare after whitespace-insensitive normalization); an `ntag` dump with 135 pages serializes to `scan_ntag.json`; a dump too large for the 8192-byte line buffer returns an error
-- [ ] implement `flipper/src/tag_dump.{c,h}`: `TagDump` struct (type, uid[10]+len, sak, atqa, blocks[64][16], block_present bitmap, pages[231][4], page_count)
-- [ ] implement `flipper/src/json_writer.{c,h}`: append-only writer into a fixed buffer (object/array open-close, string with escaping, int, hex bytes), returns false on overflow
-- [ ] implement `flipper/src/proto_encode.{c,h}`: `proto_encode_scan(const TagDump*, const char* scan_id, char* buf, size_t cap)` and `proto_encode_hello(...)`
-- [ ] add the new tests to `flipper/tests/Makefile`
-- [ ] run `make -C flipper/tests test` - must pass before next task
+- [x] write `flipper/tests/test_tag_dump.c` first: a `TagDump` with type `mfc`, UID, SAK, 64 blocks with sector 7 missing serializes to exactly the fixture `protocol/fixtures/messages/scan_mfc.json` (compare after whitespace-insensitive normalization); an `ntag` dump with 135 pages serializes to `scan_ntag.json`; a dump too large for the 8192-byte line buffer returns an error
+- [x] implement `flipper/src/tag_dump.{c,h}`: `TagDump` struct (type, uid[10]+len, sak, atqa, blocks[64][16], block_present bitmap, pages[231][4], page_count)
+- [x] implement `flipper/src/json_writer.{c,h}`: append-only writer into a fixed buffer (object/array open-close, string with escaping, int, hex bytes), returns false on overflow
+- [x] implement `flipper/src/proto_encode.{c,h}`: `proto_encode_scan(const TagDump*, const char* scan_id, char* buf, size_t cap)` and `proto_encode_hello(...)`
+- [x] add the new tests to `flipper/tests/Makefile`
+- [x] run `make -C flipper/tests test` - must pass before next task
+- [x] ➕ `tools/fixtures/make_tag_vectors.py` emits the tag fixtures as C arrays in `flipper/tests/vectors/tag_dumps.h` (`tools/tests/test_tag_vectors.py` checks it is current); `flipper/tests/fixture.h` reads and compacts protocol fixtures (`PROTOCOL_DIR` passed by the Makefile). `json_writer` also has `json_bool` and its own `test_json_writer.c`; `proto_encode` exposes `proto_write_tag`/`proto_write_header`/`proto_id_valid` for the intent encoder of Task 6. A valid dump can never exceed the line limit (a full NTAG216 is about 4 KB), so the overflow test uses a too-small buffer, and the 8192-byte line cap is tested through an oversized `hello` field; a sector counts as missing unless all three of its data blocks are present
 
 ### Task 5: Minimal JSON reader and `lookup`/`result` decoding (C, host-testable)
 - [ ] write `flipper/tests/test_proto_decode.c` first: decode the fixtures `lookup_found.json`, `lookup_unknown.json`, `lookup_error.json`, `result_ok.json`, `result_error.json` into structs (status, spool_id, up to 4 `lines` of ≤ 40 chars, defaults gross/label/core, error string); unknown `t` → ignored; malformed line → error, no crash; line longer than cap → error
