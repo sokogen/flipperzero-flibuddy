@@ -216,13 +216,16 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ⚠️ on-device behaviour of the menus, the number input and the timeout is not verified yet; see Post-Completion
 
 ### Task 10: Python dev bridge (Phase 0 spike tool)
-- [ ] write `tools/tests/test_bambu_tag.py` first: parse the synthetic fixture → material `PLA`, detailed `PLA Basic`, RGBA, label weight 1000, tray UUID candidates in order [block 9, blocks 4+5]; NTAG fixture → UID only
-- [ ] implement `tools/bridge/bambu_tag.py` (pure parser, mirrors the Swift one later)
-- [ ] write `tools/tests/test_bambuddy.py` first using `httpx.MockTransport`: `find_by_tag` tries candidates then UID, 404 → `None`; `update_weight` posts gross; `net_to_gross`; `spoolman_enabled` check
-- [ ] implement `tools/bridge/bambuddy.py` (httpx client with `X-API-Key`)
-- [ ] implement `tools/bridge/__main__.py`: `--port /dev/cu.usbmodem*` (auto-detect `flip_`), `--bambuddy URL`, `--api-key`, reads NDJSON, answers `hello`, on `scan` prints the parsed tag and the lookup, answers `lookup`; on `intent` performs it and answers `result`; `--dump-dir` saves every scan as a fixture file
-- [ ] write `tools/tests/test_bridge_protocol.py` first: feeding the fixture `scan_mfc.json` line through the handler yields a `lookup` line that validates against the schema; an `intent` with an already-seen id returns the cached `result`
-- [ ] run `cd tools && uv run pytest` - must pass before next task
+- [x] write `tools/tests/test_bambu_tag.py` first: parse the synthetic fixture → material `PLA`, detailed `PLA Basic`, RGBA, label weight 1000, tray UUID candidates in order [block 9, blocks 4+5]; NTAG fixture → UID only
+- [x] implement `tools/bridge/bambu_tag.py` (pure parser, mirrors the Swift one later)
+- [x] write `tools/tests/test_bambuddy.py` first using `httpx.MockTransport`: `find_by_tag` tries candidates then UID, 404 → `None`; `update_weight` posts gross; `net_to_gross`; `spoolman_enabled` check
+- [x] implement `tools/bridge/bambuddy.py` (httpx client with `X-API-Key`)
+- [x] implement `tools/bridge/__main__.py`: `--port /dev/cu.usbmodem*` (auto-detect `flip_`), `--bambuddy URL`, `--api-key`, reads NDJSON, answers `hello`, on `scan` prints the parsed tag and the lookup, answers `lookup`; on `intent` performs it and answers `result`; `--dump-dir` saves every scan as a fixture file
+- [x] write `tools/tests/test_bridge_protocol.py` first: feeding the fixture `scan_mfc.json` line through the handler yields a `lookup` line that validates against the schema; an `intent` with an already-seen id returns the cached `result`
+- [x] run `cd tools && uv run pytest` - must pass before next task
+- [x] ➕ protocol handling lives in `tools/bridge/session.py` (`Bridge`, `LineFramer`, `find_flipper_port`, `dump_fixture`); `__main__.py` is only the CLI and serial loop, tested in `tools/tests/test_bridge_main.py` with a fake port (hello first, Spoolman refusal, missing permission, no Flipper)
+- [x] ➕ blocks 4+5 candidate follows the daemon exactly (`_extract_tray_uuid` in maziggy/bambuddy `spoolbuddy/daemon/nfc_reader.py`): first 32 ASCII hex chars of blocks 4+5, else block 4 raw hex; all-zero values skipped, duplicates collapsed. For the synthetic fixture (`PLA Basic` in block 4) that is block 4 raw hex
+- [x] ➕ `new` refuses when the tag already matches a spool (no duplicates); `tag_type` is `bambulab` / `ntag` (Bambuddy model comment: tag vendor); only successful or definitive results are cached, transient Bambuddy errors are retried on a repeated id
 
 ### Task 11: Swift package skeleton and protocol models
 - [ ] create `host/Package.swift` (swift-tools 6.0, macOS 14+): library `SpoolBuddyCore`, executable `SpoolBuddyMac` (SwiftUI `@main`), test target `SpoolBuddyCoreTests`; no third-party dependencies
@@ -233,6 +236,7 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 
 ### Task 12: Swift tag parser
 - [ ] write `TagParserTests.swift` first: synthetic Bambu fixture → `ParsedTag(kind: .bambu, uid, trayUuidCandidates: [block9, blocks4+5], material: "PLA", detailedType: "PLA Basic", rgba: "RRGGBBAA", labelWeight: 1000, nozzleMin/Max, dryingTemp)`; missing sector 1 → material `nil` and `hasPrefill == false`; NTAG fixture → `.ntag` with UID and `hasPrefill == false`
+- ⚠️ block 2 (material) is in sector 0, so a missing sector 1 drops detailed type, RGBA and label weight but not `material`; the Python test uses missing sector 0 for "no material, no prefill" — do the same in Swift
 - [ ] implement `Sources/SpoolBuddyCore/Tags/TagParser.swift` and `ParsedTag.swift` (pure functions, byte-exact per the layout in the design)
 - [ ] implement display helpers `ParsedTag.displayLines` (≤ 4 lines, ≤ 40 chars, used for the Flipper `lookup.lines`)
 - [ ] run `cd host && swift test` - must pass before next task

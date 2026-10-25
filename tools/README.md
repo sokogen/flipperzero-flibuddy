@@ -24,3 +24,30 @@ stale.
 
 `tests/test_fixtures.py` fails when a committed fixture differs from what
 its generator produces.
+
+## Dev bridge
+
+`bridge/` connects the Flipper app to Bambuddy over USB serial, for the
+Phase 0 spike and for debugging the protocol without the Mac host:
+
+```
+uv run python -m bridge --bambuddy http://<BAMBUDDY_LAN_IP>:8000 --api-key bb_...
+uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: print and save scans
+```
+
+- `--port` defaults to the first `/dev/cu.usbmodemflip_*`; the API key can
+  come from `$BAMBUDDY_API_KEY`.
+- At start-up the bridge reads `/settings/spoolman` and refuses Spoolman
+  mode (the key needs `settings:read`).
+- It answers `hello`, prints each parsed tag and the `lookup` it sends, and
+  performs `weigh` / `new` intents (`--core-weight`, `--catalog-id` set the
+  empty spool for new items); `create_on_host` / `link_on_host` are only
+  logged. A repeated intent id gets the stored `result`; failed calls are
+  not stored, so a retry runs again.
+- `--dump-dir` saves every scan in the `protocol/fixtures/tags` format.
+  MIFARE Classic sector trailers are rebuilt from the derived Key A (the
+  Flipper does not send them).
+
+Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one),
+`bambuddy.py` (httpx client), `session.py` (framing and message handling),
+`__main__.py` (CLI and serial loop).
