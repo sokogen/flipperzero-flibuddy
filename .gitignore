@@ -1,0 +1,6 @@
+flipper/.ufbt/
+flipper/dist/
+host/.build/
+.venv/
+__pycache__/
+.DS_Store

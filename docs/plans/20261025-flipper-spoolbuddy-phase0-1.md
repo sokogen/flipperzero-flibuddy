@@ -57,6 +57,9 @@ offline queue on the Flipper, tag writing, Spoolman mode.
   ASCII hex; the public tag guide says block 9 (16 raw bytes). The parser
   emits **candidates in order [block 9 hex, blocks 4+5 ASCII-hex]** and the
   lookup tries them in order; Phase 0 manual check settles it (Post-Completion).
+- ⚠️ Xcode.app is now installed but its license is not accepted, so `git`,
+  `swift`, `cc` from `/usr/bin` exit 69. Workaround used by all tasks:
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools` (recorded in `AGENTS.md`).
 
 ## Development Approach
 
@@ -115,13 +118,13 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 ## Implementation Steps
 
 ### Task 1: Repository scaffolding and conventions
-- [ ] create `AGENTS.md` (English content, Russian communication, stock ufbt only, TDD, layout summary)
-- [ ] create `README.md` with the one-paragraph purpose, the directory layout from the design, and the three test commands
-- [ ] create `.gitignore` (`flipper/.ufbt/`, `flipper/dist/`, `host/.build/`, `.venv/`, `__pycache__/`, `.DS_Store`) and `.editorconfig`
-- [ ] create empty directories with placeholder README lines: `protocol/`, `flipper/`, `host/`, `tools/`, `.github/workflows/`
-- [ ] create `tools/pyproject.toml` (uv project, Python 3.13, deps: `pyserial`, `httpx`, `jsonschema`; dev: `pytest`) and `tools/tests/test_smoke.py`
-- [ ] run `cd tools && uv run pytest` - must pass before next task
-- [ ] make the initial commit
+- [x] create `AGENTS.md` (English content, Russian communication, stock ufbt only, TDD, layout summary)
+- [x] create `README.md` with the one-paragraph purpose, the directory layout from the design, and the three test commands
+- [x] create `.gitignore` (`flipper/.ufbt/`, `flipper/dist/`, `host/.build/`, `.venv/`, `__pycache__/`, `.DS_Store`) and `.editorconfig`
+- [x] create empty directories with placeholder README lines: `protocol/`, `flipper/`, `host/`, `tools/`, `.github/workflows/`
+- [x] create `tools/pyproject.toml` (uv project, Python 3.13, deps: `pyserial`, `httpx`, `jsonschema`; dev: `pytest`) and `tools/tests/test_smoke.py`
+- [x] run `cd tools && uv run pytest` - must pass before next task
+- [x] make the initial commit
 
 ### Task 2: Protocol contract: PROTOCOL.md, JSON schema, fixtures
 - [ ] write `protocol/PROTOCOL.md`: NDJSON framing, `v: 1`, `hello` handshake, messages `scan`, `lookup`, `intent`, `result` with every field and its type, max line length 8192 bytes, examples
