@@ -126,26 +126,42 @@ public final class FlipperLink {
     }
 
     public func disconnect() {
+        if isActive { Log.info(.link, "disconnect") }
         generation += 1
         loop?.cancel()
         loop = nil
         transport?.disconnect()
         transport = nil
         isActive = false
-        state = .disconnected
-        port = nil
         problem = nil
+        setState(.disconnected)
+        port = nil
     }
 
     private func run(_ choice: TransportChoice, generation current: Int) async {
         while !Task.isCancelled, current == generation {
             if let resolved = resolve(choice) {
                 await runOnce(resolved, generation: current)
+                guard !Task.isCancelled, current == generation else { return }
+                Log.info(.link, "retry: in=\(retryDelay.logDescription)")
             } else {
+                // Logged once: the search repeats until a Flipper turns up.
+                if problem != Self.noFlipperFound { Log.notice(.link, "problem: \(Self.noFlipperFound)") }
                 problem = Self.noFlipperFound
+                Log.debug(.link, "retry: in=\(retryDelay.logDescription)")
             }
             try? await Task.sleep(for: retryDelay)
         }
+    }
+
+    /// Changes `state`, logging the transition and, once the link is down,
+    /// the problem.
+    private func setState(_ new: LinkState) {
+        let old = state
+        state = new
+        guard new != old else { return }
+        let problem = new == .disconnected ? problem.map { " problem=\"\($0)\"" } ?? "" : ""
+        Log.info(.link, "state: \(old.logName) -> \(new.logName)\(problem)")
     }
 
     /// The choice with the USB port filled in; `nil` when no port is found.
@@ -158,6 +174,7 @@ public final class FlipperLink {
     }
 
     private func runOnce(_ choice: TransportChoice, generation current: Int) async {
+        Log.info(.link, "connect: \(choice.logFields)")
         let transport = makeTransport(choice)
         let link = TransportSession(transport: transport, hello: hello)
         self.transport = transport
@@ -167,8 +184,8 @@ public final class FlipperLink {
                 guard current == self.generation else { return }
                 switch event {
                 case .state(let state):
-                    self.state = state
                     if state != .disconnected { self.problem = nil }
+                    self.setState(state)
                 case .message(let message):
                     guard let reply = await self.session.handle(message) else { continue }
                     do {
@@ -178,6 +195,7 @@ public final class FlipperLink {
                         // drop the link so it sees the host go, and reconnect.
                         guard current == self.generation else { return }
                         self.problem = Session.describe(error)
+                        Log.error(.link, "reply failed: type=\(reply.type) error=\(Session.describe(error))")
                         await link.disconnect()
                         return
                     }
@@ -193,8 +211,11 @@ public final class FlipperLink {
         pump.cancel()
         guard current == generation else { return }
         self.transport = nil
-        state = .disconnected
-        if let failure { problem = failure }
+        if let failure {
+            Log.error(.link, "connect failed: error=\(failure)")
+            problem = failure
+        }
+        setState(.disconnected)
     }
 
     public static func statusText(_ state: LinkState, problem: String?) -> String {
@@ -203,6 +224,29 @@ public final class FlipperLink {
         case .waitingForHello: "Flipper: waiting for the app"
         case .noAnswer: "Flipper: no answer; open FliBuddy on the Flipper"
         case .connected(let hello): "Flipper: connected" + (hello.fw.map { " (firmware \($0))" } ?? "")
+        }
+    }
+}
+
+extension TransportChoice {
+    /// `transport=usb port=/dev/…` or `transport=bluetooth peripheral=<uuid>`;
+    /// `any` when none was chosen.
+    var logFields: String {
+        switch self {
+        case .usb(let port): "transport=usb port=\(port ?? "any")"
+        case .bluetooth(let peripheral): "transport=bluetooth peripheral=\(peripheral?.uuidString ?? "any")"
+        }
+    }
+}
+
+extension LinkState {
+    /// The state's name, without the Flipper's `hello`: it is logged when it arrives.
+    var logName: String {
+        switch self {
+        case .disconnected: "disconnected"
+        case .waitingForHello: "waitingForHello"
+        case .noAnswer: "noAnswer"
+        case .connected: "connected"
         }
     }
 }

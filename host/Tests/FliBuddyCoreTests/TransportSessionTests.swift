@@ -18,6 +18,35 @@ import Testing
         return (transport, session, events, run)
     }
 
+    @Test func theHandshakeIsLogged() async throws {
+        let sink = try await capturingLog {
+            let (transport, session, _, run) = await start()
+            defer { run.cancel() }
+            #expect(await eventually { await session.state == .waitingForHello })
+            transport.deliver(.hello(flipperHello))
+            #expect(await eventually { await session.state == .connected(flipperHello) })
+            transport.disconnect()
+            try await run.value
+        }
+
+        #expect(sink.events == [
+            "link hello sent: app=flibuddy-mac/0.1.0 os=macOS 26.0",
+            "link hello received: app=flibuddy-fap/0.1.0 fw=1.5.1",
+        ])
+    }
+
+    @Test func aHelloTimeoutIsLogged() async throws {
+        let sink = await capturingLog {
+            let (transport, session, _, run) = await start(helloTimeout: .milliseconds(50))
+            defer { run.cancel() }
+            #expect(await eventually { await session.state == .noAnswer })
+            transport.disconnect()
+        }
+
+        #expect(sink.events("link hello timeout:") == ["link hello timeout: after=50ms"])
+        #expect(sink.lines.last?.level == .notice)
+    }
+
     @Test func defaultHelloTimeoutIsTwoSeconds() {
         #expect(TransportSession.defaultHelloTimeout == .seconds(2))
     }

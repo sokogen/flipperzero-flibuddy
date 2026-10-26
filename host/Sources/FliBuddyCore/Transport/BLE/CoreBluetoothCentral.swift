@@ -126,9 +126,12 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
         guard manager.state == .poweredOn else { return }
         let services = Set(scanners.values.map(\.service))
         if services.isEmpty {
-            if manager.isScanning { manager.stopScan() }
+            guard manager.isScanning else { return }
+            Log.info(.link, "bluetooth central scan stop")
+            manager.stopScan()
         } else {
             // Restarting reports peripherals already seen to a new scanner.
+            Log.info(.link, "bluetooth central scan start: scanners=\(scanners.count)")
             manager.scanForPeripherals(withServices: Array(services))
         }
     }
@@ -148,6 +151,7 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
 extension CoreBluetoothCentral: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         guard let state = Self.powerState(central.state) else { return }
+        Log.info(.link, "bluetooth central power: \(state)")
         for waiter in stateWaiters { waiter.resolve(.success(state)) }
         stateWaiters.removeAll()
         if state == .poweredOn {
@@ -172,6 +176,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
             ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
             ?? "Flipper"
         let found = DiscoveredPeripheral(id: peripheral.identifier, name: name, rssi: RSSI.intValue)
+        Log.info(.link, "bluetooth central discovered: peripheral=\(found.id.uuidString) name=\(name) rssi=\(found.rssi)")
         for scanner in scanners.values where advertised?.contains(scanner.service) ?? true {
             scanner.continuation.yield(found)
         }
@@ -181,6 +186,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
         // An attempt cancelled after it connected: its `didDisconnect` follows
         // and starts the attempt that waits, which this one must not answer.
         guard !closing.contains(peripheral.identifier) else { return }
+        Log.info(.link, "bluetooth central connected: peripheral=\(peripheral.identifier.uuidString)")
         let link = CoreBluetoothPeripheralLink(peripheral: peripheral, queue: queue)
         links[peripheral.identifier] = link
         // A waiter cancelled just now may still be pending here.
@@ -194,6 +200,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        Log.error(.link, "bluetooth central connect failed: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
         // A cancelled attempt may end this way instead.
         guard !closed(peripheral) else { return }
         pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
@@ -202,6 +209,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     public func centralManager(
         _ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?
     ) {
+        Log.info(.link, "bluetooth central disconnected: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
         links.removeValue(forKey: peripheral.identifier)?.connectionLost()
         guard !closed(peripheral) else { return }
         pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
@@ -275,8 +283,10 @@ final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked
 extension CoreBluetoothPeripheralLink: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let uuids, let service = peripheral.services?.first(where: { $0.uuid == uuids.service }) else {
+            Log.error(.link, "bluetooth service missing: peripheral=\(identifier.uuidString) error=\(describe(error))")
             return failOpening(.serviceNotFound)
         }
+        Log.info(.link, "bluetooth service found: peripheral=\(identifier.uuidString)")
         peripheral.discoverCharacteristics([uuids.rx, uuids.tx], for: service)
     }
 
@@ -284,17 +294,25 @@ extension CoreBluetoothPeripheralLink: CBPeripheralDelegate {
         guard let uuids,
             let rx = service.characteristics?.first(where: { $0.uuid == uuids.rx }),
             let tx = service.characteristics?.first(where: { $0.uuid == uuids.tx })
-        else { return failOpening(.serviceNotFound) }
+        else {
+            Log.error(.link, "bluetooth characteristics missing: peripheral=\(identifier.uuidString) error=\(describe(error))")
+            return failOpening(.serviceNotFound)
+        }
+        Log.info(.link, "bluetooth characteristics found: peripheral=\(identifier.uuidString)")
         self.rx = rx
         peripheral.setNotifyValue(true, for: tx)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard characteristic.uuid == uuids?.tx else { return }
-        guard error == nil, characteristic.isNotifying else { return failOpening(.serviceNotFound) }
+        guard error == nil, characteristic.isNotifying else {
+            Log.error(.link, "bluetooth notify failed: peripheral=\(identifier.uuidString) error=\(describe(error))")
+            return failOpening(.serviceNotFound)
+        }
         // The without-response length follows the ATT MTU; the with-response
         // one is the 512-byte attribute limit, reached only by long writes.
         writeLength = peripheral.maximumWriteValueLength(for: .withoutResponse)
+        Log.info(.link, "bluetooth mtu: peripheral=\(identifier.uuidString) mtu=\(writeLength + 3) max_write=\(writeLength)")
         opening?.resolve(.success(()))
         opening = nil
     }
@@ -306,7 +324,14 @@ extension CoreBluetoothPeripheralLink: CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         guard characteristic.uuid == uuids?.rx else { return }
+        if let error {
+            Log.error(.link, "bluetooth write error: peripheral=\(identifier.uuidString) error=\(describe(error))")
+        }
         events?(error == nil ? .writeConfirmed : .writeFailed)
     }
+}
+/// A CoreBluetooth error for the log; `none` when there is none.
+private func describe(_ error: (any Error)?) -> String {
+    error?.localizedDescription ?? "none"
 }
 #endif

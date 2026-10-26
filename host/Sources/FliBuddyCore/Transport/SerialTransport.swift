@@ -50,15 +50,22 @@ public final class SerialTransport: Transport, @unchecked Sendable {
             guard connection == nil else { return }
             // O_NONBLOCK keeps open() from waiting for carrier detect.
             let fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK)
-            guard fd >= 0 else { throw TransportError.openFailed(path: path, errno: errno) }
+            guard fd >= 0 else {
+                let code = errno
+                Log.error(.link, "open failed: port=\(path) errno=\(code) (\(String(cString: strerror(code))))")
+                throw TransportError.openFailed(path: path, errno: code)
+            }
             do {
                 try Self.configure(fd)
             } catch {
                 close(fd)
+                Log.error(.link, "configure failed: port=\(path) error=\(Session.describe(error))")
                 throw error
             }
             let (stream, continuation) = AsyncStream<Message>.makeStream()
-            let connection = Connection(fd: fd, queue: queue, continuation: continuation)
+            // Reading runs on `queue`, outside the task that connects: it
+            // logs to the log in effect now.
+            let connection = Connection(fd: fd, queue: queue, continuation: continuation, log: Log.router)
             // The handler keeps the connection alive until the source is
             // cancelled; dispatch releases it then, breaking the cycle.
             connection.source.setEventHandler { [weak self, connection] in
@@ -67,6 +74,7 @@ public final class SerialTransport: Transport, @unchecked Sendable {
             connection.source.resume()
             self.connection = connection
             self.stream = stream
+            Log.info(.link, "open: port=\(path)")
         }
     }
 
@@ -74,7 +82,13 @@ public final class SerialTransport: Transport, @unchecked Sendable {
         let line = try message.encodedLine()
         try lock.withLock {
             guard let connection else { throw TransportError.notConnected }
-            try Self.write(line, to: connection.fd)
+            do {
+                try Self.write(line, to: connection.fd)
+            } catch {
+                Log.error(.link, "write failed: port=\(path) error=\(Session.describe(error))")
+                throw error
+            }
+            WireLog.sent(line)
         }
     }
 
@@ -83,37 +97,43 @@ public final class SerialTransport: Transport, @unchecked Sendable {
             defer { self.connection = nil }
             return self.connection
         }
-        connection?.source.cancel()
+        guard let connection else { return }
+        Log.info(.link, "close: port=\(path)")
+        connection.source.cancel()
     }
 
     // MARK: - Reading (on `queue`)
 
     private func readAvailable(_ connection: Connection) {
-        var buffer = [UInt8](repeating: 0, count: 4096)
-        while true {
-            let count = read(connection.fd, &buffer, buffer.count)
-            if count > 0 {
-                for line in connection.framer.push(buffer[..<count]) {
-                    if let message = try? Message.decode(line: line) {
+        Log.$scoped.withValue(connection.log) {
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            while true {
+                let count = read(connection.fd, &buffer, buffer.count)
+                if count > 0 {
+                    for message in WireLog.receive(buffer[..<count], framer: &connection.framer) {
                         connection.continuation.yield(message)
                     }
+                } else if count < 0, errno == EINTR {
+                    continue
+                } else if count < 0, errno == EAGAIN {
+                    return
+                } else {
+                    // EOF or an error such as ENXIO: the device went away.
+                    let code = errno
+                    let reason = count == 0 ? "end of file" : "errno=\(code) (\(String(cString: strerror(code))))"
+                    hangUp(connection, reason: reason)
+                    return
                 }
-            } else if count < 0, errno == EINTR {
-                continue
-            } else if count < 0, errno == EAGAIN {
-                return
-            } else {
-                // EOF or an error such as ENXIO: the device went away.
-                hangUp(connection)
-                return
             }
         }
     }
 
-    private func hangUp(_ connection: Connection) {
-        lock.withLock {
-            if self.connection === connection { self.connection = nil }
+    private func hangUp(_ connection: Connection, reason: String) {
+        let current = lock.withLock {
+            defer { if self.connection === connection { self.connection = nil } }
+            return self.connection === connection
         }
+        if current { Log.notice(.link, "hangup: port=\(path) reason=\(reason)") }
         connection.source.cancel()
     }
 
@@ -158,11 +178,13 @@ private final class Connection: @unchecked Sendable {
     let fd: Int32
     let source: DispatchSourceRead
     let continuation: AsyncStream<Message>.Continuation
+    let log: LogRouter
     var framer = NDJSONFramer()
 
-    init(fd: Int32, queue: DispatchQueue, continuation: AsyncStream<Message>.Continuation) {
+    init(fd: Int32, queue: DispatchQueue, continuation: AsyncStream<Message>.Continuation, log: LogRouter) {
         self.fd = fd
         self.continuation = continuation
+        self.log = log
         source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
         source.setCancelHandler {
             close(fd)

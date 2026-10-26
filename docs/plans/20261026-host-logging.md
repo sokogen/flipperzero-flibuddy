@@ -87,24 +87,33 @@
 - [x] run `cd host && swift test` - must pass before task 2
 
 ### Task 2: Link and wire events
-- [ ] tests first (`TransportSessionTests`, `FlipperLinkTests`,
+- [x] tests first (`TransportSessionTests`, `FlipperLinkTests`,
       `SerialTransportTests`, `BLETransportTests` with `MemorySink`): each
       event below appears once with the expected fields
-- [ ] `FlipperLink`: `link connect: transport=usb port=/dev/…` /
-      `transport=bluetooth peripheral=<uuid> name=…`, `link state:
+- [x] `FlipperLink`: `link connect: transport=usb port=/dev/…` /
+      `transport=bluetooth peripheral=<uuid>`, `link state:
       <old> -> <new>` with the problem text, `link retry: in=2s`,
       `link disconnect`
-- [ ] `SerialTransport`: open with the resolved path and the errno on
+- [x] `SerialTransport`: open with the resolved path and the errno on
       failure, close, write errors; `CoreBluetoothCentral` / `BLETransport`:
       scan start/stop, discovered peripheral (name, RSSI), connect,
       service/characteristic found or missing, MTU, disconnect with the
       CoreBluetooth error
-- [ ] `TransportSession`: `wire tx: <line>` and `wire rx: <line>` at
+- [x] `TransportSession`: `wire tx: <line>` and `wire rx: <line>` at
       `.debug`, truncated to 300 characters with `… (+N bytes)`; dropped
-      lines (`MessageError`) at `.error` with the reason and the first 120
+      lines (`ProtocolError`) at `.error` with the reason and the first 120
       characters; `hello sent: app=…`, `hello received: app=… fw=… os=…`,
       `hello timeout: after=2s`
-- [ ] run tests - must pass before task 3
+- [x] ➕ `TransportSession` only sees decoded messages, so the wire lines
+      are logged where lines are encoded and decoded: `WireLog` (in
+      `Transport/WireLog.swift`) is called by `SerialTransport` and
+      `BLEChunker`; it also reports lines the framer drops as too long.
+      `SerialTransport` reads on a dispatch queue and logs to the log in
+      effect at `connect()`. The peripheral's name is logged by
+      `BLETransport` when the scan finds it, not by `FlipperLink`, which
+      only knows the identifier. "No Flipper found" is logged once while
+      it lasts, its retries at `.debug`
+- [x] run tests - must pass before task 3
 
 ### Task 3: Session, Bambuddy and settings events
 - [ ] tests first (`SessionTests`, `BambuddyClientTests`, `SettingsTests`,

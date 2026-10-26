@@ -50,17 +50,24 @@ public final class BLETransport: Transport, @unchecked Sendable {
 
     public func connect() async throws {
         guard state == .closed else { return }
-        if let problem = await central.powerState().problem { throw problem }
-        let id = try await findPeripheral()
         do {
-            try await Self.withDeadline(connectTimeout, else: .peripheralNotFound) { [self] in
-                try await open(try await central.connect(id))
+            if let problem = await central.powerState().problem { throw problem }
+            let id = try await findPeripheral()
+            do {
+                try await Self.withDeadline(connectTimeout, else: .peripheralNotFound) { [self] in
+                    try await open(try await central.connect(id))
+                }
+                try Task.checkCancellation()
+            } catch {
+                // An attempt that never connected was abandoned by the cancelled
+                // `central.connect`; a connection that did not open is dropped here.
+                if let link = drop(where: { $0.identifier == id }) { central.disconnect(link) }
+                throw error
             }
-            try Task.checkCancellation()
         } catch {
-            // An attempt that never connected was abandoned by the cancelled
-            // `central.connect`; a connection that did not open is dropped here.
-            if let link = drop(where: { $0.identifier == id }) { central.disconnect(link) }
+            if !(error is CancellationError) {
+                Log.error(.link, "bluetooth connect failed: peripheral=\(Self.name(requestedPeripheral)) error=\(Session.describe(error))")
+            }
             throw error
         }
     }
@@ -75,18 +82,30 @@ public final class BLETransport: Transport, @unchecked Sendable {
     }
 
     public func disconnect() {
-        if let link = drop(where: { _ in true }) { central.disconnect(link) }
+        guard let link = drop(where: { _ in true }) else { return }
+        Log.info(.link, "bluetooth close: peripheral=\(link.identifier.uuidString)")
+        central.disconnect(link)
     }
 
     private func findPeripheral() async throws -> UUID {
-        if let requestedPeripheral, central.knowsPeripheral(requestedPeripheral) { return requestedPeripheral }
+        if let requestedPeripheral, central.knowsPeripheral(requestedPeripheral) {
+            Log.info(.link, "bluetooth known: peripheral=\(requestedPeripheral.uuidString)")
+            return requestedPeripheral
+        }
+        Log.info(.link, "bluetooth scan: peripheral=\(Self.name(requestedPeripheral))")
         let found = central.scan(service: FliBuddyGATT.service)
-        return try await Self.withDeadline(scanTimeout, else: .peripheralNotFound) { [requestedPeripheral] in
+        let peripheral = try await Self.withDeadline(scanTimeout, else: .peripheralNotFound) { [requestedPeripheral] in
             for await peripheral in found where requestedPeripheral == nil || peripheral.id == requestedPeripheral {
-                return peripheral.id
+                return peripheral
             }
             throw TransportError.peripheralNotFound
         }
+        Log.info(.link, "bluetooth found: peripheral=\(peripheral.id.uuidString) name=\(peripheral.name) rssi=\(peripheral.rssi)")
+        return peripheral.id
+    }
+
+    private static func name(_ peripheral: UUID?) -> String {
+        peripheral?.uuidString ?? "any"
     }
 
     /// Subscribes to TX. The message stream exists before the subscription,
@@ -109,6 +128,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
             chunker.writeSize = link.maximumWriteValueLength
             isOpen = true
         }
+        Log.info(.link, "bluetooth open: peripheral=\(link.identifier.uuidString) max_write=\(link.maximumWriteValueLength)")
     }
 
     private func handle(_ event: BLELinkEvent, from source: any BLEPeripheralLink) {
@@ -129,9 +149,11 @@ public final class BLETransport: Transport, @unchecked Sendable {
             // The line is broken mid-way; the Flipper discards the partial
             // line when the link drops.
             guard drop(where: { $0 === source }) != nil else { return }
+            Log.error(.link, "bluetooth write failed: peripheral=\(source.identifier.uuidString)")
             central.disconnect(source)
         case .disconnected:
-            drop(where: { $0 === source })
+            guard drop(where: { $0 === source }) != nil else { return }
+            Log.notice(.link, "bluetooth disconnected: peripheral=\(source.identifier.uuidString)")
         }
     }
 
