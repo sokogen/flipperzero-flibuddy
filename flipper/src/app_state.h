@@ -1,44 +1,64 @@
-/* The Flipper app's screen flow as a pure reducer.
+/* The Flipper app's screen flow as a pure reducer (docs/plans, "Flipper UI
+ * spec"; the screens are numbered there).
  *
- *   Idle → Reading → WaitingLookup → Result{Found|UnknownPrefill|
- *   UnknownBare|NoHost} → EnterWeight → WaitingResult → Done|Error → Idle
- *   Idle → Transport → Idle
+ *   Waiting ⇄ Ready → Reading → LookingUp → Result{Known|UnknownPrefill|
+ *   UnknownBare|Blank|NoHost} ⇄ Menu ⇄ Details / ConfirmDelete
+ *   Result → Weight → Busy → Saved → Ready
+ *   Result → Toast{MarkedNew|MarkedEmpty} → (commit) Busy → Ready
+ *   Result → Busy → Toast{Added|Deleted} → Ready
+ *   Result → LinkOnHost → (fresh lookup) Result
+ *   any intent failure → Error → Retry (same id) / Back
+ *   Waiting / Ready → Settings ⇄ About
  *
  * app_reduce() applies one event to the state and returns the I/O the
- * caller must perform; it never touches the GUI, NFC or the transport.
- * Scenes render from the state. Events that do not apply to the current
- * screen are ignored, and so are a `lookup` for another scan and a `result`
- * for an intent that is not in flight. The Flipper offers `new` only for an
- * unknown tag with prefill, and no action at all without a host.
+ * caller must perform; it never touches the GUI, NFC or the transport. The
+ * screens draw from the state. Keys arrive as AppEventKey and mean what the
+ * spec's key map says for the screen on display; keys and events that do
+ * not apply to it are ignored, and so are a `lookup` for another scan and a
+ * `result` for an intent that is not in flight.
  *
- * On AppEffectSendScan the caller sends proto_encode_scan(&s->scan.tag,
- * s->scan.id, autosave); on AppEffectSendIntent it sends
- * intent_encode(intent_store_current(s->intents)). The caller stamps every
- * event with its clock (now_ms) and sends AppEventTimeout once
- * app_result_timed_out() says the `result` is overdue. When the host cannot
- * have the scan, or surely did not get the intent, it sends
- * AppEventSendFailed: no answer would come, so a scan shows the local facts
+ * Effects: on AppEffectSendScan the caller sends app_encode_scan(), on
+ * AppEffectSendIntent app_encode_intent(). On AppEffectSaveSettings it
+ * stores s->settings; on AppEffectSwitchTransport it stores them too and
+ * restarts the transport as s->transport (the host is lost through
+ * host_link as the old port closes). AppEffectExit closes the app. When the
+ * host cannot have the scan, or surely did not get the intent, the caller
+ * sends AppEventSendFailed: a scan then shows the local facts
  * (Result{NoHost}) and an intent an error. An intent the host may have got
  * waits for its result or the timeout.
  *
- * The net/gross mode belongs to the session. It toggles on the Found menu
- * and on EnterWeight; the EnterWeight pre-fill follows it: gross is the
- * last gross weight (fallback label + core), net is gross - core (fallback
- * the label weight).
+ * Time: the caller stamps every event with its clock (now_ms) and sends
+ * AppEventTick periodically; the tick runs out the result timeout (Busy,
+ * LinkOnHost until its result), the Saved screen and the 3 s toasts
+ * (app_timer_left_ms() for the progress bar).
  *
- * The transport menu opens from Idle. Choosing another kind than the one
- * in use answers AppEffectSwitchTransport: the caller saves the setting
- * and restarts the transport; the host is lost through host_link as the old
- * port closes. The caller reports a transport that did not open with
- * AppEventTransportFailed; choosing that same kind again then retries it. The BLE status is only recorded, for the status line
- * (screen_status_text); it never changes the screen or `connected`. The
- * caller sets `transport` from the saved settings after app_state_init().
+ * Feedback: after each call s->cue says which feedback event happened
+ * (AppCueNone when none); the caller maps it to LED / vibro / sound per the
+ * Feedback and Sound settings.
+ *
+ * Mark as new / Mark as empty send nothing at first: their toast holds the
+ * intent for 3 s, ◀ Undo drops it, and the deadline, OK, Back or a new tag
+ * commit it (OK on Mark as new then opens Weight). Only one intent is ever
+ * in flight, so a tag on such a toast commits the mark and is not read; the
+ * reader finds it again on the next screen that reads.
+ *
+ * The net/gross mode belongs to the session; the Weight screen's mode chip
+ * toggles it. The pre-fill follows it while the digits are untouched:
+ * gross = remaining + core, net = remaining of the spool on screen, falling
+ * back to the lookup defaults (gross: last gross, else label + core; net:
+ * gross - core, else label).
+ *
+ * The caller sets s->settings and s->transport from the stored settings
+ * after app_state_init(). The BLE status is only recorded for the screens;
+ * it never changes the screen or `connected`.
  */
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
+#include "app_settings.h"
 #include "intents.h"
 #include "proto_decode.h"
 #include "tag_dump.h"
@@ -46,25 +66,56 @@
 
 /* How long the Flipper waits for a `result` (PROTOCOL.md, Timeouts). */
 #define APP_RESULT_TIMEOUT_MS 10000u
+#define APP_SAVED_MS          1300u
+#define APP_TOAST_MS          3000u
+#define APP_LIST_ROWS         4 /* visible rows of Menu and Settings */
+#define APP_MENU_MAX          6
+#define APP_WEIGHT_DIGITS     4
 
 typedef enum {
-    AppScreenIdle,
+    AppScreenWaiting, /* no host */
+    AppScreenReady,
     AppScreenReading,
-    AppScreenWaitingLookup,
+    AppScreenLookingUp,
     AppScreenResult,
-    AppScreenEnterWeight,
-    AppScreenWaitingResult,
-    AppScreenDone,
+    AppScreenMenu,
+    AppScreenDetails,
+    AppScreenConfirmDelete,
+    AppScreenWeight,
+    AppScreenBusy, /* the intent in flight says Saving / Adding / Deleting / Updating */
+    AppScreenSaved,
+    AppScreenToast,
+    AppScreenLinkOnHost,
     AppScreenError,
-    AppScreenTransport, /* menu: USB, Bluetooth */
+    AppScreenSettings,
+    AppScreenAbout,
 } AppScreen;
 
 typedef enum {
-    AppResultFound, /* menu: Enter weight, Close */
-    AppResultUnknownPrefill, /* menu: New, Link on host, Close */
-    AppResultUnknownBare, /* menu: Create on host, Link on host, Close */
-    AppResultNoHost, /* local facts only, menu: Close */
+    AppResultKnown,
+    AppResultUnknownPrefill, /* Bambu tag with material: Add */
+    AppResultUnknownBare, /* tag data without material: Create on host */
+    AppResultBlank, /* no spool data */
+    AppResultNoHost, /* local facts only */
 } AppResultKind;
+
+typedef enum {
+    AppToastAdded,
+    AppToastMarkedNew, /* holds the `full` intent */
+    AppToastMarkedEmpty, /* holds the `empty` intent */
+    AppToastDeleted,
+} AppToast;
+
+/* What Ready's bar says after the last action; the spool it names is
+ * s->spool. */
+typedef enum {
+    AppOutcomeNone,
+    AppOutcomeSaved,
+    AppOutcomeAdded,
+    AppOutcomeMarkedNew,
+    AppOutcomeMarkedEmpty,
+    AppOutcomeDeleted,
+} AppOutcome;
 
 typedef enum {
     AppErrorNone,
@@ -77,10 +128,41 @@ typedef enum {
 } AppError;
 
 typedef enum {
+    AppMenuWeigh,
+    AppMenuMarkNew,
+    AppMenuMarkEmpty,
+    AppMenuRelink, /* "Relink on host" */
+    AppMenuDetails,
+    AppMenuDelete,
+    AppMenuAddNew,
+    AppMenuAddAndWeigh,
+    AppMenuCreateOnHost,
+    AppMenuLinkOnHost,
+} AppMenuItem;
+
+typedef enum {
+    AppSettingConnection,
+    AppSettingAutosave,
+    AppSettingFeedback,
+    AppSettingSound,
+    AppSettingVersion, /* OK opens About */
+    AppSettingCount,
+} AppSetting;
+
+typedef enum {
     AppBleOff, /* not advertising, or Bluetooth is not the transport */
     AppBleAdvertising,
     AppBleConnected, /* a host subscribed to TX; it may not have said hello */
 } AppBleStatus;
+
+typedef enum {
+    AppKeyUp,
+    AppKeyDown,
+    AppKeyLeft,
+    AppKeyRight,
+    AppKeyOk,
+    AppKeyBack,
+} AppKey;
 
 typedef enum {
     AppEventHostConnected,
@@ -89,18 +171,10 @@ typedef enum {
     AppEventTagRead, /* .tag */
     AppEventReadFailed,
     AppEventLookupReceived, /* .lookup */
-    AppEventMenuWeigh,
-    AppEventMenuNew,
-    AppEventMenuCreateOnHost,
-    AppEventMenuLinkOnHost,
-    AppEventToggleMode,
-    AppEventWeightEntered, /* .grams */
     AppEventResultReceived, /* .result */
-    AppEventTimeout, /* see app_result_timed_out() */
     AppEventSendFailed, /* the scan or intent of the last effect was not sent */
-    AppEventBack, /* back, or OK on Done / Error */
-    AppEventMenuTransport, /* OK on Idle */
-    AppEventTransportChosen, /* .transport */
+    AppEventKey, /* .key; a held ▲▼ repeats as more presses */
+    AppEventTick,
     AppEventBleStatus, /* .ble */
     AppEventTransportFailed, /* the transport in use did not open */
 } AppEventType;
@@ -112,8 +186,7 @@ typedef struct {
         const TagDump* tag;
         const ProtoLookup* lookup;
         const ProtoResult* result;
-        uint16_t grams;
-        TransportKind transport;
+        AppKey key;
         AppBleStatus ble;
     };
 } AppEvent;
@@ -122,39 +195,79 @@ typedef enum {
     AppEffectNone,
     AppEffectSendScan,
     AppEffectSendIntent,
-    AppEffectSwitchTransport, /* to s->transport */
+    AppEffectSaveSettings,
+    AppEffectSwitchTransport, /* to s->transport, saving the settings */
+    AppEffectExit,
 } AppEffect;
+
+typedef enum {
+    AppCueNone,
+    AppCueConnected, /* blue + short vibro */
+    AppCueRead, /* blue + short vibro */
+    AppCueSuccess, /* green + vibro (+ success sound) */
+    AppCueError, /* red + long vibro (+ error sound) */
+} AppCue;
+
+typedef struct {
+    uint8_t digit[APP_WEIGHT_DIGITS]; /* most significant first */
+    uint8_t cursor; /* 0: the mode chip, 1..4: a digit */
+    bool touched; /* a digit was changed: the mode no longer re-fills */
+} AppWeight;
 
 typedef struct {
     AppScreen screen;
-    AppResultKind result_kind; /* on Result and EnterWeight */
+    AppResultKind result_kind; /* of the Result the other screens return to */
+    AppToast toast; /* on Toast */
+    AppOutcome last; /* on Ready */
     AppError error; /* on Error */
+    bool retryable; /* on Error: ▶ resends `held` under its id */
+    AppCue cue; /* of the last app_reduce() call */
     bool connected;
     TransportKind transport; /* in use */
-    bool transport_failed; /* it did not open; choosing it again retries */
+    bool transport_failed; /* it did not open; leaving Settings retries it */
     AppBleStatus ble;
+    AppSettings settings;
+    AppSettings settings_entered; /* as Settings opened */
     WeightMode mode; /* kept for the whole session */
-    uint16_t weight_default; /* pre-fill of EnterWeight, follows mode */
-    uint32_t intent_sent_ms; /* now_ms of the event that sent the intent */
+    AppWeight weight; /* on Weight */
+    bool weigh_after_full; /* the `full` in flight opens Weight when done */
+    uint8_t sel; /* selected row of Menu / Settings */
+    uint8_t top; /* first visible row of Menu / Settings */
+    uint32_t timer_start_ms;
+    uint32_t timer_ms; /* 0: no deadline on this screen */
     Scan scan; /* the tag on screen */
     ProtoLookup lookup; /* the host's answer for scan */
     ProtoResult result; /* the host's answer for the last intent */
+    bool has_spool; /* the Bambuddy spool of the tag on screen */
+    ProtoSpool spool; /* from lookup.spool, then result.spool */
     IdSeq scan_ids;
     IdSeq intent_ids;
     IntentStore* intents;
-    Intent draft; /* scratch for the intent being built: too big for the 4 KB app stack */
+    Intent held; /* the last intent built: the one sent, failed or held by a toast */
 } AppState;
 
-/* Idle, no host, USB with BLE off, gross mode. `first_scan` and `first_intent` seed the id
- * counters (see IdSeq). */
-void app_state_init(
-    AppState* s,
-    IntentStore* intents,
-    uint32_t first_scan,
-    uint32_t first_intent);
+/* Waiting, no host, USB with BLE off, default settings, gross mode.
+ * `first_scan` and `first_intent` seed the id counters (see IdSeq). */
+void app_state_init(AppState* s, IntentStore* intents, uint32_t first_scan, uint32_t first_intent);
 
 AppEffect app_reduce(AppState* s, const AppEvent* e);
 
-/* True while WaitingResult once APP_RESULT_TIMEOUT_MS have passed since the
- * intent went out (wrap-safe). */
-bool app_result_timed_out(const AppState* s, uint32_t now_ms);
+/* The `scan` for s->scan with the Auto-save new setting, and the intent in
+ * flight; see proto_encode.h for the buffer contract (0: nothing to send). */
+size_t app_encode_scan(const AppState* s, char* buf, size_t cap);
+size_t app_encode_intent(const AppState* s, char* buf, size_t cap);
+
+/* Whether the NFC reader should look for a tag on this screen. */
+bool app_reader_wanted(const AppState* s);
+
+/* Milliseconds until the screen's deadline (0 when due or none). */
+uint32_t app_timer_left_ms(const AppState* s, uint32_t now_ms);
+
+/* The Menu rows for the result on screen; returns their count. */
+uint8_t app_menu_items(const AppState* s, AppMenuItem out[APP_MENU_MAX]);
+
+/* The Weight screen's number, the core it is checked against (0 when
+ * unknown) and whether Save is refused (gross below the core). */
+uint16_t app_weight_grams(const AppState* s);
+uint16_t app_weight_core(const AppState* s);
+bool app_weight_below_core(const AppState* s);

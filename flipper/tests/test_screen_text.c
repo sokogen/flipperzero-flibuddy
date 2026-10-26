@@ -57,7 +57,7 @@ static void test_lines_are_cut_to_the_buffer(void) {
 
 static void test_done_shows_the_result_lines(void) {
     error_state(AppErrorNone);
-    app.screen = AppScreenDone;
+    app.screen = AppScreenSaved;
     app.result = fixture_message("result_ok.json")->result;
     screen_outcome_text(&app, text, sizeof(text));
     CHECK_STR_EQ(text, "Saved\n484 g left");

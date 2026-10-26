@@ -220,15 +220,17 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test-flipper` — must pass before Task 4
 
 ### Task 4: Reducer for the new flow
-- [ ] reshape `app_state` screens to the spec: Waiting, Ready (+ last outcome text), Reading, Looking up, Result{Known, UnknownPrefill, UnknownBare, Blank, NoHost}, Menu (per kind), Details, ConfirmDelete, Weight (digits, cursor incl. mode position, touched flag), Busy (Saving/Adding/Deleting/Updating), Saved, Toast{Added, MarkedNew, MarkedEmpty, Deleted} with a 3 s deadline where the spec has one, LinkOnHost, Error (+ retryable intent), Settings, About
-- [ ] scans carry `autosave` from settings; a lookup with `created` goes straight to Toast·Added; Add = `new`; "Add and weigh" opens Weight and its Save sends `weigh` on the unknown scan; Mark as new / empty open their toast and send `full` / `empty` only when the toast commits (deadline, OK, Back, new tag); Undo returns to the result without sending; Delete only from ConfirmDelete's ▶
-- [ ] a fresh lookup for the scan on screen (after Link on host) replaces the result
-- [ ] feedback effects: the reducer returns which feedback event happened (connected, read, success, error); the caller maps it to notifications
-- [ ] write reducer tests for every transition in the spec's key map, toasts' deadlines, Undo sending nothing, each commit trigger sending exactly one intent, refused Save below core, retry of a failed intent with the same id, ignored stale lookups/results, host loss on every screen
-- [ ] run `make test-flipper` — must pass before Task 5
+- [x] reshape `app_state` screens to the spec: Waiting, Ready (+ last outcome text), Reading, Looking up, Result{Known, UnknownPrefill, UnknownBare, Blank, NoHost}, Menu (per kind), Details, ConfirmDelete, Weight (digits, cursor incl. mode position, touched flag), Busy (Saving/Adding/Deleting/Updating), Saved, Toast{Added, MarkedNew, MarkedEmpty, Deleted} with a 3 s deadline where the spec has one, LinkOnHost, Error (+ retryable intent), Settings, About
+- [x] scans carry `autosave` from settings; a lookup with `created` goes straight to Toast·Added; Add = `new`; "Add and weigh" opens Weight and its Save sends `weigh` on the unknown scan; Mark as new / empty open their toast and send `full` / `empty` only when the toast commits (deadline, OK, Back, new tag); Undo returns to the result without sending; Delete only from ConfirmDelete's ▶
+- [x] a fresh lookup for the scan on screen (after Link on host) replaces the result
+- [x] feedback effects: the reducer returns which feedback event happened (connected, read, success, error); the caller maps it to notifications
+- [x] write reducer tests for every transition in the spec's key map, toasts' deadlines, Undo sending nothing, each commit trigger sending exactly one intent, refused Save below core, retry of a failed intent with the same id, ignored stale lookups/results, host loss on every screen
+- [x] run `make test-flipper` — must pass before Task 5
 
 ### Task 5: Flipper drawing and input
 - [ ] replace the scene views with canvas drawing per the spec (shared widgets: header with transport icon, bottom chips, list with selection and scrollbar, swatch with 4×4 Bayer dithering, spool + waves, big digits with dimmed leading zeros); add XBM icons under `flipper/images/`
+- [ ] ➕ port `flibuddy_app.c` to the Task 4 reducer API: send `AppEventKey` / `AppEventTick` (drop `app_result_timed_out`), encode with `app_encode_scan` / `app_encode_intent`, run the reader per `app_reader_wanted`, handle `AppEffectSaveSettings` / `AppEffectExit`, map `s->cue`; settings live in `state.settings`
+- [ ] ➕ re-arm the NFC reader on Result / Saved / Toast only after the tag left the field (or drop a re-read of the same UID on the screen it produced), so a spool still on the Flipper does not rescan in a loop, cut Saved short or hide Toast·Added; a different tag still commits a pending Mark toast
 - [ ] map keys per screen, including long-press repeat on ▲▼ in Weight; a timer tick drives the animations and toast deadlines
 - [ ] map feedback events to `notification_message` sequences honouring Feedback / Sound
 - [ ] keep pure helpers (text fitting, UID shortening, swatch luminance, outcome strings) in SDK-free files and write C tests for them
@@ -303,3 +305,32 @@ over USB and Bluetooth:
   loads the defaults as a whole (as an unknown transport did before). The
   migrated settings reach the file on the next save (a transport switch);
   nothing is written on load.
+- Task 4: the reducer takes raw keys (`AppEventKey`) and owns the list
+  selection, the Weight digits / cursor / touched flag and the Settings
+  values, so the spec's key map is tested on the host; one `AppEventTick`
+  runs out the 10 s result timeout, Saved (1.3 s) and the 3 s toasts
+  (`app_timer_left_ms` feeds the progress bar). The feedback event is
+  `AppState.cue`, reset by every `app_reduce` call, rather than a second
+  return value. Settings are edited in place in `AppState.settings`;
+  leaving Settings returns `AppEffectSwitchTransport` when the Connection
+  differs from the transport in use (or that transport did not open: leaving
+  Settings retries it), else `AppEffectSaveSettings` when anything changed.
+  Back on Waiting / Ready returns `AppEffectExit`.
+- Task 4: choices the spec left open: Waiting still reads tags and shows
+  Result·NoHost (Menu: Tag details only); a tag on a pending Mark toast
+  commits the mark and is not read (one intent in flight; the reader finds
+  it again on the next reading screen); losing the host on a pending Mark
+  toast drops the mark (nothing was sent) and shows Result·NoHost, on Busy
+  it is Error·Host lost; `link_on_host` / `create_on_host` go straight to
+  Link on host, whose result only stops the timeout; a fresh lookup for the
+  scan is applied on Result, Menu, Details and Link on host (an `error`
+  lookup never replaces a result) and ignored elsewhere; every intent error
+  (host `ok: false`, timeout, send failure, host lost) is retryable with the
+  same id, and ◀ / Back on it returns to the result while the host is
+  there, else to Waiting / Ready; Mark as new / empty cue success when the
+  toast opens and their committed result goes to Ready silently; Toast·
+  Deleted's OK does nothing. Mode toggling moved from the result menu to the
+  Weight mode chip.
+- Task 4: the scenes and `flibuddy_app.c` (SDK code) still use the old
+  reducer API, so `ufbt` does not build the FAP between Task 4 and Task 5,
+  which replaces them; `make test-flipper` passes.

@@ -19,7 +19,7 @@
 /* The host's lines, separated by '\n'. */
 size_t screen_lines_text(const ProtoLines* lines, char* out, size_t cap);
 
-/* Done: the `result` lines ("Done" when there are none). Error: the host's
+/* Saved: the `result` lines ("Done" when there are none). Error: the host's
  * lines and error for a failed lookup or intent, else what went wrong
  * locally. */
 size_t screen_outcome_text(const AppState* s, char* out, size_t cap);
@@ -34,7 +34,7 @@ const char* screen_weight_header(WeightMode mode);
 /* The Found menu item that toggles the mode: "Mode: gross" / "Mode: net". */
 const char* screen_mode_item(WeightMode mode);
 
-/* The Idle status line: "USB" or "BLE" once the host said hello over that
+/* The Waiting / Ready status line: "USB" or "BLE" once the host said hello over that
  * transport, "BLE adv" while Bluetooth waits for a central, else "no host". */
 const char* screen_status_text(const AppState* s);
 
