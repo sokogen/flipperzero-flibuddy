@@ -186,12 +186,12 @@ mentions tray UUID candidates.
   so. The remaining Phase 0 checks stay as unticked items in the root README.
 
 ### Task 8: Verify acceptance criteria
-- [ ] verify every bullet of the Overview is implemented
-- [ ] `protocol/schema/message.schema.json` and `protocol/fixtures/messages/*` unchanged (`git diff --stat` on them is empty)
-- [ ] `make test` passes
-- [ ] `make lint` passes
-- [ ] `make coverage` meets the 80 % gate
-- [ ] `cd flipper && ufbt` builds the FAP
+- [x] verify every bullet of the Overview is implemented
+- [x] `protocol/schema/message.schema.json` and `protocol/fixtures/messages/*` unchanged (`git diff --stat` on them is empty)
+- [x] `make test` passes
+- [x] `make lint` passes
+- [x] `make coverage` meets the 80 % gate
+- [x] `cd flipper && ufbt` builds the FAP
 
 ## Technical Details
 
