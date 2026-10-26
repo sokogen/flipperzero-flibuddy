@@ -136,7 +136,8 @@
 - [ ] regenerate `protocol/fixtures/messages/hello_flipper.json` and
       `hello_host.json` through `tools/fixtures/make_message_fixtures.py`
       (change the generator, not the files by hand)
-- [ ] the dev bridge in `tools/` announces `flibuddy-bridge/<version>`
+- [ ] `tools/bridge/__init__.py`: `APP = f"flibuddy-bridge/{VERSION}"`; update
+      `tools/tests/test_bridge_protocol.py`
 - [ ] `tools/pyproject.toml`: name `flibuddy-tools`, description mentions
       flipper-flibuddy; `tools/swift_coverage.py` `DEFAULT_PREFIX =
       "Sources/FliBuddyCore/"` and its docstring; `tools/README.md`
@@ -230,8 +231,7 @@
 - [ ] run `cd host && swift test`, `make -C flipper/tests test`,
       `cd tools && uv run pytest`, `cd flipper && ufbt`,
       `make apple-project apple-build`, `make coverage`
-- [ ] run the linters the Makefile provides (`make lint` or the per-language
-      targets); clang-format on the renamed C files
+- [ ] run `make lint` (flipper, host, tools) - all issues must be fixed
 - [ ] verify test coverage still meets the 80 % gate
 
 ### Task 7: Update documentation
