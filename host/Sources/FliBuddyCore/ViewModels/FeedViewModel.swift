@@ -141,6 +141,17 @@ public final class FeedViewModel {
         busy.contains(id)
     }
 
+    /// A weight for the row is on its way to Bambuddy (the session says so;
+    /// `isBusy` also covers New and Link).
+    public func isSaving(_ id: FeedRow.ID) -> Bool {
+        itemsByID[id]?.isSaving == true
+    }
+
+    /// "Save", or "Saving…" while the weight is on its way.
+    public func saveTitle(for id: FeedRow.ID) -> String {
+        isSaving(id) ? "Saving\u{2026}" : "Save"
+    }
+
     /// The last host action on the row failed with this message.
     public func error(for id: FeedRow.ID) -> String? {
         errors[id]

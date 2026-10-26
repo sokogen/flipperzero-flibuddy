@@ -6,13 +6,20 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let id: FeedRow.ID
     public let scanId: String
     public let scannedAt: Date
+    /// Upper-case hex, shown under the title.
     public let uid: String
-    /// Material and subtype, e.g. "PLA Basic" or "PETG HF".
+    /// Material and subtype, e.g. "PLA Basic" or "PETG HF"; a blank tag reads
+    /// "NTAG 7-byte UID 04A2…".
     public let title: String
+    /// Bambuddy's or the resolved colour name; never the hex, which the
+    /// swatch shows instead.
     public let colorName: String?
     public let swatch: Swatch?
     /// "484 g left of 1000" for a known spool, "label 1000 g" for a tag.
     public let remainingText: String
+    /// The colour column: "Bambu Green · 590 g left of 1000", "label 1000 g",
+    /// or empty.
+    public let detailText: String
     public let statusText: String
     public let isError: Bool
     /// "by Flipper" / "by host" once a weight was saved or the item created.
@@ -59,7 +66,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         let spool = row.spool
         if let spool {
             title = Self.title(material: spool.material, subtype: spool.subtype)
-            colorName = spool.colorName ?? spool.rgba.map { "#\($0)" }
+            colorName = spool.colorName
             remainingText = "\(spool.remaining) g left of \(spool.labelWeight)"
             base = spool.remaining
             core = spool.coreWeight
@@ -67,13 +74,14 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             if let material = row.tag.material {
                 title = Self.title(material: material, subtype: row.tag.detailedType)
             } else {
-                title = row.tag.kind == .ntag ? "NTAG" : "Bambu tag"
+                title = row.tag.kind == .ntag ? Self.blankTitle(uid: row.tag.uid) : "Bambu tag"
             }
-            colorName = row.colorName ?? row.tag.rgba.map { "#\($0)" }
+            colorName = row.colorName
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
             base = nil
             core = nil
         }
+        detailText = [colorName, remainingText].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
@@ -91,7 +99,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
-            title: title, colorName: row.spool?.colorName ?? row.colorName, spool: spool,
+            title: title, colorName: colorName, spool: spool,
             labelWeight: row.tag.labelWeight, status: statusText
         )
     }
@@ -124,6 +132,18 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
 
     public func readout(value: Int?, mode: Intent.WeightMode) -> Readout {
         Self.readout(value: value, mode: mode, core: core)
+    }
+
+    /// A tag without material, by UID length and the first two bytes:
+    /// "NTAG 7-byte UID 04A2…"; the full UID sits under the title.
+    public static func blankTitle(uid: String) -> String {
+        let prefix = uid.count > 4 ? "\(uid.prefix(4))\u{2026}" : uid
+        return "NTAG \(uid.count / 2)-byte UID \(prefix)"
+    }
+
+    /// The weight field's VoiceOver label.
+    public static func weightFieldLabel(mode: Intent.WeightMode) -> String {
+        mode == .gross ? "Gross weight, grams" : "Net weight, grams"
     }
 
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".

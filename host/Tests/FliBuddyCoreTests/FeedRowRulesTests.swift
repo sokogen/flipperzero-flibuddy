@@ -118,6 +118,109 @@ struct FeedItemRulesTests {
     }
 }
 
+@Suite("FeedItem: row display strings")
+struct FeedItemDisplayTests {
+    @Test func theColourLineJoinsTheColourNameAndWhatIsLeft() throws {
+        #expect(FeedItem(try row(status: .awaitingWeight)).detailText == "Jade White · 484 g left of 1000")
+        // an unnamed colour is left out, never shown as hex
+        let unnamed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(colorName: nil)))
+        #expect(unnamed.colorName == nil)
+        #expect(unnamed.detailText == "484 g left of 1000")
+        // an unknown tag with prefill shows its label weight
+        var tagged = try row(status: .unknown(prefill: true), spool: nil)
+        #expect(FeedItem(tagged).detailText == "label 1000 g")
+        tagged.colorName = "Bambu Green"
+        #expect(FeedItem(tagged).detailText == "Bambu Green · label 1000 g")
+        // a blank tag has nothing to say
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.detailText == "")
+    }
+
+    @Test func aBlankTagIsTitledByItsUIDLengthAndPrefix() throws {
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.title == "NTAG 7-byte UID 0411\u{2026}")
+        #expect(blank.uid == "04112233445566")
+        #expect(FeedItem.blankTitle(uid: "04A2B3C4") == "NTAG 4-byte UID 04A2\u{2026}")
+        #expect(FeedItem.blankTitle(uid: "04A2") == "NTAG 2-byte UID 04A2")
+    }
+
+    @Test func theRowShowsTheUIDUnderTheTitle() throws {
+        #expect(FeedItem(try row(status: .awaitingWeight)).uid == "5A3C9E21")
+    }
+
+    @Test func theWeightFieldIsLabelledByItsMode() {
+        #expect(FeedItem.weightFieldLabel(mode: .gross) == "Gross weight, grams")
+        #expect(FeedItem.weightFieldLabel(mode: .net) == "Net weight, grams")
+    }
+
+    @Test func everyStateInTheSpecTableReadsAsSpecified() throws {
+        var saved = try row(status: .saved)
+        saved.savedBy = .flipper
+        var timedOut = try row(status: .savedAfterTimeout)
+        timedOut.savedBy = .host
+        // status · entry block · reopenable · timeout note
+        let cases: [(FeedRow, String, Bool, Bool, Bool)] = [
+            (try row(status: .scanned, spool: nil), "Looking up", false, false, false),
+            (try row(status: .awaitingWeight), "Enter weight", true, false, false),
+            (try row(status: .saving), "Saving\u{2026}", true, false, false),
+            (saved, "Saved 484 g left · by Flipper", false, true, false),
+            (timedOut, "Saved 484 g left · by host", false, true, true),
+            (try row(status: .created), "Created in Bambuddy", true, false, false),
+            (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable", true, false, false),
+            (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
+             false, false, false),
+            (try row(status: .unknown(prefill: true), spool: nil, request: .create), "Flipper asks to create it here",
+             false, false, false),
+            (try row(status: .unknown(prefill: true), spool: nil, request: .link), "Flipper asks to link it here",
+             false, false, false),
+        ]
+        for (row, status, entry, reopenable, note) in cases {
+            let item = FeedItem(row)
+            #expect(item.statusText == status, "\(row.status)")
+            #expect(item.isEntry == entry, "\(row.status)")
+            #expect(item.isReopenable == reopenable, "\(row.status)")
+            #expect((item.timeoutNote != nil) == note, "\(row.status)")
+            #expect(item.accessibilityHeader.hasSuffix(status), "\(row.status)")
+        }
+    }
+
+    @Test func theAccessibilityHeaderOfEachKindOfRow() throws {
+        #expect(FeedItem(try row(status: .created)).accessibilityHeader
+            == "PLA Basic, Jade White, 484 grams left of 1000, Created in Bambuddy")
+        var named = try row(status: .unknown(prefill: true), spool: nil, request: .create)
+        named.colorName = "Bambu Green"
+        let tagged = FeedItem(named)
+        #expect(tagged.accessibilityHeader
+            == "\(tagged.title), Bambu Green, label 1000 grams, Flipper asks to create it here")
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.accessibilityHeader == "NTAG 7-byte UID 0411\u{2026}, Not in Bambuddy; tag has no material")
+    }
+}
+
+@MainActor
+@Suite("FeedViewModel: the Save button")
+struct FeedViewModelSaveButtonTests {
+    @Test func saveReadsSavingWhileTheWeightIsOnItsWay() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.saveTitle(for: id) == "Save")
+        #expect(!model.isSaving(id))
+
+        inventory.updateDelay = .milliseconds(300)
+        let saving = Task { await model.save(id) }
+        #expect(await eventually { await session.rows.first?.status == .saving })
+        model.apply(await session.snapshot)
+        #expect(model.saveTitle(for: id) == "Saving\u{2026}")
+        #expect(model.isSaving(id))
+        #expect(!model.canSave(id))
+        await saving.value
+        #expect(model.saveTitle(for: id) == "Save")
+    }
+}
+
 @MainActor
 @Suite("FeedViewModel: drafts, reopen and create on scan")
 struct FeedViewModelRulesTests {

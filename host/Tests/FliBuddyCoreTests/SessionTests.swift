@@ -419,7 +419,9 @@ struct SessionColorNameTests {
         _ = await session.record(Scan(scanId: "s-000020", tag: try TagFixtures.bambuReal()))
         let row = try #require(await session.rows.first)
         #expect(row.colorName == nil)
-        #expect(FeedItem(row).colorName == "#A4DBE8FF")
+        // the swatch shows the colour; the hex is never used as its name
+        #expect(FeedItem(row).colorName == nil)
+        #expect(FeedItem(row).swatch == Swatch(rgba: "A4DBE8FF"))
     }
 
     @Test func aFlipperNewSendsTheResolvedName() async throws {

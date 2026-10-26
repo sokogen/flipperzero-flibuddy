@@ -99,9 +99,12 @@ What changes:
 - [x] run tests - must pass before task 3
 
 ### Task 3: One-line row layout, swatch, readout, unit
-- [ ] `FeedView` row: columns swatch 28 · title + UID · colour · remaining · status · field 96 × 34 · segmented ≈150 · Save; `.controlSize(.large)`; row height 60; entry controls only in entry states, space reserved otherwise; swatch with `.separator` stroke and dashed `.tertiary` outline when absent, hidden from VoiceOver; weight value 22 pt rounded bold monospaced digits via `@ScaledMetric`; "g" unit; readout line; timeout note; red status text only for errors
-- [ ] write tests: `FeedItem` display strings for every state in the spec table (snapshot-style string tests); the row's accessibility header text
-- [ ] run tests - must pass before task 4
+- [x] `FeedView` row: columns swatch 28 · title + UID · colour · remaining · status · field 96 × 34 · segmented ≈150 · Save; `.controlSize(.large)`; row height 60; entry controls only in entry states, space reserved otherwise; swatch with `.separator` stroke and dashed `.tertiary` outline when absent, hidden from VoiceOver; weight value 22 pt rounded bold monospaced digits via `@ScaledMetric`; "g" unit; readout line; timeout note; red status text only for errors
+  - ➕ Model: `FeedItem.colorName` is never the hex (the swatch shows the colour); `detailText` is the colour column ("Jade White · 484 g left of 1000", "label 1000 g", empty); a blank tag is titled `blankTitle(uid:)` ("NTAG 7-byte UID 0411…"); `weightFieldLabel(mode:)`; `FeedViewModel.saveTitle(for:)` / `isSaving(_:)`.
+  - ➕ View decisions: the one-line layout is macOS only; iOS shares `FeedRowView` and stacks the entry block under the header until the iPhone/iPad spec lands. Title, colour and status columns share the width equally and the entry block is a fixed 360 pt, so columns line up. Saved rows reopen on click (the interim Re-weigh button is gone; VoiceOver gets a "Re-weigh" action). **Link to existing…** on a Created row sits right of the readout line. The scan time moved from the row to its tooltip. The weight field is a plain field on a rounded rect with its own focus ring.
+  - ➕ Task 7 checks by eye: columns line up across states at 760 pt and 1000 pt; the click on a saved row both selects and reopens it without stealing a field's focus.
+- [x] write tests: `FeedItem` display strings for every state in the spec table (snapshot-style string tests); the row's accessibility header text
+- [x] run tests - must pass before task 4
 
 ### Task 4: Status bar with symbols, tints and actions; empty and blocking states
 - [ ] `FlipperLink` and `FeedViewModel.bambuddy`: expose a `StatusItem` (text, symbol, tint, optional action) per the spec tables, including the `nohello` state (link open, no hello within 2 s) and `nocolors`

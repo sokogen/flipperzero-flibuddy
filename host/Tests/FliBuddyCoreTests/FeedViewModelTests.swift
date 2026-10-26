@@ -211,7 +211,8 @@ struct FeedViewModelTests {
         let item = FeedItem(try row(status: .unknown(prefill: true)))
         let tag = try row().tag
         #expect(item.title == tag.detailedType)
-        #expect(item.colorName == tag.rgba.map { "#\($0)" })
+        // the hex is never a colour name; the swatch shows the colour
+        #expect(item.colorName == nil)
         #expect(item.remainingText == "label \(tag.labelWeight ?? 0) g")
         #expect(!item.canWeigh)
         #expect(item.offersUnknownActions)
@@ -220,7 +221,7 @@ struct FeedViewModelTests {
 
     @Test func anNTAGWithoutMaterialIsTitledByItsType() throws {
         let item = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
-        #expect(item.title == "NTAG")
+        #expect(item.title == "NTAG 7-byte UID 0411\u{2026}")
         #expect(item.colorName == nil)
         #expect(item.swatch == nil)
         #expect(item.offersUnknownActions)

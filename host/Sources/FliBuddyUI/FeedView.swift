@@ -92,104 +92,229 @@ struct FeedKeyboardShortcuts: View {
     }
 }
 
+/// One feed row. On macOS a single line with fixed columns: swatch · title
+/// and UID · colour and remaining · status · weight entry. Rows outside
+/// weight entry keep the entry block's space empty so the columns line up.
+/// iOS stacks the entry block under the header until its own spec lands.
 struct FeedRowView: View {
     let feed: FeedViewModel
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
 
+    /// Field 96 + unit + segmented 150 + Save, with 8 pt between them.
+    static let entryWidth: CGFloat = 360
+
     var body: some View {
+        content
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded { reopenIfSaved() }, including: item.isReopenable ? .all : .subviews)
+            .accessibilityAction(named: "Re-weigh") { reopenIfSaved() }
+            .help(Text("Scanned \(item.scannedAt, style: .time)"))
+            .overlay {
+                // A row that waits while the user types in another one.
+                if feed.focus.hintedRow == item.id {
+                    RoundedRectangle(cornerRadius: 8).strokeBorder(.tint, lineWidth: 2)
+                }
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        #if os(macOS)
         HStack(alignment: .center, spacing: 12) {
-            SwatchView(swatch: item.swatch)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.title).font(.headline)
-                    if let colorName = item.colorName {
-                        Text(colorName).foregroundStyle(.secondary)
-                    }
-                }
-                if !item.remainingText.isEmpty {
-                    Text(item.remainingText).font(.callout)
-                }
-                HStack(spacing: 6) {
-                    Text(item.statusText).foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                    Text(item.scannedAt, style: .time).foregroundStyle(.tertiary)
-                }
-                .font(.caption)
-                if let note = item.timeoutNote {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
-                }
-                if let error = feed.error(for: item.id) {
-                    Text(error).font(.caption).foregroundStyle(.red)
-                }
-            }
-            Spacer(minLength: 12)
-            if item.isEntry {
-                if item.isCreated {
-                    LinkExistingButton(feed: feed, item: item)
-                }
-                WeightEntry(feed: feed, item: item, focusedField: focusedField)
-            } else if item.isReopenable {
-                Button("Re-weigh") { Task { await feed.reopen(item.id) } }
-            } else if item.offersUnknownActions {
-                UnknownRowActions(feed: feed, item: item)
-            } else {
-                ProgressView().controlSize(.small)
-            }
+            header
+            trailing.frame(width: Self.entryWidth, alignment: .leading)
+        }
+        .controlSize(.large)
+        .frame(minHeight: 60)
+        #else
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            trailing
         }
         .padding(.vertical, 4)
-        .overlay {
-            // A row that waits while the user types in another one.
-            if feed.focus.hintedRow == item.id {
-                RoundedRectangle(cornerRadius: 6).strokeBorder(.tint, lineWidth: 2)
+        #endif
+    }
+
+    /// Swatch, title and UID, colour and remaining, status: one element for
+    /// VoiceOver.
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            SwatchView(swatch: item.swatch, size: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title).font(.headline)
+                Text(item.uid).font(.caption.monospaced()).foregroundStyle(.tertiary)
             }
+            .lineLimit(1)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            Text(item.detailText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            status.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(item.accessibilityHeader)
+    }
+
+    private var status: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                StatusSymbolView(symbol: item.statusSymbol, tint: item.statusTint)
+                Text(item.statusText)
+                    .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+            }
+            .font(.subheadline)
+            if let note = item.timeoutNote {
+                Text(note).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+            }
+            if let error = feed.error(for: item.id) {
+                Text(error).font(.footnote).foregroundStyle(.red).lineLimit(2).help(error)
+            }
+        }
+    }
+
+    @ViewBuilder private var trailing: some View {
+        if item.isEntry {
+            WeightEntry(feed: feed, item: item, focusedField: focusedField)
+        } else if item.offersUnknownActions {
+            UnknownRowActions(feed: feed, item: item)
+        } else {
+            // Saved, timed out or looking up: the space stays empty.
+            Color.clear.frame(height: 1)
+        }
+    }
+
+    /// A click on a saved row opens it again for a re-weigh.
+    private func reopenIfSaved() {
+        guard item.isReopenable else { return }
+        Task { await feed.reopen(item.id) }
+    }
+}
+
+/// A spinner while something runs, else the state's SF Symbol in its tint.
+struct StatusSymbolView: View {
+    let symbol: StatusSymbol
+    let tint: StatusTint
+
+    var body: some View {
+        switch symbol {
+        case .progress:
+            ProgressView().controlSize(.small)
+        case .symbol(let name):
+            Image(systemName: name).foregroundStyle(tint.color)
         }
     }
 }
 
-/// Weight field, net/gross toggle and Save for a known spool. Tab goes
-/// field → mode → Save in view order.
+extension StatusTint {
+    var color: Color {
+        switch self {
+        case .secondary: .secondary
+        case .blue: .blue
+        case .green: .green
+        case .orange: .orange
+        case .red: .red
+        case .gray: .gray
+        }
+    }
+}
+
+/// Weight field with its "g" unit, Net/Gross and Save, the readout under the
+/// field, and Link to existing… on a row created on scan. Tab goes field →
+/// mode → Save in view order.
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
+    /// The weight is the one custom-sized type: 22 pt at the default size.
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 22
 
     var body: some View {
         let id = item.id
         let mode = feed.mode(for: id)
-        HStack(spacing: 6) {
-            TextField(
-                "Weight",
-                text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
-                prompt: Text(item.suggestion(mode: mode).map(String.init) ?? "grams")
-            )
-            .labelsHidden()
-            .multilineTextAlignment(.trailing)
-            .frame(width: 64)
-            .focused(focusedField, equals: id)
-            .onSubmit { Task { await feed.save(id) } }
-            Text("g").foregroundStyle(.secondary)
-            Picker("Mode", selection: Binding(get: { feed.mode(for: id) }, set: { feed.setMode($0, for: id) })) {
-                Text("Net").tag(Intent.WeightMode.net)
-                Text("Gross").tag(Intent.WeightMode.gross)
+        let saving = feed.isSaving(id)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    field(id: id, mode: mode)
+                    Text("g")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                Picker("Mode", selection: Binding(get: { feed.mode(for: id) }, set: { feed.setMode($0, for: id) })) {
+                    Text("Net").tag(Intent.WeightMode.net)
+                    Text("Gross").tag(Intent.WeightMode.gross)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 150)
+                .help("Net: filament only. Gross: spool on the scale, core included.")
+                .onKeyPress(.leftArrow) {
+                    feed.setMode(.net, for: id)
+                    return .handled
+                }
+                .onKeyPress(.rightArrow) {
+                    feed.setMode(.gross, for: id)
+                    return .handled
+                }
+                Button {
+                    Task { await feed.save(id) }
+                } label: {
+                    Text(feed.saveTitle(for: id)).font(.headline).frame(minWidth: 64)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!feed.canSave(id))
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 120)
-            .help("Net: filament only. Gross: spool on the scale, core included.")
-            .onKeyPress(.leftArrow) {
-                feed.setMode(.net, for: id)
-                return .handled
+            .disabled(saving)
+            HStack(spacing: 8) {
+                if let readout = feed.readout(for: id) {
+                    Text(readout.text)
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                if item.isCreated {
+                    #if os(macOS)
+                    LinkExistingButton(feed: feed, item: item)
+                        .buttonStyle(.link)
+                        .font(.footnote)
+                        .controlSize(.small)
+                    #else
+                    LinkExistingButton(feed: feed, item: item).font(.footnote)
+                    #endif
+                }
             }
-            .onKeyPress(.rightArrow) {
-                feed.setMode(.gross, for: id)
-                return .handled
-            }
-            Button("Save") {
-                Task { await feed.save(id) }
-            }
-            .disabled(!feed.canSave(id))
-            ProgressView().controlSize(.small).opacity(feed.isBusy(id) ? 1 : 0)
         }
+    }
+
+    private func field(id: FeedRow.ID, mode: Intent.WeightMode) -> some View {
+        TextField(
+            FeedItem.weightFieldLabel(mode: mode),
+            text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
+            prompt: Text(item.suggestion(mode: mode).map(String.init) ?? "")
+        )
+        .labelsHidden()
+        .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
+        .textFieldStyle(.plain)
+        .font(.system(size: weightSize, weight: .bold, design: .rounded).monospacedDigit())
+        .multilineTextAlignment(.trailing)
+        .padding(.horizontal, 8)
+        .frame(width: 96, height: 34)
+        .background(.background, in: .rect(cornerRadius: 8))
+        .overlay {
+            // The focus ring: a plain field draws none of its own.
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(
+                    focusedField.wrappedValue == id ? AnyShapeStyle(.tint) : AnyShapeStyle(.separator),
+                    lineWidth: focusedField.wrappedValue == id ? 2 : 0.5
+                )
+        }
+        .focused(focusedField, equals: id)
+        .onSubmit { Task { await feed.save(id) } }
     }
 }
 
