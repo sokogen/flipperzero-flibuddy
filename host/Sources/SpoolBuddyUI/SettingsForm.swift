@@ -1,7 +1,8 @@
 import SpoolBuddyCore
 import SwiftUI
 
-/// Bambuddy, new-item and weighing settings, and on macOS the Flipper port.
+/// Bambuddy, new-item and weighing settings, and the Flipper transport: the
+/// USB port (macOS only) or the Bluetooth Flipper.
 public struct SettingsForm: View {
     @Bindable var model: SettingsViewModel
 
@@ -51,17 +52,27 @@ public struct SettingsForm: View {
                 }
                 .pickerStyle(.segmented)
             }
-            #if os(macOS)
             Section("Flipper") {
-                Picker("Port", selection: $model.port) {
-                    Text("Automatic").tag(String?.none)
-                    ForEach(model.ports, id: \.self) { port in
-                        Text(port).tag(String?.some(port))
+                if model.availableTransports.count > 1 {
+                    Picker("Transport", selection: $model.transport) {
+                        ForEach(model.availableTransports, id: \.self) { kind in
+                            Text(kind.title).tag(kind)
+                        }
                     }
+                    .pickerStyle(.segmented)
                 }
-                Button("Refresh ports") { model.refreshPorts() }
+                if model.transport == .usb, model.showsUSB {
+                    Picker("Port", selection: $model.port) {
+                        Text("Automatic").tag(String?.none)
+                        ForEach(model.ports, id: \.self) { port in
+                            Text(port).tag(String?.some(port))
+                        }
+                    }
+                    Button("Refresh ports") { model.refreshPorts() }
+                } else {
+                    bluetooth
+                }
             }
-            #endif
             Section {
                 HStack {
                     if let error = model.saveError {
@@ -77,6 +88,41 @@ public struct SettingsForm: View {
             }
         }
         .formStyle(.grouped)
+        .onDisappear { model.stopScanning() }
+    }
+
+    /// The remembered Flipper, Forget, and the scan with its results.
+    @ViewBuilder private var bluetooth: some View {
+        LabeledContent("Flipper", value: model.peripheralName ?? "First found")
+        if model.peripheralId != nil {
+            Button("Forget Flipper") { model.forgetPeripheral() }
+        }
+        HStack {
+            Button(model.isScanning ? "Stop scanning" : "Scan for Flipper") {
+                if model.isScanning { model.stopScanning() } else { model.scanForFlippers() }
+            }
+            if model.isScanning {
+                ProgressView().controlSize(.small)
+            }
+        }
+        ForEach(model.discovered) { peripheral in
+            Button {
+                model.choosePeripheral(peripheral)
+            } label: {
+                HStack {
+                    Text(peripheral.name)
+                    Spacer()
+                    Text("\(peripheral.rssi) dBm").foregroundStyle(.secondary)
+                    if peripheral.id == model.peripheralId {
+                        Image(systemName: "checkmark")
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        Text("No pairing: the Flipper runs SpoolBuddy with Transport set to Bluetooth.")
+            .font(.caption).foregroundStyle(.secondary)
     }
 
     @ViewBuilder private var connectionStatus: some View {
@@ -85,6 +131,16 @@ public struct SettingsForm: View {
         case .testing: ProgressView().controlSize(.small)
         case .ok(let message): Label(message, systemImage: "checkmark.circle").foregroundStyle(.green)
         case .failed(let message): Label(message, systemImage: "xmark.octagon").foregroundStyle(.red)
+        }
+    }
+}
+
+extension TransportKind {
+    /// The picker label.
+    var title: String {
+        switch self {
+        case .usb: "USB"
+        case .bluetooth: "Bluetooth"
         }
     }
 }

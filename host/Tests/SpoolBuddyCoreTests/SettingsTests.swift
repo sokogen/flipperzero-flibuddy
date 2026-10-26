@@ -31,7 +31,56 @@ final class ScratchDefaults {
         #expect(settings.coreWeight == 325)
         #expect(settings.defaultMode == .gross)
         #expect(settings.port == nil)
+        #expect(settings.peripheralId == nil)
+        #expect(settings.peripheralName == nil)
         #expect(!settings.isConfigured)
+    }
+
+    @Test func theDefaultTransportDependsOnThePlatform() {
+        #if os(macOS)
+        #expect(TransportKind.platformDefault == .usb)
+        #expect(TransportKind.available == [.usb, .bluetooth])
+        #else
+        #expect(TransportKind.platformDefault == .bluetooth)
+        #expect(TransportKind.available == [.bluetooth])
+        #endif
+        #expect(Settings().transport == TransportKind.platformDefault)
+    }
+
+    @Test func theTransportChoiceFollowsTheKind() {
+        let id = UUID()
+        var settings = Settings(transport: .usb, port: "/dev/cu.usbmodemflip_A", peripheralId: id, peripheralName: "Flipper A")
+        #expect(settings.transportChoice == .usb(port: "/dev/cu.usbmodemflip_A"))
+        settings.transport = .bluetooth
+        #expect(settings.transportChoice == .bluetooth(peripheral: id))
+        settings.peripheralId = nil
+        #expect(settings.transportChoice == .bluetooth(peripheral: nil))
+    }
+
+    @Test func theTransportAndPeripheralLoadBackAndClear() throws {
+        let scratch = ScratchDefaults()
+        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        var settings = testSettings
+        settings.transport = .bluetooth
+        settings.peripheralId = UUID(uuidString: "6B1E6B52-7D2C-4C8B-9E55-3A1F0F3C2D10")
+        settings.peripheralName = "Flipper Anmaa1"
+        try store.save(settings)
+        #expect(store.load() == settings)
+
+        settings.transport = .usb
+        settings.peripheralId = nil
+        settings.peripheralName = nil
+        try store.save(settings)
+        #expect(store.load() == settings)
+    }
+
+    @Test func anUnknownTransportLoadsAsThePlatformDefault() {
+        let scratch = ScratchDefaults()
+        scratch.defaults.set("carrier-pigeon", forKey: "flipper.transport")
+        scratch.defaults.set("not-a-uuid", forKey: "flipper.peripheralId")
+        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        #expect(store.load().transport == TransportKind.platformDefault)
+        #expect(store.load().peripheralId == nil)
     }
 
     @Test func aStoreWithNothingSavedLoadsTheDefaults() {

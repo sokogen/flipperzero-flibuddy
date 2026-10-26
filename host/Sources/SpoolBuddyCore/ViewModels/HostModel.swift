@@ -44,25 +44,27 @@ public final class HostModel {
     public func start() {
         guard !started else { return }
         started = true
-        link.connect(.usb(port: settings.port))
+        link.connect(settings.transportChoice)
         Task { await session.checkBambuddy() }
     }
 
     /// Saves new settings, points the session at them and checks Bambuddy
-    /// again; a changed port reconnects a running link.
+    /// again; a changed transport choice (kind, USB port or Bluetooth
+    /// peripheral) reconnects a running link.
     public func apply(_ new: Settings) async throws {
         try store.save(new)
-        let portChanged = new.port != settings.port
+        let choiceChanged = new.transportChoice != settings.transportChoice
         settings = new
         feed.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
-        if portChanged, link.isActive { link.connect(.usb(port: new.port)) }
+        if choiceChanged, link.isActive { link.connect(new.transportChoice) }
         await session.checkBambuddy()
     }
 
     public func makeSettingsViewModel() -> SettingsViewModel {
         SettingsViewModel(
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
+            discoverFlippers: { [link] in link.discoverFlippers() },
             apply: { [weak self] in try await self?.apply($0) }
         )
     }

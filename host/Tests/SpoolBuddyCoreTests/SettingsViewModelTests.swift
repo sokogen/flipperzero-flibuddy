@@ -11,6 +11,8 @@ private func makeModel(
     _ inventory: FakeInventory? = FakeInventory(),
     settings: Settings = testSettings,
     ports: [String] = ["/dev/cu.usbmodemflip_Anmaa1"],
+    scan: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { AsyncStream { $0.finish() } },
+    scanDuration: Duration = .seconds(15),
     apply: @escaping @MainActor (Settings) async throws -> Void = { _ in }
 ) -> SettingsViewModel {
     SettingsViewModel(
@@ -20,8 +22,35 @@ private func makeModel(
             return inventory
         },
         discoverPorts: { ports },
+        discoverFlippers: scan,
+        scanDuration: scanDuration,
         apply: apply
     )
+}
+
+private let flipperA = DiscoveredPeripheral(
+    id: UUID(uuidString: "6B1E6B52-7D2C-4C8B-9E55-3A1F0F3C2D10")!, name: "Flipper Anmaa1", rssi: -60
+)
+private let flipperB = DiscoveredPeripheral(
+    id: UUID(uuidString: "0F1C2E3D-4B5A-4978-8695-A4B3C2D1E0F9")!, name: "Flipper Brrr2", rssi: -75
+)
+
+/// A scan the test feeds by hand; `stopped` turns true when the consumer stops.
+@MainActor
+private final class ManualScan {
+    private(set) var continuation: AsyncStream<DiscoveredPeripheral>.Continuation?
+    let stopped = LockedBox(false)
+    private(set) var starts = 0
+
+    func start() -> AsyncStream<DiscoveredPeripheral> {
+        starts += 1
+        let (stream, continuation) = AsyncStream<DiscoveredPeripheral>.makeStream()
+        let stopped = stopped
+        stopped.mutate { $0 = false }
+        continuation.onTermination = { _ in stopped.mutate { $0 = true } }
+        self.continuation = continuation
+        return stream
+    }
 }
 
 @MainActor
@@ -233,6 +262,132 @@ struct SettingsViewModelTests {
         #expect(!(await model.save()))
 
         #expect(model.saveError != nil)
+        #expect(model.hasChanges)
+    }
+
+    @Test func theDraftCarriesTheTransportSettings() {
+        var settings = testSettings
+        settings.transport = .bluetooth
+        settings.peripheralId = flipperA.id
+        settings.peripheralName = flipperA.name
+        let model = makeModel(settings: settings)
+        #expect(model.transport == .bluetooth)
+        #expect(model.peripheralId == flipperA.id)
+        #expect(model.peripheralName == flipperA.name)
+        #expect(model.draft == settings)
+
+        model.transport = .usb
+        #expect(model.draft.transport == .usb)
+        #expect(model.hasChanges)
+    }
+
+    @Test func theTransportPickerOffersThePlatformKinds() {
+        let model = makeModel()
+        #expect(model.availableTransports == TransportKind.available)
+        #if os(macOS)
+        #expect(model.showsUSB)
+        #else
+        #expect(!model.showsUSB)
+        #endif
+    }
+
+    @Test func scanningListsEachFlipperOnceWithTheLatestSignal() async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start)
+
+        model.scanForFlippers()
+        #expect(model.isScanning)
+        scan.continuation?.yield(flipperA)
+        scan.continuation?.yield(flipperB)
+        var closer = flipperA
+        closer.rssi = -40
+        scan.continuation?.yield(closer)
+
+        #expect(await eventually { model.discovered == [closer, flipperB] })
+        model.stopScanning()
+    }
+
+    @Test func aNewScanStartsWithAnEmptyList() async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start)
+        model.scanForFlippers()
+        scan.continuation?.yield(flipperA)
+        #expect(await eventually { model.discovered == [flipperA] })
+
+        model.scanForFlippers()
+
+        #expect(model.discovered.isEmpty)
+        #expect(scan.starts == 2)
+        model.stopScanning()
+    }
+
+    @Test func stoppingEndsTheScan() async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start)
+        model.scanForFlippers()
+
+        model.stopScanning()
+
+        #expect(!model.isScanning)
+        #expect(await eventually { scan.stopped.value })
+    }
+
+    @Test func theScanStopsByItselfAfterAWhile() async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start, scanDuration: .milliseconds(50))
+
+        model.scanForFlippers()
+
+        #expect(await eventually { !model.isScanning })
+        #expect(await eventually { scan.stopped.value })
+    }
+
+    @Test func aScanThatEndsClearsTheScanningFlag() async {
+        let model = makeModel(scan: {
+            AsyncStream { continuation in
+                continuation.yield(flipperA)
+                continuation.finish()
+            }
+        })
+
+        model.scanForFlippers()
+
+        #expect(await eventually { !model.isScanning })
+        #expect(model.discovered == [flipperA])
+    }
+
+    @Test func choosingAFlipperStoresItsIdAndNameAndStopsTheScan() async {
+        let scan = ManualScan()
+        var applied: [Settings] = []
+        let model = makeModel(scan: scan.start, apply: { applied.append($0) })
+        model.scanForFlippers()
+
+        model.choosePeripheral(flipperB)
+
+        #expect(model.peripheralId == flipperB.id)
+        #expect(model.peripheralName == "Flipper Brrr2")
+        #expect(model.transport == .bluetooth)
+        #expect(!model.isScanning)
+        #expect(await eventually { scan.stopped.value })
+        #expect(await model.save())
+        #expect(applied.map(\.peripheralId) == [flipperB.id])
+        #expect(applied.map(\.peripheralName) == ["Flipper Brrr2"])
+    }
+
+    @Test func forgettingTheFlipperClearsIt() {
+        var settings = testSettings
+        settings.transport = .bluetooth
+        settings.peripheralId = flipperA.id
+        settings.peripheralName = flipperA.name
+        let model = makeModel(settings: settings)
+
+        model.forgetPeripheral()
+
+        #expect(model.peripheralId == nil)
+        #expect(model.peripheralName == nil)
+        #expect(model.draft.peripheralId == nil)
+        #expect(model.draft.peripheralName == nil)
+        #expect(model.draft.transport == .bluetooth)
         #expect(model.hasChanges)
     }
 }

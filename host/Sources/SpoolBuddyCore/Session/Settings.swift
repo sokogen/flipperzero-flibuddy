@@ -1,6 +1,30 @@
 import Foundation
 import Security
 
+/// How the host reaches the Flipper.
+public enum TransportKind: String, CaseIterable, Sendable {
+    case usb
+    case bluetooth
+
+    /// USB on the Mac, Bluetooth where there is no serial port.
+    public static var platformDefault: TransportKind {
+        #if os(macOS)
+        .usb
+        #else
+        .bluetooth
+        #endif
+    }
+
+    /// The kinds this platform can use.
+    public static var available: [TransportKind] {
+        #if os(macOS)
+        [.usb, .bluetooth]
+        #else
+        [.bluetooth]
+        #endif
+    }
+}
+
 /// Host settings. The API key lives in the Keychain; the rest in `UserDefaults`.
 public struct Settings: Equatable, Sendable {
     /// Everything on the scale that is not filament: Bambu reusable spool
@@ -19,20 +43,37 @@ public struct Settings: Equatable, Sendable {
     public var coreWeight: Int
     /// Net/gross preselected when a weight is entered.
     public var defaultMode: Intent.WeightMode
+    public var transport: TransportKind
     /// The Flipper's serial device; `nil` uses the first Flipper found.
     public var port: String?
+    /// The remembered Bluetooth Flipper; `nil` uses the first one found.
+    public var peripheralId: UUID?
+    /// Its name when it was chosen, for display.
+    public var peripheralName: String?
 
     public init(
         baseURL: String = "", apiKey: String = "", catalogEntryId: Int? = nil,
         coreWeight: Int = Settings.defaultCoreWeight, defaultMode: Intent.WeightMode = .gross,
-        port: String? = nil
+        transport: TransportKind = .platformDefault, port: String? = nil,
+        peripheralId: UUID? = nil, peripheralName: String? = nil
     ) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.catalogEntryId = catalogEntryId
         self.coreWeight = coreWeight
         self.defaultMode = defaultMode
+        self.transport = transport
         self.port = port
+        self.peripheralId = peripheralId
+        self.peripheralName = peripheralName
+    }
+
+    /// What the Flipper link opens for these settings.
+    public var transportChoice: TransportChoice {
+        switch transport {
+        case .usb: .usb(port: port)
+        case .bluetooth: .bluetooth(peripheral: peripheralId)
+        }
     }
 
     /// An http(s) base URL and an API key are set.
@@ -70,7 +111,10 @@ public struct SettingsStore: @unchecked Sendable {
         static let catalogEntryId = "bambuddy.catalogEntryId"
         static let coreWeight = "bambuddy.coreWeight"
         static let defaultMode = "weight.defaultMode"
+        static let transport = "flipper.transport"
         static let port = "flipper.port"
+        static let peripheralId = "flipper.peripheralId"
+        static let peripheralName = "flipper.peripheralName"
     }
 
     // UserDefaults is thread-safe.
@@ -92,7 +136,11 @@ public struct SettingsStore: @unchecked Sendable {
         settings.coreWeight = defaults.object(forKey: Key.coreWeight) as? Int ?? settings.coreWeight
         settings.defaultMode = defaults.string(forKey: Key.defaultMode)
             .flatMap(Intent.WeightMode.init(rawValue:)) ?? settings.defaultMode
+        settings.transport = defaults.string(forKey: Key.transport)
+            .flatMap(TransportKind.init(rawValue:)) ?? settings.transport
         settings.port = defaults.string(forKey: Key.port)
+        settings.peripheralId = defaults.string(forKey: Key.peripheralId).flatMap(UUID.init(uuidString:))
+        settings.peripheralName = defaults.string(forKey: Key.peripheralName)
         return settings
     }
 
@@ -108,10 +156,18 @@ public struct SettingsStore: @unchecked Sendable {
         }
         defaults.set(settings.coreWeight, forKey: Key.coreWeight)
         defaults.set(settings.defaultMode.rawValue, forKey: Key.defaultMode)
-        if let port = settings.port {
-            defaults.set(port, forKey: Key.port)
+        defaults.set(settings.transport.rawValue, forKey: Key.transport)
+        set(settings.port, Key.port)
+        set(settings.peripheralId?.uuidString, Key.peripheralId)
+        set(settings.peripheralName, Key.peripheralName)
+    }
+
+    /// Stores `value`, or removes the key for `nil`.
+    private func set(_ value: String?, _ key: String) {
+        if let value {
+            defaults.set(value, forKey: key)
         } else {
-            defaults.removeObject(forKey: Key.port)
+            defaults.removeObject(forKey: key)
         }
     }
 }
