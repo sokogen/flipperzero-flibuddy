@@ -86,7 +86,7 @@ for the same `scan_id`, and the Flipper replaces what it shows with it.
 
 The host answers every valid `scan` with a `lookup`, `error` included. The
 Flipper does not time out while it waits for a lookup ("Looking up"): Back
-returns to Idle, and losing the host shows the scan's local facts.
+returns to Ready, and losing the host shows the scan's local facts.
 
 ## Messages
 
@@ -201,7 +201,7 @@ scanned again, and never becomes a duplicate.
 The Flipper pre-fills a gross weight with `spool.remaining + spool.core`,
 falling back to `defaults.label + defaults.core`, and a net weight with
 `spool.remaining`, falling back to `defaults.label`. `defaults.gross` is the
-last gross weight Bambuddy recorded, kept for the host feed.
+last gross weight Bambuddy recorded.
 
 ```json
 {"t":"lookup","v":2,"scan_id":"s-000012","status":"found","spool_id":42,"spool":{"id":42,"material":"PLA","subtype":"Basic","color_name":"Jade White","rgba":"FFFFFFFF","remaining":484,"label":1000,"core":250},"lines":["PLA Basic","Jade White","484 g left of 1000","core 250 g"],"defaults":{"gross":734,"label":1000,"core":250}}
