@@ -19,7 +19,7 @@ public struct NewSpoolForm: Equatable, Sendable {
             ?? NewSpool(
                 material: "", labelWeight: tag.labelWeight ?? NewSpool.defaultLabelWeight,
                 coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
-                tagUid: tag.uid, trayUuid: tag.trayUuid, tagType: tag.kind.bambuddyTagType
+                tagUid: tag.bambuddyTagUid, trayUuid: tag.trayUuid, tagType: tag.kind.bambuddyTagType
             )
         material = base.material
         subtype = base.subtype ?? ""

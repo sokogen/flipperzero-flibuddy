@@ -141,7 +141,7 @@ public struct NewSpool: Encodable, Equatable, Sendable {
             coreWeightCatalogId: coreWeightCatalogId,
             nozzleTempMin: tag.nozzleMin,
             nozzleTempMax: tag.nozzleMax,
-            tagUid: tag.uid,
+            tagUid: tag.bambuddyTagUid,
             trayUuid: tag.trayUuid,
             tagType: tag.kind.bambuddyTagType
         )
@@ -162,9 +162,9 @@ public struct TagLink: Encodable, Equatable, Sendable {
         self.tagType = tagType
     }
 
-    /// Links the tag's UID and its tray UUID.
+    /// Links the tag's UID (in the form Bambuddy stores) and its tray UUID.
     public init(tag: ParsedTag) {
-        self.init(tagUid: tag.uid, trayUuid: tag.trayUuid, tagType: tag.kind.bambuddyTagType)
+        self.init(tagUid: tag.bambuddyTagUid, trayUuid: tag.trayUuid, tagType: tag.kind.bambuddyTagType)
     }
 }
 

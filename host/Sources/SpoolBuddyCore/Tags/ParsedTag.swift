@@ -60,6 +60,19 @@ public struct ParsedTag: Equatable, Sendable {
         self.nozzleMin = nozzleMin
     }
 
+    /// What an AMS writes after a Bambu tag's 4-byte UID; see `bambuddyTagUid`.
+    public static let amsTagUidSuffix = "00000100"
+
+    /// The `tag_uid` sent to Bambuddy: for Bambu tags the UID followed by
+    /// `00000100`, the form an AMS reports, so that spools added by the AMS
+    /// and by the Flipper match; NTAG UIDs as read. Upper-case hex.
+    public var bambuddyTagUid: String {
+        switch kind {
+        case .bambu: uid.uppercased() + Self.amsTagUidSuffix
+        case .ntag: uid.uppercased()
+        }
+    }
+
     /// Enough data to create a spool from the tag (needs `material`).
     public var hasPrefill: Bool { material != nil }
 

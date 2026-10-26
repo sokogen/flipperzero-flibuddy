@@ -204,7 +204,7 @@ class Bridge:
             return {**base, "status": "error", "lines": ["No Bambuddy configured"],
                     "error": "bridge started without --bambuddy"}
         try:
-            spool = self.client.find_by_tag(parsed.tray_uuid, parsed.uid)
+            spool = self.client.find_by_tag(parsed.tray_uuid, parsed.bambuddy_tag_uid)
         except BambuddyError as error:
             return {**base, "status": "error", "lines": ["Lookup failed"],
                     "error": str(error)[:MAX_ERROR]}
@@ -279,7 +279,7 @@ class Bridge:
         if action == "new" and not parsed.has_prefill:
             return self._result(intent_id, False, ["Not created", "No material on tag"],
                                 "tag carries no material")
-        spool = self.client.find_by_tag(parsed.tray_uuid, parsed.uid)
+        spool = self.client.find_by_tag(parsed.tray_uuid, parsed.bambuddy_tag_uid)
 
         if action == "weigh":
             if spool is None:
@@ -314,7 +314,7 @@ class Bridge:
             "weight_used": 0,
             "nozzle_temp_min": parsed.nozzle_min,
             "nozzle_temp_max": parsed.nozzle_max,
-            "tag_uid": parsed.uid,
+            "tag_uid": parsed.bambuddy_tag_uid,
             "tray_uuid": parsed.tray_uuid,
             "tag_type": TAG_TYPES[parsed.kind],
             "data_origin": DATA_ORIGIN,

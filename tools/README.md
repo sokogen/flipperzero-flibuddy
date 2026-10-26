@@ -49,7 +49,8 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
   Flipper does not send them).
 
 Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one; the
-tray UUID is block 9, which matched the AMS-reported `tray_uuid` in Phase 0),
+tray UUID is block 9, which matched the AMS-reported `tray_uuid` in Phase 0;
+Bambu UIDs go to Bambuddy as UID + `00000100`, the AMS form),
 `bambuddy.py` (httpx client), `session.py` (framing and message handling),
 `__main__.py` (CLI and serial loop).
 

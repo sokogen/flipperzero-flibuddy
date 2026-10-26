@@ -219,7 +219,7 @@ struct BambuddyClientTests {
         #expect(new.weightUsed == 0)
         #expect(new.nozzleTempMin == tag.nozzleMin)
         #expect(new.nozzleTempMax == tag.nozzleMax)
-        #expect(new.tagUid == tag.uid)
+        #expect(new.tagUid == "5A3C9E2100000100")
         #expect(new.trayUuid == tag.trayUuid)
         #expect(new.tagType == "bambulab")
         #expect(new.dataOrigin == "flipper")
@@ -257,7 +257,7 @@ struct BambuddyClientTests {
 
     @Test func linkTagFromAParsedTag() throws {
         let tag = TagParser.parse(try TagFixtures.bambu())
-        #expect(TagLink(tag: tag) == TagLink(tagUid: tag.uid, trayUuid: tag.trayUuid, tagType: "bambulab"))
+        #expect(TagLink(tag: tag) == TagLink(tagUid: "5A3C9E2100000100", trayUuid: tag.trayUuid, tagType: "bambulab"))
         let ntag = TagParser.parse(try TagFixtures.ntag())
         #expect(TagLink(tag: ntag) == TagLink(tagUid: ntag.uid, trayUuid: nil, tagType: "ntag"))
     }
@@ -267,6 +267,37 @@ struct BambuddyClientTests {
         let tray = "F1C8FDF0BC1643C0B37189ADB0687992"
         #expect(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: nil)?.trayUuid == tray)
         #expect(TagLink(tag: tag).trayUuid == tray)
+    }
+
+    // MARK: AMS tag UID form on the wire
+
+    @Test func findSpoolQueriesTheAmsFormOfTheRealDump() async throws {
+        let tag = TagParser.parse(try TagFixtures.bambuReal())
+        let server = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
+        _ = try await server.client().findSpool(trayUuid: tag.trayUuid, uid: tag.bambuddyTagUid)
+        #expect(server.requests.map(\.query) == [
+            ["tray_uuid": "F1C8FDF0BC1643C0B37189ADB0687992"], ["tag_uid": "7EF1AB0400000100"],
+        ])
+    }
+
+    @Test func createAndLinkSendTheAmsFormOfTheRealDump() async throws {
+        let tag = TagParser.parse(try TagFixtures.bambuReal())
+        let server = StubServer { _ in .json(200, spoolJSON()) }
+        let client = try server.client()
+        _ = try await client.createSpool(try #require(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: nil)))
+        _ = try await client.linkTag(spoolId: 42, TagLink(tag: tag))
+        #expect(server.requests.map(\.json).map { $0["tag_uid"] as? String } == ["7EF1AB0400000100", "7EF1AB0400000100"])
+    }
+
+    @Test func createAndLinkSendAnNtagUidAsRead() async throws {
+        let tag = TagParser.parse(try TagFixtures.ntag())
+        let server = StubServer { _ in .json(200, spoolJSON()) }
+        let client = try server.client()
+        var form = NewSpoolForm(tag: tag, settings: Settings(catalogEntryId: nil, coreWeight: 250))
+        form.material = "PETG"
+        _ = try await client.createSpool(try #require(form.newSpool))
+        _ = try await client.linkTag(spoolId: 42, TagLink(tag: tag))
+        #expect(server.requests.map(\.json).map { $0["tag_uid"] as? String } == ["04112233445566", "04112233445566"])
     }
 
     @Test func linkTagMaps409WithAHolderToTagAlreadyLinked() async throws {

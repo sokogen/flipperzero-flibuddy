@@ -160,7 +160,7 @@ def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
     tag = load("scan_mfc.json")["tag"]
     tray_uuid = bambu_tag.parse_tag(tag).tray_uuid
     assert tray_uuid == tag["blocks"]["9"]
-    assert fake.calls == [("find_by_tag", tray_uuid, tag["uid"])]
+    assert fake.calls == [("find_by_tag", tray_uuid, "5A3C9E2100000100")]
 
 
 def test_scan_of_a_known_spool_yields_the_found_lookup():
@@ -200,6 +200,12 @@ def test_scan_of_an_ntag_is_unknown_without_prefill():
     assert reply["lines"] == ["NTAG", "UID 04112233445566"]
 
 
+def test_scan_of_an_ntag_is_looked_up_by_the_uid_as_read():
+    fake = FakeBambuddy()
+    replies(bridge(fake), load("scan_ntag.json"))
+    assert fake.calls == [("find_by_tag", None, "04112233445566")]
+
+
 def test_scan_of_an_unreadable_mfc_is_looked_up_by_uid():
     fake = FakeBambuddy()
     scan = load("scan_mfc_unreadable.json")
@@ -207,7 +213,14 @@ def test_scan_of_an_unreadable_mfc_is_looked_up_by_uid():
     assert reply["status"] == "unknown"
     assert reply["scan_id"] == scan["scan_id"]
     assert "prefill" not in reply
-    assert fake.calls == [("find_by_tag", None, scan["tag"]["uid"])]
+    assert fake.calls == [("find_by_tag", None, scan["tag"]["uid"] + "00000100")]
+
+
+def test_a_spool_added_by_an_ams_is_found_by_the_uid_alone():
+    fake = FakeBambuddy([{**SPOOL_42, "tag_uid": "5A3C9E2100000100"}])
+    (reply,) = replies(bridge(fake), load("scan_mfc_unreadable.json"))
+    assert reply["status"] == "found"
+    assert reply["spool_id"] == 42
 
 
 def test_lookup_failure_yields_an_error_lookup():
@@ -332,7 +345,7 @@ def test_new_creates_a_full_spool_from_the_tag():
         "weight_used": 0,
         "nozzle_temp_min": 190,
         "nozzle_temp_max": 230,
-        "tag_uid": tag["uid"],
+        "tag_uid": "5A3C9E2100000100",
         "tray_uuid": parsed.tray_uuid,
         "tag_type": "bambulab",
         "data_origin": "flipper",

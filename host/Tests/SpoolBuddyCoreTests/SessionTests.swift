@@ -2,12 +2,13 @@ import Foundation
 import Testing
 @testable import SpoolBuddyCore
 
-/// The spool `lookup_found.json` describes, carrying the synthetic fixture's UID.
+/// The spool `lookup_found.json` describes, carrying the synthetic fixture's UID in
+/// the AMS form.
 func knownSpool(lastScaleWeight: Int? = 734, weightUsed: Double = 516, colorName: String? = "Jade White") -> Spool {
     Spool(
         id: 42, material: "PLA", subtype: "PLA Basic", colorName: colorName, rgba: "FFFFFFFF",
         brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
-        weightUsed: weightUsed, lastScaleWeight: lastScaleWeight, tagUid: "5A3C9E21", tagType: "bambulab"
+        weightUsed: weightUsed, lastScaleWeight: lastScaleWeight, tagUid: "5A3C9E2100000100", tagType: "bambulab"
     )
 }
 
@@ -82,7 +83,7 @@ struct SessionScanTests {
         #expect(row.spool == knownSpool())
         #expect(row.status == .awaitingWeight)
         let tag = row.tag
-        #expect(inventory.calls == [.spoolman, .find(tray: tag.trayUuid, uid: "5A3C9E21")])
+        #expect(inventory.calls == [.spoolman, .find(tray: tag.trayUuid, uid: "5A3C9E2100000100")])
     }
 
     @Test func theFoundReplyEncodesForTheFlipper() async throws {
@@ -148,7 +149,7 @@ struct SessionScanTests {
         #expect(lookup.scanId == "s-000014")
         #expect(lookup.status == .unknown)
         #expect(lookup.prefill == nil)
-        #expect(inventory.calls.contains(.find(tray: nil, uid: "5A3C9E21")))
+        #expect(inventory.calls.contains(.find(tray: nil, uid: "5A3C9E2100000100")))
     }
 
     @Test func aFailedLookupAnswersErrorAndMarksTheRow() async throws {
@@ -415,6 +416,7 @@ struct SessionIntentTests {
         let tag = TagParser.parse(intent.tag)
         let expected = try #require(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
         #expect(inventory.creates == [.create(expected)])
+        #expect(expected.tagUid == "5A3C9E2100000100")
         #expect(result == IntentResult(id: "i-000004", ok: true, lines: ["Created", "spool #100"]))
         let row = try #require(await session.rows.first)
         #expect(row.spool?.id == 100)

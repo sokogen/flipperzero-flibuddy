@@ -160,6 +160,19 @@ def test_ntag_fixture_is_uid_only():
     assert parsed.has_prefill is False
 
 
+def test_bambu_tags_take_the_ams_tag_uid_form():
+    real = bambu_tag.parse_tag(load(TAGS / "bambu_pla_pure_real.json"))
+    assert real.bambuddy_tag_uid == "7EF1AB0400000100"
+    assert bambu_tag.parse_tag(bambu_scan_tag()).bambuddy_tag_uid == "5A3C9E2100000100"
+    assert bambu_tag.ParsedTag(kind="bambu", uid="7ef1ab04").bambuddy_tag_uid == "7EF1AB0400000100"
+
+
+def test_ntag_uids_are_sent_to_bambuddy_as_read():
+    parsed = bambu_tag.parse_tag(load(TAGS / "ntag215_blank.json"))
+    assert parsed.bambuddy_tag_uid == "04112233445566"
+    assert bambu_tag.ParsedTag(kind="ntag", uid="04a1b2c3d4e5f6").bambuddy_tag_uid == "04A1B2C3D4E5F6"
+
+
 def test_ntag_fixture_file_page_list():
     parsed = bambu_tag.parse_tag(load(TAGS / "ntag215_blank.json"))
     assert parsed.kind == "ntag"

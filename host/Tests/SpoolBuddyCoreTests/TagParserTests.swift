@@ -242,6 +242,22 @@ enum TagFixtures {
     }
 }
 
+@Suite struct ParsedTagBambuddyTagUidTests {
+    @Test func bambuTagsTakeTheAmsForm() throws {
+        #expect(TagParser.parse(try TagFixtures.bambuReal()).bambuddyTagUid == "7EF1AB0400000100")
+        #expect(TagParser.parse(try TagFixtures.bambu()).bambuddyTagUid == "5A3C9E2100000100")
+    }
+
+    @Test func theAmsFormIsUpperCase() {
+        #expect(ParsedTag(kind: .bambu, uid: "7ef1ab04").bambuddyTagUid == "7EF1AB0400000100")
+    }
+
+    @Test func ntagUidsAreSentAsRead() throws {
+        #expect(TagParser.parse(try TagFixtures.ntag()).bambuddyTagUid == "04112233445566")
+        #expect(ParsedTag(kind: .ntag, uid: "04a1b2c3d4e5f6").bambuddyTagUid == "04A1B2C3D4E5F6")
+    }
+}
+
 @Suite struct ParsedTagDisplayLinesTests {
     @Test func bambuLinesMatchTheLookupFixture() throws {
         guard case .lookup(let lookup) = try Message.decode(line: Fixtures.message("lookup_unknown")) else {

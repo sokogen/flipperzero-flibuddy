@@ -146,6 +146,15 @@ alone. Blocks 4+5 hold the detailed type and colour, not a tray UUID. Both
 parsers (Swift `TagParser`, Python `bambu_tag`) read the tray UUID the same
 way, and new items and tag links store it as `tray_uuid`.
 
+The UID the host sends to Bambuddy (the `tag_uid` of the lookup, of new
+items and of tag links) is the AMS form for Bambu tags: the upper-case UID
+followed by `00000100`, so `7EF1AB04` becomes `7EF1AB0400000100`. An AMS
+writes `ECA8FEDE00000100` for MIFARE UID `ECA8FEDE`, and Bambuddy keeps the
+last 16 hex characters of whatever it receives without padding, so this
+value round-trips unchanged and spools added by an AMS and by the Flipper
+match. NTAG UIDs (7 bytes) are sent as read. The `lookup` lines and the
+`scan`/`intent` messages carry the UID as read.
+
 The Flipper pre-fills the weight with `defaults.gross`, falling back to
 `defaults.label + defaults.core`.
 

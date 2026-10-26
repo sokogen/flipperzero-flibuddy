@@ -122,11 +122,17 @@ mentions tray UUID candidates.
   checklist item about candidates is left for task 7.
 
 ### Task 3: Send Bambu tag UIDs in the AMS form
-- [ ] Swift: add `ParsedTag.bambuddyTagUid` — for `.bambu` tags the upper-case UID followed by `00000100`, for NTAG the upper-case UID as read; use it in `LookupBuilder` (by-tag query), `NewSpoolForm`/`NewSpool` (create) and the link call
-- [ ] Swift tests: `7EF1AB04` → `7EF1AB0400000100`; NTAG 7-byte UID unchanged; `BambuddyClientTests` stub asserts the query and body values
-- [ ] Python: same helper in `tools/bridge/bambu_tag.py`, used by `tools/bridge/session.py` for lookup, create and link; tests in `tools/tests/test_bambu_tag.py` and `tools/tests/test_bridge_protocol.py`
-- [ ] document the form in `protocol/PROTOCOL.md` ("what the host sends to Bambuddy") and `host/README.md`
-- [ ] run all three suites - must pass before task 4
+- [x] Swift: add `ParsedTag.bambuddyTagUid` — for `.bambu` tags the upper-case UID followed by `00000100`, for NTAG the upper-case UID as read; use it in `LookupBuilder` (by-tag query), `NewSpoolForm`/`NewSpool` (create) and the link call
+- [x] Swift tests: `7EF1AB04` → `7EF1AB0400000100`; NTAG 7-byte UID unchanged; `BambuddyClientTests` stub asserts the query and body values
+- [x] Python: same helper in `tools/bridge/bambu_tag.py`, used by `tools/bridge/session.py` for lookup, create and link; tests in `tools/tests/test_bambu_tag.py` and `tools/tests/test_bridge_protocol.py`
+- [x] document the form in `protocol/PROTOCOL.md` ("what the host sends to Bambuddy") and `host/README.md`
+- [x] run all three suites - must pass before task 4
+- ➕ the by-tag query is built in `IntentHandler.find` (via
+  `SpoolInventory.findSpool`), not in `LookupBuilder`; the bridge has no link
+  call (`link_on_host` is only flagged), so in Python the AMS form covers
+  lookup and create. Display lines, error texts and `SessionError.spoolNotFound`
+  keep the UID as read. Spools stored earlier with the bare UID (e.g. #63,
+  `7EF1AB04`) are no longer found by UID; they still match by tray UUID.
 
 ### Task 4: Core weight 325 g, editable in settings
 - [ ] Swift: `Settings.defaultCoreWeight = 325`; `useCatalogEntry` still copies the entry weight; add validation (1…5000 g) in `SettingsViewModel`; a user-edited core weight is saved even when a catalog entry is selected, and selecting an entry overwrites the number once

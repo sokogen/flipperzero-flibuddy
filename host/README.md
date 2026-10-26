@@ -6,7 +6,10 @@ SwiftPM only: no Xcode project, no UI tests.
   Bambuddy client, transport, session, view models). `TagParser` takes the
   tray UUID from block 9 of a Bambu tag, the block whose value matched the
   AMS-reported `tray_uuid` in Phase 0. Lookups try it first, then the UID,
-  and new items and tag links store it.
+  and new items and tag links store it. The UID goes to Bambuddy in the
+  form an AMS writes (`ParsedTag.bambuddyTagUid`): for Bambu tags the UID
+  followed by `00000100` (`7EF1AB04` → `7EF1AB0400000100`), NTAG UIDs as
+  read; see `protocol/PROTOCOL.md`.
 - `SpoolBuddyMac`: SwiftUI executable for macOS 14+.
 - `SpoolBuddyCoreTests`: swift-testing suites (`import Testing`). The Command
   Line Tools have no XCTest, so the tests do not use it.

@@ -4,7 +4,8 @@ Pure functions, no I/O. The Swift `TagParser` mirrors this module. The Bambu
 block layout follows the public Bambu RFID tag guide; see
 tools/fixtures/make_bambu_dump.py for the fields. The tray UUID is block 9 as
 raw hex: Phase 0 matched it byte for byte with the `tray_uuid` an AMS reported
-to Bambuddy. An all-zero block 9 means no tray UUID.
+to Bambuddy. An all-zero block 9 means no tray UUID. Bambu tag UIDs go to
+Bambuddy in the form an AMS writes, UID + "00000100" (`bambuddy_tag_uid`).
 """
 
 import struct
@@ -12,6 +13,7 @@ from dataclasses import asdict, dataclass
 
 MAX_LINES = 4
 MAX_LINE_LEN = 40
+AMS_TAG_UID_SUFFIX = "00000100"  # what an AMS writes after a Bambu tag's UID
 
 
 @dataclass(frozen=True)
@@ -31,6 +33,14 @@ class ParsedTag:
     bed_temp: int | None = None
     nozzle_max: int | None = None
     nozzle_min: int | None = None
+
+    @property
+    def bambuddy_tag_uid(self) -> str:
+        """The `tag_uid` sent to Bambuddy: for Bambu tags the UID followed by
+        `00000100`, the form an AMS reports, so that spools added by the AMS
+        and by the Flipper match; NTAG UIDs as read. Upper-case hex."""
+        uid = self.uid.upper()
+        return uid + AMS_TAG_UID_SUFFIX if self.kind == "bambu" else uid
 
     @property
     def has_prefill(self) -> bool:
