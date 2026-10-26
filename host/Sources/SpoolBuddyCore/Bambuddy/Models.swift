@@ -52,6 +52,10 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
 
     /// Grams of filament left, never negative.
     public var remaining: Int { WeightMath.remaining(label: labelWeight, used: weightUsed) }
+
+    /// The gross weight to suggest: the last scale weight, or what the spool
+    /// should weigh now (remaining + core) when it was never weighed.
+    public var suggestedGross: Int { lastScaleWeight ?? remaining + coreWeight }
 }
 
 /// An empty-spool catalog entry (`GET /inventory/catalog`).
@@ -70,10 +74,10 @@ public struct CatalogEntry: Codable, Equatable, Identifiable, Sendable {
 
 /// Response of `POST /spoolbuddy/scale/update-spool-weight`.
 public struct WeightUpdate: Codable, Equatable, Sendable {
-    /// Grams used after the update.
-    public var weightUsed: Double
+    /// Grams used after the update, when Bambuddy reports it.
+    public var weightUsed: Double?
 
-    public init(weightUsed: Double) {
+    public init(weightUsed: Double?) {
         self.weightUsed = weightUsed
     }
 }

@@ -8,6 +8,11 @@ public enum WeightMath {
         net + max(0, core ?? 0)
     }
 
+    /// `weight_used` after a `gross` scale weight, as Bambuddy computes it.
+    public static func usedAfterWeighing(gross: Int, label: Int, core: Int) -> Double {
+        Double(max(0, label - max(0, gross - core)))
+    }
+
     /// Filament left on a spool, in whole grams, never negative.
     public static func remaining(label: Int, used: Double) -> Int {
         max(0, Int((Double(label) - used).rounded()))

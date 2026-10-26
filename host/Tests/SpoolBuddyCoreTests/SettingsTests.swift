@@ -143,6 +143,33 @@ final class ScratchDefaults {
         try secrets.setSecret(nil, for: "a")
         #expect(try secrets.secret(for: "a") == nil)
     }
+
+    @Test func missingAPIKeyIsExplained() {
+        #expect(SettingsError.missingAPIKey.localizedDescription.contains("API key"))
+    }
+
+    /// Uses the real login Keychain under a throwaway service. Skipped where the
+    /// process cannot write to a Keychain at all (some sandboxes, headless CI).
+    @Test(.enabled(if: keychainIsWritable(), "no writable Keychain"))
+    func keychainSecretsRoundTrip() throws {
+        let store = KeychainSecretStore(service: "SpoolBuddyTests-\(UUID().uuidString)")
+        defer { try? store.setSecret(nil, for: "key") }
+        #expect(try store.secret(for: "key") == nil)
+        try store.setSecret("bb_one", for: "key")
+        #expect(try store.secret(for: "key") == "bb_one")
+        try store.setSecret("bb_two", for: "key")
+        #expect(try store.secret(for: "key") == "bb_two")
+        try store.setSecret(nil, for: "key")
+        #expect(try store.secret(for: "key") == nil)
+        try store.setSecret(nil, for: "key")
+    }
+}
+
+private func keychainIsWritable() -> Bool {
+    let probe = KeychainSecretStore(service: "SpoolBuddyTests-probe-\(UUID().uuidString)")
+    guard (try? probe.setSecret("probe", for: "probe")) != nil else { return false }
+    try? probe.setSecret(nil, for: "probe")
+    return true
 }
 
 private struct FailingSecretStore: SecretStore {

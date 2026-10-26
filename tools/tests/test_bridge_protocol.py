@@ -104,11 +104,48 @@ def test_hello_is_valid():
     assert "os" in hello and "fw" not in hello
 
 
-def test_flipper_hello_is_answered_with_a_host_hello():
+class FakeClock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def test_an_unprompted_flipper_hello_is_answered_with_a_host_hello():
     b = bridge()
     (reply,) = replies(b, load("hello_flipper.json"))
     assert reply == b.hello()
     assert b.flipper == load("hello_flipper.json")
+
+
+def test_a_flipper_hello_soon_after_ours_answers_it():
+    clock = FakeClock()
+    b = bridge(clock=clock)
+    assert json.loads(b.greet()) == b.hello()
+    clock.now += session.HELLO_TIMEOUT - 0.1
+    assert replies(b, load("hello_flipper.json")) == []
+    assert b.flipper == load("hello_flipper.json")
+
+
+def test_a_late_flipper_hello_is_answered():
+    clock = FakeClock()
+    b = bridge(clock=clock)
+    b.greet()
+    clock.now += session.HELLO_TIMEOUT
+    (reply,) = replies(b, load("hello_flipper.json"))
+    assert reply == b.hello()
+
+
+def test_hellos_never_ping_pong():
+    """The Flipper answers a host hello sent while it is up with its own; the
+    bridge must not answer that one again (PROTOCOL.md, Session)."""
+    clock = FakeClock()
+    b = bridge(clock=clock)
+    clock.now += 10
+    assert len(replies(b, load("hello_flipper.json"))) == 1
+    clock.now += 0.05
+    assert replies(b, load("hello_flipper.json")) == []
 
 
 # --- scan -> lookup ------------------------------------------------------------
@@ -209,6 +246,17 @@ def test_weigh_net_with_a_zero_core():
     intent = {**load("intent_weigh.json"), "grams": 484, "mode": "net"}
     replies(bridge(fake), intent)
     assert fake.calls[-1] == ("update_weight", 42, 484)
+
+
+def test_weigh_without_weight_used_in_the_response_computes_it():
+    class NoUsed(FakeBambuddy):
+        def update_weight(self, spool_id, gross):
+            super().update_weight(spool_id, gross)
+            return {"status": "ok"}
+
+    fake = NoUsed([spool_42_on_tag(weight_used=0)])
+    (reply,) = replies(bridge(fake), load("intent_weigh.json"))
+    assert reply == load("result_ok.json")
 
 
 def test_weigh_of_an_unknown_tag_fails():

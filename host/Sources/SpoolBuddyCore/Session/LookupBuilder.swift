@@ -6,11 +6,9 @@ public enum LookupBuilder {
     public static let maxError = 200
     public static let maxGrams = 9999
 
-    /// A spool Bambuddy knows. The gross default is the last scale weight, or
-    /// what the spool should weigh now (remaining + core) when it was never weighed.
+    /// A spool Bambuddy knows; the gross default is `Spool.suggestedGross`.
     public static func found(scanId: String, spool: Spool) -> Lookup {
-        let gross = spool.lastScaleWeight ?? spool.remaining + spool.coreWeight
-        return Lookup(
+        Lookup(
             scanId: scanId, status: .found, spoolId: spool.id,
             lines: lines(
                 spool.subtype ?? spool.material,
@@ -18,7 +16,7 @@ public enum LookupBuilder {
                 "\(spool.remaining) g left of \(spool.labelWeight)",
                 "core \(spool.coreWeight) g"
             ),
-            defaults: Lookup.Defaults(gross: grams(gross), label: grams(spool.labelWeight), core: grams(spool.coreWeight))
+            defaults: Lookup.Defaults(gross: grams(spool.suggestedGross), label: grams(spool.labelWeight), core: grams(spool.coreWeight))
         )
     }
 

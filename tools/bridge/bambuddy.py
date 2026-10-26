@@ -25,6 +25,12 @@ def net_to_gross(net: int, core: int | None) -> int:
     return net + (core or 0)
 
 
+def used_after_weighing(spool: dict, gross: int) -> float:
+    """`weight_used` after a `gross` scale weight, as Bambuddy computes it."""
+    net = max(0, gross - (spool.get("core_weight") or 0))
+    return max(0, spool.get("label_weight", 0) - net)
+
+
 def remaining(spool: dict) -> int:
     """Filament left on a spool, in grams, never negative."""
     left = spool.get("label_weight", 0) - (spool.get("weight_used") or 0)
@@ -48,7 +54,13 @@ class BambuddyClient:
 
     def _json(self, response: httpx.Response):
         if response.is_success:
-            return response.json()
+            try:
+                return response.json()
+            except ValueError as error:
+                raise BambuddyError(
+                    f"{response.request.method} {response.request.url.path}: "
+                    f"reply is not JSON: {response.text[:120]}"
+                ) from error
         raise BambuddyError(
             f"{response.request.method} {response.request.url.path}: "
             f"HTTP {response.status_code} {response.text[:120]}"

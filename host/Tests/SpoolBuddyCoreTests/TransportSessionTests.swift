@@ -86,12 +86,14 @@ import Testing
     }
 
     @Test func connectedLinkIgnoresTheTimeout() async throws {
-        let (transport, session, _, run) = await start(helloTimeout: .milliseconds(50))
+        let (transport, session, _, run) = await start(helloTimeout: .milliseconds(300))
         defer { run.cancel() }
         transport.deliver(.hello(flipperHello))
         #expect(await eventually { await session.state == .connected(flipperHello) })
+        // No reply: the hello came in time, so this tests the connected state, not a late hello.
+        #expect(transport.sent == [.hello(hostHello)])
 
-        try await Task.sleep(for: .milliseconds(120))
+        try await Task.sleep(for: .milliseconds(400))
         #expect(await session.state == .connected(flipperHello))
         transport.disconnect()
     }

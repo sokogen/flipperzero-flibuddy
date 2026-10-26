@@ -75,12 +75,17 @@ def test_flipper_workflow_builds_the_fap_with_ufbt_1_5_1_and_runs_c_tests():
     assert [s["with"]["path"] for s in uploads] == ["flipper/dist/*.fap"]
 
 
-def test_host_workflow_runs_swift_test_on_macos():
+def test_host_workflow_runs_swift_test_on_macos_with_the_lint_and_coverage_gates():
     wf = workflow("host")
     (job,) = wf["jobs"].values()
     assert job["runs-on"] == "macos-latest"
-    assert "swift test" in run_lines(wf)
-    assert step_dirs(wf) == {"host"}
+    lines = run_lines(wf)
+    assert "swift build -Xswiftc -warnings-as-errors" in lines
+    assert "swift test --enable-code-coverage" in lines
+    assert any(line.startswith("uv run python swift_coverage.py") and "--min 80" in line for line in lines)
+    assert step_dirs(wf) == {"host", "tools"}
+    for event in ("push", "pull_request"):
+        assert "tools/swift_coverage.py" in triggers(wf)[event]["paths"]
 
 
 def test_tools_workflow_runs_pytest_with_uv():
@@ -89,7 +94,7 @@ def test_tools_workflow_runs_pytest_with_uv():
     assert job["runs-on"] == "ubuntu-latest"
     lines = run_lines(wf)
     assert "uv sync" in lines
-    assert "uv run pytest" in lines
+    assert "uv run pytest --cov" in lines
     assert "uv run ruff check" in lines
     assert step_dirs(wf) == {"tools"}
 

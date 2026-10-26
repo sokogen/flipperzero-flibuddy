@@ -28,7 +28,7 @@ jobs:
         run: uv sync
       - name: Python tests
         working-directory: tools
-        run: uv run pytest
+        run: uv run pytest --cov
       - name: Lint
         working-directory: tools
         run: uv run ruff check

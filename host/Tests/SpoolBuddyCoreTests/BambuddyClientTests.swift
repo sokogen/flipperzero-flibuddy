@@ -94,6 +94,30 @@ struct BambuddyClientTests {
         #expect(request.json.count == 2)
     }
 
+    @Test func updateWeightWithoutWeightUsedDecodes() async throws {
+        let server = StubServer { _ in .json(200, #"{"status":"ok"}"#) }
+        let update = try await server.client().updateWeight(spoolId: 42, gross: 734)
+        #expect(update == WeightUpdate(weightUsed: nil))
+    }
+
+    @Test(arguments: [
+        (#"{"detail":"Spool not found"}"#, "Spool not found"),
+        (#"{"detail":{"code":"tag_conflict","message":"Tag in use"}}"#, "Tag in use"),
+        (#"{"detail":{"code":"tag_conflict"}}"#, "tag_conflict"),
+        (#"{"detail":[{"loc":["body","material"],"msg":"field required"},{"msg":"bad"}]}"#,
+         "body.material: field required; bad"),
+        (#"{"detail":42}"#, #"{"detail":42}"#),
+        ("Bad Gateway", "Bad Gateway"),
+    ])
+    func errorDetailsAreReadable(body: String, expected: String) {
+        #expect(BambuddyClient.detail(Data(body.utf8)) == expected)
+    }
+
+    @Test func errorDetailsAreCapped() {
+        let long = String(repeating: "x", count: 500)
+        #expect(BambuddyClient.detail(Data(long.utf8)).count == BambuddyClient.maxMessage)
+    }
+
     @Test func updateWeightMaps403ToInventoryUpdate() async throws {
         let server = StubServer { _ in .json(403, #"{"detail":"Missing permission"}"#) }
         await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {

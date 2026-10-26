@@ -6,6 +6,7 @@ See protocol/PROTOCOL.md. The Swift `Session` follows the same rules.
 
 import json
 import platform
+import time
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,9 +15,10 @@ from jsonschema import Draft202012Validator
 
 import bambu_keys
 from bridge import APP, bambu_tag
-from bridge.bambuddy import BambuddyError, net_to_gross, remaining
+from bridge.bambuddy import BambuddyError, net_to_gross, remaining, used_after_weighing
 
 MAX_LINE_BYTES = 8192  # including the terminating "\n"
+HELLO_TIMEOUT = 2.0  # seconds; a Flipper hello within this of ours answers it
 MAX_GRAMS = 9999
 MAX_ERROR = 200
 DEFAULT_LABEL = 1000
@@ -126,6 +128,7 @@ class Bridge:
         catalog_id: int | None = None,
         dump_dir: Path | None = None,
         log: Callable[[str], None] = lambda _: None,
+        clock: Callable[[], float] = time.monotonic,
     ):
         self.client = client
         self.core_weight = core_weight
@@ -133,11 +136,18 @@ class Bridge:
         self.dump_dir = Path(dump_dir) if dump_dir else None
         self.log = log
         self.flipper: dict | None = None
+        self._clock = clock
+        self._hello_sent_at: float | None = None
         self._results: dict[str, dict] = {}
         self._validator = _validator()
 
     def hello(self) -> dict:
         return {"t": "hello", "v": 1, "app": APP, "os": host_os()}
+
+    def greet(self) -> str:
+        """Our hello line, sent when the port opens."""
+        self._hello_sent_at = self._clock()
+        return compact(self.hello())
 
     def handle_line(self, line: str) -> list[str]:
         try:
@@ -160,6 +170,12 @@ class Bridge:
             case "hello":
                 self.flipper = message
                 self.log(f"flipper hello: {message['app']} fw {message.get('fw')}")
+                # Like the Flipper's host_link: a hello soon after ours answers
+                # it; any other is answered, so the two never ping-pong.
+                now = self._clock()
+                if self._hello_sent_at is not None and now - self._hello_sent_at < HELLO_TIMEOUT:
+                    return []
+                self._hello_sent_at = now
                 return [self.hello()]
             case "scan":
                 return [self._scan(message)]
@@ -268,7 +284,10 @@ class Bridge:
             grams = intent["grams"]
             gross = grams if intent["mode"] == "gross" else net_to_gross(grams, spool.get("core_weight"))
             response = self.client.update_weight(spool["id"], gross)
-            left = remaining({**spool, "weight_used": response.get("weight_used", 0)})
+            used = response.get("weight_used")
+            if used is None:
+                used = used_after_weighing(spool, gross)
+            left = remaining({**spool, "weight_used": used})
             return self._result(intent_id, True, ["Saved", f"{left} g left"])
 
         # action == "new"

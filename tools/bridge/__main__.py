@@ -59,7 +59,7 @@ def serve(port, bridge: session.Bridge, log=log) -> None:
     def send(line: str) -> None:
         port.write(line.encode("ascii") + b"\n")
 
-    send(session.compact(bridge.hello()))
+    send(bridge.greet())
     while True:
         try:
             data = port.read(port.in_waiting or 1)

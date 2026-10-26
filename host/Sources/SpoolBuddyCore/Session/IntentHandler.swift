@@ -76,6 +76,7 @@ struct IntentHandler {
         let gross = mode == .gross ? grams : WeightMath.grossFromNet(grams, core: spool.coreWeight)
         let update = try await inventory.updateWeight(spoolId: spool.id, gross: gross)
         spool.weightUsed = update.weightUsed
+            ?? WeightMath.usedAfterWeighing(gross: gross, label: spool.labelWeight, core: spool.coreWeight)
         spool.lastScaleWeight = gross
         row.spool = spool
         row.status = .saved

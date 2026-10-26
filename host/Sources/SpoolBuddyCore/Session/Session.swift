@@ -294,11 +294,20 @@ public actor Session {
         }
     }
 
-    /// Creates the item from the host's New form and links the row to it.
+    /// Creates the item from the host's New form and links the row to it. A
+    /// spool that already carries the tag (the lookup may have failed) is used
+    /// instead, so no duplicate is created.
     @discardableResult
     public func createSpool(row id: FeedRow.ID, _ newSpool: NewSpool) async throws -> Spool {
         try await hostAction(id) { handler, row in
-            try await handler.create(row, newSpool, by: .host)
+            guard let existing = try await handler.find(row.tag) else {
+                return try await handler.create(row, newSpool, by: .host)
+            }
+            var row = row
+            row.spool = existing
+            row.status = .awaitingWeight
+            row.request = nil
+            return row
         }
     }
 

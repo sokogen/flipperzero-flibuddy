@@ -56,8 +56,9 @@ def test_serve_sends_hello_first_then_answers():
     logged = []
     cli.serve(port, session.Bridge(None), log=logged.append)
     out = port.lines()
-    assert [m["t"] for m in out] == ["hello", "hello", "lookup"]
-    assert out[2]["scan_id"] == "s-000013"
+    # The Flipper's hello answers ours, so it gets no second one.
+    assert [m["t"] for m in out] == ["hello", "lookup"]
+    assert out[1]["scan_id"] == "s-000013"
     assert any("device disconnected" in entry for entry in logged)
     assert port.written.endswith(b"\n")
 
@@ -135,4 +136,4 @@ def test_main_serves_the_detected_port(monkeypatch):
     monkeypatch.setattr(cli.serial, "Serial", FakeSerial)
     assert cli.main([]) == 0
     assert opened == [("/dev/cu.usbmodemflip_Test1", 115200)]
-    assert [m["t"] for m in port.lines()] == ["hello", "hello"]
+    assert [m["t"] for m in port.lines()] == ["hello"]

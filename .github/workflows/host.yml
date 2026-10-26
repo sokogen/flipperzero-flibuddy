@@ -6,11 +6,14 @@ on:
     paths:
       - "host/**"
       - "protocol/**"
+      # The coverage gate below runs this script.
+      - "tools/swift_coverage.py"
       - ".github/workflows/host.yml"
   pull_request:
     paths:
       - "host/**"
       - "protocol/**"
+      - "tools/swift_coverage.py"
       - ".github/workflows/host.yml"
   workflow_dispatch:
 
@@ -19,9 +22,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - uses: astral-sh/setup-uv@v6
+      - name: Build (warnings fail)
         working-directory: host
-        run: swift build
+        run: swift build -Xswiftc -warnings-as-errors
       - name: Swift tests
         working-directory: host
-        run: swift test
+        run: swift test --enable-code-coverage
+      - name: SpoolBuddyCore line coverage >= 80 %
+        working-directory: tools
+        run: uv run python swift_coverage.py "$(cd ../host && swift test --show-codecov-path)" --min 80

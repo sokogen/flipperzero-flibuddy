@@ -23,11 +23,16 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var spoolmanError: BambuddyError?
     var findError: BambuddyError?
     var updateError: BambuddyError?
+    var createError: BambuddyError?
     var linkError: BambuddyError?
     var catalogError: BambuddyError?
     var catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
     /// Delay before `updateWeight` answers, to overlap concurrent intents.
     var updateDelay: Duration = .zero
+    /// Delay before `spoolmanEnabled` answers, to change the feed mid-check.
+    var spoolmanDelay: Duration = .zero
+    /// Answer `updateWeight` without `weight_used`, as a Bambuddy might.
+    var omitWeightUsed = false
 
     init(spools: [Spool] = []) {
         stored = spools
@@ -65,12 +70,13 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
             let net = gross - stored[index].coreWeight
             stored[index].weightUsed = Double(max(0, stored[index].labelWeight - net))
             stored[index].lastScaleWeight = gross
-            return WeightUpdate(weightUsed: stored[index].weightUsed)
+            return WeightUpdate(weightUsed: omitWeightUsed ? nil : stored[index].weightUsed)
         }
     }
 
     func createSpool(_ spool: NewSpool) async throws -> Spool {
         record(.create(spool))
+        if let createError { throw createError }
         return lock.withLock {
             let created = Spool(
                 id: nextId, material: spool.material, subtype: spool.subtype, colorName: spool.colorName,
@@ -101,6 +107,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func spoolmanEnabled() async throws -> Bool {
         record(.spoolman)
+        if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }
         if let spoolmanError { throw spoolmanError }
         return spoolman
     }

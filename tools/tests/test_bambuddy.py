@@ -101,6 +101,12 @@ def test_update_weight_404_raises():
         c.update_weight(42, 734)
 
 
+def test_a_non_json_success_body_is_a_bambuddy_error():
+    c, _ = client(httpx.Response(200, text="<html>proxy login</html>"))
+    with pytest.raises(bambuddy.BambuddyError, match="not JSON"):
+        c.get_spool(42)
+
+
 def test_create_spool_posts_the_body():
     body = {"material": "PLA", "label_weight": 1000, "weight_used": 0}
     c, rec = client(httpx.Response(200, json={**SPOOL, "id": 43}))

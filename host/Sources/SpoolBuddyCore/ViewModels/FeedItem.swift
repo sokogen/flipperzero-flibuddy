@@ -41,7 +41,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             title = Self.title(material: spool.material, subtype: spool.subtype)
             colorName = spool.colorName ?? spool.rgba.map { "#\($0)" }
             remainingText = "\(spool.remaining) g left of \(spool.labelWeight)"
-            suggestedGross = spool.lastScaleWeight ?? spool.remaining + spool.coreWeight
+            suggestedGross = spool.suggestedGross
             core = spool.coreWeight
         } else {
             if let material = row.tag.material {

@@ -172,6 +172,14 @@ struct SessionScanTests {
         #expect(lookup.error == "Bambuddy HTTP 500: boom")
     }
 
+    @Test func aLookupForAClearedRowSaysTheScanWasDropped() async throws {
+        let session = makeSession(FakeInventory())
+        let lookup = await session.lookup(row: UUID())
+        #expect(lookup.status == .error)
+        #expect(lookup.lines == ["Scan dropped"])
+        #expect(lookup.error == "row cleared")
+    }
+
     @Test func handleDispatchesByMessageType() async throws {
         let session = makeSession(FakeInventory(spools: [knownSpool()]))
         #expect(await session.handle(.hello(Hello(app: "spoolbuddy", fw: "1.5.1"))) == nil)
@@ -411,6 +419,39 @@ struct SessionIntentTests {
         #expect(await session.rows.first?.spool?.id == 42)
     }
 
+    @Test func aFailedCreateIsReportedAndRetriedOnARepeatedId() async throws {
+        let inventory = FakeInventory()
+        inventory.createError = .network("timed out")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let intent = try fixtureIntent("intent_new")
+
+        let first = await session.handleIntent(intent)
+        #expect(!first.ok)
+        #expect(first.lines == ["Not created"])
+        #expect(first.error == "Bambuddy unreachable: timed out")
+        #expect(await session.rows.first?.status == .error("Bambuddy unreachable: timed out"))
+        #expect(await session.rows.first?.spool == nil)
+
+        inventory.createError = nil
+        let second = await session.handleIntent(intent)
+        #expect(second == IntentResult(id: intent.id, ok: true, lines: ["Created", "spool #100"]))
+        #expect(inventory.creates.count == 2)
+    }
+
+    @Test func aFailedLookupBeforeNewCreatesNothing() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        inventory.findError = .http(status: 500, message: "boom")
+
+        let result = await session.handleIntent(try fixtureIntent("intent_new"))
+
+        #expect(!result.ok)
+        #expect(result.lines == ["Not created"])
+        #expect(inventory.creates.isEmpty)
+    }
+
     @Test func newRefusesATagWithoutMaterial() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
@@ -496,6 +537,66 @@ struct SessionIntentTests {
         let second = await session.handleIntent(intent)
         #expect(second.ok)
         #expect(inventory.updates.count == 2)
+    }
+
+    @Test func theResultCacheForgetsTheOldestIds() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let count = Session.resultCacheSize + 1
+        for n in 0..<count {
+            _ = await session.handleIntent(try weighIntent(id: "i-\(n)", grams: 734, mode: .gross))
+        }
+        #expect(inventory.updates.count == count)
+
+        _ = await session.handleIntent(try weighIntent(id: "i-\(count - 1)", grams: 734, mode: .gross))
+        #expect(inventory.updates.count == count)
+        _ = await session.handleIntent(try weighIntent(id: "i-0", grams: 734, mode: .gross))
+        #expect(inventory.updates.count == count + 1)
+    }
+
+    @Test func aWeighWithoutWeightUsedInTheReplyComputesIt() async throws {
+        let inventory = FakeInventory(spools: [knownSpool(lastScaleWeight: nil, weightUsed: 0)])
+        inventory.omitWeightUsed = true
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+
+        let result = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
+
+        #expect(result == (try fixtureResult("result_ok")))
+        #expect(await session.rows.first?.spool?.weightUsed == 516)
+    }
+
+    @Test func clearingTheFeedWhileAnIntentWaitsDropsIt() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.spoolmanDelay = .milliseconds(100)
+        let session = makeSession(inventory)
+        let intent = try weighIntent(grams: 734, mode: .gross)
+
+        async let pending = session.handleIntent(intent)
+        #expect(await eventually { await !session.rows.isEmpty })
+        await session.clear()
+        let result = await pending
+
+        #expect(result == IntentResult(id: intent.id, ok: false, lines: ["Not saved"], error: "feed cleared; scan again"))
+        #expect(await session.rows.isEmpty)
+        #expect(inventory.updates.isEmpty)
+    }
+
+    @Test func clearingTheFeedDuringASaveDoesNotBringTheRowBack() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.updateDelay = .milliseconds(100)
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let intent = try weighIntent(grams: 734, mode: .gross)
+
+        async let pending = session.handleIntent(intent)
+        #expect(await eventually { inventory.updates.count == 1 })
+        await session.clear()
+        let result = await pending
+
+        #expect(result.ok)
+        #expect(await session.rows.isEmpty)
     }
 
     @Test func concurrentRepeatsShareOneCall() async throws {
@@ -645,6 +746,54 @@ struct SessionHostActionTests {
         #expect(updated.status == .created)
         #expect(updated.savedBy == .host)
         #expect(updated.request == nil)
+    }
+
+    @Test func creatingOnTheHostUsesASpoolThatAlreadyCarriesTheTag() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.findError = .http(status: 500, message: "boom")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let row = try #require(await session.rows.first)
+        #expect(FeedItem(row).offersUnknownActions)
+        inventory.findError = nil
+        let form = try #require(NewSpool(tag: row.tag, coreWeight: 250, coreWeightCatalogId: 3))
+
+        let spool = try await session.createSpool(row: row.id, form)
+
+        #expect(spool.id == 42)
+        #expect(inventory.creates.isEmpty)
+        let updated = try #require(await session.rows.first)
+        #expect(updated.spool?.id == 42)
+        #expect(updated.status == .awaitingWeight)
+    }
+
+    @Test func aFailedHostCreateMarksTheRowAndRethrows() async throws {
+        let inventory = FakeInventory()
+        inventory.createError = .http(status: 422, message: "material: field required")
+        let session = makeSession(inventory)
+        _ = await session.handleIntent(try fixtureIntent("intent_create_on_host"))
+        let row = try #require(await session.rows.first)
+
+        await #expect(throws: BambuddyError.http(status: 422, message: "material: field required")) {
+            try await session.createSpool(row: row.id, ntagForm(row.tag))
+        }
+        let updated = try #require(await session.rows.first)
+        #expect(updated.spool == nil)
+        #expect(updated.status == .error("Bambuddy HTTP 422: material: field required"))
+    }
+
+    @Test func clearingTheFeedDuringAHostActionRejectsIt() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.spoolmanDelay = .milliseconds(100)
+        let session = makeSession(inventory)
+        let rowID = await session.record(try fixtureScan())
+
+        let pending = Task { try await session.saveWeight(row: rowID, grams: 734, mode: .gross) }
+        #expect(await eventually { inventory.calls.contains(.spoolman) })
+        await session.clear()
+
+        await #expect(throws: SessionError.rowNotFound) { try await pending.value }
+        #expect(inventory.updates.isEmpty)
     }
 
     @Test func hostActionsNeedAReadyBambuddy() async throws {

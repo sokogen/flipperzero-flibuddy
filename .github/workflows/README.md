@@ -9,5 +9,8 @@ workflows and the Makefile stay in line.
 
 - `flipper.yml`: ubuntu, `ufbt` pinned to SDK 1.5.1, builds the FAP, runs
   the host-compiled C tests, uploads `dist/*.fap` as an artifact.
-- `host.yml`: macOS, `swift build` and `swift test`.
-- `tools.yml`: ubuntu, `uv sync`, `uv run pytest` and `uv run ruff check`.
+- `host.yml`: macOS, `swift build` with warnings as errors, `swift test`
+  with coverage and the 80 % SpoolBuddyCore gate (`tools/swift_coverage.py`,
+  so it also runs when that script changes).
+- `tools.yml`: ubuntu, `uv sync`, `uv run pytest --cov` (fails under 80 %)
+  and `uv run ruff check`.

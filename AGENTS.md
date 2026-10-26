@@ -44,6 +44,7 @@ tools/                    Python dev bridge (Phase 0 spike, kept as a
 ## Test commands
 
 ```
+make test                    # all three suites below
 make -C flipper/tests test   # C unit tests, host-compiled
 cd host && swift test        # Swift (SpoolBuddyCore)
 cd tools && uv run pytest    # Python bridge, fixtures, schema
@@ -61,3 +62,6 @@ make coverage                # SpoolBuddyCore and tools line coverage >= 80 %
   macro plugin needs the `-plugin-path` workaround that `host/Package.swift`
   applies when `DEVELOPER_DIR` is the Command Line Tools (see
   `host/README.md`).
+- In `host/Sources/SpoolBuddyMac` views use `@ViewState`, not `@State`: the
+  SDK declares `@State` as a macro whose plugin only Xcode ships, so `@State`
+  does not build with the Command Line Tools (see `host/README.md`).
