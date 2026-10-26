@@ -7,7 +7,7 @@ import Observation
 @Observable
 public final class FeedViewModel {
     /// Weights are 0...9999 g, so four digits.
-    public static let maxWeightDigits = 4
+    public nonisolated static let maxWeightDigits = 4
 
     public private(set) var items: [FeedItem] = []
     public private(set) var bambuddy: BambuddyState = .unchecked
@@ -53,11 +53,11 @@ public final class FeedViewModel {
     // MARK: Weight entry
 
     /// Digits only, at most four.
-    public static func sanitizeWeight(_ text: String) -> String {
+    public nonisolated static func sanitizeWeight(_ text: String) -> String {
         String(text.filter { $0.isASCII && $0.isNumber }.prefix(maxWeightDigits))
     }
 
-    public static func grams(from text: String) -> Int? {
+    public nonisolated static func grams(from text: String) -> Int? {
         Int(sanitizeWeight(text))
     }
 

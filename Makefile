@@ -5,6 +5,7 @@
 .PHONY: test test-flipper test-host test-tools
 .PHONY: lint lint-flipper lint-host lint-tools
 .PHONY: coverage coverage-host coverage-tools
+.PHONY: apple-project apple-build
 .DEFAULT_GOAL := test
 
 test: test-flipper test-host test-tools
@@ -40,3 +41,17 @@ coverage-host:
 
 coverage-tools:
 	cd tools && uv run pytest --cov
+
+# The iOS and watch apps (host/Apple, generated with XcodeGen; needs Xcode,
+# not the Command Line Tools). Builds for the simulators without signing, as
+# CI does.
+apple-project:
+	cd host/Apple && xcodegen generate
+
+apple-build:
+	cd host/Apple && xcodebuild -project SpoolBuddy.xcodeproj -scheme SpoolBuddyiOS \
+		-destination 'generic/platform=iOS Simulator' -derivedDataPath .build \
+		CODE_SIGNING_ALLOWED=NO build
+	cd host/Apple && xcodebuild -project SpoolBuddy.xcodeproj -scheme SpoolBuddyWatch \
+		-destination 'generic/platform=watchOS Simulator' -derivedDataPath .build \
+		CODE_SIGNING_ALLOWED=NO build

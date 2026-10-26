@@ -11,9 +11,14 @@ public enum TransportError: Error, Equatable, Sendable {
     case notConnected
     case writeFailed(errno: Int32)
     case writeTimedOut
+    case bluetoothOff
+    case bluetoothUnauthorized
+    case bluetoothUnsupported
+    case peripheralNotFound
+    case serviceNotFound
 }
 
-/// A line-oriented link to the Flipper (USB serial now, BLE in Phase 2).
+/// A line-oriented link to the Flipper: USB serial or Bluetooth LE.
 public protocol Transport: AnyObject, Sendable {
     var state: TransportState { get }
     /// Decoded messages of the current connection, for a single consumer. The
@@ -21,7 +26,7 @@ public protocol Transport: AnyObject, Sendable {
     /// one. Lines that do not decode are dropped (PROTOCOL.md).
     var messages: AsyncStream<Message> { get }
     /// Opens the link; does nothing while it is open.
-    func connect() throws
+    func connect() async throws
     /// Writes one newline-terminated line.
     func send(_ message: Message) throws
     func disconnect()
@@ -35,6 +40,11 @@ extension TransportError: LocalizedError {
         case .notConnected: "The Flipper is not connected"
         case .writeFailed(let code): "Writing to the Flipper failed: \(String(cString: strerror(code)))"
         case .writeTimedOut: "Writing to the Flipper timed out"
+        case .bluetoothOff: "Bluetooth is off"
+        case .bluetoothUnauthorized: "SpoolBuddy is not allowed to use Bluetooth"
+        case .bluetoothUnsupported: "This device has no Bluetooth LE"
+        case .peripheralNotFound: "No Flipper found over Bluetooth"
+        case .serviceNotFound: "The Flipper does not offer SpoolBuddy over Bluetooth; choose Bluetooth in the Flipper app"
         }
     }
 }

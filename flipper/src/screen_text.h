@@ -33,3 +33,10 @@ const char* screen_weight_header(WeightMode mode);
 
 /* The Found menu item that toggles the mode: "Mode: gross" / "Mode: net". */
 const char* screen_mode_item(WeightMode mode);
+
+/* The Idle status line: "USB" or "BLE" once the host said hello over that
+ * transport, "BLE adv" while Bluetooth waits for a central, else "no host". */
+const char* screen_status_text(const AppState* s);
+
+/* A transport menu item: "USB" / "Bluetooth". */
+const char* screen_transport_name(TransportKind kind);

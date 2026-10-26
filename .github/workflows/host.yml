@@ -5,15 +5,21 @@ on:
     branches: [main]
     paths:
       - "host/**"
+      # Already under host/**, listed for the apple job below.
+      - "host/Apple/**"
       - "protocol/**"
       # The coverage gate below runs this script.
       - "tools/swift_coverage.py"
+      # The apple job runs the apple-* targets of the root Makefile.
+      - "Makefile"
       - ".github/workflows/host.yml"
   pull_request:
     paths:
       - "host/**"
+      - "host/Apple/**"
       - "protocol/**"
       - "tools/swift_coverage.py"
+      - "Makefile"
       - ".github/workflows/host.yml"
   workflow_dispatch:
 
@@ -32,3 +38,14 @@ jobs:
       - name: SpoolBuddyCore line coverage >= 80 %
         working-directory: tools
         run: uv run python swift_coverage.py "$(cd ../host && swift test --show-codecov-path)" --min 80
+
+  # The iOS and watch apps, built for the simulators without signing: CI has
+  # no certificates or provisioning profiles.
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the project and build both apps
+        run: make apple-project apple-build

@@ -9,8 +9,23 @@ workflows and the Makefile stay in line.
 
 - `flipper.yml`: ubuntu, `ufbt` pinned to SDK 1.5.1, builds the FAP, runs
   the host-compiled C tests, uploads `dist/*.fap` as an artifact.
-- `host.yml`: macOS, `swift build` with warnings as errors, `swift test`
-  with coverage and the 80 % SpoolBuddyCore gate (`tools/swift_coverage.py`,
-  so it also runs when that script changes).
+- `host.yml`: macOS, two jobs.
+  - `test`: `swift build` with warnings as errors, `swift test` with
+    coverage and the 80 % SpoolBuddyCore gate (`tools/swift_coverage.py`,
+    so it also runs when that script changes).
+  - `apple`: installs XcodeGen with Homebrew and runs
+    `make apple-project apple-build`, which generates `host/Apple` and
+    builds `SpoolBuddyiOS` and `SpoolBuddyWatch` for the simulators with the
+    runner's default Xcode. It also runs when the root `Makefile` changes,
+    since the `apple-*` recipes live there.
 - `tools.yml`: ubuntu, `uv sync`, `uv run pytest --cov` (fails under 80 %)
   and `uv run ruff check`.
+
+## Signing
+
+CI never signs. There are no certificates, provisioning profiles or team
+ids in the repository or in its secrets: `make apple-build` passes
+`CODE_SIGNING_ALLOWED=NO` and builds for the simulators only. The team for
+device builds lives in `host/Apple/Signing.xcconfig`, which is git-ignored
+(copy `Signing.example.xcconfig`); `Base.xcconfig` includes it with
+`#include?`, so the project generates and builds without it.

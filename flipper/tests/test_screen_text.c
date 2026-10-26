@@ -137,6 +137,41 @@ static void test_intent_texts(void) {
     CHECK_STR_EQ(text, "");
 }
 
+static void status_state(TransportKind kind, AppBleStatus ble, bool connected) {
+    single_slot_intent_store_init(&store);
+    app_state_init(&app, &store.base, 1, 1);
+    app.transport = kind;
+    app.ble = ble;
+    app.connected = connected;
+}
+
+static void test_status_line_over_usb(void) {
+    status_state(TransportKindUsb, AppBleOff, false);
+    CHECK_STR_EQ(screen_status_text(&app), "no host");
+    status_state(TransportKindUsb, AppBleOff, true);
+    CHECK_STR_EQ(screen_status_text(&app), "USB");
+    /* a stale BLE status does not matter on USB */
+    status_state(TransportKindUsb, AppBleAdvertising, false);
+    CHECK_STR_EQ(screen_status_text(&app), "no host");
+}
+
+static void test_status_line_over_bluetooth(void) {
+    status_state(TransportKindBluetooth, AppBleOff, false);
+    CHECK_STR_EQ(screen_status_text(&app), "no host");
+    status_state(TransportKindBluetooth, AppBleAdvertising, false);
+    CHECK_STR_EQ(screen_status_text(&app), "BLE adv");
+    /* a central connected but no hello yet */
+    status_state(TransportKindBluetooth, AppBleConnected, false);
+    CHECK_STR_EQ(screen_status_text(&app), "no host");
+    status_state(TransportKindBluetooth, AppBleConnected, true);
+    CHECK_STR_EQ(screen_status_text(&app), "BLE");
+}
+
+static void test_transport_names(void) {
+    CHECK_STR_EQ(screen_transport_name(TransportKindUsb), "USB");
+    CHECK_STR_EQ(screen_transport_name(TransportKindBluetooth), "Bluetooth");
+}
+
 int main(void) {
     RUN_TEST(test_lines_are_joined_with_newlines);
     RUN_TEST(test_lines_are_cut_to_the_buffer);
@@ -145,5 +180,8 @@ int main(void) {
     RUN_TEST(test_local_errors);
     RUN_TEST(test_weight_mode_texts);
     RUN_TEST(test_intent_texts);
+    RUN_TEST(test_status_line_over_usb);
+    RUN_TEST(test_status_line_over_bluetooth);
+    RUN_TEST(test_transport_names);
     return MINITEST_RESULT();
 }

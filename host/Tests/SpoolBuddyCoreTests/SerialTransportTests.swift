@@ -3,6 +3,8 @@ import Foundation
 import Testing
 @testable import SpoolBuddyCore
 
+#if os(macOS)
+
 /// The transport opens the pty slave like `/dev/cu.usbmodemflip_*`; the test plays
 /// the Flipper on the master.
 @Suite(.serialized) struct SerialTransportTests {
@@ -149,3 +151,17 @@ import Testing
         #expect(SerialTransport.discoverFlipperPorts().allSatisfy { $0.hasPrefix("/dev/cu.usbmodemflip") })
     }
 }
+
+#else
+// Off macOS the transport is a stub: no ports, and connecting fails.
+@Suite("SerialTransport off macOS")
+struct SerialTransportStubTests {
+    @Test func discoversNoPorts() {
+        #expect(SerialTransport.discoverFlipperPorts().isEmpty)
+    }
+
+    @Test func connectThrows() {
+        #expect(throws: TransportError.notConnected) { try SerialTransport(path: "/dev/null").connect() }
+    }
+}
+#endif

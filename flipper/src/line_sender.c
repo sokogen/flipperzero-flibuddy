@@ -1,9 +1,7 @@
 #include "line_sender.h"
 
 void line_sender_init(LineSender* ls, size_t packet_size, LineSenderPacketFn send, void* ctx) {
-    ls->packet_size = packet_size > 0 && packet_size <= LINE_SENDER_PACKET_MAX ?
-                          packet_size :
-                          LINE_SENDER_PACKET_MAX;
+    line_sender_set_packet_size(ls, packet_size);
     ls->cut = false;
     ls->send = send;
     ls->ctx = ctx;
@@ -39,4 +37,10 @@ TransportSendResult line_sender_send(LineSender* ls, const char* line, size_t le
         return TransportMaybeSent;
     }
     return TransportSent;
+}
+
+void line_sender_set_packet_size(LineSender* ls, size_t packet_size) {
+    ls->packet_size = packet_size > 0 && packet_size <= LINE_SENDER_PACKET_MAX ?
+                          packet_size :
+                          LINE_SENDER_PACKET_MAX;
 }

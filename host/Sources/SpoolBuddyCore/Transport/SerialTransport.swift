@@ -1,5 +1,7 @@
-import Darwin
 import Foundation
+
+#if os(macOS)
+import Darwin
 
 /// The Flipper's USB CDC port (`/dev/cu.usbmodemflip_*`) in raw mode, 115200 8N1.
 ///
@@ -168,3 +170,28 @@ private final class Connection: @unchecked Sendable {
         }
     }
 }
+#else
+/// Off macOS there is no USB serial port: no Flipper ports are found and
+/// connecting fails, so a USB choice reports "not connected".
+public final class SerialTransport: Transport, @unchecked Sendable {
+    public static let devicePrefix = "cu.usbmodemflip"
+
+    public let path: String
+
+    public init(path: String) {
+        self.path = path
+    }
+
+    public static func discoverFlipperPorts() -> [String] { [] }
+
+    public var state: TransportState { .closed }
+
+    public var messages: AsyncStream<Message> { AsyncStream { $0.finish() } }
+
+    public func connect() throws { throw TransportError.notConnected }
+
+    public func send(_ message: Message) throws { throw TransportError.notConnected }
+
+    public func disconnect() {}
+}
+#endif

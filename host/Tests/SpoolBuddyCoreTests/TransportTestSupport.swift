@@ -41,6 +41,7 @@ actor Collector<Element: Sendable> {
     private func finish() { finished = true }
 }
 
+#if os(macOS)
 /// An `openpty()` pair: the transport opens `slavePath` like a serial device,
 /// the test plays the Flipper on `master`.
 final class PseudoTerminal {
@@ -103,6 +104,7 @@ final class PseudoTerminal {
         closeSlave()
     }
 }
+#endif
 
 /// In-memory `Transport` for session tests.
 final class FakeTransport: Transport, @unchecked Sendable {

@@ -186,6 +186,7 @@ import Testing
         #expect(transport.sent.isEmpty)
     }
 
+    #if os(macOS)
     @Test func handshakeOverARealPseudoTerminal() async throws {
         let pty = try PseudoTerminal()
         defer { pty.closeMaster() }
@@ -206,4 +207,5 @@ import Testing
         try await run.value
         #expect(await session.state == .disconnected)
     }
+    #endif
 }

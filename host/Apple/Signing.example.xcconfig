@@ -1,0 +1,4 @@
+// Copy to Signing.xcconfig (git-ignored) and set your team ID: Xcode →
+// Settings → Accounts shows it; a free personal team works for 7-day
+// device installs.
+DEVELOPMENT_TEAM = 

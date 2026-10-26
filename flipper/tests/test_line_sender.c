@@ -2,7 +2,7 @@
 
 #include "line_sender.h"
 
-#define PACKET 4
+#define PACKET      4
 #define MAX_PACKETS 32
 
 /* The fake endpoint: takes packets until the one numbered fail_at, which
@@ -173,7 +173,33 @@ static void test_unconfirmed_zero_length_packet_may_have_gone_out(void) {
     CHECK_STR_EQ(wire, "{\"a\":1}\n");
 }
 
+static void test_packet_size_can_change_between_lines(void) {
+    LineSender ls;
+    setup(&ls);
+    CHECK(send_str(&ls, "{\"a\":12}") == TransportSent);
+    clear_wire();
+    line_sender_set_packet_size(&ls, 6);
+    CHECK(send_str(&ls, "{\"b\":34}") == TransportSent);
+    CHECK_STR_EQ(wire, "{\"b\":34}\n");
+    CHECK_EQ_INT(packets, 2);
+    CHECK_EQ_INT(packet_len[0], 6);
+    CHECK_EQ_INT(packet_len[1], 3);
+}
+
+static void test_packet_size_is_kept_within_the_buffer(void) {
+    LineSender ls;
+    setup(&ls);
+    line_sender_set_packet_size(&ls, 0);
+    CHECK_EQ_INT(ls.packet_size, LINE_SENDER_PACKET_MAX);
+    line_sender_set_packet_size(&ls, LINE_SENDER_PACKET_MAX + 1);
+    CHECK_EQ_INT(ls.packet_size, LINE_SENDER_PACKET_MAX);
+    /* a BLE notification of up to 243 bytes fits */
+    CHECK(LINE_SENDER_PACKET_MAX >= 243);
+}
+
 int main(void) {
+    RUN_TEST(test_packet_size_can_change_between_lines);
+    RUN_TEST(test_packet_size_is_kept_within_the_buffer);
     RUN_TEST(test_line_goes_out_in_packets_with_its_newline);
     RUN_TEST(test_full_last_packet_is_followed_by_a_zero_length_packet);
     RUN_TEST(test_failed_first_packet_sends_nothing);

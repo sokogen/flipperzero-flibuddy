@@ -1,0 +1,5 @@
+// Settings shared by every configuration of the generated project.
+// Signing.xcconfig is git-ignored and optional: copy
+// Signing.example.xcconfig to it and set your team to run on a device.
+// CI and simulator builds pass CODE_SIGNING_ALLOWED=NO instead.
+#include? "Signing.xcconfig"

@@ -2,8 +2,11 @@
 #include <furi_hal_rtc.h>
 #include <toolbox/version.h>
 
+#include "app_settings_file.h"
 #include "scenes.h"
 #include "spoolbuddy_app.h"
+#include "transport_ble.h"
+#include "transport_none.h"
 #include "transport_usb.h"
 
 #define TICK_PERIOD_MS 250
@@ -57,6 +60,8 @@ static SpoolBuddyScene scene_for(AppScreen screen) {
     case AppScreenDone:
     case AppScreenError:
         return SpoolBuddySceneDone;
+    case AppScreenTransport:
+        return SpoolBuddySceneTransport;
     }
     return SpoolBuddySceneIdle;
 }
@@ -95,6 +100,52 @@ static void sync_scene(SpoolBuddyApp* app) {
     }
 }
 
+static void apply_link(SpoolBuddyApp* app, HostLinkOutput out);
+static void on_rx_line(const char* line, size_t len, void* ctx);
+
+static void free_transport(SpoolBuddyApp* app) {
+    if(app->transport != transport_none()) {
+        if(app->transport_kind == TransportKindUsb) {
+            transport_usb_free(app->transport);
+        } else {
+            transport_ble_free(app->transport);
+        }
+    }
+    app->transport = transport_none();
+}
+
+/* A backend that does not open (Bluetooth off or unavailable) gives way to
+ * the null transport: no host connects, and with Bluetooth the USB port
+ * stays with the CLI. Choosing the same kind again in the menu retries it.
+ * The state is changed directly: no screen depends on it, and this also
+ * runs before the first scene. */
+static void start_transport(SpoolBuddyApp* app) {
+    app->transport_kind = app->state.transport;
+    app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
+                                                               transport_ble_alloc();
+    transport_set_rx_callback(app->transport, on_rx_line, app);
+    if(!transport_open(app->transport)) {
+        FURI_LOG_E("SpoolBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
+        free_transport(app);
+        app_reduce(&app->state, &(AppEvent){.type = AppEventTransportFailed, .now_ms = now_ms()});
+    }
+}
+
+/* Closes the old transport (the host it carried is lost), saves the choice
+ * and opens the new one. */
+static void switch_transport(SpoolBuddyApp* app) {
+    free_transport(app);
+    /* a hello the old worker queued must not connect a host over the new one */
+    furi_message_queue_reset(app->rx_queue);
+    app->port_open = false;
+    apply_link(app, host_link_port_closed(&app->link));
+    app_settings_set_transport(&app->settings, app->state.transport);
+    if(!app_settings_save(&app->settings, &app_settings_file)) {
+        FURI_LOG_E("SpoolBuddy", "settings not saved");
+    }
+    start_transport(app);
+}
+
 void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
     AppEvent stamped = *event;
     stamped.now_ms = now_ms();
@@ -119,6 +170,9 @@ void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
                          intent_store_current(app->state.intents), app->tx_buf, PROTO_LINE_MAX)) ==
                  TransportNotSent;
         break;
+    case AppEffectSwitchTransport:
+        switch_transport(app);
+        break;
     case AppEffectNone:
         break;
     }
@@ -138,6 +192,21 @@ static void apply_link(SpoolBuddyApp* app, HostLinkOutput out) {
     if(out.send_hello) send_hello(app);
     if(out.host_connected) spoolbuddy_reduce_type(app, AppEventHostConnected);
     if(out.host_lost) spoolbuddy_reduce_type(app, AppEventHostLost);
+}
+
+static AppBleStatus ble_status(SpoolBuddyApp* app) {
+    if(app->transport_kind != TransportKindBluetooth || app->transport == transport_none()) {
+        return AppBleOff;
+    }
+    switch(transport_ble_status(app->transport)) {
+    case TransportBleAdvertising:
+        return AppBleAdvertising;
+    case TransportBleConnected:
+        return AppBleConnected;
+    case TransportBleOff:
+        break;
+    }
+    return AppBleOff;
 }
 
 /* Tells the scene when the status line changed since `was_up`. */
@@ -218,6 +287,10 @@ static void on_tick(void* ctx) {
     }
     apply_link(app, host_link_tick(&app->link, now_ms()));
     notify_status(app, was_up);
+    AppBleStatus ble = ble_status(app);
+    if(ble != app->state.ble) {
+        spoolbuddy_reduce(app, &(AppEvent){.type = AppEventBleStatus, .ble = ble});
+    }
     if(app_result_timed_out(&app->state, now_ms())) {
         spoolbuddy_reduce_type(app, AppEventTimeout);
     }
@@ -231,6 +304,8 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
     uint32_t seed = id_seed_from_time(furi_hal_rtc_get_timestamp());
     single_slot_intent_store_init(&app->intents);
     app_state_init(&app->state, &app->intents.base, seed, seed);
+    app_settings_load(&app->settings, &app_settings_file);
+    app->state.transport = app_settings_transport(&app->settings);
     host_link_init(&app->link);
 
     app->tx_buf = malloc(PROTO_LINE_MAX);
@@ -258,16 +333,14 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
         app->view_dispatcher, SpoolBuddyViewNumberInput, number_input_get_view(app->number_input));
     view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
-    app->transport = transport_usb_alloc();
-    transport_set_rx_callback(app->transport, on_rx_line, app);
-    if(!transport_open(app->transport)) FURI_LOG_E("SpoolBuddy", "USB CDC unavailable");
+    start_transport(app);
     return app;
 }
 
 static void spoolbuddy_app_free(SpoolBuddyApp* app) {
     /* the workers stop first, so nothing posts events into freed objects */
     tag_reader_free(app->reader);
-    transport_usb_free(app->transport);
+    free_transport(app);
 
     view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewNumberInput);
     number_input_free(app->number_input);

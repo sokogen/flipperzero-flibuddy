@@ -1,12 +1,19 @@
 import SpoolBuddyCore
 import SwiftUI
 
+// The watch has its own compact views (Watch/).
+#if !os(watchOS)
 /// The session feed: one row per scanned tag, newest first, and the status bar.
-struct FeedView: View {
+public struct FeedView: View {
     let feed: FeedViewModel
     let link: FlipperLink
 
-    var body: some View {
+    public init(feed: FeedViewModel, link: FlipperLink) {
+        self.feed = feed
+        self.link = link
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             if feed.items.isEmpty {
                 ContentUnavailableView(
@@ -29,11 +36,13 @@ struct FeedView: View {
                 .help("Remove all rows from the feed")
                 .disabled(feed.items.isEmpty)
             }
+            #if os(macOS)
             ToolbarItem {
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
             }
+            #endif
         }
     }
 }
@@ -121,23 +130,6 @@ struct WeightEntry: View {
     }
 }
 
-struct SwatchView: View {
-    let swatch: Swatch?
-
-    var body: some View {
-        if let swatch {
-            Circle()
-                .fill(Color(.sRGB, red: swatch.red, green: swatch.green, blue: swatch.blue, opacity: swatch.alpha))
-                .overlay(Circle().strokeBorder(.secondary.opacity(0.4)))
-                .frame(width: 24, height: 24)
-        } else {
-            Circle()
-                .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1, dash: [3]))
-                .frame(width: 24, height: 24)
-        }
-    }
-}
-
 /// Transport state, Bambuddy state and a colour map that failed to load.
 struct StatusBar: View {
     let link: FlipperLink
@@ -176,3 +168,4 @@ struct StatusBar: View {
         }
     }
 }
+#endif

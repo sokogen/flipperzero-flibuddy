@@ -60,7 +60,7 @@ public actor TransportSession {
         running = true
         defer { running = false }
 
-        try transport.connect()
+        try await transport.connect()
         let messages = transport.messages
         do {
             try sayHello()

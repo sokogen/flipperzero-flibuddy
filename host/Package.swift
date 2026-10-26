@@ -13,16 +13,34 @@ let testSwiftSettings: [SwiftSetting] = usesCommandLineTools
     ? [.unsafeFlags(["-plugin-path", cltTestingPluginPath])]
     : []
 
+// `swift run` starts a bare executable without an app bundle; macOS reads the
+// Bluetooth usage description from an Info.plist embedded in the binary, and
+// without one touching CoreBluetooth ends the process.
+let macInfoPlistPath = Context.packageDirectory + "/Sources/SpoolBuddyMac/Info.plist"
+let macLinkerSettings: [LinkerSetting] = [
+    .unsafeFlags(
+        ["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", macInfoPlistPath],
+        .when(platforms: [.macOS])
+    ),
+]
+
 let package = Package(
     name: "SpoolBuddy",
-    platforms: [.macOS(.v14)],
+    // `.v26` needs tools version 6.2; the string form works with 6.0.
+    platforms: [.macOS(.v14), .iOS("26.0"), .watchOS("26.0")],
     products: [
         .library(name: "SpoolBuddyCore", targets: ["SpoolBuddyCore"]),
+        .library(name: "SpoolBuddyUI", targets: ["SpoolBuddyUI"]),
         .executable(name: "SpoolBuddyMac", targets: ["SpoolBuddyMac"]),
     ],
     targets: [
         .target(name: "SpoolBuddyCore"),
-        .executableTarget(name: "SpoolBuddyMac", dependencies: ["SpoolBuddyCore"]),
+        // SwiftUI views shared by the macOS and iOS apps.
+        .target(name: "SpoolBuddyUI", dependencies: ["SpoolBuddyCore"]),
+        .executableTarget(
+            name: "SpoolBuddyMac", dependencies: ["SpoolBuddyCore", "SpoolBuddyUI"],
+            exclude: ["Info.plist"], linkerSettings: macLinkerSettings
+        ),
         .testTarget(
             name: "SpoolBuddyCoreTests",
             dependencies: ["SpoolBuddyCore"],

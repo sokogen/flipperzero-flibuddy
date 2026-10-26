@@ -1,8 +1,16 @@
 import Foundation
 import Observation
 
+/// Reads one QR code, e.g. with the camera; throws `CancellationError` when
+/// the user gives up.
+@MainActor
+public protocol QRScanning {
+    func scan() async throws -> String
+}
+
 /// The Settings screen: an editable copy of the settings, the catalog entry
-/// picker, the port picker and the connection test. `save()` hands the draft
+/// picker, the transport settings (USB port, Bluetooth Flipper scan) and the
+/// connection test. `save()` hands the draft
 /// to `apply`, which stores it and reconfigures the session.
 @MainActor
 @Observable
@@ -10,6 +18,12 @@ public final class SettingsViewModel {
     public enum Connection: Equatable, Sendable {
         case testing
         case ok(String)
+        case failed(String)
+    }
+
+    /// The outcome of the last Bambuddy QR code.
+    public enum QRStatus: Equatable, Sendable {
+        case applied(String)
         case failed(String)
     }
 
@@ -26,24 +40,47 @@ public final class SettingsViewModel {
     /// Grams; editable, saved as is.
     public var coreWeight: Int
     public var defaultMode: Intent.WeightMode
+    public var transport: TransportKind
     /// `nil` uses the first Flipper found.
     public var port: String?
+    /// The chosen Bluetooth Flipper; `nil` uses the first one found.
+    public private(set) var peripheralId: UUID?
+    public private(set) var peripheralName: String?
 
     public private(set) var catalog: [CatalogEntry] = []
     public private(set) var catalogError: String?
     public private(set) var ports: [String] = []
+    /// Flippers found by the running or last scan, each once.
+    public private(set) var discovered: [DiscoveredPeripheral] = []
+    public private(set) var isScanning = false
+    /// Why the last scan could not run (Bluetooth off or not allowed).
+    public private(set) var scanProblem: String?
     public private(set) var connection: Connection?
     public private(set) var saveError: String?
+    public private(set) var qrStatus: QRStatus?
 
     private var saved: Settings
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
+    private let discoverFlippers: @MainActor () -> AsyncStream<DiscoveredPeripheral>
+    private let bluetoothPower: @MainActor () async -> BLEPowerState
+    private let scanDuration: Duration
     private let apply: @MainActor (Settings) async throws -> Void
+    private var scanTask: Task<Void, Never>?
+    private var scanTimer: Task<Void, Never>?
+    /// Bumped by every scan start and stop; a stale scan changes nothing.
+    private var scanGeneration = 0
 
+    /// `discoverFlippers` streams Flippers advertising over Bluetooth; a scan
+    /// stops by itself after `scanDuration`, or at once when `bluetoothPower`
+    /// says the radio cannot be used.
     public init(
         settings: Settings,
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
+        discoverFlippers: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { FlipperLink.defaultScan() },
+        bluetoothPower: @escaping @MainActor () async -> BLEPowerState = { await FlipperLink.defaultPowerState() },
+        scanDuration: Duration = .seconds(15),
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
         saved = settings
@@ -52,9 +89,15 @@ public final class SettingsViewModel {
         catalogEntryId = settings.catalogEntryId
         coreWeight = settings.coreWeight
         defaultMode = settings.defaultMode
+        transport = settings.transport
         port = settings.port
+        peripheralId = settings.peripheralId
+        peripheralName = settings.peripheralName
         self.makeInventory = makeInventory
         self.discoverPorts = discoverPorts
+        self.discoverFlippers = discoverFlippers
+        self.bluetoothPower = bluetoothPower
+        self.scanDuration = scanDuration
         self.apply = apply
     }
 
@@ -66,7 +109,10 @@ public final class SettingsViewModel {
         settings.catalogEntryId = catalogEntryId
         settings.coreWeight = coreWeight
         settings.defaultMode = defaultMode
+        settings.transport = transport
         settings.port = port
+        settings.peripheralId = peripheralId
+        settings.peripheralName = peripheralName
         return settings
     }
 
@@ -115,11 +161,105 @@ public final class SettingsViewModel {
         }
     }
 
+    /// Takes the URL and API key from a scanned Bambuddy QR code; anything
+    /// else leaves the fields as they are and says why.
+    public func applyQRPayload(_ text: String) {
+        do {
+            let payload = try APIKeyQRPayload.parse(text)
+            baseURL = payload.baseURL
+            apiKey = payload.apiKey
+            connection = nil
+            qrStatus = .applied("URL and API key read from the QR code; Save to keep them")
+        } catch {
+            qrStatus = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Scans a QR code and applies it; a cancelled scan changes nothing.
+    public func scanQRCode(with scanner: any QRScanning) async {
+        do {
+            applyQRPayload(try await scanner.scan())
+        } catch is CancellationError {
+            qrStatus = nil
+        } catch {
+            qrStatus = .failed(error.localizedDescription)
+        }
+    }
+
     /// Flipper ports present now, plus the chosen one if it is unplugged.
     public func refreshPorts() {
         var found = discoverPorts()
         if let port, !found.contains(port) { found.append(port) }
         ports = found
+    }
+
+    /// The transport kinds the picker offers.
+    public var availableTransports: [TransportKind] { TransportKind.available }
+
+    /// The USB port picker exists (macOS only).
+    public var showsUSB: Bool { availableTransports.contains(.usb) }
+
+    /// Starts a fresh Bluetooth scan; `discovered` fills as Flippers answer.
+    public func scanForFlippers() {
+        stopScanning()
+        discovered = []
+        scanProblem = nil
+        isScanning = true
+        let current = scanGeneration
+        let stream = discoverFlippers()
+        let power = bluetoothPower
+        // A scan with the radio off finds nothing; say why instead.
+        Task { [weak self] in
+            guard let problem = await power().problem, let self, current == self.scanGeneration else { return }
+            self.stopScanning()
+            self.scanProblem = problem.localizedDescription
+        }
+        scanTask = Task { [weak self] in
+            for await peripheral in stream {
+                guard let self, current == self.scanGeneration else { return }
+                self.found(peripheral)
+            }
+            guard let self, current == self.scanGeneration else { return }
+            self.isScanning = false
+        }
+        let duration = scanDuration
+        scanTimer = Task { [weak self] in
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled, let self, current == self.scanGeneration else { return }
+            self.stopScanning()
+        }
+    }
+
+    public func stopScanning() {
+        scanGeneration += 1
+        scanTask?.cancel()
+        scanTimer?.cancel()
+        scanTask = nil
+        scanTimer = nil
+        isScanning = false
+    }
+
+    /// Lists a Flipper once; a repeated answer updates its name and signal.
+    private func found(_ peripheral: DiscoveredPeripheral) {
+        if let index = discovered.firstIndex(where: { $0.id == peripheral.id }) {
+            discovered[index] = peripheral
+        } else {
+            discovered.append(peripheral)
+        }
+    }
+
+    /// Remembers `peripheral` as the Bluetooth Flipper and ends the scan.
+    public func choosePeripheral(_ peripheral: DiscoveredPeripheral) {
+        transport = .bluetooth
+        peripheralId = peripheral.id
+        peripheralName = peripheral.name
+        stopScanning()
+    }
+
+    /// Goes back to using the first Flipper found.
+    public func forgetPeripheral() {
+        peripheralId = nil
+        peripheralName = nil
     }
 
     @discardableResult

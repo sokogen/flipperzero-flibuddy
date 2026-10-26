@@ -7,3 +7,6 @@ __pycache__/
 .DS_Store
 flipper/tests/build/
 .coverage
+host/Apple/*.xcodeproj
+host/Apple/Signing.xcconfig
+host/Apple/.build/

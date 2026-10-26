@@ -23,23 +23,17 @@ def triggers(wf: dict) -> dict:
     return wf[True]
 
 
-def run_lines(wf: dict) -> list[str]:
+def run_lines(job: dict) -> list[str]:
     return [
         line.strip()
-        for job in wf["jobs"].values()
         for step in job["steps"]
         for line in step.get("run", "").splitlines()
         if line.strip()
     ]
 
 
-def step_dirs(wf: dict) -> set[str]:
-    return {
-        step.get("working-directory", ".")
-        for job in wf["jobs"].values()
-        for step in job["steps"]
-        if "run" in step
-    }
+def step_dirs(job: dict) -> set[str]:
+    return {step.get("working-directory", ".") for step in job["steps"] if "run" in step}
 
 
 @pytest.mark.parametrize(
@@ -65,38 +59,56 @@ def test_flipper_workflow_builds_the_fap_with_ufbt_1_5_1_and_runs_c_tests():
     wf = workflow("flipper")
     (job,) = wf["jobs"].values()
     assert job["runs-on"] == "ubuntu-latest"
-    lines = run_lines(wf)
+    lines = run_lines(job)
     assert "pip install ufbt" in lines
     assert "ufbt update --branch=1.5.1" in lines
     assert "ufbt" in lines
     assert any(line.startswith("make -C flipper/tests test") for line in lines)
-    assert "flipper" in step_dirs(wf)
+    assert "flipper" in step_dirs(job)
     uploads = [s for s in job["steps"] if s.get("uses", "").startswith("actions/upload-artifact")]
     assert [s["with"]["path"] for s in uploads] == ["flipper/dist/*.fap"]
 
 
 def test_host_workflow_runs_swift_test_on_macos_with_the_lint_and_coverage_gates():
     wf = workflow("host")
-    (job,) = wf["jobs"].values()
+    assert set(wf["jobs"]) == {"test", "apple"}
+    job = wf["jobs"]["test"]
     assert job["runs-on"] == "macos-latest"
-    lines = run_lines(wf)
+    lines = run_lines(job)
     assert "swift build -Xswiftc -warnings-as-errors" in lines
     assert "swift test --enable-code-coverage" in lines
     assert any(line.startswith("uv run python swift_coverage.py") and "--min 80" in line for line in lines)
-    assert step_dirs(wf) == {"host", "tools"}
+    assert step_dirs(job) == {"host", "tools"}
     for event in ("push", "pull_request"):
         assert "tools/swift_coverage.py" in triggers(wf)[event]["paths"]
+
+
+def test_host_workflow_builds_the_apple_apps_unsigned_with_xcodegen():
+    wf = workflow("host")
+    job = wf["jobs"]["apple"]
+    assert job["runs-on"] == "macos-latest"
+    lines = run_lines(job)
+    assert "brew install xcodegen" in lines
+    assert "make apple-project apple-build" in lines
+    assert lines.index("brew install xcodegen") < lines.index("make apple-project apple-build")
+    # The Makefile targets run from the repository root.
+    assert step_dirs(job) == {"."}
+    for event in ("push", "pull_request"):
+        paths = triggers(wf)[event]["paths"]
+        assert "host/Apple/**" in paths
+        # The apple-* recipes live in the root Makefile.
+        assert "Makefile" in paths
 
 
 def test_tools_workflow_runs_pytest_with_uv():
     wf = workflow("tools")
     (job,) = wf["jobs"].values()
     assert job["runs-on"] == "ubuntu-latest"
-    lines = run_lines(wf)
+    lines = run_lines(job)
     assert "uv sync" in lines
     assert "uv run pytest --cov" in lines
     assert "uv run ruff check" in lines
-    assert step_dirs(wf) == {"tools"}
+    assert step_dirs(job) == {"tools"}
 
 
 def test_root_makefile_runs_all_three_suites():

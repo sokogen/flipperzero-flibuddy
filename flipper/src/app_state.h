@@ -2,6 +2,7 @@
  *
  *   Idle → Reading → WaitingLookup → Result{Found|UnknownPrefill|
  *   UnknownBare|NoHost} → EnterWeight → WaitingResult → Done|Error → Idle
+ *   Idle → Transport → Idle
  *
  * app_reduce() applies one event to the state and returns the I/O the
  * caller must perform; it never touches the GUI, NFC or the transport.
@@ -24,6 +25,14 @@
  * and on EnterWeight; the EnterWeight pre-fill follows it: gross is the
  * last gross weight (fallback label + core), net is gross - core (fallback
  * the label weight).
+ *
+ * The transport menu opens from Idle. Choosing another kind than the one
+ * in use answers AppEffectSwitchTransport: the caller saves the setting
+ * and restarts the transport; the host is lost through host_link as the old
+ * port closes. The caller reports a transport that did not open with
+ * AppEventTransportFailed; choosing that same kind again then retries it. The BLE status is only recorded, for the status line
+ * (screen_status_text); it never changes the screen or `connected`. The
+ * caller sets `transport` from the saved settings after app_state_init().
  */
 #pragma once
 
@@ -33,6 +42,7 @@
 #include "intents.h"
 #include "proto_decode.h"
 #include "tag_dump.h"
+#include "transport.h"
 
 /* How long the Flipper waits for a `result` (PROTOCOL.md, Timeouts). */
 #define APP_RESULT_TIMEOUT_MS 10000u
@@ -46,6 +56,7 @@ typedef enum {
     AppScreenWaitingResult,
     AppScreenDone,
     AppScreenError,
+    AppScreenTransport, /* menu: USB, Bluetooth */
 } AppScreen;
 
 typedef enum {
@@ -66,6 +77,12 @@ typedef enum {
 } AppError;
 
 typedef enum {
+    AppBleOff, /* not advertising, or Bluetooth is not the transport */
+    AppBleAdvertising,
+    AppBleConnected, /* a central is connected; it may not have said hello */
+} AppBleStatus;
+
+typedef enum {
     AppEventHostConnected,
     AppEventHostLost,
     AppEventTagDetected, /* the reader found a tag and starts reading it */
@@ -82,6 +99,10 @@ typedef enum {
     AppEventTimeout, /* see app_result_timed_out() */
     AppEventSendFailed, /* the scan or intent of the last effect was not sent */
     AppEventBack, /* back, or OK on Done / Error */
+    AppEventMenuTransport, /* OK on Idle */
+    AppEventTransportChosen, /* .transport */
+    AppEventBleStatus, /* .ble */
+    AppEventTransportFailed, /* the transport in use did not open */
 } AppEventType;
 
 typedef struct {
@@ -92,6 +113,8 @@ typedef struct {
         const ProtoLookup* lookup;
         const ProtoResult* result;
         uint16_t grams;
+        TransportKind transport;
+        AppBleStatus ble;
     };
 } AppEvent;
 
@@ -99,6 +122,7 @@ typedef enum {
     AppEffectNone,
     AppEffectSendScan,
     AppEffectSendIntent,
+    AppEffectSwitchTransport, /* to s->transport */
 } AppEffect;
 
 typedef struct {
@@ -106,6 +130,9 @@ typedef struct {
     AppResultKind result_kind; /* on Result and EnterWeight */
     AppError error; /* on Error */
     bool connected;
+    TransportKind transport; /* in use */
+    bool transport_failed; /* it did not open; choosing it again retries */
+    AppBleStatus ble;
     WeightMode mode; /* kept for the whole session */
     uint16_t weight_default; /* pre-fill of EnterWeight, follows mode */
     uint32_t intent_sent_ms; /* now_ms of the event that sent the intent */
@@ -118,7 +145,7 @@ typedef struct {
     Intent draft; /* scratch for the intent being built: too big for the 4 KB app stack */
 } AppState;
 
-/* Idle, no host, gross mode. `first_scan` and `first_intent` seed the id
+/* Idle, no host, USB with BLE off, gross mode. `first_scan` and `first_intent` seed the id
  * counters (see IdSeq). */
 void app_state_init(
     AppState* s,
