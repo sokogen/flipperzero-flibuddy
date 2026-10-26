@@ -62,6 +62,14 @@ public struct BambuddyClient: Sendable {
         try await get("/inventory/catalog", permission: "inventory:read")
     }
 
+    /// Bambuddy's colour names. Decoded with the keys as sent: the tables'
+    /// keys are data and must not go through the snake-case conversion.
+    public func colorMap() async throws -> ColorMap {
+        let (data, status) = try await send("GET", "/inventory/colors/map")
+        try check(status, data, permission: "inventory:read")
+        return try decode(ColorMap.self, data, keys: .useDefaultKeys)
+    }
+
     /// Record a gross scale weight; Bambuddy subtracts the core weight and sets
     /// `weight_used`, `last_scale_weight` and `last_weighed_at`.
     public func updateWeight(spoolId: Int, gross: Int) async throws -> WeightUpdate {
@@ -177,9 +185,11 @@ public struct BambuddyClient: Sendable {
         }
     }
 
-    private func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
+    private func decode<T: Decodable>(
+        _ type: T.Type, _ data: Data, keys: JSONDecoder.KeyDecodingStrategy = .convertFromSnakeCase
+    ) throws -> T {
         let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.keyDecodingStrategy = keys
         do {
             return try decoder.decode(type, from: data)
         } catch {

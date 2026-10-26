@@ -224,7 +224,11 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
   control character or non-ASCII character in a string shows as `?`, so
   the host keeps `lines` ASCII where it can.
 - **New items.** The Flipper never sends `new` without `prefill: true`, and
-  the host refuses to create a spool without `material`.
+  the host refuses to create a spool without `material`. The host names the
+  colour from Bambuddy's colour map (`GET /inventory/colors/map`, loaded once
+  after the start-up check): `by_material["<detailed type>|<hex6>"]`, then
+  `colors["<hex6>"]`, lower-case, alpha dropped. Without a match, or when
+  the map failed to load, `color_name` is left out, never a hex string.
 - **Inventory mode.** The host checks `GET /settings/spoolman` and refuses
   to work against a Bambuddy in Spoolman mode: the Mac host answers every
   `scan` with an `error` lookup and every intent with `ok: false`, both

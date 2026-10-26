@@ -42,9 +42,11 @@ def line(message: dict) -> str:
 class FakeBambuddy:
     """Stands in for BambuddyClient; records calls."""
 
-    def __init__(self, spools=None, fail=None):
+    def __init__(self, spools=None, fail=None, color_map=None, color_map_error=None):
         self.spools = {s["id"]: dict(s) for s in (spools or [])}
         self.fail = fail
+        self.colors = color_map if color_map is not None else {"colors": {}, "by_material": {}}
+        self.color_map_error = color_map_error
         self.calls: list[tuple] = []
 
     def _maybe_fail(self):
@@ -70,6 +72,12 @@ class FakeBambuddy:
         spool["weight_used"] = max(0, spool["label_weight"] - net)
         spool["last_scale_weight"] = gross
         return {"status": "ok", "weight_used": spool["weight_used"]}
+
+    def color_map(self):
+        self.calls.append(("color_map",))
+        if self.color_map_error:
+            raise bambuddy.BambuddyError(self.color_map_error)
+        return self.colors
 
     def create_spool(self, body):
         self.calls.append(("create_spool", body))
@@ -337,7 +345,6 @@ def test_new_creates_a_full_spool_from_the_tag():
     assert body == {
         "material": "PLA",
         "subtype": "PLA Basic",
-        "color_name": "#FFFFFFFF",
         "rgba": "FFFFFFFF",
         "brand": "Bambu Lab",
         "label_weight": 1000,
@@ -351,6 +358,58 @@ def test_new_creates_a_full_spool_from_the_tag():
         "tag_type": "bambulab",
         "data_origin": "flipper",
     }
+
+
+COLOR_MAP = {"colors": {"ffffff": "White"}, "by_material": {"pla basic|ffffff": "Jade White"}}
+
+
+def test_new_sends_the_name_from_the_colour_map():
+    fake = FakeBambuddy(color_map=COLOR_MAP)
+    b = bridge(fake)
+    b.load_color_map()
+    (reply,) = replies(b, load("intent_new.json"))
+    assert reply["ok"] is True
+    (_, body) = fake.calls[-1]
+    assert body["color_name"] == "Jade White"
+
+
+def test_new_omits_a_colour_without_a_name():
+    fake = FakeBambuddy(color_map=COLOR_MAP)
+    b = bridge(fake)
+    b.load_color_map()
+    real = json.loads((PROTOCOL / "fixtures/tags/bambu_pla_pure_real.json").read_text())
+    tag = make_message_fixtures.mfc_tag(real, real["missing"])
+    (reply,) = replies(b, {**load("intent_new.json"), "tag": tag})
+    assert reply["ok"] is True
+    (_, body) = fake.calls[-1]
+    assert body["rgba"] == "A4DBE8FF"
+    assert "color_name" not in body
+
+
+def test_the_colour_map_is_loaded_once():
+    fake = FakeBambuddy(color_map=COLOR_MAP)
+    b = bridge(fake)
+    b.load_color_map()
+    replies(b, load("intent_new.json"))
+    assert [c for c in fake.calls if c[0] == "color_map"] == [("color_map",)]
+
+
+def test_a_failed_colour_map_is_logged_and_never_blocks_a_create():
+    fake = FakeBambuddy(color_map=COLOR_MAP, color_map_error="HTTP 500 boom")
+    logged = []
+    b = bridge(fake, log=logged.append)
+    b.load_color_map()
+    assert any("colour names unavailable" in entry and "HTTP 500" in entry for entry in logged)
+    (reply,) = replies(b, load("intent_new.json"))
+    assert reply["ok"] is True
+    (_, body) = fake.calls[-1]
+    assert "color_name" not in body
+
+
+def test_loading_the_colour_map_without_bambuddy_does_nothing():
+    b = session.Bridge(None)
+    b.load_color_map()
+    assert b.color_map is None
 
 
 def test_unknown_lookup_defaults_to_a_325_g_core():

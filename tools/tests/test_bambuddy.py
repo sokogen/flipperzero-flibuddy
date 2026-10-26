@@ -178,3 +178,68 @@ def test_net_to_gross_treats_a_missing_core_as_zero():
 )
 def test_remaining(spool, remaining):
     assert bambuddy.remaining(spool) == remaining
+
+
+# --- colour names -----------------------------------------------------------
+
+COLOR_MAP = {
+    "colors": {"ff9016": "Pumpkin Orange", "ffffff": "White"},
+    "by_material": {"pla matte|ffffff": "Ivory White", "pla basic|ffffff": "Jade White"},
+}
+
+
+def test_color_map_reads_both_tables_with_lower_case_keys():
+    reply = {"colors": {"FF9016": "Pumpkin Orange"}, "by_material": {"PLA Matte|FFFFFF": "Ivory White"}}
+    c, rec = client(httpx.Response(200, json=reply))
+    assert c.color_map() == {
+        "colors": {"ff9016": "Pumpkin Orange"},
+        "by_material": {"pla matte|ffffff": "Ivory White"},
+    }
+    assert rec.requests[0].method == "GET"
+    assert rec.requests[0].url.path == "/api/v1/inventory/colors/map"
+
+
+def test_color_map_without_tables_is_empty():
+    c, _ = client(httpx.Response(200, json={}))
+    assert c.color_map() == {"colors": {}, "by_material": {}}
+
+
+def test_color_map_maps_403_to_inventory_read():
+    c, _ = client(httpx.Response(403, json={"detail": "Missing permission"}))
+    with pytest.raises(bambuddy.PermissionMissing) as error:
+        c.color_map()
+    assert error.value.permission == "inventory:read"
+
+
+def test_color_map_reports_server_errors():
+    c, _ = client(httpx.Response(500, text="boom"))
+    with pytest.raises(bambuddy.BambuddyError, match="HTTP 500"):
+        c.color_map()
+
+
+@pytest.mark.parametrize(
+    "rgba, detailed_type, name",
+    [
+        ("FFFFFFFF", "PLA Matte", "Ivory White"),  # the material table first
+        ("FFFFFFFF", "PLA Basic", "Jade White"),
+        ("FF9016FF", "PLA Basic", "Pumpkin Orange"),  # then the colour table
+        ("FFFFFFFF", "PETG HF", "White"),
+        ("FFFFFFFF", None, "White"),
+        ("A4DBE8FF", "PLA Pure", None),  # the real PLA Pure spool: no name
+        ("FF901600", None, "Pumpkin Orange"),  # alpha ignored
+        ("FF9016", None, "Pumpkin Orange"),
+        ("#FF9016FF", None, "Pumpkin Orange"),
+        ("ff9016ff", None, "Pumpkin Orange"),  # case-insensitive
+        ("fFfFfFfF", "pla MATTE", "Ivory White"),
+        (None, "PLA Basic", None),
+        ("FFF", None, None),
+        ("GGGGGGFF", None, None),
+    ],
+)
+def test_color_name(rgba, detailed_type, name):
+    assert bambuddy.color_name(COLOR_MAP, rgba, detailed_type) == name
+
+
+def test_color_name_without_a_map_is_none():
+    assert bambuddy.color_name(None, "FF9016FF", "PLA Basic") is None
+    assert bambuddy.color_name({}, "FF9016FF", "PLA Basic") is None

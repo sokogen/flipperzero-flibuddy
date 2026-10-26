@@ -15,7 +15,13 @@ from jsonschema import Draft202012Validator
 
 import bambu_keys
 from bridge import APP, bambu_tag
-from bridge.bambuddy import BambuddyError, net_to_gross, remaining, used_after_weighing
+from bridge.bambuddy import (
+    BambuddyError,
+    color_name,
+    net_to_gross,
+    remaining,
+    used_after_weighing,
+)
 
 MAX_LINE_BYTES = 8192  # including the terminating "\n"
 HELLO_TIMEOUT = 2.0  # seconds; a Flipper hello within this of ours answers it
@@ -136,10 +142,24 @@ class Bridge:
         self.dump_dir = Path(dump_dir) if dump_dir else None
         self.log = log
         self.flipper: dict | None = None
+        self.color_map: dict | None = None  # Bambuddy's colour names, see load_color_map
         self._clock = clock
         self._hello_sent_at: float | None = None
         self._results: dict[str, tuple[dict, dict]] = {}  # id -> (intent, result)
         self._validator = _validator()
+
+    def load_color_map(self) -> None:
+        """Load Bambuddy's colour names once, after the start-up check. A
+        failure is logged and leaves new items without a colour name."""
+        if self.client is None:
+            return
+        try:
+            self.color_map = self.client.color_map()
+        except BambuddyError as error:
+            self.log(f"colour names unavailable: {error}")
+            return
+        self.log(f"colour names: {len(self.color_map['colors'])} colours, "
+                 f"{len(self.color_map['by_material'])} by material")
 
     def hello(self) -> dict:
         return {"t": "hello", "v": 1, "app": APP, "os": host_os()}
@@ -305,7 +325,7 @@ class Bridge:
         body = {
             "material": parsed.material,
             "subtype": parsed.detailed_type,
-            "color_name": f"#{parsed.rgba}" if parsed.rgba else None,
+            "color_name": color_name(self.color_map, parsed.rgba, parsed.detailed_type),
             "rgba": parsed.rgba,
             "brand": BRAND if parsed.kind == "bambu" else None,
             "label_weight": parsed.label_weight or DEFAULT_LABEL,

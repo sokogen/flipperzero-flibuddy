@@ -126,14 +126,15 @@ public struct NewSpool: Encodable, Equatable, Sendable {
         self.tagType = tagType
     }
 
-    /// A new item from a parsed tag, with the core weight of the configured
-    /// catalog entry. `nil` when the tag carries no material.
-    public init?(tag: ParsedTag, coreWeight: Int, coreWeightCatalogId: Int?) {
+    /// A new item from a parsed tag, with the configured core weight and
+    /// catalog entry. `colorName` is Bambuddy's name for the tag's colour;
+    /// without one the field is omitted. `nil` when the tag carries no material.
+    public init?(tag: ParsedTag, coreWeight: Int, coreWeightCatalogId: Int?, colorName: String? = nil) {
         guard let material = tag.material else { return nil }
         self.init(
             material: material,
             subtype: tag.detailedType,
-            colorName: tag.rgba.map { "#\($0)" },
+            colorName: colorName,
             rgba: tag.rgba,
             brand: tag.kind == .bambu ? Self.bambuBrand : nil,
             labelWeight: tag.labelWeight ?? Self.defaultLabelWeight,

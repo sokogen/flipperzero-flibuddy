@@ -18,6 +18,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     private var stored: [Spool]
     private var recorded: [Call] = []
     private var nextId = 100
+    private var colorMapCount = 0
 
     var spoolman = false
     var spoolmanError: BambuddyError?
@@ -26,6 +27,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var createError: BambuddyError?
     var linkError: BambuddyError?
     var catalogError: BambuddyError?
+    /// What `colorMap` answers; empty by default, so new items carry no colour name.
+    var colorMapAnswer = ColorMap(colors: [:], byMaterial: [:])
+    var colorMapError: BambuddyError?
+    /// `colorMap` calls; kept out of `calls` so call-order tests stay about tags.
+    var colorMapLoads: Int { lock.withLock { colorMapCount } }
     var catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
     /// Delay before `updateWeight` answers, to overlap concurrent intents.
     var updateDelay: Duration = .zero
@@ -122,5 +128,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         record(.catalog)
         if let catalogError { throw catalogError }
         return catalogEntries
+    }
+
+    func colorMap() async throws -> ColorMap {
+        lock.withLock { colorMapCount += 1 }
+        if let colorMapError { throw colorMapError }
+        return colorMapAnswer
     }
 }

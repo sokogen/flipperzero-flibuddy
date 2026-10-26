@@ -92,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
 
     bridge = session.Bridge(client, core_weight=args.core_weight, catalog_id=args.catalog_id,
                             dump_dir=args.dump_dir, log=log)
+    bridge.load_color_map()
     log(f"opening {device}")
     try:
         with serial.Serial(device, BAUD, timeout=0.2) as port:

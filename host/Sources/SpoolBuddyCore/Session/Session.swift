@@ -69,14 +69,17 @@ extension SessionError: LocalizedError {
     }
 }
 
-/// What the views render: the feed in arrival order and the Bambuddy state.
+/// What the views render: the feed in arrival order, the Bambuddy state and
+/// why colour names are missing, if they are.
 public struct SessionSnapshot: Equatable, Sendable {
     public var rows: [FeedRow]
     public var bambuddy: BambuddyState
+    public var colorNamesProblem: String?
 
-    public init(rows: [FeedRow], bambuddy: BambuddyState) {
+    public init(rows: [FeedRow], bambuddy: BambuddyState, colorNamesProblem: String? = nil) {
         self.rows = rows
         self.bambuddy = bambuddy
+        self.colorNamesProblem = colorNamesProblem
     }
 }
 
@@ -92,10 +95,15 @@ public actor Session {
     public private(set) var rows: [FeedRow] = []
     public private(set) var bambuddy: BambuddyState = .unchecked
     public private(set) var settings: Settings
+    /// Set when the colour map failed to load; new items then carry no colour name.
+    public private(set) var colorNamesProblem: String?
 
     private var inventory: (any SpoolInventory)?
     /// Bumped by `reconfigure`; a check of older settings does not count.
     private var configuration = 0
+    /// Bambuddy's colour names, loaded once per configuration after the
+    /// startup check; `nil` until then or after a failed load.
+    private var colorNames: ColorNameResolver?
     /// Completed intents by id, with the intent that produced each result.
     private var results: [String: (intent: Intent, result: IntentResult)] = [:]
     private var resultOrder: [String] = []
@@ -116,6 +124,8 @@ public actor Session {
         self.settings = settings
         self.inventory = inventory
         configuration += 1
+        colorNames = nil
+        colorNamesProblem = nil
         setBambuddy(.unchecked)
     }
 
@@ -131,7 +141,9 @@ public actor Session {
         return stream
     }
 
-    public var snapshot: SessionSnapshot { SessionSnapshot(rows: rows, bambuddy: bambuddy) }
+    public var snapshot: SessionSnapshot {
+        SessionSnapshot(rows: rows, bambuddy: bambuddy, colorNamesProblem: colorNamesProblem)
+    }
 
     public func clear() {
         rows.removeAll()
@@ -140,8 +152,9 @@ public actor Session {
 
     // MARK: Startup check
 
-    /// Refuses Spoolman mode and keys that cannot read the settings. When the
-    /// settings change during the check, the new ones are checked instead.
+    /// Refuses Spoolman mode and keys that cannot read the settings, then
+    /// loads the colour map unless it is loaded already. When the settings
+    /// change during the check, the new ones are checked instead.
     @discardableResult
     public func checkBambuddy() async -> BambuddyState {
         let checking = configuration
@@ -161,7 +174,34 @@ public actor Session {
         }
         guard checking == configuration else { return await checkBambuddy() }
         setBambuddy(state)
+        if state.isReady, colorNames == nil {
+            await loadColorNames(from: inventory, checking: checking)
+        }
         return state
+    }
+
+    /// A failed load is reported and leaves new items unnamed; the next check
+    /// tries again. Rows already in the feed are named when the map arrives.
+    private func loadColorNames(from inventory: any SpoolInventory, checking: Int) async {
+        let loaded: Result<ColorMap, any Error>
+        do {
+            loaded = .success(try await inventory.colorMap())
+        } catch {
+            loaded = .failure(error)
+        }
+        guard checking == configuration else { return }
+        switch loaded {
+        case .success(let map):
+            let resolver = ColorNameResolver(map)
+            colorNames = resolver
+            colorNamesProblem = nil
+            for index in rows.indices where rows[index].colorName == nil {
+                rows[index].colorName = resolver.name(for: rows[index].tag)
+            }
+        case .failure(let error):
+            colorNamesProblem = "Colour names unavailable: \(Self.describe(error))"
+        }
+        publish()
     }
 
     /// Checks when the state may have changed since (never checked, or unreachable).
@@ -192,7 +232,8 @@ public actor Session {
     /// Adds a row for the scan, newest last.
     @discardableResult
     public func record(_ scan: Scan) -> FeedRow.ID {
-        let row = FeedRow(scanId: scan.scanId, dump: scan.tag)
+        var row = FeedRow(scanId: scan.scanId, dump: scan.tag)
+        row.colorName = colorNames?.name(for: row.tag)
         rows.append(row)
         publish()
         return row.id

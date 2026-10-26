@@ -11,6 +11,8 @@ public final class FeedViewModel {
 
     public private(set) var items: [FeedItem] = []
     public private(set) var bambuddy: BambuddyState = .unchecked
+    /// Why new items get no colour names, when the colour map failed to load.
+    public private(set) var colorNamesProblem: String?
     /// The New form's core weight and the preselected weight mode come from here.
     public var settings: Settings
 
@@ -42,6 +44,7 @@ public final class FeedViewModel {
         items = snapshot.rows.reversed().map(FeedItem.init)
         rows = Dictionary(uniqueKeysWithValues: snapshot.rows.map { ($0.id, $0) })
         bambuddy = snapshot.bambuddy
+        colorNamesProblem = snapshot.colorNamesProblem
         for id in Set(weightTexts.keys).union(modes.keys).union(errors.keys) where rows[id] == nil {
             forget(id)
         }
@@ -101,7 +104,7 @@ public final class FeedViewModel {
     // MARK: Unknown tags
 
     public func newSpoolForm(for id: FeedRow.ID) -> NewSpoolForm? {
-        rows[id].map { NewSpoolForm(tag: $0.tag, settings: settings) }
+        rows[id].map { NewSpoolForm(tag: $0.tag, settings: settings, colorName: $0.colorName) }
     }
 
     /// Creates the item from the form and links the row; `false` when it failed.

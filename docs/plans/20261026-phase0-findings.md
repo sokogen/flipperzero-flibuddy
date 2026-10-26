@@ -149,11 +149,19 @@ mentions tray UUID candidates.
   may now differ from the entry's.
 
 ### Task 5: Colour names from Bambuddy's colour map
-- [ ] Swift: `BambuddyClient.colorMap()` → `GET /inventory/colors/map` decoded into `colors: [String: String]` and `byMaterial: [String: String]`; `ColorNameResolver.name(rgba:, detailedType:)` tries `byMaterial["<detailed type lower-cased>|<hex6 lower-cased>"]`, then `colors[hex6]`, else `nil`; the session loads the map once after the startup check and keeps it; a failed load leaves names empty and logs to the feed status, never blocks a scan
-- [ ] Swift: `NewSpoolForm`/`IntentHandler` set `color_name` from the resolver and omit it when unresolved (no hex string); the feed row shows the resolved name when present
-- [ ] Swift tests: `FF9016` + "PLA Basic" → "Pumpkin Orange" (by material or colors); `A4DBE8` → `nil`; alpha stripped; case-insensitive; map fetch failure → create still succeeds with no `color_name`
-- [ ] Python: same in `tools/bridge/bambuddy.py` and `tools/bridge/session.py` with tests in `tools/tests/test_bambuddy.py` and `tools/tests/test_bridge_protocol.py`
-- [ ] run all three suites - must pass before task 6
+- [x] Swift: `BambuddyClient.colorMap()` → `GET /inventory/colors/map` decoded into `colors: [String: String]` and `byMaterial: [String: String]`; `ColorNameResolver.name(rgba:, detailedType:)` tries `byMaterial["<detailed type lower-cased>|<hex6 lower-cased>"]`, then `colors[hex6]`, else `nil`; the session loads the map once after the startup check and keeps it; a failed load leaves names empty and logs to the feed status, never blocks a scan
+- [x] Swift: `NewSpoolForm`/`IntentHandler` set `color_name` from the resolver and omit it when unresolved (no hex string); the feed row shows the resolved name when present
+- [x] Swift tests: `FF9016` + "PLA Basic" → "Pumpkin Orange" (by material or colors); `A4DBE8` → `nil`; alpha stripped; case-insensitive; map fetch failure → create still succeeds with no `color_name`
+- [x] Python: same in `tools/bridge/bambuddy.py` and `tools/bridge/session.py` with tests in `tools/tests/test_bambuddy.py` and `tools/tests/test_bridge_protocol.py`
+- [x] run all three suites - must pass before task 6
+- ➕ the map failure is shown in the status bar (`SessionSnapshot.colorNamesProblem`,
+  `FeedViewModel.colorNamesProblem`), and the next startup check retries the
+  load; settings changes reload it. Rows scanned before the map arrives are
+  named when it does. The feed and the host's New form show the resolved
+  name; the feed still falls back to the hex for display only. The
+  `colorMap` call is counted apart from `FakeInventory.calls`, so the
+  call-order tests are unchanged. The bridge loads the map in `main` right
+  after the inventory-mode check (`Bridge.load_color_map`).
 
 ### Task 6: Subtype without the material word
 - [ ] Swift and Python: derive `subtype` for new items from the detailed type by dropping a leading word equal to the material, case-insensitive ("PLA Pure" → "Pure", "PLA Basic" → "Basic", "PETG-HF" with material "PETG" → "PETG-HF" unchanged, empty → `nil`)

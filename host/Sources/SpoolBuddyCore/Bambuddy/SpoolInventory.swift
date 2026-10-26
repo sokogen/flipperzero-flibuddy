@@ -10,6 +10,7 @@ public protocol SpoolInventory: Sendable {
     func spoolmanEnabled() async throws -> Bool
     func listSpools() async throws -> [Spool]
     func catalog() async throws -> [CatalogEntry]
+    func colorMap() async throws -> ColorMap
 }
 
 extension BambuddyClient: SpoolInventory {}

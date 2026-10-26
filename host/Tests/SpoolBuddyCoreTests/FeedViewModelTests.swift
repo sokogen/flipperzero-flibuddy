@@ -191,6 +191,15 @@ struct FeedViewModelTests {
         #expect(FeedItem(try row(status: .unknown(prefill: true))).suggested(.gross) == nil)
     }
 
+    @Test func anUnknownTagShowsTheResolvedColourName() throws {
+        var named = try row(status: .unknown(prefill: true))
+        named.colorName = "Jade White"
+        #expect(FeedItem(named).colorName == "Jade White")
+        // a known spool shows Bambuddy's own name
+        named.spool = knownSpool(colorName: "Bambuddy White")
+        #expect(FeedItem(named).colorName == "Bambuddy White")
+    }
+
     @Test func anUnknownTagShowsTheTagData() throws {
         let item = FeedItem(try row(status: .unknown(prefill: true)))
         let tag = try row().tag
@@ -338,10 +347,36 @@ struct FeedViewModelUnknownTests {
 
         #expect(form.material == tag.material)
         #expect(form.subtype == (tag.detailedType ?? ""))
-        #expect(form.colorName == tag.rgba.map { "#\($0)" })
+        #expect(form.colorName == "")
         #expect(form.brand == "Bambu Lab")
         #expect(form.labelWeight == String(tag.labelWeight ?? 1000))
         #expect(form.newSpool == NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
+    }
+
+    @Test func theNewFormCarriesTheResolvedColourName() async throws {
+        let inventory = FakeInventory()
+        inventory.colorMapAnswer = sampleColorMap
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        let form = try #require(model.newSpoolForm(for: id))
+
+        #expect(form.colorName == "Jade White")
+        #expect(form.newSpool?.colorName == "Jade White")
+        #expect(model.items.first?.colorName == "Jade White")
+    }
+
+    @Test func aFailedColourMapIsShownInTheStatus() async throws {
+        let inventory = FakeInventory()
+        inventory.colorMapError = .network("timed out")
+        let (model, session) = makeModel(inventory)
+        _ = await session.checkBambuddy()
+
+        model.apply(await session.snapshot)
+
+        #expect(model.colorNamesProblem == "Colour names unavailable: \(BambuddyError.network("timed out").localizedDescription)")
     }
 
     @Test func aFormWithoutMaterialCannotBeSubmitted() async throws {

@@ -4,6 +4,8 @@ Routes verified against maziggy/bambuddy 1.2.5.2; see the plan's Context
 section. Every request carries `X-API-Key`.
 """
 
+import string
+
 import httpx
 
 API = "/api/v1"
@@ -35,6 +37,26 @@ def remaining(spool: dict) -> int:
     """Filament left on a spool, in grams, never negative."""
     left = spool.get("label_weight", 0) - (spool.get("weight_used") or 0)
     return max(0, round(left))
+
+
+def color_name(color_map: dict | None, rgba: str | None, detailed_type: str | None) -> str | None:
+    """Bambuddy's name for a colour, as an AMS-added spool gets it.
+
+    `color_map` is what `BambuddyClient.color_map` returns. The material table
+    (`"<detailed type>|<hex>"`) comes first, then the colour table; `None` when
+    neither knows the colour. The alpha byte never matters.
+    """
+    if not color_map or not rgba:
+        return None
+    value = rgba.removeprefix("#")
+    if len(value) not in (6, 8) or not all(c in string.hexdigits for c in value):
+        return None
+    hex6 = value[:6].lower()
+    if detailed_type:
+        name = color_map.get("by_material", {}).get(f"{detailed_type.lower()}|{hex6}")
+        if name:
+            return name
+    return color_map.get("colors", {}).get(hex6)
 
 
 class BambuddyClient:
@@ -87,6 +109,18 @@ class BambuddyClient:
         if not body.get("material"):
             raise ValueError("refusing to create a spool without material")
         return self._json(self._request("POST", "/inventory/spools", json=body))
+
+    def color_map(self) -> dict:
+        """`GET /inventory/colors/map`: `colors` by hex and `by_material` by
+        `"<material>|<hex>"`, keys lower-cased."""
+        response = self._request("GET", "/inventory/colors/map")
+        if response.status_code == 403:
+            raise PermissionMissing("inventory:read")
+        reply = self._json(response)
+        return {
+            table: {key.lower(): name for key, name in (reply.get(table) or {}).items()}
+            for table in ("colors", "by_material")
+        }
 
     def spoolman_enabled(self) -> bool:
         response = self._request("GET", "/settings/spoolman")

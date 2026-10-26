@@ -39,7 +39,8 @@ struct IntentHandler {
         case .new:
             var row = row
             guard let newSpool = NewSpool(
-                tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId
+                tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
+                colorName: row.colorName
             ) else {
                 let error = "tag carries no material"
                 return Outcome(result: result(intent, ok: false, ["Not created", "No material on tag"], error), row: row)

@@ -334,6 +334,133 @@ struct SessionStartupTests {
     }
 }
 
+@Suite("Session: colour names")
+struct SessionColorNameTests {
+    private func namingInventory(spools: [Spool] = []) -> FakeInventory {
+        let inventory = FakeInventory(spools: spools)
+        inventory.colorMapAnswer = sampleColorMap
+        return inventory
+    }
+
+    @Test func theMapIsLoadedOnceAfterTheStartupCheck() async throws {
+        let inventory = namingInventory()
+        let session = makeSession(inventory)
+        #expect(await session.checkBambuddy() == .ready)
+        #expect(inventory.colorMapLoads == 1)
+        _ = await session.handleScan(try fixtureScan())
+        _ = await session.handleScan(try fixtureScan("scan_ntag"))
+        #expect(inventory.colorMapLoads == 1)
+    }
+
+    @Test func aRefusedBambuddyLoadsNoMap() async throws {
+        let inventory = namingInventory()
+        inventory.spoolman = true
+        let session = makeSession(inventory)
+        _ = await session.checkBambuddy()
+        #expect(inventory.colorMapLoads == 0)
+    }
+
+    @Test func scannedRowsCarryTheResolvedName() async throws {
+        let session = makeSession(namingInventory())
+        _ = await session.handleScan(try fixtureScan())
+        let row = try #require(await session.rows.first)
+        #expect(row.colorName == "Jade White")
+        #expect(FeedItem(row).colorName == "Jade White")
+    }
+
+    @Test func rowsRecordedBeforeTheMapArrivesAreNamedWhenItDoes() async throws {
+        let session = makeSession(namingInventory())
+        _ = await session.record(try fixtureScan())
+        #expect(await session.rows.first?.colorName == nil)
+        _ = await session.checkBambuddy()
+        #expect(await session.rows.first?.colorName == "Jade White")
+    }
+
+    @Test func aColourWithoutANameStaysUnnamed() async throws {
+        let session = makeSession(namingInventory())
+        _ = await session.checkBambuddy()
+        _ = await session.record(Scan(scanId: "s-000020", tag: try TagFixtures.bambuReal()))
+        let row = try #require(await session.rows.first)
+        #expect(row.colorName == nil)
+        #expect(FeedItem(row).colorName == "#A4DBE8FF")
+    }
+
+    @Test func aFlipperNewSendsTheResolvedName() async throws {
+        let inventory = namingInventory()
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let intent = try fixtureIntent("intent_new")
+
+        let result = await session.handleIntent(intent)
+
+        #expect(result.ok)
+        let expected = try #require(
+            NewSpool(tag: TagParser.parse(intent.tag), coreWeight: 250, coreWeightCatalogId: 3, colorName: "Jade White")
+        )
+        #expect(inventory.creates == [.create(expected)])
+    }
+
+    @Test func aFlipperNewForAnUnnamedColourOmitsTheName() async throws {
+        let inventory = namingInventory()
+        let session = makeSession(inventory)
+        var intent = try fixtureIntent("intent_new")
+        intent.tag = try TagFixtures.bambuReal()
+
+        let result = await session.handleIntent(intent)
+
+        #expect(result.ok)
+        guard case .create(let sent) = try #require(inventory.creates.first) else { return }
+        #expect(sent.colorName == nil)
+    }
+
+    @Test func aFailedLoadIsReportedAndNeverBlocksAScanOrACreate() async throws {
+        let inventory = namingInventory()
+        inventory.colorMapError = .permissionMissing("inventory:read")
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try fixtureScan())
+        #expect(lookup.status == .unknown)
+        #expect(await session.bambuddy == .ready)
+        let problem = try #require(await session.snapshot.colorNamesProblem)
+        #expect(problem.hasPrefix("Colour names unavailable"))
+        #expect(problem.contains("inventory:read"))
+
+        let result = await session.handleIntent(try fixtureIntent("intent_new"))
+        #expect(result.ok)
+        guard case .create(let sent) = try #require(inventory.creates.first) else { return }
+        #expect(sent.colorName == nil)
+        #expect(await session.rows.first?.colorName == nil)
+    }
+
+    @Test func aFailedLoadIsRetriedByTheNextCheck() async throws {
+        let inventory = namingInventory()
+        inventory.colorMapError = .network("timed out")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        #expect(await session.snapshot.colorNamesProblem != nil)
+
+        inventory.colorMapError = nil
+        _ = await session.checkBambuddy()
+
+        #expect(inventory.colorMapLoads == 2)
+        #expect(await session.snapshot.colorNamesProblem == nil)
+        #expect(await session.rows.first?.colorName == "Jade White")
+    }
+
+    @Test func newSettingsLoadTheMapAgain() async throws {
+        let inventory = namingInventory()
+        let session = makeSession(inventory)
+        _ = await session.checkBambuddy()
+        let other = namingInventory()
+        other.colorMapAnswer = ColorMap(colors: ["ffffff": "Snow"], byMaterial: [:])
+        await session.reconfigure(settings: testSettings, inventory: other)
+        _ = await session.handleScan(try fixtureScan())
+
+        #expect(other.colorMapLoads == 1)
+        #expect(await session.rows.first?.colorName == "Snow")
+    }
+}
+
 @Suite("Session: intents")
 struct SessionIntentTests {
     @Test func weighNetSendsNetPlusCore() async throws {

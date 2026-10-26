@@ -19,7 +19,7 @@ struct FeedView: View {
                 }
             }
             Divider()
-            StatusBar(link: link, bambuddy: feed.bambuddy)
+            StatusBar(link: link, bambuddy: feed.bambuddy, colorNamesProblem: feed.colorNamesProblem)
         }
         .toolbar {
             ToolbarItem {
@@ -138,10 +138,11 @@ struct SwatchView: View {
     }
 }
 
-/// Transport state and Bambuddy state.
+/// Transport state, Bambuddy state and a colour map that failed to load.
 struct StatusBar: View {
     let link: FlipperLink
     let bambuddy: BambuddyState
+    let colorNamesProblem: String?
 
     var body: some View {
         HStack(spacing: 16) {
@@ -152,6 +153,9 @@ struct StatusBar: View {
             HStack(spacing: 6) {
                 Circle().fill(bambuddy.isReady ? .green : .orange).frame(width: 8, height: 8)
                 Text(bambuddy.statusText)
+            }
+            if let colorNamesProblem {
+                Text(colorNamesProblem).foregroundStyle(.orange).help(colorNamesProblem)
             }
             Spacer()
             if let port = link.port {

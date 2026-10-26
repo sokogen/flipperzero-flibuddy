@@ -211,7 +211,7 @@ struct BambuddyClientTests {
         #expect(new.material == tag.material)
         #expect(new.subtype == tag.detailedType)
         #expect(new.rgba == tag.rgba)
-        #expect(new.colorName == tag.rgba.map { "#\($0)" })
+        #expect(new.colorName == nil)
         #expect(new.brand == "Bambu Lab")
         #expect(new.labelWeight == tag.labelWeight)
         #expect(new.coreWeight == 250)
@@ -223,6 +223,12 @@ struct BambuddyClientTests {
         #expect(new.trayUuid == tag.trayUuid)
         #expect(new.tagType == "bambulab")
         #expect(new.dataOrigin == "flipper")
+    }
+
+    @Test func newSpoolCarriesTheResolvedColourName() throws {
+        let tag = TagParser.parse(try TagFixtures.bambu())
+        let new = NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: nil, colorName: "Jade White")
+        #expect(new?.colorName == "Jade White")
     }
 
     @Test func newSpoolFallsBackTo1000GramLabel() {
@@ -348,6 +354,32 @@ struct BambuddyClientTests {
             CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250),
         ])
         #expect(server.requests.first?.path == "/api/v1/inventory/catalog")
+    }
+
+    // MARK: colorMap
+
+    @Test func colorMapDecodesBothTables() async throws {
+        let server = StubServer { _ in
+            .json(200, #"{"colors":{"ff9016":"Pumpkin Orange","a_b":"Under Score"},"by_material":{"pla matte|ffffff":"Ivory White"}}"#)
+        }
+        let map = try await server.client().colorMap()
+        #expect(map.colors == ["ff9016": "Pumpkin Orange", "a_b": "Under Score"])
+        #expect(map.byMaterial == ["pla matte|ffffff": "Ivory White"])
+        #expect(server.requests.map(\.path) == ["/api/v1/inventory/colors/map"])
+        #expect(server.requests.map(\.method) == ["GET"])
+    }
+
+    @Test func colorMapWithoutTablesIsEmpty() async throws {
+        let server = StubServer { _ in .json(200, "{}") }
+        let map = try await server.client().colorMap()
+        #expect(map == ColorMap(colors: [:], byMaterial: [:]))
+    }
+
+    @Test func colorMapMaps403ToInventoryRead() async throws {
+        let server = StubServer { _ in .json(403, #"{"detail":"Missing permission"}"#) }
+        await #expect(throws: BambuddyError.permissionMissing("inventory:read")) {
+            try await server.client().colorMap()
+        }
     }
 
     @Test func undecodableBodiesAreReported() async throws {

@@ -13,9 +13,11 @@ public struct NewSpoolForm: Equatable, Sendable {
     private var base: NewSpool
 
     /// Filled in from the tag (material empty when the tag has none), with the
-    /// core weight of the configured catalog entry.
-    public init(tag: ParsedTag, settings: Settings) {
-        base = NewSpool(tag: tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId)
+    /// configured core weight and Bambuddy's name for the colour, if any.
+    public init(tag: ParsedTag, settings: Settings, colorName: String? = nil) {
+        base = NewSpool(
+            tag: tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId, colorName: colorName
+        )
             ?? NewSpool(
                 material: "", labelWeight: tag.labelWeight ?? NewSpool.defaultLabelWeight,
                 coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
@@ -23,7 +25,7 @@ public struct NewSpoolForm: Equatable, Sendable {
             )
         material = base.material
         subtype = base.subtype ?? ""
-        colorName = base.colorName ?? ""
+        self.colorName = base.colorName ?? ""
         brand = base.brand ?? ""
         labelWeight = String(base.labelWeight)
     }

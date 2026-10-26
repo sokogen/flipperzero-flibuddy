@@ -49,7 +49,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             } else {
                 title = row.tag.kind == .ntag ? "NTAG" : "Bambu tag"
             }
-            colorName = row.tag.rgba.map { "#\($0)" }
+            colorName = row.colorName ?? row.tag.rgba.map { "#\($0)" }
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
             suggestedGross = nil
             core = nil

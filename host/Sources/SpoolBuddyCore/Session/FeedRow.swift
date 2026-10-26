@@ -42,6 +42,8 @@ public struct FeedRow: Identifiable, Equatable, Sendable {
     public var scannedAt: Date
     public var dump: TagDump
     public var tag: ParsedTag
+    /// Bambuddy's name for the tag's colour, once the colour map is loaded.
+    public var colorName: String?
     public var spool: Spool?
     public var status: Status
     public var weight: Weight?

@@ -143,3 +143,29 @@ def test_main_serves_the_detected_port(monkeypatch):
     assert cli.main([]) == 0
     assert opened == [("/dev/cu.usbmodemflip_Test1", 115200)]
     assert [m["t"] for m in port.lines()] == ["hello"]
+
+
+def test_main_loads_the_colour_map_after_the_check(monkeypatch):
+    class FakeClient(FakeSettings):
+        loads = 0
+
+        def color_map(self):
+            FakeClient.loads += 1
+            return {"colors": {}, "by_material": {}}
+
+    class FakeSerial:
+        def __init__(self, device, baud, timeout):
+            pass
+
+        def __enter__(self):
+            return FakePort()
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(bambuddy, "BambuddyClient", lambda url, key: FakeClient(False))
+    monkeypatch.setattr(cli.list_ports, "comports",
+                        lambda: [SimpleNamespace(device="/dev/cu.usbmodemflip_Test1")])
+    monkeypatch.setattr(cli.serial, "Serial", FakeSerial)
+    assert cli.main(["--bambuddy", "http://nas:8000", "--api-key", "bb_x"]) == 0
+    assert FakeClient.loads == 1
