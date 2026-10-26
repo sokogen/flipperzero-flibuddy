@@ -81,7 +81,9 @@ What changes:
 - [ ] `FeedRow.Status`: add `saving` and `savedAfterTimeout` (saved by host after the Flipper reported a timeout); `Session` sets `saving` while the Bambuddy call runs and `savedAfterTimeout` when the `result` went out later than about 10 s after the intent arrived (approximate: the host measures its own latency against the Flipper's constant)
 - [ ] `FeedItem`: `suggestion(mode:)` per the spec (base + core for gross, base for net; after Created base = label); `readout(value:mode:core:)` strings; `isEntry` (enter, saving, created, error); `isReopenable` (saved, timeout); `timeoutNote`; status symbol name and tint per state; accessibility header text
 - [ ] `FeedViewModel`: a per-row draft (`value`, `touched`, `mode`); Net/Gross switch converts an untouched suggestion and keeps a typed value; `reopen(row)`; Save disabled rules (empty, negative net, saving)
-- [ ] write tests: suggestion and readout for gross/net/empty/negative; conversion on mode switch (untouched vs touched); state → symbol/tint/text table; reopen; Created keeps the row open with label + core; a Flipper save clears the host draft and shows `by Flipper`
+- [ ] `FeedRow.Status.newSpool` for an unknown Bambu tag with prefill: an entry state with suggestion = label + core; Save on it calls `Session.createAndWeigh` (create, then the weight) and the row ends as `created` (`Created · n g left · by host`, reopenable); a failure keeps the value and shows the error; **Link to existing…** stays available as the secondary action until the save
+- [ ] `FeedViewModel` order: newest scan first; a scan whose tag (tray UUID or UID) is already in the feed moves that row to the top and reopens it for a weight instead of appending a duplicate
+- [ ] write tests: suggestion and readout for gross/net/empty/negative; conversion on mode switch (untouched vs touched); state → symbol/tint/text table; reopen; `newSpool` suggests label + core, Save creates then weighs, failure keeps the draft; rescan moves the row to the top without a duplicate; a Flipper save clears the host draft and shows `by Flipper`
 - [ ] run tests - must pass before task 2
 
 ### Task 2: Focus and keyboard model
@@ -104,7 +106,7 @@ What changes:
 
 ### Task 5: Clear with confirmation, New sheet, Link picker
 - [ ] Clear: toolbar button with `.keyboardShortcut(.delete, modifiers: .command)` opening `confirmationDialog("Clear the feed?")` with the spec copy; destructive Clear
-- [ ] New spool sheet: title/subtitle, Material menu with the spec list and "Choose…", Subtype, Colour, Brand, Label weight (digits, default 1000), footer copy, Cancel · Create (disabled without material); the Bambu-tag **New** button creates directly, the no-prefill one is labelled "New…"
+- [ ] New spool sheet: title/subtitle, Material menu with the spec list and "Choose…", Subtype, Colour, Brand, Label weight (digits, default 1000), footer copy, Cancel · Create (disabled without material); Bambu tags have no New button (they open as `newSpool`, Task 1); the no-prefill row keeps "New…" (form) and "Link to existing…"
 - [ ] Link picker: filter placeholder, row subtitle "colour · brand · n g left", note, "Tag <uid>" badge, empty copy, move-link warning text and "Move link" label when the pick carries another tag, Link disabled without a pick
 - [ ] write tests: `NewSpoolForm` validation and label defaults; `LinkPickerModel` filtering over material/colour/brand/note, warning text and button label, empty state
 - [ ] run tests - must pass before task 6

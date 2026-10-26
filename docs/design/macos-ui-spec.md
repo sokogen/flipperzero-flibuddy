@@ -11,13 +11,11 @@ behaviour; this file only says how that behaviour looks and feels.
 
 ## Assumptions the designer asked the owner to confirm
 
-Taken from the spec page's "Assumptions to confirm". Adopted here unless the
-owner objects; the first one needs an explicit answer because it bends an
-earlier decision ("New is one action, no weight entry"):
+Taken from the spec page's "Assumptions to confirm". The owner answered the
+first on 2026-10-26 (see "Owner decisions" below); 2–6 are adopted as the
+designer proposed.
 
-1. After **New** the row stays open for a first weight: "Created in
-   Bambuddy" with the field pre-filled to label + core and focused. On the
-   Mac this makes New a two-step unless the user ignores the field.
+1. Answered: see "Owner decisions".
 2. The suggestion is gross (remaining + core). Switching Net/Gross converts
    an untouched suggestion and keeps a number the user typed.
 3. Saved rows reopen on click for a re-weigh. Last save wins; the status
@@ -28,6 +26,32 @@ earlier decision ("New is one action, no weight entry"):
    different tag and offers to move the link.
 6. The watch creates Bambu Lab tags in one tap but cannot fill the form;
    for other tags it says "Create it on iPhone or Mac". Watch is dark only.
+
+## Owner decisions (2026-10-26)
+
+The owner described the intended flow; it replaces the earlier "New is one
+action, no weight entry":
+
+- **Main flow is one spool at a time.** Scan, the row for that spool takes
+  focus with a suggested weight, type the scale reading, Save sends it.
+- **Unknown Bambu tags are new spools by default.** The row opens directly in
+  an entry state (`New spool · will be created`) with the field pre-filled to
+  label + core. Save creates the spool in Bambuddy and records the weight in
+  one go. Nothing is sent before Save, so the row can still be corrected: a
+  different weight (the spool is not full) or **Link to existing…** (the
+  spool is not new). After the save the row reads `Created · 1000 g left ·
+  by host`. Interpretation to confirm with the owner: creation happens on
+  Save, not on scan, so "not new" can be corrected without leaving a stray
+  spool in Bambuddy.
+- **Known spools go straight to weight entry**, as today.
+- **Several scans per session are allowed** and every row stays editable.
+  This is a secondary flow with more room for human error (identical
+  colours), kept for those who prefer it.
+- **Rows are in scan order, newest at the top.** Scanning a spool that is
+  already in the feed moves its row to the top and reopens it for a weight;
+  no duplicate row.
+- The Flipper offers the same corrections on its own screens: weight entry
+  for new and known spools.
 
 ## Stance (from the spec)
 
@@ -98,9 +122,9 @@ left of 1000, Enter weight".
 | Saving | `Saving…` | `ProgressView` | secondary | yes, disabled |
 | Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | no; click reopens for a re-weigh |
 | Timeout | `Saved 590 g left · by host` + note | `checkmark.circle.fill` | green | no; reopenable |
-| Created | `Created in Bambuddy` | `plus.circle.fill` | green | yes, pre-filled label + core, focused |
+| New spool (unknown Bambu tag) | `New spool · will be created` | `plus.circle` | blue | yes, pre-filled label + core, focused; secondary **Link to existing…** |
+| Created | `Created · 1000 g left · by host` | `plus.circle.fill` | green | no; click reopens for a re-weigh |
 | Error | `Error: Bambuddy unreachable` | `exclamationmark.triangle.fill` | red text | yes, value kept for retry |
-| Not in Bambuddy (prefill) | `Not in Bambuddy` | `questionmark.circle` | secondary | buttons **New** (prominent) · **Link to existing…** |
 | Not in Bambuddy (no material) | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (form) · **Link to existing…** |
 | Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | **New** prominent · Link |
 | Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | **Link to existing…** prominent · New |
@@ -108,7 +132,7 @@ left of 1000, Enter weight".
 ### Weight rules (from the prototype model)
 
 - Suggestion = `base + (mode == gross ? core : 0)` where `base` is the spool's
-  remaining grams (after Created: the label weight). Shown selected; the
+  remaining grams (for a new spool: the label weight). Shown selected; the
   first keystroke replaces it.
 - Switching Net/Gross converts an untouched suggestion and keeps a typed
   number as is.
@@ -121,6 +145,9 @@ left of 1000, Enter weight".
   row gets a blue focus hint and waits.
 - A save from the Flipper on a row the host shows as waiting turns it into
   `Saved … · by Flipper` and clears the host's draft.
+- Rows are ordered by their last scan, newest first. A scan of a tag already
+  in the feed moves that row to the top and reopens it for a weight instead
+  of adding a second row.
 
 ### Keyboard
 
@@ -262,3 +289,6 @@ SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
 10. Settings: "Server URL" label, test result phrases, Weighing footer,
     "Unsaved changes / All changes saved" row with Revert, Forget
     (destructive).
+11. Unknown Bambu tags open as `New spool · will be created`; Save creates
+    the spool and records the weight in one action; no New button for them.
+12. Rescanning a tag moves its row to the top and reopens it; newest first.
