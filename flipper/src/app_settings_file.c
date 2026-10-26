@@ -3,10 +3,9 @@
 
 #include "app_settings_file.h"
 
-static bool file_load(void* ctx, void* data, size_t size) {
+static bool file_load(void* ctx, uint8_t version, void* data, size_t size) {
     UNUSED(ctx);
-    return saved_struct_load(
-        APP_SETTINGS_PATH, data, size, APP_SETTINGS_MAGIC, APP_SETTINGS_VERSION);
+    return saved_struct_load(APP_SETTINGS_PATH, data, size, APP_SETTINGS_MAGIC, version);
 }
 
 static bool file_save(void* ctx, const void* data, size_t size) {

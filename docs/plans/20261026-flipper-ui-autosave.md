@@ -215,9 +215,9 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test-flipper` — must pass before Task 3
 
 ### Task 3: Flipper settings v2
-- [ ] extend `AppSettings` with `autosave` (default off), `feedback` (vibro+led / led / off), `sound` (off / on); bump `APP_SETTINGS_VERSION`; migrate a v1 file (keep the transport, defaults for the rest)
-- [ ] write tests for defaults, round trip, v1 migration and corrupt files
-- [ ] run `make test-flipper` — must pass before Task 4
+- [x] extend `AppSettings` with `autosave` (default off), `feedback` (vibro+led / led / off), `sound` (off / on); bump `APP_SETTINGS_VERSION`; migrate a v1 file (keep the transport, defaults for the rest)
+- [x] write tests for defaults, round trip, v1 migration and corrupt files
+- [x] run `make test-flipper` — must pass before Task 4
 
 ### Task 4: Reducer for the new flow
 - [ ] reshape `app_state` screens to the spec: Waiting, Ready (+ last outcome text), Reading, Looking up, Result{Known, UnknownPrefill, UnknownBare, Blank, NoHost}, Menu (per kind), Details, ConfirmDelete, Weight (digits, cursor incl. mode position, touched flag), Busy (Saving/Adding/Deleting/Updating), Saved, Toast{Added, MarkedNew, MarkedEmpty, Deleted} with a 3 s deadline where the spec has one, LinkOnHost, Error (+ retryable intent), Settings, About
@@ -296,3 +296,10 @@ over USB and Bluetooth:
   and `tag_info` are skipped, as everywhere else. `proto_encode_scan` takes
   the autosave flag; the app passes `false` until Tasks 3 and 4 wire the
   setting through the reducer.
+- Task 3: the settings storage's `load` takes the saved_struct version to
+  read, because `saved_struct_load` checks the header version and payload
+  size itself; `app_settings_load` reads version 2 and falls back to the
+  2-byte version 1 struct. A version 2 file with any out-of-range field
+  loads the defaults as a whole (as an unknown transport did before). The
+  migrated settings reach the file on the next save (a transport switch);
+  nothing is written on load.
