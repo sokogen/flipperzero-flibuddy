@@ -66,24 +66,24 @@ struct FeedRowView: View {
                 }
                 HStack(spacing: 6) {
                     Text(item.statusText).foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                    if let savedBy = item.savedByText {
-                        Text(savedBy).foregroundStyle(.tertiary)
-                    }
                     Text(item.scannedAt, style: .time).foregroundStyle(.tertiary)
                 }
                 .font(.caption)
-                if let request = item.requestText {
-                    Label(request, systemImage: "exclamationmark.bubble")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                if let note = item.timeoutNote {
+                    Text(note).font(.caption).foregroundStyle(.secondary)
                 }
                 if let error = feed.error(for: item.id) {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
             }
             Spacer(minLength: 12)
-            if item.canWeigh {
+            if item.isEntry {
+                if item.isCreated {
+                    LinkExistingButton(feed: feed, item: item)
+                }
                 WeightEntry(feed: feed, item: item)
+            } else if item.isReopenable {
+                Button("Re-weigh") { Task { await feed.reopen(item.id) } }
             } else if item.offersUnknownActions {
                 UnknownRowActions(feed: feed, item: item)
             } else {
@@ -106,7 +106,7 @@ struct WeightEntry: View {
             TextField(
                 "Weight",
                 text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
-                prompt: Text(item.suggested(mode).map(String.init) ?? "grams")
+                prompt: Text(item.suggestion(mode: mode).map(String.init) ?? "grams")
             )
             .labelsHidden()
             .multilineTextAlignment(.trailing)

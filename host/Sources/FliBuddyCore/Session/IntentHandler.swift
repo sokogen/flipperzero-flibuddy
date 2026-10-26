@@ -88,18 +88,39 @@ struct IntentHandler {
 
     func create(_ row: FeedRow, _ newSpool: NewSpool, by side: FeedRow.Side) async throws -> FeedRow {
         var row = row
-        row.spool = try await inventory.createSpool(newSpool)
+        Self.markCreated(&row, try await inventory.createSpool(newSpool), by: side)
+        return row
+    }
+
+    static func markCreated(_ row: inout FeedRow, _ spool: Spool, by side: FeedRow.Side) {
+        row.spool = spool
+        row.createdSpoolId = spool.id
         row.status = .created
         row.savedBy = side
         row.request = nil
-        return row
     }
 
     func link(_ row: FeedRow, toSpool spoolId: Int) async throws -> FeedRow {
         var row = row
         row.spool = try await inventory.linkTag(spoolId: spoolId, TagLink(tag: row.tag))
+        row.createdSpoolId = nil
         row.status = .awaitingWeight
         row.request = nil
+        return row
+    }
+
+    /// Deletes the spool created for the row, which frees the tag for a link.
+    func deleteCreated(_ row: FeedRow) async throws -> FeedRow {
+        guard let created = row.createdSpoolId else { return row }
+        do {
+            try await inventory.deleteSpool(id: created)
+        } catch {
+            throw SessionError.createdSpoolKept(spoolId: created, reason: Session.describe(error))
+        }
+        var row = row
+        row.spool = nil
+        row.createdSpoolId = nil
+        row.status = .unknown(prefill: row.tag.hasPrefill)
         return row
     }
 

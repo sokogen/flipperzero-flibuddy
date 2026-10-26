@@ -346,6 +346,28 @@ struct BambuddyClientTests {
         await #expect(throws: BambuddyError.spoolNotFound(42)) { try await server.client().spool(id: 42) }
     }
 
+    // MARK: deleteSpool
+
+    @Test func deleteSpoolSendsDelete() async throws {
+        let server = StubServer { _ in .json(200, #"{"status":"deleted"}"#) }
+        try await server.client().deleteSpool(id: 100)
+        let request = try #require(server.requests.first)
+        #expect(request.method == "DELETE")
+        #expect(request.path == "/api/v1/inventory/spools/100")
+    }
+
+    @Test func deleteSpoolMaps404ToSpoolNotFound() async throws {
+        let server = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
+        await #expect(throws: BambuddyError.spoolNotFound(100)) { try await server.client().deleteSpool(id: 100) }
+    }
+
+    @Test func deleteSpoolMaps403ToInventoryUpdate() async throws {
+        let server = StubServer { _ in .json(403, #"{"detail":"forbidden"}"#) }
+        await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
+            try await server.client().deleteSpool(id: 100)
+        }
+    }
+
     @Test func catalogDecodesEntries() async throws {
         let body = #"[{"id":1,"name":"Bambu Lab - Plastic High Temp","weight":216,"is_default":true},{"id":3,"name":"Bambu Lab - Plastic Low Temp","weight":250,"is_default":true}]"#
         let server = StubServer { _ in .json(200, body) }

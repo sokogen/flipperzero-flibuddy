@@ -10,7 +10,12 @@ public struct FeedRow: Identifiable, Equatable, Sendable {
         case awaitingWeight
         /// No spool carries the tag. `prefill`: the tag has material, so New is offered.
         case unknown(prefill: Bool)
+        /// A weight is on its way to Bambuddy.
+        case saving
         case saved
+        /// A Flipper weigh that Bambuddy took longer than the Flipper's result
+        /// timeout to save: the Flipper showed an error, the host finished it.
+        case savedAfterTimeout
         case created
         case error(String)
     }
@@ -49,6 +54,9 @@ public struct FeedRow: Identifiable, Equatable, Sendable {
     public var weight: Weight?
     public var savedBy: Side?
     public var request: HostRequest?
+    /// The spool this session created for the tag. Linking the tag to another
+    /// spool deletes it first, since Bambuddy refuses a tag an active spool carries.
+    public var createdSpoolId: Int?
 
     public init(
         id: UUID = UUID(), scanId: String, scannedAt: Date = Date(), dump: TagDump,

@@ -20,12 +20,30 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// What the Flipper asked the host to do with the tag, if anything.
     public let requestText: String?
     public let spoolId: Int?
-    /// Grams the weight field suggests: the last scale weight, or what the
-    /// spool should weigh now.
-    public let suggestedGross: Int?
+    /// Filament grams the suggestion starts from: the spool's remaining
+    /// grams, which right after Created are its label weight.
+    public let base: Int?
+    /// The spool's core weight (`core_weight`); for a Created row the
+    /// settings value just sent.
     public let core: Int?
     /// A spool is known, so a weight can be saved.
     public let canWeigh: Bool
+    /// The row shows the weight field, mode and Save (Enter weight, Saving…,
+    /// Created, or an error on a known spool, which keeps the value for a retry).
+    public let isEntry: Bool
+    /// A weight is on its way to Bambuddy; the entry block is disabled.
+    public let isSaving: Bool
+    /// A saved row; a click opens it again for a re-weigh.
+    public let isReopenable: Bool
+    /// Created in Bambuddy: Link to existing… moves the tag and deletes this spool.
+    public let isCreated: Bool
+    /// Under the status of a save the Flipper gave up waiting for.
+    public let timeoutNote: String?
+    public let statusSymbol: StatusSymbol
+    public let statusTint: StatusTint
+    /// VoiceOver reads the header as one element, e.g.
+    /// "PLA Basic, Bambu Green, 590 grams left of 1000, Enter weight".
+    public let accessibilityHeader: String
     /// The lookup is done and found no spool: offer New and Link.
     public let offersUnknownActions: Bool
     /// The tag carries a material, so the New form starts filled in.
@@ -41,7 +59,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             title = Self.title(material: spool.material, subtype: spool.subtype)
             colorName = spool.colorName ?? spool.rgba.map { "#\($0)" }
             remainingText = "\(spool.remaining) g left of \(spool.labelWeight)"
-            suggestedGross = spool.suggestedGross
+            base = spool.remaining
             core = spool.coreWeight
         } else {
             if let material = row.tag.material {
@@ -51,24 +69,58 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             }
             colorName = row.colorName ?? row.tag.rgba.map { "#\($0)" }
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
-            suggestedGross = nil
+            base = nil
             core = nil
         }
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
-        savedByText = row.savedBy.map { $0 == .host ? "by host" : "by Flipper" }
-        requestText = row.request.map { $0 == .create ? "Flipper asks to create it here" : "Flipper asks to link it here" }
+        savedByText = row.savedBy.map(Self.savedByText)
+        requestText = row.request.map(Self.requestText)
         spoolId = spool?.id
         canWeigh = spool != nil
         offersUnknownActions = spool == nil && row.status != .scanned
         hasPrefill = row.tag.hasPrefill
+        isEntry = spool != nil && Self.isEntryState(row.status)
+        isSaving = row.status == .saving
+        isReopenable = spool != nil && (row.status == .saved || row.status == .savedAfterTimeout)
+        isCreated = row.status == .created
+        timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
+        (statusSymbol, statusTint) = Self.statusLook(row)
+        accessibilityHeader = Self.accessibilityHeader(
+            title: title, colorName: row.spool?.colorName ?? row.colorName, spool: spool,
+            labelWeight: row.tag.labelWeight, status: statusText
+        )
     }
 
-    /// The weight field's hint for `mode`.
-    public func suggested(_ mode: Intent.WeightMode) -> Int? {
-        guard let suggestedGross else { return nil }
-        return mode == .gross ? suggestedGross : max(0, suggestedGross - (core ?? 0))
+    public static let timeoutNoteText = "Flipper timed out after 10 s and showed an error; the save went through."
+
+    /// The weight field's pre-filled value for `mode`: `base`, plus the core in gross.
+    public func suggestion(mode: Intent.WeightMode) -> Int? {
+        base.map { $0 + (mode == .gross ? max(0, core ?? 0) : 0) }
+    }
+
+    /// The line under the weight field: what a save of `value` would record.
+    public struct Readout: Equatable, Sendable {
+        public var text: String
+        /// Red: the gross value is below the core weight.
+        public var isError: Bool
+    }
+
+    /// "Saves 590 g left · 915 − 325 g core" in gross, "Saves 590 g left" in
+    /// net, "Type the scale reading" without a value, "Below the core weight
+    /// (325 g)" when the gross value is lighter than the core.
+    public static func readout(value: Int?, mode: Intent.WeightMode, core: Int?) -> Readout {
+        guard let value else { return Readout(text: "Type the scale reading", isError: false) }
+        guard mode == .gross else { return Readout(text: "Saves \(value) g left", isError: false) }
+        let core = max(0, core ?? 0)
+        let net = value - core
+        guard net >= 0 else { return Readout(text: "Below the core weight (\(core) g)", isError: true) }
+        return Readout(text: "Saves \(net) g left · \(value) \u{2212} \(core) g core", isError: false)
+    }
+
+    public func readout(value: Int?, mode: Intent.WeightMode) -> Readout {
+        Self.readout(value: value, mode: mode, core: core)
     }
 
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".
@@ -77,18 +129,78 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         return subtype.lowercased().hasPrefix(material.lowercased()) ? subtype : "\(material) \(subtype)"
     }
 
-    static func statusText(_ row: FeedRow) -> String {
-        switch row.status {
-        case .scanned: "Looking up"
-        case .awaitingWeight: "Enter weight"
-        case .unknown(prefill: true): "Not in Bambuddy"
-        case .unknown(prefill: false): "Not in Bambuddy; tag has no material"
-        case .saved:
-            if let weight = row.weight { "Saved \(weight.grams) g \(weight.mode.rawValue)" } else { "Saved" }
-        case .created: "Created in Bambuddy"
-        case .error(let message): "Error: \(message)"
+    static func isEntryState(_ status: FeedRow.Status) -> Bool {
+        switch status {
+        case .awaitingWeight, .saving, .created, .error: true
+        case .scanned, .unknown, .saved, .savedAfterTimeout: false
         }
     }
+
+    static func statusText(_ row: FeedRow) -> String {
+        switch row.status {
+        case .scanned: return "Looking up"
+        case .awaitingWeight: return "Enter weight"
+        case .unknown(let prefill):
+            if let request = row.request { return requestText(request) }
+            return prefill ? "Not in Bambuddy" : "Not in Bambuddy; tag has no material"
+        case .saving: return "Saving\u{2026}"
+        case .saved, .savedAfterTimeout:
+            let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
+            return row.savedBy.map { "\(saved) · \(savedByText($0))" } ?? saved
+        case .created: return "Created in Bambuddy"
+        case .error(let message): return "Error: \(message)"
+        }
+    }
+
+    static func statusLook(_ row: FeedRow) -> (StatusSymbol, StatusTint) {
+        switch row.status {
+        case .scanned, .saving: (.progress, .secondary)
+        case .awaitingWeight: (.symbol("scalemass"), .blue)
+        case .unknown: row.request == nil
+            ? (.symbol("questionmark.circle"), .secondary)
+            : (.symbol("dot.radiowaves.left.and.right"), .blue)
+        case .saved, .savedAfterTimeout: (.symbol("checkmark.circle.fill"), .green)
+        case .created: (.symbol("plus.circle.fill"), .green)
+        case .error: (.symbol("exclamationmark.triangle.fill"), .red)
+        }
+    }
+
+    static func savedByText(_ side: FeedRow.Side) -> String {
+        side == .host ? "by host" : "by Flipper"
+    }
+
+    static func requestText(_ request: FeedRow.HostRequest) -> String {
+        request == .create ? "Flipper asks to create it here" : "Flipper asks to link it here"
+    }
+
+    /// Title, colour name, what is left (or the label weight) and the status,
+    /// grams spelled out; never the hex of an unnamed colour.
+    static func accessibilityHeader(
+        title: String, colorName: String?, spool: Spool?, labelWeight: Int?, status: String
+    ) -> String {
+        let amount: String? = if let spool {
+            "\(spool.remaining) grams left of \(spool.labelWeight)"
+        } else {
+            labelWeight.map { "label \($0) grams" }
+        }
+        return [title, colorName, amount, status].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+}
+
+/// What precedes a status phrase: a spinner while something runs, else an SF Symbol.
+public enum StatusSymbol: Equatable, Sendable {
+    case progress
+    case symbol(String)
+}
+
+/// The colour that reinforces a status phrase; it never carries meaning alone.
+public enum StatusTint: Equatable, Sendable {
+    case secondary
+    case blue
+    case green
+    case orange
+    case red
+    case gray
 }
 
 /// A filament colour from 8 hex digits (RRGGBBAA), components in 0...1.

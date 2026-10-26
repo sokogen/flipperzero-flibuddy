@@ -29,6 +29,22 @@ struct UnknownRowActions: View {
     }
 }
 
+/// Link to existing… on a row created on scan: moves the tag to the chosen
+/// spool and deletes the one created.
+struct LinkExistingButton: View {
+    let feed: FeedViewModel
+    let item: FeedItem
+    @ViewState private var showingLink = false
+
+    var body: some View {
+        Button("Link to existing…") { showingLink = true }
+            .help("Move this tag to a spool already in Bambuddy and delete the one created on scan")
+            .sheet(isPresented: $showingLink) {
+                LinkSpoolSheet(feed: feed, item: item)
+            }
+    }
+}
+
 /// The New form, filled in from the tag.
 struct NewSpoolSheet: View {
     let feed: FeedViewModel

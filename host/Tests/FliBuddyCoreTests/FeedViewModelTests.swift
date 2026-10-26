@@ -29,13 +29,16 @@ private func makeModel(_ inventory: FakeInventory = FakeInventory(spools: [known
 struct FeedViewModelTests {
     @Test func rowsRenderNewestFirst() async throws {
         let (model, session) = makeModel()
+        var other = try fixtureScan("scan_ntag")
+        other.scanId = "s-3"
+        other.tag.uid = "04998877665544"
         await session.record(try scan("s-1"))
-        await session.record(try scan("s-2"))
-        await session.record(try scan("s-3"))
+        await session.record(try fixtureScan("scan_ntag"))
+        await session.record(other)
 
         model.apply(await session.snapshot)
 
-        #expect(model.items.map(\.scanId) == ["s-3", "s-2", "s-1"])
+        #expect(model.items.map(\.scanId) == ["s-3", "s-000013", "s-1"])
     }
 
     @Test func observingFollowsTheSession() async throws {
@@ -73,16 +76,17 @@ struct FeedViewModelTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
-        #expect(!model.canSave(id))
-        model.setWeightText("734", for: id)
+        // the field starts with the suggestion
         #expect(model.canSave(id))
         model.setWeightText("", for: id)
         #expect(!model.canSave(id))
+        model.setWeightText("734", for: id)
+        #expect(model.canSave(id))
     }
 
     @Test func saveNeedsAKnownSpool() async throws {
         let (model, session) = makeModel(FakeInventory())
-        let id = await session.record(try scan("s-1"))
+        let id = await session.record(try fixtureScan("scan_ntag"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
@@ -103,9 +107,9 @@ struct FeedViewModelTests {
 
         #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
         let item = try #require(model.items.first)
-        #expect(item.statusText == "Saved 484 g net")
+        #expect(item.statusText == "Saved 484 g left · by host")
         #expect(item.savedByText == "by host")
-        #expect(model.weightText(for: id) == "")
+        #expect(!model.draft(for: id).touched)
         #expect(model.error(for: id) == nil)
     }
 
@@ -143,13 +147,15 @@ struct FeedViewModelTests {
     @Test func statusTextMapping() throws {
         var saved = try row(status: .saved, spool: knownSpool())
         saved.weight = FeedRow.Weight(grams: 734, mode: .gross)
+        saved.savedBy = .flipper
         let cases: [(FeedRow, String)] = [
             (try row(status: .scanned), "Looking up"),
             (try row(status: .awaitingWeight, spool: knownSpool()), "Enter weight"),
             (try row(status: .unknown(prefill: true)), "Not in Bambuddy"),
             (try row(status: .unknown(prefill: false)), "Not in Bambuddy; tag has no material"),
-            (try row(status: .saved, spool: knownSpool()), "Saved"),
-            (saved, "Saved 734 g gross"),
+            (try row(status: .saved, spool: knownSpool()), "Saved 484 g left"),
+            (try row(status: .saved), "Saved"),
+            (saved, "Saved 484 g left · by Flipper"),
             (try row(status: .created, spool: knownSpool()), "Created in Bambuddy"),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable"),
         ]
@@ -182,13 +188,14 @@ struct FeedViewModelTests {
         #expect(!item.offersUnknownActions)
     }
 
-    @Test func theWeightHintFollowsTheMode() throws {
+    @Test func theSuggestionIsRemainingPlusCoreInGrossAndRemainingInNet() throws {
         let weighed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(lastScaleWeight: 734)))
-        #expect(weighed.suggested(.gross) == 734)
-        #expect(weighed.suggested(.net) == 484)
+        #expect(weighed.suggestion(mode: .gross) == 734)
+        #expect(weighed.suggestion(mode: .net) == 484)
         let never = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(lastScaleWeight: nil, weightUsed: 100)))
-        #expect(never.suggested(.gross) == 1150)
-        #expect(FeedItem(try row(status: .unknown(prefill: true))).suggested(.gross) == nil)
+        #expect(never.suggestion(mode: .gross) == 1150)
+        #expect(never.suggestion(mode: .net) == 900)
+        #expect(FeedItem(try row(status: .unknown(prefill: true))).suggestion(mode: .gross) == nil)
     }
 
     @Test func anUnknownTagShowsTheResolvedColourName() throws {
@@ -325,7 +332,7 @@ struct FeedViewModelUnknownTests {
         let inventory = FakeInventory(spools: spools())
         inventory.linkError = .tagAlreadyLinked(otherSpoolId: nil)
         let (model, session) = makeModel(inventory)
-        let id = await session.record(try scan("s-1"))
+        let id = await session.record(try fixtureScan("scan_ntag"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
@@ -411,11 +418,12 @@ struct FeedViewModelUnknownTests {
     @Test func creatingFromTheFormLinksTheRow() async throws {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
-        let id = await session.record(try scan("s-1"))
+        let id = await session.record(try fixtureScan("scan_ntag"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
         var form = try #require(model.newSpoolForm(for: id))
+        form.material = "PLA"
         form.colorName = "Jade White"
         #expect(await model.create(id, form))
 

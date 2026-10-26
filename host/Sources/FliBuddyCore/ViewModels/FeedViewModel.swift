@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// The session feed for the views: rows newest first, the weight being typed
-/// for each row, and the host actions (save, New, Link, Clear).
+/// The session feed for the views: rows newest scan first, the weight draft
+/// of each row, and the host actions (save, reopen, New, Link, Clear).
 @MainActor
 @Observable
 public final class FeedViewModel {
@@ -21,8 +21,24 @@ public final class FeedViewModel {
     public private(set) var linkError: String?
     public private(set) var isLoadingLinkCandidates = false
 
+    /// A row's weight field: the suggestion until the user types (`touched`),
+    /// then what they typed; and the mode it is in.
+    public struct Draft: Equatable, Sendable {
+        public var value: String
+        public var touched: Bool
+        public var mode: Intent.WeightMode
+
+        public init(value: String, touched: Bool, mode: Intent.WeightMode) {
+            self.value = value
+            self.touched = touched
+            self.mode = mode
+        }
+    }
+
     private let session: Session
     private var rows: [FeedRow.ID: FeedRow] = [:]
+    private var itemsByID: [FeedRow.ID: FeedItem] = [:]
+    /// What the user typed; absent while the field shows the suggestion.
     private var weightTexts: [FeedRow.ID: String] = [:]
     private var modes: [FeedRow.ID: Intent.WeightMode] = [:]
     private var errors: [FeedRow.ID: String] = [:]
@@ -41,13 +57,25 @@ public final class FeedViewModel {
     }
 
     public func apply(_ snapshot: SessionSnapshot) {
+        // The session keeps rows by last scan, newest last.
         items = snapshot.rows.reversed().map(FeedItem.init)
         rows = Dictionary(uniqueKeysWithValues: snapshot.rows.map { ($0.id, $0) })
+        itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         bambuddy = snapshot.bambuddy
         colorNamesProblem = snapshot.colorNamesProblem
         for id in Set(weightTexts.keys).union(modes.keys).union(errors.keys) where rows[id] == nil {
             forget(id)
         }
+        // A row that left weight entry (saved, also from the Flipper, or
+        // scanned again) drops the host's draft.
+        for id in Set(weightTexts.keys).union(modes.keys) where itemsByID[id]?.isEntry != true {
+            weightTexts[id] = nil
+            modes[id] = nil
+        }
+    }
+
+    public func item(_ id: FeedRow.ID) -> FeedItem? {
+        itemsByID[id]
     }
 
     // MARK: Weight entry
@@ -61,12 +89,28 @@ public final class FeedViewModel {
         Int(sanitizeWeight(text))
     }
 
-    public func weightText(for id: FeedRow.ID) -> String {
-        weightTexts[id] ?? ""
+    /// The typed value, else the suggestion in the row's mode.
+    public func draft(for id: FeedRow.ID) -> Draft {
+        let mode = mode(for: id)
+        if let typed = weightTexts[id] { return Draft(value: typed, touched: true, mode: mode) }
+        let suggestion = itemsByID[id]?.suggestion(mode: mode)
+        return Draft(value: suggestion.map(String.init) ?? "", touched: false, mode: mode)
     }
 
+    public func weightText(for id: FeedRow.ID) -> String {
+        draft(for: id).value
+    }
+
+    /// The user typed: the field keeps this value through a mode switch.
     public func setWeightText(_ text: String, for id: FeedRow.ID) {
         weightTexts[id] = Self.sanitizeWeight(text)
+    }
+
+    /// The line under the field for the current draft.
+    public func readout(for id: FeedRow.ID) -> FeedItem.Readout? {
+        guard let item = itemsByID[id] else { return nil }
+        let draft = draft(for: id)
+        return item.readout(value: Self.grams(from: draft.value), mode: draft.mode)
     }
 
     /// What the row was last saved in, else the default from the settings.
@@ -74,6 +118,8 @@ public final class FeedViewModel {
         modes[id] ?? rows[id]?.weight?.mode ?? settings.defaultMode
     }
 
+    /// An untouched suggestion follows the mode (it is derived from it); a
+    /// typed value stays as it is.
     public func setMode(_ mode: Intent.WeightMode, for id: FeedRow.ID) {
         modes[id] = mode
     }
@@ -87,9 +133,17 @@ public final class FeedViewModel {
         errors[id]
     }
 
+    /// Disabled while empty, below the core weight in gross, or saving.
     public func canSave(_ id: FeedRow.ID) -> Bool {
-        guard let row = rows[id], row.spool != nil, !busy.contains(id) else { return false }
-        return Self.grams(from: weightText(for: id)) != nil
+        guard let item = itemsByID[id], item.isEntry, !item.isSaving, !busy.contains(id) else { return false }
+        return readout(for: id).map { !$0.isError } == true && Self.grams(from: weightText(for: id)) != nil
+    }
+
+    /// Opens a saved row again for a re-weigh.
+    public func reopen(_ id: FeedRow.ID) async {
+        guard itemsByID[id]?.isReopenable == true else { return }
+        await session.reopen(row: id)
+        apply(await session.snapshot)
     }
 
     public func save(_ id: FeedRow.ID) async {
@@ -105,6 +159,13 @@ public final class FeedViewModel {
 
     public func newSpoolForm(for id: FeedRow.ID) -> NewSpoolForm? {
         rows[id].map { NewSpoolForm(tag: $0.tag, settings: settings, colorName: $0.colorName) }
+    }
+
+    /// New without the form: the tag's own data and the settings' defaults
+    /// (the retry after a failed create on scan).
+    public func createFromTag(_ id: FeedRow.ID) async -> Bool {
+        guard let form = newSpoolForm(for: id) else { return false }
+        return await create(id, form)
     }
 
     /// Creates the item from the form and links the row; `false` when it failed.

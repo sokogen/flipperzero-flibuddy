@@ -122,21 +122,47 @@ struct SessionScanTests {
         #expect(await bare.handleScan(try fixtureScan()).lines[0] == "PLA")
     }
 
-    @Test func anUnknownTagWithMaterialOffersPrefill() async throws {
-        let session = makeSession(FakeInventory())
+    @Test func anUnknownTagWithMaterialIsCreatedOnScan() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try fixtureScan())
+
+        #expect(inventory.creates.count == 1)
+        #expect(lookup.status == .found)
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .created)
+        #expect(row.savedBy == .host)
+        #expect(row.createdSpoolId == 100)
+    }
+
+    @Test func anUnknownTagWhoseCreateFailsOffersPrefill() async throws {
+        let inventory = FakeInventory()
+        inventory.createError = .network("timed out")
+        let session = makeSession(inventory)
 
         let lookup = await session.handleScan(try fixtureScan())
 
         #expect(lookup == (try fixtureLookup("lookup_unknown")))
-        #expect(await session.rows.first?.status == .unknown(prefill: true))
+        #expect(await session.rows.first?.status == .error("Bambuddy unreachable: timed out"))
     }
 
     @Test func unknownDefaultsUseTheConfiguredCoreWeight() async throws {
         var settings = testSettings
         settings.coreWeight = 180
-        let session = makeSession(FakeInventory(), settings: settings)
+        let inventory = FakeInventory()
+        inventory.createError = .network("timed out")
+        let session = makeSession(inventory, settings: settings)
         let lookup = await session.handleScan(try fixtureScan())
         #expect(lookup.defaults == Lookup.Defaults(label: 1000, core: 180))
+    }
+
+    @Test func aCreatedOnScanSpoolTakesTheConfiguredCoreWeight() async throws {
+        var settings = testSettings
+        settings.coreWeight = 180
+        let session = makeSession(FakeInventory(), settings: settings)
+        let lookup = await session.handleScan(try fixtureScan())
+        #expect(lookup.defaults == Lookup.Defaults(gross: 1180, label: 1000, core: 180))
     }
 
     @Test func anUnknownNTAGHasNoPrefill() async throws {
@@ -399,7 +425,8 @@ struct SessionColorNameTests {
     @Test func aFlipperNewSendsTheResolvedName() async throws {
         let inventory = namingInventory()
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.checkBambuddy()
+        _ = await session.record(try fixtureScan())
         let intent = try fixtureIntent("intent_new")
 
         let result = await session.handleIntent(intent)
@@ -442,14 +469,12 @@ struct SessionColorNameTests {
         let session = makeSession(inventory)
 
         let lookup = await session.handleScan(try fixtureScan())
-        #expect(lookup.status == .unknown)
+        #expect(lookup.status == .found)
         #expect(await session.bambuddy == .ready)
         let problem = try #require(await session.snapshot.colorNamesProblem)
         #expect(problem.hasPrefix("Colour names unavailable"))
         #expect(problem.contains("inventory:read"))
 
-        let result = await session.handleIntent(try fixtureIntent("intent_new"))
-        #expect(result.ok)
         guard case .create(let sent) = try #require(inventory.creates.first) else { return }
         #expect(sent.colorName == nil)
         #expect(await session.rows.first?.colorName == nil)
@@ -539,7 +564,7 @@ struct SessionColorNameTests {
         let (state, lookup) = try await (first, second)
 
         #expect(state == .ready)
-        #expect(lookup.status == .unknown)
+        #expect(lookup.status == .found)
         #expect(inventory.calls.filter { $0 == .spoolman }.count == 1)
         #expect(inventory.colorMapLoads == 1)
     }
@@ -632,7 +657,7 @@ struct SessionIntentTests {
     @Test func weighForAnUnknownSpoolFailsWithoutAnUpdate() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.record(try fixtureScan())
 
         let result = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
 
@@ -645,7 +670,7 @@ struct SessionIntentTests {
     @Test func newCreatesWithTheConfiguredCatalogEntryAndLinksTheRow() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.record(try fixtureScan())
         let intent = try fixtureIntent("intent_new")
 
         let result = await session.handleIntent(intent)
@@ -680,7 +705,7 @@ struct SessionIntentTests {
         let inventory = FakeInventory()
         inventory.createError = .network("timed out")
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.record(try fixtureScan())
         let intent = try fixtureIntent("intent_new")
 
         let first = await session.handleIntent(intent)
@@ -699,7 +724,7 @@ struct SessionIntentTests {
     @Test func aFailedLookupBeforeNewCreatesNothing() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.record(try fixtureScan())
         inventory.findError = .http(status: 500, message: "boom")
 
         let result = await session.handleIntent(try fixtureIntent("intent_new"))
@@ -971,7 +996,7 @@ struct SessionHostActionTests {
     @Test func savingOnTheHostForAnUnknownRowFails() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.record(try fixtureScan())
         let rowID = try #require(await session.rows.first?.id)
 
         await #expect(throws: SessionError.spoolNotFound("5A3C9E21")) {

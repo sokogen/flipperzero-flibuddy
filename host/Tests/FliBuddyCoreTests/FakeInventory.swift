@@ -9,6 +9,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         case update(spoolId: Int, gross: Int)
         case create(NewSpool)
         case link(spoolId: Int, TagLink)
+        case delete(spoolId: Int)
         case spoolman
         case list
         case catalog
@@ -26,6 +27,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var updateError: BambuddyError?
     var createError: BambuddyError?
     var linkError: BambuddyError?
+    var deleteError: BambuddyError?
     var catalogError: BambuddyError?
     /// What `colorMap` answers; empty by default, so new items carry no colour name.
     var colorMapAnswer = ColorMap(colors: [:], byMaterial: [:])
@@ -43,6 +45,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var spoolmanDelay: Duration = .zero
     /// Answer `updateWeight` without `weight_used`, as a Bambuddy might.
     var omitWeightUsed = false
+    /// Runs inside `updateWeight` before it answers, e.g. to move a test clock.
+    var onUpdate: (@Sendable () -> Void)?
 
     init(spools: [Spool] = []) {
         stored = spools
@@ -71,6 +75,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         record(.update(spoolId: spoolId, gross: gross))
         let delay = updateDelays[gross] ?? updateDelay
         if delay > .zero { try await Task.sleep(for: delay) }
+        onUpdate?()
         if let updateError { throw updateError }
         return try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {
@@ -100,6 +105,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         }
     }
 
+    /// Refuses a tag another spool carries, as Bambuddy does (409 naming the holder).
     func linkTag(spoolId: Int, _ link: TagLink) async throws -> Spool {
         record(.link(spoolId: spoolId, link))
         if let linkError { throw linkError }
@@ -107,10 +113,24 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {
                 throw BambuddyError.spoolNotFound(spoolId)
             }
+            let holder = stored.first { spool in
+                spool.id != spoolId
+                    && (spool.tagUid == link.tagUid || (link.trayUuid != nil && spool.trayUuid == link.trayUuid))
+            }
+            if let holder { throw BambuddyError.tagAlreadyLinked(otherSpoolId: holder.id) }
             stored[index].tagUid = link.tagUid
             stored[index].trayUuid = link.trayUuid
             stored[index].tagType = link.tagType
             return stored[index]
+        }
+    }
+
+    func deleteSpool(id: Int) async throws {
+        record(.delete(spoolId: id))
+        if let deleteError { throw deleteError }
+        try lock.withLock {
+            guard let index = stored.firstIndex(where: { $0.id == id }) else { throw BambuddyError.spoolNotFound(id) }
+            stored.remove(at: index)
         }
     }
 
