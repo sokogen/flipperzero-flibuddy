@@ -11,7 +11,16 @@ final class ScratchDefaults {
         defaults = UserDefaults(suiteName: name)!
     }
 
-    deinit { defaults.removePersistentDomain(forName: name) }
+    deinit {
+        // `removePersistentDomain` empties the suite but leaves its plist in
+        // ~/Library/Preferences; delete the file too so test runs leave no
+        // litter behind.
+        defaults.removePersistentDomain(forName: name)
+        UserDefaults.standard.removeSuite(named: name)
+        let plist = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Preferences/\(name).plist")
+        try? FileManager.default.removeItem(at: plist)
+    }
 }
 
 @Suite struct SettingsTests {

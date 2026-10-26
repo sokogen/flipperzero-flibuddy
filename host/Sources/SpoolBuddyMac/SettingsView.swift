@@ -14,7 +14,10 @@ struct SettingsView: View {
                 ProgressView()
             }
         }
-        .frame(width: 540)
+        // The window takes its size from the content; give the placeholder
+        // the form's size so the saved window frame never shrinks to the spinner.
+        .frame(width: 640)
+        .frame(minHeight: 600)
         .onAppear {
             let model = host.makeSettingsViewModel()
             model.refreshPorts()
