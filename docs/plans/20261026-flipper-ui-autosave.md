@@ -257,9 +257,9 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test` — must pass before Task 8
 
 ### Task 8: Verify acceptance criteria
-- [ ] every Overview item and owner decision is implemented; Recent / After scan / Weigh as / Connection Auto are absent
-- [ ] run `make test`, `make lint`, `make coverage` (project standard) and `cd flipper && ufbt`
-- [ ] fix all issues
+- [x] every Overview item and owner decision is implemented; Recent / After scan / Weigh as / Connection Auto are absent
+- [x] run `make test`, `make lint`, `make coverage` (project standard) and `cd flipper && ufbt`
+- [x] fix all issues (none found: all suites pass, FliBuddyCore coverage 91.1 %, tools 96.4 %, clean `ufbt` build without warnings)
 
 ### Task 9: [Final] Update documentation
 - [ ] add `docs/design/flipper-ui-spec.md` (the spec section above, kept current) and point `flipper/README.md` at it
