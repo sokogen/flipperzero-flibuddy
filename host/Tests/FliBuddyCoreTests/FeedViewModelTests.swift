@@ -525,6 +525,23 @@ struct FeedViewModelUnknownTests {
         #expect(model.focusedRow == row.id)
     }
 
+    @Test func writingBackTheUntouchedSuggestionDoesNotTouchTheRow() throws {
+        let (model, _) = makeModel()
+        let row = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([row]))
+        let suggestion = model.weightText(for: row.id)
+
+        // a text field echoing its value on focus loss
+        model.setWeightText(suggestion, for: row.id)
+        #expect(!model.draft(for: row.id).touched)
+        let scanned = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([row, scanned]))
+        #expect(model.focusedRow == scanned.id)
+
+        model.setWeightText(suggestion + "1", for: scanned.id)
+        #expect(model.draft(for: scanned.id).touched)
+    }
+
     @Test func commandSSavesTheFocusedRow() async throws {
         let inventory = FakeInventory(spools: [knownSpool()])
         let (model, session) = makeModel(inventory)

@@ -108,9 +108,14 @@ public final class FeedViewModel {
         draft(for: id).value
     }
 
-    /// The user typed: the field keeps this value through a mode switch.
+    /// The user typed: the field keeps this value through a mode switch. A
+    /// write of the unchanged suggestion (a field echoing its value when it
+    /// loses focus) leaves the row untouched.
     public func setWeightText(_ text: String, for id: FeedRow.ID) {
-        weightTexts[id] = Self.sanitizeWeight(text)
+        let text = Self.sanitizeWeight(text)
+        let current = draft(for: id)
+        guard current.touched || text != current.value else { return }
+        weightTexts[id] = text
         focus.update(rows: focusRows())
     }
 

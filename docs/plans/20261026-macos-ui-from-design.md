@@ -92,7 +92,7 @@ What changes:
 
 ### Task 2: Focus and keyboard model
 - [x] `FeedViewModel.FocusModel` (pure): `focusedRow`, `nextWaitingRow()`, `onRowBecameWaiting(id)` (takes focus unless another row is touched, then marks a hint), `onSaved(id)` (moves to the next waiting row), `moveFocus(.up/.down)`
-  - ➕ `FeedViewModel` feeds it from `apply` by diffing snapshots (rows that started waiting, oldest first; rows that went from entry to saved), so a refresh never moves focus. "Waiting" is `FeedItem.isWaiting`: Enter weight or Created only. "Touched" is the focused row's typed draft; a touched row that lost focus does not hold it. The hinted row gets a tinted outline.
+  - ➕ `FeedViewModel` feeds it from `apply` by diffing snapshots (rows that started waiting, oldest first; rows that went from entry to saved), so a refresh never moves focus. "Waiting" is `FeedItem.isWaiting`: Enter weight or Created only. "Touched" is the focused row's typed draft; a touched row that lost focus does not hold it; a write of the unchanged suggestion (a field echoing its value) does not touch the row. The hinted row gets a tinted outline.
 - [x] `FeedView`: `@FocusState` bound to the model, the field selects its text on focus, Tab order field → mode → Save, Return saves, `.keyboardShortcut("s", modifiers: .command)` saves the focused row, ⌘↑/⌘↓ move, ← → switch the segmented picker when focused
   - ➕ ⌘S, ⌘↑ and ⌘↓ are invisible buttons at the `FeedView` level, so each shortcut exists once. Select-all on focus and the Tab order rely on AppKit (a field selects its text when it becomes first responder; Tab follows view order, reaching the picker and Save with keyboard navigation on); Task 7 checks both by eye. ← → use `onKeyPress` on the picker. The list selection binds to `focusedRow` on macOS only.
 - [x] write tests for `FocusModel`: new row focuses when nothing is touched; waits with a hint when a field is touched; after save moves to the newest waiting row; no waiting row keeps the selection; up/down bounds
@@ -125,6 +125,7 @@ What changes:
 ### Task 7: Verify acceptance criteria
 - [ ] every item of "Differences from the shipped macOS app" in the spec is implemented
 - [ ] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
+  - ➕ focus checks from Task 2: a field selects its text when focus lands on it; Tab goes field → mode → Save; focus a field, Tab away without typing, scan → the new row takes focus (no hint); ⌘↑/⌘↓ with the insertion point in a field move rows rather than the cursor; focus on a row scrolled off-screen lands in its field once it scrolls in
 - [ ] `make test`, `make lint`, `make coverage` pass
 
 ### Task 8: Documentation
