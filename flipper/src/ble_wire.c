@@ -2,8 +2,12 @@
 
 #include "ble_wire.h"
 
-#define AD_TYPE_SHORTENED_LOCAL_NAME 0x08
-#define AD_TYPE_COMPLETE_LOCAL_NAME  0x09
+/* AD structures: a length byte, a type byte, the data */
+#define AD_HEADER          2
+#define AD_FLAGS_SIZE      (AD_HEADER + 1)
+#define AD_TX_POWER_SIZE   (AD_HEADER + 1)
+#define AD_UUID_128_SIZE   (AD_HEADER + 16)
+#define UNNAMED_FLIPPER    "Flipper"
 
 #define HCI_DISCONNECTION_COMPLETE_EVT_CODE 0x05
 #define HCI_VENDOR_SPECIFIC_DEBUG_EVT_CODE  0xFF
@@ -16,14 +20,36 @@
 #define MAC_BYTE_CHANGED 2
 #define MAC_XOR          0x5B
 
-void ble_wire_adv_name(char* out, const char* flipper_name) {
-    const char* name = flipper_name && flipper_name[0] ? flipper_name : "Flipper";
+size_t ble_wire_adv_size(size_t name_len) {
+    size_t size = AD_FLAGS_SIZE + AD_TX_POWER_SIZE + AD_UUID_128_SIZE;
+    return name_len > 0 ? size + AD_HEADER + name_len : size;
+}
+
+static const char* name_or_fallback(const char* flipper_name) {
+    return flipper_name && flipper_name[0] ? flipper_name : UNNAMED_FLIPPER;
+}
+
+void ble_wire_gap_name(char* out, const char* flipper_name) {
+    const char* name = name_or_fallback(flipper_name);
     size_t len = strlen(name);
-    out[0] = len > BLE_WIRE_ADV_NAME_CHARS ? AD_TYPE_SHORTENED_LOCAL_NAME :
-                                             AD_TYPE_COMPLETE_LOCAL_NAME;
-    if(len > BLE_WIRE_ADV_NAME_CHARS) len = BLE_WIRE_ADV_NAME_CHARS;
+    if(len > BLE_WIRE_GAP_NAME_CHARS) len = BLE_WIRE_GAP_NAME_CHARS;
+    out[0] = '\0';
     memcpy(out + 1, name, len);
     out[1 + len] = '\0';
+}
+
+size_t ble_wire_mfg_data(uint8_t* out, const char* flipper_name) {
+    const char* name = name_or_fallback(flipper_name);
+    size_t len = strlen(name);
+    if(len > BLE_WIRE_MFG_DATA_MAX - 2) len = BLE_WIRE_MFG_DATA_MAX - 2;
+    out[0] = BLE_WIRE_COMPANY_ID & 0xFF;
+    out[1] = BLE_WIRE_COMPANY_ID >> 8;
+    memcpy(out + 2, name, len);
+    return 2 + len;
+}
+
+size_t ble_wire_scan_response_size(size_t mfg_len) {
+    return AD_HEADER + mfg_len;
 }
 
 void ble_wire_mac(uint8_t out[6], const uint8_t flipper_mac[6]) {

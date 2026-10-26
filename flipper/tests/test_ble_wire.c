@@ -27,53 +27,74 @@ static void test_uuids_match_the_gatt_table(void) {
     CHECK_STR_EQ(uuid_text(tx_uuid), "C3AB2366-401D-482C-9002-B0A046C2A4E4");
 }
 
-static void test_adv_name_is_the_flipper_name(void) {
-    char name[BLE_WIRE_ADV_NAME_SIZE];
-    ble_wire_adv_name(name, "Mars");
-    CHECK_STR_EQ(
-        name,
-        "\x09"
-        "Mars");
+static void test_advertisement_without_a_name_fits_31_bytes(void) {
+    /* flags (3) + TX power (3) + the 128-bit UUID AD (18) */
+    CHECK_EQ_INT(ble_wire_adv_size(0), 24);
+    CHECK(ble_wire_adv_size(0) <= BLE_WIRE_ADV_MAX);
 }
 
-static void test_adv_name_falls_back_when_the_flipper_has_none(void) {
-    char name[BLE_WIRE_ADV_NAME_SIZE];
-    ble_wire_adv_name(name, NULL);
-    CHECK_STR_EQ(
-        name,
-        "\x09"
-        "Flipper");
-    ble_wire_adv_name(name, "");
-    CHECK_STR_EQ(
-        name,
-        "\x09"
-        "Flipper");
+static void test_advertisement_with_a_name_does_not_fit(void) {
+    /* why the name left: 8 chars made it 34 bytes and the stack refused it
+     * (set_discoverable failed 146) */
+    CHECK_EQ_INT(ble_wire_adv_size(8), 34);
+    CHECK(ble_wire_adv_size(8) > BLE_WIRE_ADV_MAX);
 }
 
-static void test_adv_name_of_eight_chars_is_complete(void) {
-    char name[BLE_WIRE_ADV_NAME_SIZE];
-    ble_wire_adv_name(name, "Abcdefgh");
-    CHECK_STR_EQ(
-        name,
-        "\x09"
-        "Abcdefgh");
+static void test_gap_name_advertises_no_name(void) {
+    char name[BLE_WIRE_GAP_NAME_SIZE];
+    ble_wire_gap_name(name, "Mars");
+    /* gap.c advertises strlen(name) bytes as the local name AD */
+    CHECK_EQ_INT(strlen(name), 0);
+    CHECK(ble_wire_adv_size(strlen(name)) <= BLE_WIRE_ADV_MAX);
 }
 
-static void test_longer_adv_name_is_shortened(void) {
-    char name[BLE_WIRE_ADV_NAME_SIZE];
-    ble_wire_adv_name(name, "Abcdefghij");
-    CHECK_STR_EQ(
-        name,
-        "\x08"
-        "Abcdefgh");
+static void test_gap_name_keeps_the_device_name(void) {
+    char name[BLE_WIRE_GAP_NAME_SIZE];
+    /* gap.c takes the GAP device name from name + 1 */
+    ble_wire_gap_name(name, "Mars");
+    CHECK_STR_EQ(name + 1, "Mars");
+    ble_wire_gap_name(name, "Abcdefghij");
+    CHECK_STR_EQ(name + 1, "Abcdefgh");
 }
 
-static void test_advertisement_fits_31_bytes(void) {
-    char name[BLE_WIRE_ADV_NAME_SIZE];
-    ble_wire_adv_name(name, "Abcdefghij");
-    /* flags (3), the name AD (length byte + name), the 128-bit UUID AD (18) */
-    size_t total = 3 + (1 + strlen(name)) + (1 + 1 + sizeof(service_uuid));
-    CHECK(total <= 31);
+static void test_gap_name_falls_back_when_the_flipper_has_none(void) {
+    char name[BLE_WIRE_GAP_NAME_SIZE];
+    ble_wire_gap_name(name, NULL);
+    CHECK_STR_EQ(name + 1, "Flipper");
+    ble_wire_gap_name(name, "");
+    CHECK_STR_EQ(name + 1, "Flipper");
+}
+
+static void test_mfg_data_is_the_test_company_id_and_the_name(void) {
+    uint8_t data[BLE_WIRE_MFG_DATA_MAX];
+    size_t len = ble_wire_mfg_data(data, "Mars");
+    const uint8_t expected[] = {0xFF, 0xFF, 'M', 'a', 'r', 's'};
+    CHECK_EQ_INT(len, sizeof(expected));
+    CHECK_MEM_EQ(data, expected, sizeof(expected));
+}
+
+static void test_mfg_data_falls_back_when_the_flipper_has_none(void) {
+    uint8_t data[BLE_WIRE_MFG_DATA_MAX];
+    const uint8_t expected[] = {0xFF, 0xFF, 'F', 'l', 'i', 'p', 'p', 'e', 'r'};
+    size_t len = ble_wire_mfg_data(data, NULL);
+    CHECK_EQ_INT(len, sizeof(expected));
+    CHECK_MEM_EQ(data, expected, sizeof(expected));
+    len = ble_wire_mfg_data(data, "");
+    CHECK_EQ_INT(len, sizeof(expected));
+    CHECK_MEM_EQ(data, expected, sizeof(expected));
+}
+
+static void test_mfg_data_is_cut_to_what_gap_takes(void) {
+    uint8_t data[BLE_WIRE_MFG_DATA_MAX];
+    size_t len = ble_wire_mfg_data(data, "Abcdefghijklmnopqrstuvwxyz");
+    CHECK_EQ_INT(len, BLE_WIRE_MFG_DATA_MAX);
+    CHECK_MEM_EQ(data + 2, "Abcdefghijklmnopqrs", BLE_WIRE_MFG_DATA_MAX - 2);
+}
+
+static void test_scan_response_fits_31_bytes(void) {
+    /* the stack adds the AD length and type (2) to the manufacturer data */
+    CHECK_EQ_INT(ble_wire_scan_response_size(BLE_WIRE_MFG_DATA_MAX), 23);
+    CHECK(ble_wire_scan_response_size(BLE_WIRE_MFG_DATA_MAX) <= BLE_WIRE_ADV_MAX);
 }
 
 static void test_mac_differs_from_the_default_profile(void) {
@@ -240,11 +261,15 @@ static void test_other_events_are_not_ours(void) {
 
 int main(void) {
     RUN_TEST(test_uuids_match_the_gatt_table);
-    RUN_TEST(test_adv_name_is_the_flipper_name);
-    RUN_TEST(test_adv_name_falls_back_when_the_flipper_has_none);
-    RUN_TEST(test_adv_name_of_eight_chars_is_complete);
-    RUN_TEST(test_longer_adv_name_is_shortened);
-    RUN_TEST(test_advertisement_fits_31_bytes);
+    RUN_TEST(test_advertisement_without_a_name_fits_31_bytes);
+    RUN_TEST(test_advertisement_with_a_name_does_not_fit);
+    RUN_TEST(test_gap_name_advertises_no_name);
+    RUN_TEST(test_gap_name_keeps_the_device_name);
+    RUN_TEST(test_gap_name_falls_back_when_the_flipper_has_none);
+    RUN_TEST(test_mfg_data_is_the_test_company_id_and_the_name);
+    RUN_TEST(test_mfg_data_falls_back_when_the_flipper_has_none);
+    RUN_TEST(test_mfg_data_is_cut_to_what_gap_takes);
+    RUN_TEST(test_scan_response_fits_31_bytes);
     RUN_TEST(test_mac_differs_from_the_default_profile);
     RUN_TEST(test_write_to_rx_is_received_bytes);
     RUN_TEST(test_write_of_243_bytes_is_received_whole);

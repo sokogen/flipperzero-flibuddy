@@ -172,9 +172,10 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     ) {
         peripherals[peripheral.identifier] = peripheral
         let advertised = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
-        let name = peripheral.name
-            ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
-            ?? "Flipper"
+        let name = FliBuddyGATT.displayName(
+            peripheralName: peripheral.name,
+            localName: advertisementData[CBAdvertisementDataLocalNameKey] as? String,
+            manufacturerData: advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data)
         let found = DiscoveredPeripheral(id: peripheral.identifier, name: name, rssi: RSSI.intValue)
         Log.info(.link, "bluetooth central discovered: peripheral=\(found.id.uuidString) name=\(name) rssi=\(found.rssi)")
         for scanner in scanners.values where advertised?.contains(scanner.service) ?? true {

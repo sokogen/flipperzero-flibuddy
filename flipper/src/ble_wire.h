@@ -1,7 +1,7 @@
 /* The raw bytes between the Flipper BLE stack and the FliBuddy GATT
  * service (ble_flibuddy_svc.h), free of SDK headers so that they are
- * tested on the host: the UUIDs, the advertised name and address, and the
- * stack events the service handles.
+ * tested on the host: the UUIDs, the advertisement, the names and the
+ * address, and the stack events the service handles.
  *
  * UUIDs are LSB first, as the ST stack takes them. An event is the packet
  * the BLE event dispatcher hands to service handlers (hci_uart_pckt in the
@@ -27,17 +27,45 @@
 #define BLE_WIRE_TX_UUID \
     {0xE4, 0xA4, 0xC2, 0x46, 0xA0, 0xB0, 0x02, 0x90, 0x2C, 0x48, 0x1D, 0x40, 0x66, 0x23, 0xAB, 0xC3}
 
-/* An advertisement holds 31 bytes: the flags (3) and the 128-bit service
- * UUID (18) leave 10 for the name AD, its length byte, type byte and 8
- * chars. "Flipper <name>" does not fit, so the name is the Flipper's own. */
-#define BLE_WIRE_ADV_NAME_CHARS 8
-#define BLE_WIRE_ADV_NAME_SIZE  (1 + BLE_WIRE_ADV_NAME_CHARS + 1) /* type, chars, NUL */
+/* An advertisement holds 31 bytes. The stack fills it with the flags (3)
+ * and the TX power level (3), and the service's 128-bit UUID AD takes 18:
+ * 24, which leaves 7, too few for the name AD (length, type, 8 chars: 10).
+ * With the name the stack refused the advertisement (set_discoverable
+ * failed 146, BLE_STATUS_INVALID_PARAMS) and nothing was on air, so the
+ * advertisement carries no name. A central finds the Flipper by the UUID;
+ * the name it shows comes from the scan response, as manufacturer data,
+ * and after connecting from the GAP device name. */
+#define BLE_WIRE_ADV_MAX 31
 
-/* Writes the AD type (complete or, past 8 chars, shortened local name) and
- * the name into `out` (BLE_WIRE_ADV_NAME_SIZE bytes), NUL-terminated;
- * "Flipper" when the Flipper has no name. GAP also takes it, without the
- * type byte, as the device name. */
-void ble_wire_adv_name(char* out, const char* flipper_name);
+/* The advertisement's size with a local name of `name_len` chars, none
+ * when 0. */
+size_t ble_wire_adv_size(size_t name_len);
+
+/* GapConfig.adv_name. Firmware 1.5.1's gap.c advertises
+ * strlen(adv_name) bytes from adv_name as the local name AD (type byte,
+ * chars) and takes the GAP device name from adv_name + 1. So byte 0 is
+ * NUL, advertising no name, and the Flipper's name (8 chars at most,
+ * "Flipper" when it has none) follows from byte 1, NUL-terminated, as the
+ * device name. */
+#define BLE_WIRE_GAP_NAME_CHARS 8
+#define BLE_WIRE_GAP_NAME_SIZE  (1 + BLE_WIRE_GAP_NAME_CHARS + 1) /* NUL, chars, NUL */
+
+void ble_wire_gap_name(char* out, const char* flipper_name);
+
+/* GapConfig.mfg_data, which gap.c sends as the scan response's
+ * manufacturer-specific data AD: the company id 0xFFFF (reserved for
+ * tests, little-endian) and the Flipper's name, "Flipper" when it has
+ * none. gap.c (set_manufacturer_data) furi_checks it at 21 bytes and adds
+ * the AD length and type, so the scan response is 23 bytes at most. */
+#define BLE_WIRE_COMPANY_ID   0xFFFF
+#define BLE_WIRE_MFG_DATA_MAX 21
+
+/* Writes the manufacturer data into `out` (BLE_WIRE_MFG_DATA_MAX bytes,
+ * the name cut to fit) and returns its length. */
+size_t ble_wire_mfg_data(uint8_t* out, const char* flipper_name);
+
+/* The scan response's size with `mfg_len` bytes of manufacturer data. */
+size_t ble_wire_scan_response_size(size_t mfg_len);
 
 /* The address the service advertises with: the Flipper's, with byte 2
  * changed, so that a central never mixes it up with the default profile

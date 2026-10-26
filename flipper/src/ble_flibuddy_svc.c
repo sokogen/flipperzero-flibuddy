@@ -171,8 +171,13 @@ static void profile_gap_config(GapConfig* config, FuriHalBleProfileParams params
     furi_check(config);
     memcpy(config, &gap_template, sizeof(GapConfig));
     ble_wire_mac(config->mac_address, furi_hal_version_get_ble_mac());
-    _Static_assert(sizeof(config->adv_name) >= BLE_WIRE_ADV_NAME_SIZE, "the name fits");
-    ble_wire_adv_name(config->adv_name, furi_hal_version_get_name_ptr());
+    /* no name in the advertisement, which has no room for it (ble_wire.h);
+     * the name goes in the GAP device name and the scan response */
+    const char* name = furi_hal_version_get_name_ptr();
+    _Static_assert(sizeof(config->adv_name) >= BLE_WIRE_GAP_NAME_SIZE, "the name fits");
+    ble_wire_gap_name(config->adv_name, name);
+    _Static_assert(sizeof(config->mfg_data) >= BLE_WIRE_MFG_DATA_MAX, "the data fits");
+    config->mfg_data_len = (uint8_t)ble_wire_mfg_data(config->mfg_data, name);
 }
 
 static const FuriHalBleProfileTemplate profile_template = {
