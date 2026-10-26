@@ -46,10 +46,15 @@ struct SettingsForm: View {
                         Text("\(entry.name) (\(entry.weight) g)").tag(Int?.some(entry.id))
                     }
                     if let id = model.catalogEntryId, !model.catalog.contains(where: { $0.id == id }) {
-                        Text("Entry #\(id) (\(model.draft.coreWeight) g)").tag(Int?.some(id))
+                        Text("Entry #\(id)").tag(Int?.some(id))
                     }
                 }
-                LabeledContent("Core weight", value: "\(model.draft.coreWeight) g")
+                TextField("Core weight (g)", value: $model.coreWeight, format: .number)
+                Text("Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let error = model.coreWeightError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
                 if let error = model.catalogError {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }

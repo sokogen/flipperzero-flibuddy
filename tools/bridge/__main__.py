@@ -27,7 +27,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--api-key", default=os.environ.get("BAMBUDDY_API_KEY"),
                         help="Bambuddy API key (default: $BAMBUDDY_API_KEY)")
     parser.add_argument("--core-weight", type=int, default=session.DEFAULT_CORE,
-                        help="empty spool weight in g for new items (default: 250)")
+                        help="core weight in g for new items: everything that is not filament "
+                             f"(default: {session.DEFAULT_CORE} = reusable spool 293 + refill core 32)")
     parser.add_argument("--catalog-id", type=int, help="core_weight_catalog_id for new items")
     parser.add_argument("--dump-dir", type=Path, help="save every scan as a tag fixture here")
     args = parser.parse_args(argv)

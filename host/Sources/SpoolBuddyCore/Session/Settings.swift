@@ -3,15 +3,19 @@ import Security
 
 /// Host settings. The API key lives in the Keychain; the rest in `UserDefaults`.
 public struct Settings: Equatable, Sendable {
-    /// Weight of the default catalog entry, "Bambu Lab - Plastic Low Temp".
-    public static let defaultCoreWeight = 250
+    /// Everything on the scale that is not filament: Bambu reusable spool
+    /// 293 g + refill core 32 g, measured in Phase 0.
+    public static let defaultCoreWeight = 325
+    /// Core weights the settings accept, in grams.
+    public static let coreWeightRange = 1...5000
 
     /// Bambuddy root URL, e.g. `http://192.168.1.20:8000`.
     public var baseURL: String
     public var apiKey: String
-    /// The empty-spool catalog entry used for new items (`core_weight_catalog_id`).
+    /// The empty-spool catalog entry recorded on new items (`core_weight_catalog_id`).
     public var catalogEntryId: Int?
-    /// That entry's weight in grams (`core_weight` of new items).
+    /// `core_weight` of new items in grams. Picking a catalog entry copies its
+    /// weight; it may be edited afterwards.
     public var coreWeight: Int
     /// Net/gross preselected when a weight is entered.
     public var defaultMode: Intent.WeightMode

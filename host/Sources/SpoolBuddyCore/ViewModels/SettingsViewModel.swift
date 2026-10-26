@@ -15,8 +15,16 @@ public final class SettingsViewModel {
 
     public var baseURL: String
     public var apiKey: String
-    /// Picks the entry from `catalog`; its weight becomes the core weight.
-    public var catalogEntryId: Int?
+    /// Picks the entry from `catalog`; choosing a different entry copies its
+    /// weight into `coreWeight` once.
+    public var catalogEntryId: Int? {
+        didSet {
+            guard catalogEntryId != oldValue, let entry = catalog.first(where: { $0.id == catalogEntryId }) else { return }
+            coreWeight = entry.weight
+        }
+    }
+    /// Grams; editable, saved as is.
+    public var coreWeight: Int
     public var defaultMode: Intent.WeightMode
     /// `nil` uses the first Flipper found.
     public var port: String?
@@ -42,6 +50,7 @@ public final class SettingsViewModel {
         baseURL = settings.baseURL
         apiKey = settings.apiKey
         catalogEntryId = settings.catalogEntryId
+        coreWeight = settings.coreWeight
         defaultMode = settings.defaultMode
         port = settings.port
         self.makeInventory = makeInventory
@@ -49,21 +58,25 @@ public final class SettingsViewModel {
         self.apply = apply
     }
 
-    /// The settings as edited. Until the catalog is loaded the saved core weight stays.
+    /// The settings as edited.
     public var draft: Settings {
         var settings = saved
         settings.baseURL = baseURL
         settings.apiKey = apiKey
         settings.catalogEntryId = catalogEntryId
+        settings.coreWeight = coreWeight
         settings.defaultMode = defaultMode
         settings.port = port
-        if let entry = catalog.first(where: { $0.id == catalogEntryId }) {
-            settings.useCatalogEntry(entry)
-        }
         return settings
     }
 
     public var hasChanges: Bool { draft != saved }
+
+    /// Why the core weight cannot be saved; `nil` when it is in range.
+    public var coreWeightError: String? {
+        let range = Settings.coreWeightRange
+        return range.contains(coreWeight) ? nil : "Core weight must be \(range.lowerBound)–\(range.upperBound) g"
+    }
 
     /// Runs the session's startup check against the draft; loads the catalog when it passes.
     public func testConnection() async {
@@ -111,6 +124,10 @@ public final class SettingsViewModel {
 
     @discardableResult
     public func save() async -> Bool {
+        if let error = coreWeightError {
+            saveError = error
+            return false
+        }
         let settings = draft
         do {
             try await apply(settings)

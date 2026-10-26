@@ -135,12 +135,18 @@ mentions tray UUID candidates.
   `7EF1AB04`) are no longer found by UID; they still match by tray UUID.
 
 ### Task 4: Core weight 325 g, editable in settings
-- [ ] Swift: `Settings.defaultCoreWeight = 325`; `useCatalogEntry` still copies the entry weight; add validation (1…5000 g) in `SettingsViewModel`; a user-edited core weight is saved even when a catalog entry is selected, and selecting an entry overwrites the number once
-- [ ] `SettingsView.swift`: replace the read-only `LabeledContent("Core weight")` with a numeric `TextField` bound to the draft, with the explanation "weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g"
-- [ ] Swift tests: default 325; picking an entry copies its weight; editing after picking keeps the edit on save; out-of-range rejected; persisted and reloaded through `Settings` defaults
-- [ ] Python: `DEFAULT_CORE = 325` in `tools/bridge/session.py` and the `--core-weight` default/help in `tools/bridge/__main__.py`; tests updated
-- [ ] docs: root `README.md` (Mac host and bridge sections), `host/README.md`, `tools/README.md` say 325 g and why; mention that AMS-added spools take their core weight from the first "Bambu Lab" catalog entry in Bambuddy, so that entry should be 325 g too
-- [ ] run all three suites - must pass before task 5
+- [x] Swift: `Settings.defaultCoreWeight = 325`; `useCatalogEntry` still copies the entry weight; add validation (1…5000 g) in `SettingsViewModel`; a user-edited core weight is saved even when a catalog entry is selected, and selecting an entry overwrites the number once
+- [x] `SettingsView.swift`: replace the read-only `LabeledContent("Core weight")` with a numeric `TextField` bound to the draft, with the explanation "weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g"
+- [x] Swift tests: default 325; picking an entry copies its weight; editing after picking keeps the edit on save; out-of-range rejected; persisted and reloaded through `Settings` defaults
+- [x] Python: `DEFAULT_CORE = 325` in `tools/bridge/session.py` and the `--core-weight` default/help in `tools/bridge/__main__.py`; tests updated
+- [x] docs: root `README.md` (Mac host and bridge sections), `host/README.md`, `tools/README.md` say 325 g and why; mention that AMS-added spools take their core weight from the first "Bambu Lab" catalog entry in Bambuddy, so that entry should be 325 g too
+- [x] run all three suites - must pass before task 5
+- ➕ `lookup_unknown.json` (a message fixture, unchanged) still carries
+  `"core": 250`; the tests that compare against it pass a 250 g core
+  explicitly (`testSettings` in Swift, `core_weight=250` in Python), and new
+  tests check the 325 g default. The picker's fallback label for an entry
+  missing from the catalog no longer shows a weight, since the core weight
+  may now differ from the entry's.
 
 ### Task 5: Colour names from Bambuddy's colour map
 - [ ] Swift: `BambuddyClient.colorMap()` → `GET /inventory/colors/map` decoded into `colors: [String: String]` and `byMaterial: [String: String]`; `ColorNameResolver.name(rgba:, detailedType:)` tries `byMaterial["<detailed type lower-cased>|<hex6 lower-cased>"]`, then `colors[hex6]`, else `nil`; the session loads the map once after the startup check and keeps it; a failed load leaves names empty and logs to the feed status, never blocks a scan

@@ -155,7 +155,8 @@ def test_hellos_never_ping_pong():
 
 def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
     fake = FakeBambuddy()
-    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    # The fixture was written with a 250 g core; the wire format does not depend on it.
+    (reply,) = replies(bridge(fake, core_weight=250), load("scan_mfc.json"))
     assert reply == load("lookup_unknown.json")
     tag = load("scan_mfc.json")["tag"]
     tray_uuid = bambu_tag.parse_tag(tag).tray_uuid
@@ -350,6 +351,19 @@ def test_new_creates_a_full_spool_from_the_tag():
         "tag_type": "bambulab",
         "data_origin": "flipper",
     }
+
+
+def test_unknown_lookup_defaults_to_a_325_g_core():
+    (reply,) = replies(bridge(FakeBambuddy()), load("scan_mfc.json"))
+    assert reply["defaults"]["core"] == 325
+
+
+def test_new_defaults_to_a_325_g_core():
+    fake = FakeBambuddy()
+    replies(bridge(fake), load("intent_new.json"))
+    (_, body) = fake.calls[-1]
+    assert session.DEFAULT_CORE == 325
+    assert body["core_weight"] == 325
 
 
 def test_new_without_a_catalog_id_omits_it():

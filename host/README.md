@@ -40,10 +40,19 @@ DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run SpoolBuddyMac
 `swift run` starts a plain executable, not an `.app` bundle; the app makes
 itself a regular app (Dock icon, menu bar) at launch. Settings (⌘,) hold the
 Bambuddy URL and API key (stored in the login Keychain, service
-`SpoolBuddy`), the empty-spool catalog entry used for new items, the default
-weight mode and the Flipper port ("Automatic" opens the first
-`/dev/cu.usbmodemflip_*`). Use **Test connection** after entering the key; it
-also loads the catalog.
+`SpoolBuddy`), the empty-spool catalog entry and the core weight used for
+new items, the default weight mode and the Flipper port ("Automatic" opens
+the first `/dev/cu.usbmodemflip_*`). Use **Test connection** after entering
+the key; it also loads the catalog.
+
+The core weight is everything on the scale that is not filament (`net =
+gross − core_weight`). It defaults to 325 g, a Bambu reusable spool (293 g)
+plus a refill core (32 g), which fits sealed spools and mounted refills alike.
+Choosing a catalog entry copies its weight once; the number stays editable
+(1–5000 g) and is saved as entered. The entry itself is sent only as
+`core_weight_catalog_id`. AMS-added spools get their core weight from the
+first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 325 g as
+well to keep both kinds of spool consistent.
 
 The window shows the session feed, newest scan first. Known spools get a
 weight field with a net/gross toggle and **Save**; unknown tags get **New…**

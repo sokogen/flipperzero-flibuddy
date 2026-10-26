@@ -20,7 +20,7 @@ final class ScratchDefaults {
         #expect(settings.baseURL == "")
         #expect(settings.apiKey == "")
         #expect(settings.catalogEntryId == nil)
-        #expect(settings.coreWeight == 250)
+        #expect(settings.coreWeight == 325)
         #expect(settings.defaultMode == .gross)
         #expect(settings.port == nil)
         #expect(!settings.isConfigured)
@@ -41,6 +41,22 @@ final class ScratchDefaults {
 
         #expect(store.load() == testSettings)
         #expect(SettingsStore(defaults: scratch.defaults, secrets: secrets).load() == testSettings)
+    }
+
+    @Test func anEditedCoreWeightLoadsBack() throws {
+        let scratch = ScratchDefaults()
+        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        var settings = testSettings
+        settings.coreWeight = 412
+
+        try store.save(settings)
+
+        #expect(store.load().coreWeight == 412)
+        #expect(store.load().catalogEntryId == 3)
+    }
+
+    @Test func theCoreWeightRangeIsOneGramToFiveKilograms() {
+        #expect(Settings.coreWeightRange == 1...5000)
     }
 
     @Test func theAPIKeyGoesToTheSecretStoreOnly() throws {

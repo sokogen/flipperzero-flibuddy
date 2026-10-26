@@ -34,6 +34,7 @@ struct SettingsViewModelTests {
         #expect(model.baseURL == "http://bambuddy.test:8000")
         #expect(model.apiKey == "bb_test")
         #expect(model.catalogEntryId == 3)
+        #expect(model.coreWeight == 250)
         #expect(model.defaultMode == .gross)
         #expect(model.port == "/dev/cu.usbmodemflip_X1")
         #expect(model.draft == settings)
@@ -112,6 +113,78 @@ struct SettingsViewModelTests {
         settings.coreWeight = 210
         let model = makeModel(settings: settings)
         #expect(model.draft.coreWeight == 210)
+    }
+
+    @Test func aLoadedCatalogDoesNotOverwriteTheSavedCoreWeight() async {
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
+        var settings = testSettings
+        settings.coreWeight = 325
+        let model = makeModel(inventory, settings: settings)
+
+        await model.loadCatalog()
+
+        #expect(model.draft.coreWeight == 325)
+        #expect(!model.hasChanges)
+    }
+
+    @Test func editingAfterPickingAnEntryKeepsTheEdit() async {
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [CatalogEntry(id: 9, name: "Bambu Lab - Cardboard", weight: 180)]
+        var applied: [Settings] = []
+        let model = makeModel(inventory, apply: { applied.append($0) })
+        await model.loadCatalog()
+
+        model.catalogEntryId = 9
+        model.coreWeight = 325
+
+        #expect(await model.save())
+        #expect(applied.map(\.coreWeight) == [325])
+        #expect(applied.map(\.catalogEntryId) == [9])
+    }
+
+    @Test func reselectingTheSameEntryKeepsTheEdit() async {
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
+        let model = makeModel(inventory)
+        await model.loadCatalog()
+
+        model.coreWeight = 325
+        model.catalogEntryId = 3
+
+        #expect(model.draft.coreWeight == 325)
+    }
+
+    @Test func anEditedCoreWeightIsSavedWithoutACatalog() async {
+        var applied: [Settings] = []
+        let model = makeModel(apply: { applied.append($0) })
+
+        model.coreWeight = 325
+
+        #expect(model.hasChanges)
+        #expect(await model.save())
+        #expect(applied.map(\.coreWeight) == [325])
+    }
+
+    @Test(arguments: [0, -5, 5001])
+    func anOutOfRangeCoreWeightIsRejected(weight: Int) async {
+        var applied: [Settings] = []
+        let model = makeModel(apply: { applied.append($0) })
+
+        model.coreWeight = weight
+
+        #expect(model.coreWeightError == "Core weight must be 1–5000 g")
+        #expect(!(await model.save()))
+        #expect(applied.isEmpty)
+        #expect(model.saveError == "Core weight must be 1–5000 g")
+    }
+
+    @Test(arguments: [1, 325, 5000])
+    func anInRangeCoreWeightIsAccepted(weight: Int) async {
+        let model = makeModel()
+        model.coreWeight = weight
+        #expect(model.coreWeightError == nil)
+        #expect(await model.save())
     }
 
     @Test func aFailedCatalogLoadIsReported() async {

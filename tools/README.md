@@ -40,8 +40,9 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
 - At start-up the bridge reads `/settings/spoolman` and refuses Spoolman
   mode (the key needs `settings:read`).
 - It answers `hello`, prints each parsed tag and the `lookup` it sends, and
-  performs `weigh` / `new` intents (`--core-weight`, `--catalog-id` set the
-  empty spool for new items); `create_on_host` / `link_on_host` are only
+  performs `weigh` / `new` intents (`--core-weight`, default 325 g = Bambu
+  reusable spool 293 g + refill core 32 g, and `--catalog-id` set the core
+  weight and `core_weight_catalog_id` of new items); `create_on_host` / `link_on_host` are only
   logged. A repeated intent id gets the stored `result`; failed calls are
   not stored, so a retry runs again.
 - `--dump-dir` saves every scan in the `protocol/fixtures/tags` format.
