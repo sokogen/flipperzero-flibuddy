@@ -173,6 +173,34 @@ def test_ntag_uids_are_sent_to_bambuddy_as_read():
     assert bambu_tag.ParsedTag(kind="ntag", uid="04a1b2c3d4e5f6").bambuddy_tag_uid == "04A1B2C3D4E5F6"
 
 
+@pytest.mark.parametrize(
+    ("detailed_type", "material", "expected"),
+    [
+        ("PLA Pure", "PLA", "Pure"),
+        ("PLA Basic", "PLA", "Basic"),
+        ("PLA Silk+", "PLA", "Silk+"),
+        ("pla Matte", "PLA", "Matte"),
+        ("PLA Matte", "pla", "Matte"),
+        ("PETG-HF", "PETG", "PETG-HF"),
+        ("Support for PLA", "PLA", "Support for PLA"),
+        ("PLAX Basic", "PLA", "PLAX Basic"),
+        ("PLA Basic", None, "PLA Basic"),
+        ("PLA", "PLA", None),
+        ("PLA ", "PLA", None),
+        ("", "PLA", None),
+        (None, "PLA", None),
+    ],
+)
+def test_subtype_drops_a_leading_material_word(detailed_type, material, expected):
+    assert bambu_tag.subtype(detailed_type, material) == expected
+
+
+def test_parsed_tags_derive_their_bambuddy_subtype():
+    assert bambu_tag.parse_tag(load(TAGS / "bambu_pla_pure_real.json")).bambuddy_subtype == "Pure"
+    assert bambu_tag.parse_tag(bambu_scan_tag()).bambuddy_subtype == "Basic"
+    assert bambu_tag.parse_tag(load(TAGS / "ntag215_blank.json")).bambuddy_subtype is None
+
+
 def test_ntag_fixture_file_page_list():
     parsed = bambu_tag.parse_tag(load(TAGS / "ntag215_blank.json"))
     assert parsed.kind == "ntag"

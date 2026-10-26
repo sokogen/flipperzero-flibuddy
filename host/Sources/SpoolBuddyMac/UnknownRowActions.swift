@@ -45,7 +45,7 @@ struct NewSpoolSheet: View {
             Form {
                 Section("New Bambuddy item") {
                     TextField("Material", text: $form.material, prompt: Text("required, e.g. PLA"))
-                    TextField("Subtype", text: $form.subtype, prompt: Text("e.g. PLA Basic"))
+                    TextField("Subtype", text: $form.subtype, prompt: Text("e.g. Basic"))
                     TextField("Colour", text: $form.colorName)
                     TextField("Brand", text: $form.brand)
                     TextField("Label weight (g)", text: $form.labelWeight)

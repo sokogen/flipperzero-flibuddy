@@ -229,6 +229,10 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
   after the start-up check): `by_material["<detailed type>|<hex6>"]`, then
   `colors["<hex6>"]`, lower-case, alpha dropped. Without a match, or when
   the map failed to load, `color_name` is left out, never a hex string.
+  `subtype` is the detailed type without a leading word equal to the
+  material, case-insensitive ("PLA Basic" → "Basic", "PETG-HF" stays), as
+  on spools an AMS adds; nothing left means no `subtype`. The Flipper's
+  `lookup` lines and the host feed still show the full detailed type.
 - **Inventory mode.** The host checks `GET /settings/spoolman` and refuses
   to work against a Bambuddy in Spoolman mode: the Mac host answers every
   `scan` with an `error` lookup and every intent with `ok: false`, both

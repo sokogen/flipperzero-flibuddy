@@ -5,7 +5,9 @@ block layout follows the public Bambu RFID tag guide; see
 tools/fixtures/make_bambu_dump.py for the fields. The tray UUID is block 9 as
 raw hex: Phase 0 matched it byte for byte with the `tray_uuid` an AMS reported
 to Bambuddy. An all-zero block 9 means no tray UUID. Bambu tag UIDs go to
-Bambuddy in the form an AMS writes, UID + "00000100" (`bambuddy_tag_uid`).
+Bambuddy in the form an AMS writes, UID + "00000100" (`bambuddy_tag_uid`),
+and the subtype without the material word, "PLA Basic" -> "Basic"
+(`bambuddy_subtype`), as on spools an AMS adds.
 """
 
 import struct
@@ -14,6 +16,16 @@ from dataclasses import asdict, dataclass
 MAX_LINES = 4
 MAX_LINE_LEN = 40
 AMS_TAG_UID_SUFFIX = "00000100"  # what an AMS writes after a Bambu tag's UID
+
+
+def subtype(detailed_type: str | None, material: str | None) -> str | None:
+    """The detailed type without a leading word equal to the material,
+    case-insensitive: ("PLA Basic", "PLA") -> "Basic", ("PETG-HF", "PETG")
+    -> "PETG-HF". `None` when nothing is left."""
+    words = (detailed_type or "").split()
+    if material and words and words[0].lower() == material.lower():
+        words = words[1:]
+    return " ".join(words) or None
 
 
 @dataclass(frozen=True)
@@ -41,6 +53,11 @@ class ParsedTag:
         and by the Flipper match; NTAG UIDs as read. Upper-case hex."""
         uid = self.uid.upper()
         return uid + AMS_TAG_UID_SUFFIX if self.kind == "bambu" else uid
+
+    @property
+    def bambuddy_subtype(self) -> str | None:
+        """The `subtype` sent to Bambuddy; see `subtype`."""
+        return subtype(self.detailed_type, self.material)
 
     @property
     def has_prefill(self) -> bool:

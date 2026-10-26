@@ -55,6 +55,16 @@ def host_os() -> str:
     return name[:40]
 
 
+def title(material: str | None, subtype: str | None) -> str | None:
+    """Material and subtype for a `lookup` line: "PLA" + "Basic" -> "PLA Basic";
+    a subtype that already starts with the material is shown as is."""
+    if not subtype:
+        return material
+    if not material or subtype.lower().startswith(material.lower()):
+        return subtype
+    return f"{material} {subtype}"
+
+
 def _grams(value) -> int:
     return max(0, min(MAX_GRAMS, round(value)))
 
@@ -252,7 +262,7 @@ class Bridge:
             "status": "found",
             "spool_id": spool["id"],
             "lines": _lines(
-                spool.get("subtype") or spool.get("material"),
+                title(spool.get("material"), spool.get("subtype")),
                 color,
                 f"{remaining(spool)} g left of {label}",
                 f"core {core} g",
@@ -324,7 +334,7 @@ class Bridge:
     def _new_spool(self, parsed: bambu_tag.ParsedTag) -> dict:
         body = {
             "material": parsed.material,
-            "subtype": parsed.detailed_type,
+            "subtype": parsed.bambuddy_subtype,
             "color_name": color_name(self.color_map, parsed.rgba, parsed.detailed_type),
             "rgba": parsed.rgba,
             "brand": BRAND if parsed.kind == "bambu" else None,

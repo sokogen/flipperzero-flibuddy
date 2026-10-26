@@ -164,10 +164,16 @@ mentions tray UUID candidates.
   after the inventory-mode check (`Bridge.load_color_map`).
 
 ### Task 6: Subtype without the material word
-- [ ] Swift and Python: derive `subtype` for new items from the detailed type by dropping a leading word equal to the material, case-insensitive ("PLA Pure" → "Pure", "PLA Basic" → "Basic", "PETG-HF" with material "PETG" → "PETG-HF" unchanged, empty → `nil`)
-- [ ] tests for the cases above in `TagParserTests`/`NewSpoolForm` tests and `tools/tests/test_bambu_tag.py`
-- [ ] the feed row and the Flipper `lookup` lines keep showing the full detailed type; only the Bambuddy `subtype` field changes
-- [ ] run all three suites - must pass before task 7
+- [x] Swift and Python: derive `subtype` for new items from the detailed type by dropping a leading word equal to the material, case-insensitive ("PLA Pure" → "Pure", "PLA Basic" → "Basic", "PETG-HF" with material "PETG" → "PETG-HF" unchanged, empty → `nil`)
+- [x] tests for the cases above in `TagParserTests`/`NewSpoolForm` tests and `tools/tests/test_bambu_tag.py`
+- [x] the feed row and the Flipper `lookup` lines keep showing the full detailed type; only the Bambuddy `subtype` field changes
+- [x] run all three suites - must pass before task 7
+- ➕ the Flipper's found `lookup` line and the feed title join material and
+  subtype (`FeedItem.title` in Swift, `session.title` in Python), so a spool
+  created with subtype "Basic" still reads "PLA Basic"; before, the found
+  line showed the bare subtype. The host's New form now starts with "Basic"
+  and its placeholder reads "e.g. Basic". `PROTOCOL.md` ("New items")
+  describes the rule.
 
 ### Task 7: Record the Phase 0 results in the documentation
 - [ ] root `README.md`: turn the "Phase 0 checklist" into "Phase 0 results (2026-10-26)" with what was verified (handshake, scans with and without host, both tags of a spool, reading through the box, weigh/new end to end, block 9, AMS tag UID form, core weight 325) and what was not (NTAG scan, link of a hand-added spool, Back during "Reading tag"); keep the unverified items as a short remaining-checks list

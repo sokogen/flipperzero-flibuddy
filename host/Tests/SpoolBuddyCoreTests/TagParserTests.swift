@@ -258,6 +258,42 @@ enum TagFixtures {
     }
 }
 
+@Suite struct ParsedTagBambuddySubtypeTests {
+    @Test func dropsALeadingMaterialWord() {
+        #expect(ParsedTag.subtype(detailedType: "PLA Pure", material: "PLA") == "Pure")
+        #expect(ParsedTag.subtype(detailedType: "PLA Basic", material: "PLA") == "Basic")
+        #expect(ParsedTag.subtype(detailedType: "PLA Silk+", material: "PLA") == "Silk+")
+    }
+
+    @Test func comparesTheMaterialCaseInsensitively() {
+        #expect(ParsedTag.subtype(detailedType: "pla Matte", material: "PLA") == "Matte")
+        #expect(ParsedTag.subtype(detailedType: "PLA Matte", material: "pla") == "Matte")
+    }
+
+    @Test func keepsATypeWhoseFirstWordIsNotTheMaterial() {
+        #expect(ParsedTag.subtype(detailedType: "PETG-HF", material: "PETG") == "PETG-HF")
+        #expect(ParsedTag.subtype(detailedType: "Support for PLA", material: "PLA") == "Support for PLA")
+        #expect(ParsedTag.subtype(detailedType: "PLAX Basic", material: "PLA") == "PLAX Basic")
+    }
+
+    @Test func emptyOrMaterialOnlyIsNil() {
+        #expect(ParsedTag.subtype(detailedType: nil, material: "PLA") == nil)
+        #expect(ParsedTag.subtype(detailedType: "", material: "PLA") == nil)
+        #expect(ParsedTag.subtype(detailedType: "PLA", material: "PLA") == nil)
+        #expect(ParsedTag.subtype(detailedType: "PLA ", material: "PLA") == nil)
+    }
+
+    @Test func withoutAMaterialTheTypeIsKept() {
+        #expect(ParsedTag.subtype(detailedType: "PLA Basic", material: nil) == "PLA Basic")
+    }
+
+    @Test func parsedTagsDeriveTheirSubtype() throws {
+        #expect(TagParser.parse(try TagFixtures.bambuReal()).bambuddySubtype == "Pure")
+        #expect(TagParser.parse(try TagFixtures.bambu()).bambuddySubtype == "Basic")
+        #expect(TagParser.parse(try TagFixtures.ntag()).bambuddySubtype == nil)
+    }
+}
+
 @Suite struct ParsedTagDisplayLinesTests {
     @Test func bambuLinesMatchTheLookupFixture() throws {
         guard case .lookup(let lookup) = try Message.decode(line: Fixtures.message("lookup_unknown")) else {

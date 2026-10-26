@@ -73,6 +73,23 @@ public struct ParsedTag: Equatable, Sendable {
         }
     }
 
+    /// The `subtype` sent to Bambuddy: the detailed type without the material
+    /// word, "PLA Basic" -> "Basic", as on spools an AMS adds.
+    public var bambuddySubtype: String? {
+        Self.subtype(detailedType: detailedType, material: material)
+    }
+
+    /// `detailedType` without a leading word equal to `material`,
+    /// case-insensitive: ("PLA Basic", "PLA") -> "Basic", ("PETG-HF", "PETG")
+    /// -> "PETG-HF". `nil` when nothing is left.
+    public static func subtype(detailedType: String?, material: String?) -> String? {
+        var words = (detailedType ?? "").split(whereSeparator: \.isWhitespace)
+        if let material, let first = words.first, first.lowercased() == material.lowercased() {
+            words.removeFirst()
+        }
+        return words.isEmpty ? nil : words.joined(separator: " ")
+    }
+
     /// Enough data to create a spool from the tag (needs `material`).
     public var hasPrefill: Bool { material != nil }
 

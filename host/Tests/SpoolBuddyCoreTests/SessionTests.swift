@@ -4,9 +4,11 @@ import Testing
 
 /// The spool `lookup_found.json` describes, carrying the synthetic fixture's UID in
 /// the AMS form.
-func knownSpool(lastScaleWeight: Int? = 734, weightUsed: Double = 516, colorName: String? = "Jade White") -> Spool {
+func knownSpool(
+    lastScaleWeight: Int? = 734, weightUsed: Double = 516, colorName: String? = "Jade White", subtype: String? = "PLA Basic"
+) -> Spool {
     Spool(
-        id: 42, material: "PLA", subtype: "PLA Basic", colorName: colorName, rgba: "FFFFFFFF",
+        id: 42, material: "PLA", subtype: subtype, colorName: colorName, rgba: "FFFFFFFF",
         brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
         weightUsed: weightUsed, lastScaleWeight: lastScaleWeight, tagUid: "5A3C9E2100000100", tagType: "bambulab"
     )
@@ -110,6 +112,14 @@ struct SessionScanTests {
 
         let plain = makeSession(FakeInventory(spools: [knownSpool(colorName: nil)]))
         #expect(await plain.handleScan(try fixtureScan()).lines[1] == "#FFFFFFFF")
+    }
+
+    @Test func foundLinesShowTheFullTypeForASubtypeWithoutTheMaterial() async throws {
+        let session = makeSession(FakeInventory(spools: [knownSpool(subtype: "Basic")]))
+        #expect(await session.handleScan(try fixtureScan()).lines[0] == "PLA Basic")
+
+        let bare = makeSession(FakeInventory(spools: [knownSpool(subtype: nil)]))
+        #expect(await bare.handleScan(try fixtureScan()).lines[0] == "PLA")
     }
 
     @Test func anUnknownTagWithMaterialOffersPrefill() async throws {
@@ -544,9 +554,12 @@ struct SessionIntentTests {
         let expected = try #require(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
         #expect(inventory.creates == [.create(expected)])
         #expect(expected.tagUid == "5A3C9E2100000100")
+        #expect(expected.subtype == "Basic")
         #expect(result == IntentResult(id: "i-000004", ok: true, lines: ["Created", "spool #100"]))
         let row = try #require(await session.rows.first)
         #expect(row.spool?.id == 100)
+        // Only Bambuddy's subtype drops the material word; the feed reads in full.
+        #expect(FeedItem(row).title == "PLA Basic")
         #expect(row.status == .created)
         #expect(row.savedBy == .flipper)
     }

@@ -133,7 +133,7 @@ public struct NewSpool: Encodable, Equatable, Sendable {
         guard let material = tag.material else { return nil }
         self.init(
             material: material,
-            subtype: tag.detailedType,
+            subtype: tag.bambuddySubtype,
             colorName: colorName,
             rgba: tag.rgba,
             brand: tag.kind == .bambu ? Self.bambuBrand : nil,

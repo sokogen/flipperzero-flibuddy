@@ -11,7 +11,7 @@ public enum LookupBuilder {
         Lookup(
             scanId: scanId, status: .found, spoolId: spool.id,
             lines: lines(
-                spool.subtype ?? spool.material,
+                FeedItem.title(material: spool.material, subtype: spool.subtype),
                 spool.colorName ?? spool.rgba.map { "#\($0)" },
                 "\(spool.remaining) g left of \(spool.labelWeight)",
                 "core \(spool.coreWeight) g"

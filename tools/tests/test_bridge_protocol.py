@@ -202,6 +202,21 @@ def test_found_lookup_truncates_long_names():
     assert reply["lines"][1] == "X" * 40
 
 
+def test_found_lines_show_the_full_type_for_a_subtype_without_the_material():
+    (reply,) = replies(bridge(FakeBambuddy([spool_42_on_tag(subtype="Basic")])), load("scan_mfc.json"))
+    assert reply["lines"][0] == "PLA Basic"
+    (reply,) = replies(bridge(FakeBambuddy([spool_42_on_tag(subtype=None)])), load("scan_mfc.json"))
+    assert reply["lines"][0] == "PLA"
+
+
+def test_titles_join_material_and_subtype():
+    assert session.title("PLA", "PLA Basic") == "PLA Basic"
+    assert session.title("PETG", "HF") == "PETG HF"
+    assert session.title("ABS", None) == "ABS"
+    assert session.title("PLA", "pla matte") == "pla matte"
+    assert session.title(None, "Basic") == "Basic"
+
+
 def test_scan_of_an_ntag_is_unknown_without_prefill():
     (reply,) = replies(bridge(), load("scan_ntag.json"))
     assert reply["status"] == "unknown"
@@ -344,7 +359,7 @@ def test_new_creates_a_full_spool_from_the_tag():
     parsed = bambu_tag.parse_tag(tag)
     assert body == {
         "material": "PLA",
-        "subtype": "PLA Basic",
+        "subtype": "Basic",
         "rgba": "FFFFFFFF",
         "brand": "Bambu Lab",
         "label_weight": 1000,

@@ -346,7 +346,7 @@ struct FeedViewModelUnknownTests {
         let form = try #require(model.newSpoolForm(for: id))
 
         #expect(form.material == tag.material)
-        #expect(form.subtype == (tag.detailedType ?? ""))
+        #expect(form.subtype == "Basic")
         #expect(form.colorName == "")
         #expect(form.brand == "Bambu Lab")
         #expect(form.labelWeight == String(tag.labelWeight ?? 1000))

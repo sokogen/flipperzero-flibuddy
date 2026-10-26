@@ -209,7 +209,8 @@ struct BambuddyClientTests {
         let tag = TagParser.parse(try TagFixtures.bambu())
         let new = try #require(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
         #expect(new.material == tag.material)
-        #expect(new.subtype == tag.detailedType)
+        // The material word is dropped, as on spools an AMS adds.
+        #expect(new.subtype == "Basic")
         #expect(new.rgba == tag.rgba)
         #expect(new.colorName == nil)
         #expect(new.brand == "Bambu Lab")
