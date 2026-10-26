@@ -310,6 +310,14 @@ public actor Session {
         }
     }
 
+    /// Every spool in Bambuddy, for the host's link picker.
+    public func listSpools() async throws -> [Spool] {
+        guard let inventory = await ensureReady() else {
+            throw SessionError.notReady(bambuddy.message ?? "Bambuddy not ready")
+        }
+        return try await inventory.listSpools()
+    }
+
     @discardableResult
     private func hostAction(
         _ id: FeedRow.ID, _ action: (IntentHandler, FeedRow) async throws -> FeedRow

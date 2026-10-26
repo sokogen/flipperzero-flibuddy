@@ -3,8 +3,11 @@ import Foundation
 
 import Darwin
 
-/// Polls `condition` every 10 ms until it holds or `timeout` passes.
-func eventually(timeout: Duration = .seconds(2), _ condition: () async -> Bool) async -> Bool {
+/// Polls `condition` every 10 ms until it holds or `timeout` passes, on the
+/// caller's actor (so `@MainActor` tests can poll view models).
+func eventually(
+    isolation: isolated (any Actor)? = #isolation, timeout: Duration = .seconds(2), _ condition: () async -> Bool
+) async -> Bool {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
         if await condition() { return true }

@@ -268,11 +268,14 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ concurrent repeats of an intent id share one in-flight call; the result cache keeps the last 256 ids
 
 ### Task 16: macOS SwiftUI app
-- [ ] write `FeedViewModelTests.swift` first: rows render newest first; weight field accepts integers only; save enabled only with a value; row status text mapping; link picker filter matches material/colour/brand/note case-insensitively
-- [ ] implement `Sources/SpoolBuddyMac/App.swift`, `FeedView.swift` (list rows: colour swatch, material + subtype, colour name, remaining, weight field with net/gross toggle, Save, status, saved-by), `UnknownRowActions.swift` (**New** form prefilled; **Link to existing** picker), `SettingsView.swift` (URL, API key, catalog entry picker loaded from `/inventory/catalog`, default mode, port picker, Test connection), `StatusBar` (transport state, Bambuddy state), **Clear** action
-- [ ] implement `FeedViewModel.swift` and `SettingsViewModel.swift` in `SpoolBuddyCore` (platform-neutral, reused in Phase 2)
-- [ ] `swift build` produces a runnable `SpoolBuddyMac`; document `swift run SpoolBuddyMac` in `host/README.md`
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] write `FeedViewModelTests.swift` first: rows render newest first; weight field accepts integers only; save enabled only with a value; row status text mapping; link picker filter matches material/colour/brand/note case-insensitively
+- [x] implement `Sources/SpoolBuddyMac/App.swift`, `FeedView.swift` (list rows: colour swatch, material + subtype, colour name, remaining, weight field with net/gross toggle, Save, status, saved-by), `UnknownRowActions.swift` (**New** form prefilled; **Link to existing** picker), `SettingsView.swift` (URL, API key, catalog entry picker loaded from `/inventory/catalog`, default mode, port picker, Test connection), `StatusBar` (transport state, Bambuddy state), **Clear** action
+- [x] implement `FeedViewModel.swift` and `SettingsViewModel.swift` in `SpoolBuddyCore` (platform-neutral, reused in Phase 2)
+- [x] `swift build` produces a runnable `SpoolBuddyMac`; document `swift run SpoolBuddyMac` in `host/README.md`
+- [x] run `cd host && swift test` - must pass before next task
+- ➕ `FlipperLink` (`ViewModels/FlipperLink.swift`) pumps the transport into the session: opens the chosen port or the first Flipper found, runs the handshake, answers each Flipper message with `Session.handle`, and reconnects after 2 s when the link drops or the port will not open; `HostModel` wires settings store, session, link and feed for the app
+- ➕ the Flipper port is part of `Settings` (`port`, `nil` = automatic) and saved with the rest; `Session.listSpools()` feeds the Link picker through the same readiness check as the other host actions
+- ➕ ⚠️ the macOS 27 SDK declares `@State` as a macro whose `SwiftUIMacros` plugin ships only with Xcode, so with the Command Line Tools `SpoolBuddyMac` uses `@ViewState` (a typealias of the `State` property wrapper struct); documented in `host/README.md`
 
 ### Task 17: CI workflows
 - [ ] `.github/workflows/flipper.yml` (paths `flipper/**`, `protocol/**`): ubuntu, `pip install ufbt`, `ufbt update --branch=1.5.1`, `cd flipper && ufbt`, `make -C flipper/tests test`, upload `dist/*.fap` artifact

@@ -22,6 +22,7 @@ final class ScratchDefaults {
         #expect(settings.catalogEntryId == nil)
         #expect(settings.coreWeight == 250)
         #expect(settings.defaultMode == .gross)
+        #expect(settings.port == nil)
         #expect(!settings.isConfigured)
     }
 
@@ -66,6 +67,18 @@ final class ScratchDefaults {
 
         #expect(try secrets.secret(for: SettingsStore.apiKeyAccount) == nil)
         #expect(store.load().apiKey == "")
+    }
+
+    @Test func aChosenPortLoadsBackAndClears() throws {
+        let scratch = ScratchDefaults()
+        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        var settings = testSettings
+        settings.port = "/dev/cu.usbmodemflip_Anmaa1"
+        try store.save(settings)
+        #expect(store.load().port == "/dev/cu.usbmodemflip_Anmaa1")
+        settings.port = nil
+        try store.save(settings)
+        #expect(store.load().port == nil)
     }
 
     @Test func aClearedCatalogEntryLoadsAsNil() throws {

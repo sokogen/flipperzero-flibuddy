@@ -15,16 +15,20 @@ public struct Settings: Equatable, Sendable {
     public var coreWeight: Int
     /// Net/gross preselected when a weight is entered.
     public var defaultMode: Intent.WeightMode
+    /// The Flipper's serial device; `nil` uses the first Flipper found.
+    public var port: String?
 
     public init(
         baseURL: String = "", apiKey: String = "", catalogEntryId: Int? = nil,
-        coreWeight: Int = Settings.defaultCoreWeight, defaultMode: Intent.WeightMode = .gross
+        coreWeight: Int = Settings.defaultCoreWeight, defaultMode: Intent.WeightMode = .gross,
+        port: String? = nil
     ) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.catalogEntryId = catalogEntryId
         self.coreWeight = coreWeight
         self.defaultMode = defaultMode
+        self.port = port
     }
 
     public mutating func useCatalogEntry(_ entry: CatalogEntry) {
@@ -67,6 +71,7 @@ public struct SettingsStore: @unchecked Sendable {
         static let catalogEntryId = "bambuddy.catalogEntryId"
         static let coreWeight = "bambuddy.coreWeight"
         static let defaultMode = "weight.defaultMode"
+        static let port = "flipper.port"
     }
 
     // UserDefaults is thread-safe.
@@ -88,6 +93,7 @@ public struct SettingsStore: @unchecked Sendable {
         settings.coreWeight = defaults.object(forKey: Key.coreWeight) as? Int ?? settings.coreWeight
         settings.defaultMode = defaults.string(forKey: Key.defaultMode)
             .flatMap(Intent.WeightMode.init(rawValue:)) ?? settings.defaultMode
+        settings.port = defaults.string(forKey: Key.port)
         return settings
     }
 
@@ -103,6 +109,11 @@ public struct SettingsStore: @unchecked Sendable {
         }
         defaults.set(settings.coreWeight, forKey: Key.coreWeight)
         defaults.set(settings.defaultMode.rawValue, forKey: Key.defaultMode)
+        if let port = settings.port {
+            defaults.set(port, forKey: Key.port)
+        } else {
+            defaults.removeObject(forKey: Key.port)
+        }
     }
 }
 

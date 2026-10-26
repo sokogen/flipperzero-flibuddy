@@ -26,3 +26,15 @@ public protocol Transport: AnyObject, Sendable {
     func send(_ message: Message) throws
     func disconnect()
 }
+
+extension TransportError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .openFailed(let path, let code): "Cannot open \(path): \(String(cString: strerror(code)))"
+        case .configureFailed(let code): "Cannot set up the serial port: \(String(cString: strerror(code)))"
+        case .notConnected: "The Flipper is not connected"
+        case .writeFailed(let code): "Writing to the Flipper failed: \(String(cString: strerror(code)))"
+        case .writeTimedOut: "Writing to the Flipper timed out"
+        }
+    }
+}

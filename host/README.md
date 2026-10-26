@@ -24,6 +24,39 @@ If Xcode.app is installed but its license is not accepted, `swift` from
 DEVELOPER_DIR=/Library/Developer/CommandLineTools swift test
 ```
 
+## Running the Mac app
+
+```
+cd host
+DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run SpoolBuddyMac
+```
+
+`swift run` starts a plain executable, not an `.app` bundle; the app makes
+itself a regular app (Dock icon, menu bar) at launch. Settings (⌘,) hold the
+Bambuddy URL and API key (stored in the login Keychain, service
+`SpoolBuddy`), the empty-spool catalog entry used for new items, the default
+weight mode and the Flipper port ("Automatic" opens the first
+`/dev/cu.usbmodemflip_*`). Use **Test connection** after entering the key; it
+also loads the catalog.
+
+The window shows the session feed, newest scan first. Known spools get a
+weight field with a net/gross toggle and **Save**; unknown tags get **New…**
+(the form is filled in from the tag) and **Link to existing…** (a filtered
+picker of Bambuddy's spools). **Clear** empties the feed. The status bar
+shows the Flipper link and the Bambuddy check; the link reconnects on its
+own when the Flipper app is restarted or the cable is replugged.
+
+The view models (`SpoolBuddyCore/ViewModels`) are platform-neutral and
+tested with `swift test`; the SwiftUI views in `SpoolBuddyMac` have no tests.
+
+### `@ViewState` instead of `@State`
+
+The macOS 27 SDK declares `@State` as a macro too, implemented in the
+`SwiftUIMacros` compiler plugin that only Xcode ships. With the Command Line
+Tools, `@State` fails with "plugin for module 'SwiftUIMacros' not found".
+`Sources/SpoolBuddyMac/ViewState.swift` aliases the `State` property wrapper
+struct as `ViewState`; use `@ViewState` in that target.
+
 ## Protocol fixtures
 
 The tests read the shared contract in `protocol/fixtures/` as package

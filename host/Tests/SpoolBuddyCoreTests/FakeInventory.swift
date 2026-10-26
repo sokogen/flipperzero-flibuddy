@@ -24,6 +24,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var findError: BambuddyError?
     var updateError: BambuddyError?
     var linkError: BambuddyError?
+    var catalogError: BambuddyError?
+    var catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
     /// Delay before `updateWeight` answers, to overlap concurrent intents.
     var updateDelay: Duration = .zero
 
@@ -110,6 +112,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func catalog() async throws -> [CatalogEntry] {
         record(.catalog)
-        return [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
+        if let catalogError { throw catalogError }
+        return catalogEntries
     }
 }
