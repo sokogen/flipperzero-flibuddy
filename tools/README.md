@@ -39,12 +39,21 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
   come from `$BAMBUDDY_API_KEY`.
 - At start-up the bridge reads `/settings/spoolman` and refuses Spoolman
   mode (the key needs `settings:read`).
-- It answers `hello`, prints each parsed tag and the `lookup` it sends, and
-  performs `weigh` / `new` intents (`--core-weight`, default 325 g = Bambu
+- It speaks protocol version 2: it answers `hello`, prints each parsed tag
+  and the `lookup` it sends, and performs the `weigh`, `new`, `full`,
+  `empty` and `delete` intents (`--core-weight`, default 325 g = Bambu
   reusable spool 293 g + refill core 32 g, and `--catalog-id` set the core
   weight and `core_weight_catalog_id` of new items); `create_on_host` /
   `link_on_host` are only logged. A repeated intent id gets the stored `result`; failed calls are
   not stored, so a retry runs again.
+- A scan with `autosave: true` creates an unknown tag that carries a
+  material at once (`created: true`); otherwise nothing is created until
+  `new` or a `weigh` on the unknown tag, which creates the spool and then
+  records the weight (looked up again first, so a retry never creates a
+  second one). Tags are looked up with `include_archived=true`: a spool
+  marked empty is `found` with `spool.archived`, and a weigh or Mark as new
+  restores it first. The bridge cannot push a fresh `lookup` after a host
+  action: it has no feed, so New / Link happen in Bambuddy itself.
 - `--dump-dir` saves every scan in the `protocol/fixtures/tags` format.
   MIFARE Classic sector trailers are rebuilt from the derived Key A (the
   Flipper does not send them). `protocol/fixtures/tags/bambu_pla_pure_real.json`

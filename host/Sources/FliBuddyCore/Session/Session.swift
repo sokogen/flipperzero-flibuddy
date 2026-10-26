@@ -151,6 +151,7 @@ public actor Session {
     private var resultOrder: [String] = []
     private var inFlight: [String: (intent: Intent, task: Task<IntentResult, Never>)] = [:]
     private var observers: [UUID: AsyncStream<SessionSnapshot>.Continuation] = [:]
+    private var pushObservers: [UUID: AsyncStream<Message>.Continuation] = [:]
     private let now: @Sendable () -> Date
 
     public init(settings: Settings, inventory: (any SpoolInventory)?, now: @escaping @Sendable () -> Date = { Date() }) {
@@ -161,6 +162,7 @@ public actor Session {
 
     deinit {
         for observer in observers.values { observer.finish() }
+        for observer in pushObservers.values { observer.finish() }
     }
 
     /// New settings (and the client built from them); the next scan checks
@@ -190,6 +192,20 @@ public actor Session {
             Task { await self?.removeObserver(id) }
         }
         continuation.yield(snapshot)
+        return stream
+    }
+
+    /// Lines the host sends the Flipper by itself, from the call on, until the
+    /// session goes away: a fresh `lookup` after the owner creates the spool
+    /// or links the tag on the host (PROTOCOL.md, Session). Nothing is
+    /// buffered for a Flipper that is not connected.
+    public func pushes() -> AsyncStream<Message> {
+        let (stream, continuation) = AsyncStream<Message>.makeStream(bufferingPolicy: .bufferingNewest(16))
+        let id = UUID()
+        pushObservers[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            Task { await self?.removePushObserver(id) }
+        }
         return stream
     }
 
@@ -592,11 +608,14 @@ public actor Session {
     /// Saves a weight typed on the host: the same Bambuddy calls a Flipper
     /// `weigh` makes, marked as saved by the host. On a tag no spool carries
     /// it creates the spool from the tag first.
+    /// A row that had no spool (the save created it) pushes a fresh `lookup`.
     public func saveWeight(row id: FeedRow.ID, grams: Int, mode: Intent.WeightMode) async throws {
         guard (0...LookupBuilder.maxGrams).contains(grams) else { throw SessionError.invalidWeight(grams) }
+        let hadSpool = rows.first { $0.id == id }?.spool != nil
         try await hostAction(id, status: .saving) { handler, row in
             try await handler.weigh(row, grams: grams, mode: mode, by: .host)
         }
+        if !hadSpool { pushLookup(row: id) }
     }
 
     /// Creates the item from the host's New form and links the row to it. A
@@ -617,6 +636,7 @@ public actor Session {
                 return row
             }
             Log.info(.session, "create: id=\(scanId) spool=\(spool.id)")
+            pushLookup(row: id)
             return spool
         } catch {
             Log.error(.session, "create failed: id=\(scanId) error=\(Self.describe(error))")
@@ -655,6 +675,7 @@ public actor Session {
                 try await handler.link(row, toSpool: spoolId)
             }
             Log.info(.session, "link: id=\(scanId) spool=\(spool.id)")
+            pushLookup(row: id)
             return spool
         } catch {
             Log.error(.session, "link failed: id=\(scanId) spool=\(spoolId) error=\(Self.describe(error))")
@@ -727,6 +748,16 @@ public actor Session {
     }
 
     // MARK: Plumbing
+
+    /// Sends the Flipper a fresh `found` lookup for the row's latest scan; the
+    /// Flipper applies it only while that scan is on its screen. `created` is
+    /// left out: it marks a spool created on scan.
+    private func pushLookup(row id: FeedRow.ID) {
+        guard let row = rows.first(where: { $0.id == id }), let spool = row.spool else { return }
+        let lookup = LookupBuilder.found(scanId: row.scanId, spool: spool)
+        Log.info(.session, "push lookup: id=\(row.scanId) spool=\(spool.id)")
+        for observer in pushObservers.values { observer.yield(.lookup(lookup)) }
+    }
 
     /// The inventory for an action under `started`: its writes are refused
     /// once the settings leave `started`.
@@ -806,6 +837,10 @@ public actor Session {
 
     private func removeObserver(_ id: UUID) {
         observers[id] = nil
+    }
+
+    private func removePushObserver(_ id: UUID) {
+        pushObservers[id] = nil
     }
 
     static func describe(_ error: any Error) -> String {

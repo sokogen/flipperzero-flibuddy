@@ -247,14 +247,14 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test-host` — must pass before Task 7
 
 ### Task 7: Mac UI and Python bridge
-- [ ] Mac feed: a "Not in Bambuddy" Bambu row (autosave off) shows **New** and **Link to existing…** plus an editable weight whose Save creates and weighs; show marked-new / empty (archived) / deleted states; update `docs/design/macos-ui-spec.md` ("Implemented differently" or the row table) accordingly
-- [ ] `tools/bridge`: speak v2, honour `autosave`, implement the new actions
+- [x] Mac feed: a "Not in Bambuddy" Bambu row (autosave off) shows **New** and **Link to existing…** plus an editable weight whose Save creates and weighs; show marked-new / empty (archived) / deleted states; update `docs/design/macos-ui-spec.md` ("Implemented differently" or the row table) accordingly
+- [x] `tools/bridge`: speak v2, honour `autosave`, implement the new actions
   (the version bump and `lookup.spool` / `lookup.tag_info` / `result.spool`
   already landed in Task 1; left: `autosave`, `full` / `empty` / `delete`,
   `weigh` on an unknown tag, `include_archived` and `spool.archived`)
-- [ ] ➕ after New / Link on the host for the scan the Flipper shows (`create_on_host`, `link_on_host`), push a fresh `lookup` for that `scan_id` (PROTOCOL.md, Session); today `Session.handle` only replies to Flipper lines, so `FlipperLink` needs a way to send an unsolicited line
-- [ ] write tests (Swift view-model tests, pytest for the bridge)
-- [ ] run `make test` — must pass before Task 8
+- [x] ➕ after New / Link on the host for the scan the Flipper shows (`create_on_host`, `link_on_host`), push a fresh `lookup` for that `scan_id` (PROTOCOL.md, Session); today `Session.handle` only replies to Flipper lines, so `FlipperLink` needs a way to send an unsolicited line
+- [x] write tests (Swift view-model tests, pytest for the bridge)
+- [x] run `make test` — must pass before Task 8
 
 ### Task 8: Verify acceptance criteria
 - [ ] every Overview item and owner decision is implemented; Recent / After scan / Weigh as / Connection Auto are absent
@@ -402,3 +402,22 @@ over USB and Bluetooth:
   `markedEmpty`, `deleted`; an archived spool is `spool.isArchived`.
   `FeedItem` has plain phrases for them until Task 7. The Swift
   `Scan(autosave:)` defaults to `false`.
+- Task 7: the host pushes a fresh `found` lookup (without `created`) after
+  New, Link, and a host Save that created the spool, for every row, not
+  only rows the Flipper flagged with `link_on_host` / `create_on_host`:
+  the host cannot know what the Flipper shows, and the Flipper applies a
+  lookup only for the scan on its screen (PROTOCOL.md, Session, reworded).
+  `Session.pushes()` is an `AsyncStream<Message>`; `FlipperLink` sends its
+  lines only while the Flipper is connected, drops what comes otherwise,
+  and treats a push that cannot be sent like a reply (drop and reconnect).
+- Task 7: a `Not in Bambuddy` Bambu row is an entry (`FeedItem.isEntry`,
+  `savesNewSpool`) pre-filled with label + the Settings core weight
+  (`FeedItem(_:coreWeight:)`), takes focus like Enter weight, and keeps the
+  entry through Saving and an error; New and Link sit as link-style buttons
+  right of the readout. `Marked as empty` and `Deleted` say "by Flipper";
+  an archived spool's colour column reads "archived". The watch shows the
+  entry on such a row without New / Link (not built here). Recorded in
+  `docs/design/macos-ui-spec.md`.
+- Task 7: the Python bridge pushes no lookup (it has no host actions), and
+  its Mark as empty falls back to a 1000 g label when the spool has none,
+  as its `spool.label` does.

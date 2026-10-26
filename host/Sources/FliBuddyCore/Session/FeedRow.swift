@@ -82,3 +82,10 @@ public struct FeedRow: Identifiable, Equatable, Sendable {
         self.status = status
     }
 }
+
+extension FeedRow.Status {
+    /// No spool carries the tag (`unknown`, with or without prefill).
+    public var isUnknown: Bool {
+        if case .unknown = self { true } else { false }
+    }
+}

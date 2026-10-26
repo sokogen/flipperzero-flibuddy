@@ -42,10 +42,11 @@ def line(message: dict) -> str:
 class FakeBambuddy:
     """Stands in for BambuddyClient; records calls."""
 
-    def __init__(self, spools=None, fail=None, color_map=None, color_map_error=None, next_id=None):
+    def __init__(self, spools=None, fail=None, color_map=None, color_map_error=None, next_id=None, fail_on=()):
         self.spools = {s["id"]: dict(s) for s in (spools or [])}
         self.next_id = next_id
         self.fail = fail
+        self.fail_on = set(fail_on)  # method names that fail with "HTTP 500"
         self.colors = color_map if color_map is not None else {"colors": {}, "by_material": {}}
         self.color_map_error = color_map_error
         self.calls: list[tuple] = []
@@ -53,16 +54,45 @@ class FakeBambuddy:
     def _maybe_fail(self):
         if self.fail:
             raise bambuddy.BambuddyError(self.fail)
+        if self.calls[-1][0] in self.fail_on:
+            raise bambuddy.BambuddyError("HTTP 500")
+
+    def _spool(self, spool_id):
+        if spool_id not in self.spools:
+            raise bambuddy.SpoolNotFound(spool_id)
+        return self.spools[spool_id]
+
+    def set_weight_used(self, spool_id, grams):
+        self.calls.append(("set_weight_used", spool_id, grams))
+        self._maybe_fail()
+        spool = self._spool(spool_id)
+        spool["weight_used"] = grams
+        return dict(spool)
+
+    def archive_spool(self, spool_id):
+        self.calls.append(("archive_spool", spool_id))
+        self._maybe_fail()
+        self._spool(spool_id)["archived_at"] = "2026-10-26T10:00:00"
+
+    def restore_spool(self, spool_id):
+        self.calls.append(("restore_spool", spool_id))
+        self._maybe_fail()
+        self._spool(spool_id)["archived_at"] = None
+
+    def delete_spool(self, spool_id):
+        self.calls.append(("delete_spool", spool_id))
+        self._maybe_fail()
+        del self.spools[self._spool(spool_id)["id"]]
 
     def find_by_tag(self, tray_uuid, uid):
         self.calls.append(("find_by_tag", tray_uuid, uid))
         self._maybe_fail()
         for spool in self.spools.values():
             if tray_uuid is not None and spool.get("tray_uuid") == tray_uuid:
-                return spool
+                return dict(spool)
         for spool in self.spools.values():
             if spool.get("tag_uid") == uid:
-                return spool
+                return dict(spool)
         return None
 
     def update_weight(self, spool_id, gross):
@@ -85,7 +115,7 @@ class FakeBambuddy:
         self._maybe_fail()
         spool = {**body, "id": self.next_id or 100 + len(self.spools)}
         self.spools[spool["id"]] = spool
-        return spool
+        return dict(spool)
 
 
 def spool_42_on_tag(**extra) -> dict:
@@ -282,7 +312,146 @@ def test_scan_is_logged_with_the_parsed_tag():
     assert "s-000012" in text
 
 
+def test_autosave_creates_an_unknown_tag_on_scan():
+    fake = FakeBambuddy(color_map=COLOR_MAP, next_id=31)
+    b = bridge(fake, core_weight=250)
+    b.load_color_map()
+    (reply,) = replies(b, load("scan_mfc_autosave.json"))
+    assert reply == load("lookup_created.json")
+    (_, body) = next(c for c in fake.calls if c[0] == "create_spool")
+    assert body["material"] == "PLA" and body["weight_used"] == 0
+
+
+def test_autosave_off_creates_nothing():
+    fake = FakeBambuddy()
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply["status"] == "unknown"
+    assert not [c for c in fake.calls if c[0] == "create_spool"]
+
+
+def test_autosave_never_creates_a_tag_without_material():
+    fake = FakeBambuddy()
+    scan = {**load("scan_ntag.json"), "autosave": True}
+    (reply,) = replies(bridge(fake), scan)
+    assert reply["status"] == "unknown"
+    assert not [c for c in fake.calls if c[0] == "create_spool"]
+
+
+def test_a_rescan_of_a_tag_created_on_scan_creates_nothing():
+    fake = FakeBambuddy()
+    b = bridge(fake)
+    replies(b, load("scan_mfc_autosave.json"))
+    (reply,) = replies(b, load("scan_mfc_autosave.json"))
+    assert reply["status"] == "found"
+    assert "created" not in reply
+    assert len([c for c in fake.calls if c[0] == "create_spool"]) == 1
+
+
+def test_a_failed_create_on_scan_answers_unknown():
+    fake = FakeBambuddy(fail_on={"create_spool"})
+    logged = []
+    (reply,) = replies(bridge(fake, core_weight=250, log=logged.append), load("scan_mfc_autosave.json"))
+    assert reply == {**load("lookup_unknown.json"), "scan_id": "s-000015"}
+    assert any("create on scan failed" in entry for entry in logged)
+
+
+def test_scan_of_an_archived_spool_is_found_archived():
+    fake = FakeBambuddy([spool_42_on_tag(weight_used=1000, last_scale_weight=None,
+                                         archived_at="2026-10-26T10:00:00")])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply == load("lookup_found_archived.json")
+
+
 # --- intents -----------------------------------------------------------------
+
+
+def test_full_marks_the_spool_as_new():
+    fake = FakeBambuddy([spool_42_on_tag()])
+    (reply,) = replies(bridge(fake), load("intent_full.json"))
+    assert reply == load("result_full.json")
+    assert [c for c in fake.calls if c[0] != "find_by_tag"] == [("set_weight_used", 42, 0)]
+
+
+def test_full_restores_an_archived_spool_first():
+    fake = FakeBambuddy([spool_42_on_tag(weight_used=1000, archived_at="2026-10-26T10:00:00")])
+    (reply,) = replies(bridge(fake), load("intent_full.json"))
+    assert reply == load("result_full.json")
+    assert [c[0] for c in fake.calls] == ["find_by_tag", "restore_spool", "set_weight_used"]
+
+
+def test_empty_marks_the_spool_as_used_up_and_archives_it():
+    fake = FakeBambuddy([spool_42_on_tag()])
+    (reply,) = replies(bridge(fake), load("intent_empty.json"))
+    assert reply == load("result_empty.json")
+    assert [c for c in fake.calls if c[0] != "find_by_tag"] == [
+        ("set_weight_used", 42, 1000),
+        ("archive_spool", 42),
+    ]
+
+
+def test_empty_on_an_archived_spool_skips_the_archive():
+    fake = FakeBambuddy([spool_42_on_tag(archived_at="2026-10-26T10:00:00")])
+    (reply,) = replies(bridge(fake), load("intent_empty.json"))
+    assert reply == load("result_empty.json")
+    assert [c[0] for c in fake.calls] == ["find_by_tag", "set_weight_used"]
+
+
+def test_delete_deletes_the_spool():
+    fake = FakeBambuddy([spool_42_on_tag()])
+    (reply,) = replies(bridge(fake), load("intent_delete.json"))
+    assert reply == load("result_delete.json")
+    assert fake.calls[-1] == ("delete_spool", 42)
+    assert fake.spools == {}
+
+
+def test_delete_of_a_spool_already_gone_counts_as_deleted():
+    class Gone(FakeBambuddy):
+        def delete_spool(self, spool_id):
+            self.calls.append(("delete_spool", spool_id))
+            raise bambuddy.SpoolNotFound(spool_id)
+
+    (reply,) = replies(bridge(Gone([spool_42_on_tag()])), load("intent_delete.json"))
+    assert reply == load("result_delete.json")
+
+
+@pytest.mark.parametrize(
+    "name, failed",
+    [("intent_full.json", "Not saved"), ("intent_empty.json", "Not saved"), ("intent_delete.json", "Not deleted")],
+)
+def test_marks_and_delete_need_a_linked_spool(name, failed):
+    fake = FakeBambuddy()
+    (reply,) = replies(bridge(fake), load(name))
+    assert reply["ok"] is False
+    assert reply["lines"] == [failed, "Spool not found"]
+    assert [c[0] for c in fake.calls] == ["find_by_tag"]
+
+
+@pytest.mark.parametrize(
+    "name, method, failed",
+    [
+        ("intent_full.json", "set_weight_used", "Not saved"),
+        ("intent_empty.json", "archive_spool", "Not saved"),
+        ("intent_delete.json", "delete_spool", "Not deleted"),
+    ],
+)
+def test_a_failed_mark_or_delete_is_reported_and_retried(name, method, failed):
+    fake = FakeBambuddy([spool_42_on_tag()], fail_on={method})
+    b = bridge(fake)
+    (reply,) = replies(b, load(name))
+    assert reply["ok"] is False
+    assert reply["lines"] == [failed]
+    assert "HTTP 500" in reply["error"]
+    fake.fail_on.clear()
+    assert replies(b, load(name))[0]["ok"] is True
+
+
+def test_a_repeated_mark_returns_the_cached_result():
+    fake = FakeBambuddy([spool_42_on_tag()])
+    b = bridge(fake)
+    first = replies(b, load("intent_empty.json"))
+    calls = len(fake.calls)
+    assert replies(b, load("intent_empty.json")) == first
+    assert len(fake.calls) == calls
 
 
 def test_weigh_gross_matches_the_result_fixture():
@@ -328,12 +497,45 @@ def test_weigh_without_weight_used_in_the_response_computes_it():
     assert reply == load("result_ok.json")
 
 
-def test_weigh_of_an_unknown_tag_fails():
+def test_weigh_of_an_unknown_tag_creates_the_spool_then_weighs_it():
+    # "Add and weigh" on the Flipper with Auto-save new off.
+    fake = FakeBambuddy(color_map=COLOR_MAP, next_id=42)
+    b = bridge(fake, core_weight=250)
+    b.load_color_map()
+    (reply,) = replies(b, load("intent_weigh.json"))
+    assert reply == load("result_ok.json")
+    assert [c[0] for c in fake.calls] == ["color_map", "find_by_tag", "create_spool", "update_weight"]
+    assert fake.calls[-1] == ("update_weight", 42, 734)
+
+
+def test_weigh_of_an_unknown_tag_without_material_fails():
     fake = FakeBambuddy()
-    (reply,) = replies(bridge(fake), load("intent_weigh.json"))
+    intent = {**load("intent_weigh.json"), "tag": load("scan_ntag.json")["tag"]}
+    (reply,) = replies(bridge(fake), intent)
     assert reply["ok"] is False
     assert reply["lines"] == ["Not saved", "Spool not found"]
-    assert not [c for c in fake.calls if c[0] == "update_weight"]
+    assert [c[0] for c in fake.calls] == ["find_by_tag"]
+
+
+def test_a_weigh_retried_after_the_create_went_through_creates_no_second_spool():
+    fake = FakeBambuddy(fail_on={"update_weight"})
+    b = bridge(fake)
+    (first,) = replies(b, load("intent_weigh.json"))
+    assert first["ok"] is False
+    assert first["lines"] == ["Not saved"]
+    fake.fail_on.clear()
+    (second,) = replies(b, load("intent_weigh.json"))
+    assert second["ok"] is True
+    assert len([c for c in fake.calls if c[0] == "create_spool"]) == 1
+    assert len(fake.spools) == 1
+
+
+def test_weigh_of_an_archived_spool_restores_it_first():
+    fake = FakeBambuddy([spool_42_on_tag(weight_used=1000, archived_at="2026-10-26T10:00:00")])
+    (reply,) = replies(bridge(fake), load("intent_weigh.json"))
+    assert reply == load("result_ok.json")
+    assert [c[0] for c in fake.calls] == ["find_by_tag", "restore_spool", "update_weight"]
+    assert fake.spools[42]["archived_at"] is None
 
 
 def test_weigh_failure_is_reported():

@@ -40,8 +40,8 @@ def test_find_by_tag_tries_the_tray_uuid_then_the_uid():
     c, rec = client(not_found(), httpx.Response(200, json=SPOOL))
     assert c.find_by_tag("AA" * 16, "5A3C9E21") == SPOOL
     assert [dict(r.url.params) for r in rec.requests] == [
-        {"tray_uuid": "AA" * 16},
-        {"tag_uid": "5A3C9E21"},
+        {"tray_uuid": "AA" * 16, "include_archived": "true"},
+        {"tag_uid": "5A3C9E21", "include_archived": "true"},
     ]
     assert all(r.url.path == "/api/v1/inventory/spools/by-tag" for r in rec.requests)
     assert all(r.method == "GET" for r in rec.requests)
@@ -56,7 +56,7 @@ def test_find_by_tag_stops_at_the_tray_uuid_match():
 def test_find_by_tag_returns_none_when_nothing_matches():
     c, rec = client(not_found())
     assert c.find_by_tag(None, "04112233445566") is None
-    assert dict(rec.requests[0].url.params) == {"tag_uid": "04112233445566"}
+    assert dict(rec.requests[0].url.params) == {"tag_uid": "04112233445566", "include_archived": "true"}
 
 
 def test_find_by_tag_raises_on_server_error():
@@ -122,6 +122,66 @@ def test_create_spool_refuses_without_material():
     with pytest.raises(ValueError):
         c.create_spool({"material": ""})
     assert rec.requests == []
+
+
+def test_set_weight_used_patches_the_spool():
+    c, rec = client(httpx.Response(200, json={**SPOOL, "weight_used": 0}))
+    assert c.set_weight_used(42, 0)["weight_used"] == 0
+    request = rec.requests[0]
+    assert request.method == "PATCH"
+    assert request.url.path == "/api/v1/inventory/spools/42"
+    assert json.loads(request.content) == {"weight_used": 0}
+
+
+@pytest.mark.parametrize("name", ["archive", "restore"])
+def test_archive_and_restore_post_to_the_spool(name):
+    c, rec = client(httpx.Response(200, json={**SPOOL}))
+    getattr(c, f"{name}_spool")(42)
+    assert rec.requests[0].method == "POST"
+    assert rec.requests[0].url.path == f"/api/v1/inventory/spools/42/{name}"
+
+
+def test_delete_spool_sends_delete():
+    c, rec = client(httpx.Response(204))
+    c.delete_spool(42)
+    assert rec.requests[0].method == "DELETE"
+    assert rec.requests[0].url.path == "/api/v1/inventory/spools/42"
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda c: c.set_weight_used(42, 0),
+        lambda c: c.archive_spool(42),
+        lambda c: c.restore_spool(42),
+        lambda c: c.delete_spool(42),
+    ],
+)
+def test_spool_writes_raise_spool_not_found_on_404(call):
+    c, _ = client(not_found())
+    with pytest.raises(bambuddy.SpoolNotFound) as error:
+        call(c)
+    assert error.value.spool_id == 42
+
+
+def test_spool_writes_raise_on_server_error():
+    c, _ = client(httpx.Response(500, text="boom"))
+    with pytest.raises(bambuddy.BambuddyError, match="500"):
+        c.delete_spool(42)
+
+
+@pytest.mark.parametrize(
+    "spool, expected",
+    [
+        ({}, False),
+        ({"archived_at": None}, False),
+        ({"archived_at": "2026-10-26T10:00:00"}, True),
+        ({"archived_at": "2026-10-26T10:00:00", "archived": False}, False),
+        ({"archived": True}, True),
+    ],
+)
+def test_is_archived(spool, expected):
+    assert bambuddy.is_archived(spool) is expected
 
 
 def test_get_spool():

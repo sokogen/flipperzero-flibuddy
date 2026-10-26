@@ -11,7 +11,8 @@ public enum TransportChoice: Equatable, Sendable {
 
 /// Keeps the Flipper connected: opens the chosen transport (for USB the chosen
 /// port or the first Flipper found), runs the `hello` handshake, hands every
-/// Flipper message to the session and sends its reply. A dropped or failed
+/// Flipper message to the session and sends its reply, and sends the lines
+/// the session pushes by itself while the Flipper is connected. A dropped or failed
 /// link, or a reply that cannot be sent, is retried after `retryDelay` until
 /// `disconnect()`.
 @MainActor
@@ -188,18 +189,18 @@ public final class FlipperLink {
                     self.setState(state)
                 case .message(let message):
                     guard let reply = await self.session.handle(message) else { continue }
-                    do {
-                        try await link.send(reply)
-                    } catch {
-                        // The Flipper would wait for a reply that never comes:
-                        // drop the link so it sees the host go, and reconnect.
-                        guard current == self.generation else { return }
-                        self.problem = Session.describe(error)
-                        Log.error(.link, "reply failed: type=\(reply.type) error=\(Session.describe(error))")
-                        await link.disconnect()
-                        return
-                    }
+                    // The Flipper would wait for a reply that never comes.
+                    guard await self.send(reply, on: link, generation: current, what: "reply") else { return }
                 }
+            }
+        }
+        // Pushes made while no Flipper is connected go nowhere: the Flipper
+        // applies a lookup only for the scan on its screen.
+        let pushes = Task {
+            for await message in await self.session.pushes() {
+                guard current == self.generation else { return }
+                guard case .connected = self.state else { continue }
+                guard await self.send(message, on: link, generation: current, what: "push") else { return }
             }
         }
         var failure: String?
@@ -209,6 +210,7 @@ public final class FlipperLink {
             failure = Session.describe(error)
         }
         pump.cancel()
+        pushes.cancel()
         guard current == generation else { return }
         self.transport = nil
         if let failure {
@@ -216,6 +218,22 @@ public final class FlipperLink {
             problem = failure
         }
         setState(.disconnected)
+    }
+
+    /// Sends a line to the Flipper; `false` once it could not. A line that
+    /// cannot be sent drops the link, so the Flipper sees the host go, and
+    /// the link reconnects. `what`: `reply` or `push`, for the log.
+    private func send(_ message: Message, on link: TransportSession, generation current: Int, what: String) async -> Bool {
+        do {
+            try await link.send(message)
+            return true
+        } catch {
+            guard current == generation else { return false }
+            problem = Session.describe(error)
+            Log.error(.link, "\(what) failed: type=\(message.type) error=\(Session.describe(error))")
+            await link.disconnect()
+            return false
+        }
     }
 
     /// "Flipper speaks protocol 1, host speaks 2".

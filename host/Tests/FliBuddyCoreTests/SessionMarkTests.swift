@@ -62,7 +62,7 @@ struct SessionMarkTests {
         #expect(row.status == .markedEmpty)
         #expect(row.spool?.isArchived == true)
         #expect(row.spool?.remaining == 0)
-        #expect(FeedItem(row).statusText == "Marked as empty · archived")
+        #expect(FeedItem(row).statusText == "Marked as empty · archived · by Flipper")
     }
 
     @Test func markAsEmptyDoesNotArchiveAnArchivedSpoolAgain() async throws {
@@ -111,7 +111,7 @@ struct SessionMarkTests {
         #expect(row.status == .deleted)
         #expect(row.spool == nil)
         let item = FeedItem(row)
-        #expect(item.statusText == "Deleted from Bambuddy")
+        #expect(item.statusText == "Deleted from Bambuddy · by Flipper")
         #expect(item.offersUnknownActions)
     }
 
@@ -182,7 +182,7 @@ struct SessionMarkTests {
         let session = makeSession(inventory)
         _ = await session.handleScan(try fixtureScan())
         let seen = Recorded<FeedItem?>()
-        inventory.onDelete = { await seen.append(session.rows.first.map(FeedItem.init)) }
+        inventory.onDelete = { await seen.append(session.rows.first.map { FeedItem($0) }) }
 
         _ = await session.handleIntent(try fixtureIntent("intent_delete"))
 

@@ -18,7 +18,9 @@ import bambu_keys
 from bridge import APP, bambu_tag
 from bridge.bambuddy import (
     BambuddyError,
+    SpoolNotFound,
     color_name,
+    is_archived,
     net_to_gross,
     remaining,
     used_after_weighing,
@@ -37,6 +39,14 @@ BRAND = "Bambu Lab"
 DATA_ORIGIN = "flipper"
 TAG_TYPES = {"bambu": "bambulab", "ntag": "ntag"}
 ACCESS_BITS = "87878769"  # Bambu trailers; the Flipper never sends trailers
+# The first result line when an action fails.
+FAILED = {
+    "weigh": "Not saved",
+    "new": "Not created",
+    "full": "Not saved",
+    "empty": "Not saved",
+    "delete": "Not deleted",
+}
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "protocol" / "schema" / "message.schema.json"
 
 
@@ -109,6 +119,7 @@ def spool_fields(spool: dict) -> dict | None:
         remaining=_grams(remaining({**spool, "label_weight": label})),
         label=_grams(label),
         core=_grams(spool.get("core_weight") or 0),
+        archived=True if is_archived(spool) else None,
     )
 
 
@@ -273,11 +284,11 @@ class Bridge:
             path = self.dump_dir / f"{tag['type']}_{tag['uid']}_{scan['scan_id']}.json"
             path.write_text(json.dumps(dump_fixture(tag, scan["scan_id"]), indent=2) + "\n")
             self.log(f"saved {path}")
-        lookup = self._lookup(scan["scan_id"], parsed)
+        lookup = self._lookup(scan["scan_id"], parsed, scan["autosave"])
         self.log(f"lookup {scan['scan_id']}: {compact(lookup)}")
         return lookup
 
-    def _lookup(self, scan_id: str, parsed: bambu_tag.ParsedTag) -> dict:
+    def _lookup(self, scan_id: str, parsed: bambu_tag.ParsedTag, autosave: bool) -> dict:
         base = {"t": "lookup", "v": VERSION, "scan_id": scan_id}
         if self.client is None:
             return {**base, "status": "error", "lines": ["No Bambuddy configured"],
@@ -287,6 +298,10 @@ class Bridge:
         except BambuddyError as error:
             return {**base, "status": "error", "lines": ["Lookup failed"],
                     "error": str(error)[:MAX_ERROR]}
+        created = False
+        if spool is None and autosave and parsed.has_prefill:
+            spool = self._create_on_scan(scan_id, parsed)
+            created = spool is not None
         if spool is None:
             lookup = {**base, "status": "unknown"}
             if parsed.has_prefill:
@@ -313,16 +328,30 @@ class Bridge:
         fields = spool_fields(spool)
         if fields:
             found["spool"] = fields
+        if created:
+            found["created"] = True
         return {
             **found,
             "lines": _lines(
                 title(spool.get("material"), spool.get("subtype")),
                 color,
-                f"{remaining(spool)} g left of {label}",
+                "archived" if is_archived(spool) else f"{remaining(spool)} g left of {label}",
                 f"core {core} g",
             ),
             "defaults": defaults,
         }
+
+    def _create_on_scan(self, scan_id: str, parsed: bambu_tag.ParsedTag) -> dict | None:
+        """Auto-save new: the tag's spool, created at once with the defaults.
+        A failure is logged and the scan answered as unknown, so the Flipper
+        keeps its own Add."""
+        try:
+            created = self.client.create_spool(self._new_spool(parsed))
+        except BambuddyError as error:
+            self.log(f"create on scan failed for {scan_id}: {error}")
+            return None
+        self.log(f"created on scan {scan_id}: spool #{created['id']}")
+        return created
 
     # --- intent ----------------------------------------------------------------
 
@@ -338,7 +367,7 @@ class Bridge:
         try:
             result = self._perform(intent)
         except BambuddyError as error:
-            failed = {"weigh": "Not saved", "new": "Not created"}.get(intent["action"], "Failed")
+            failed = FAILED.get(intent["action"], "Failed")
             result = self._result(intent_id, False, [failed], str(error))
         else:
             self._results[intent_id] = (intent, result)  # transient failures may be retried
@@ -376,9 +405,16 @@ class Bridge:
         spool = self.client.find_by_tag(parsed.tray_uuid, parsed.bambuddy_tag_uid)
 
         if action == "weigh":
+            # Looked up first every time: a retry after the create went
+            # through and the weight did not weighs that spool.
             if spool is None:
-                return self._result(intent_id, False, ["Not saved", "Spool not found"],
-                                    f"no spool for tag {parsed.uid}")
+                if not parsed.has_prefill:
+                    return self._result(intent_id, False, ["Not saved", "Spool not found"],
+                                        f"no spool for tag {parsed.uid}")
+                spool = self.client.create_spool(self._new_spool(parsed))
+                self.log(f"created for weight {intent['scan_id']}: spool #{spool['id']}")
+            if is_archived(spool):
+                spool = self._restore(spool)
             grams = intent["grams"]
             gross = grams if intent["mode"] == "gross" else net_to_gross(grams, spool.get("core_weight"))
             response = self.client.update_weight(spool["id"], gross)
@@ -389,12 +425,45 @@ class Bridge:
             return self._result(intent_id, True, ["Saved", f"{remaining(weighed)} g left"],
                                 spool=weighed)
 
+        if action in ("full", "empty", "delete"):
+            if spool is None:
+                return self._result(intent_id, False, [FAILED[action], "Spool not found"],
+                                    f"no spool for tag {parsed.uid}")
+            return self._mark(intent_id, action, spool)
+
         # action == "new"
         if spool is not None:
             return self._result(intent_id, False, ["Already in Bambuddy", f"spool #{spool['id']}"],
                                 f"tag already linked to spool {spool['id']}")
         created = self.client.create_spool(self._new_spool(parsed))
         return self._result(intent_id, True, ["Created", f"spool #{created['id']}"], spool=created)
+
+    def _restore(self, spool: dict) -> dict:
+        self.client.restore_spool(spool["id"])
+        return {**spool, "archived": False, "archived_at": None}
+
+    def _mark(self, intent_id: str, action: str, spool: dict) -> dict:
+        """Mark as new (restore if archived, nothing used), Mark as empty (all
+        used, then archived) or Delete (a spool already gone counts)."""
+        if action == "full":
+            restored = self._restore(spool) if is_archived(spool) else spool
+            marked = {**restored, **self.client.set_weight_used(spool["id"], 0)}
+            if is_archived(spool):
+                marked["archived"] = False
+            return self._result(intent_id, True, ["Marked as new", f"{remaining(marked)} g left"],
+                                spool=marked)
+        if action == "empty":
+            label = spool.get("label_weight") or DEFAULT_LABEL
+            marked = {**spool, **self.client.set_weight_used(spool["id"], label)}
+            if not is_archived(spool):
+                self.client.archive_spool(spool["id"])
+            marked["archived"] = True
+            return self._result(intent_id, True, ["Marked as empty", "archived"], spool=marked)
+        try:
+            self.client.delete_spool(spool["id"])
+        except SpoolNotFound:
+            self.log(f"spool #{spool['id']} was gone already")
+        return self._result(intent_id, True, ["Deleted", f"spool #{spool['id']}"])
 
     def _new_spool(self, parsed: bambu_tag.ParsedTag) -> dict:
         body = {

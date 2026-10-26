@@ -79,10 +79,13 @@ may ignore them.
 6. Host → Flipper: one `result` per intent, matched by `id`.
 
 The host may also act on a scan by itself (the owner edits the weight in the
-feed or presses New); that sends no `result`. When the owner links the tag
-to a spool, or creates the spool, on the host for the scan the Flipper asked
-about (`link_on_host`, `create_on_host`), the host sends a fresh `lookup`
-for the same `scan_id`, and the Flipper replaces what it shows with it.
+feed or presses New); that sends no `result`. When the owner creates the
+spool on the host (New, or a Save on a tag no spool carried) or links the
+tag to a spool there, the host sends a fresh `found` lookup, without
+`created`, for the row's latest `scan_id`, whether or not the Flipper asked
+for it (`link_on_host`, `create_on_host`). The Flipper replaces what it
+shows with it while that scan is on its screen and ignores it otherwise. The
+Python bridge has no host actions and sends none.
 
 The host answers every valid `scan` with a `lookup`, `error` included. The
 Flipper does not time out while it waits for a lookup ("Looking up"): Back

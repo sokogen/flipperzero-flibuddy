@@ -5,14 +5,29 @@ import SwiftUI
 #if !os(watchOS)
 /// New and Link to existing, for a tag no spool carries. New opens the form
 /// for a tag without material and creates from the tag otherwise; the
-/// action the Flipper asked for is the prominent one.
+/// action the Flipper asked for is the prominent one. `compact`: link-style
+/// buttons under the weight field of a tag with material, where the
+/// Flipper's request is semibold rather than prominent.
 struct UnknownRowActions: View {
     let feed: FeedViewModel
     let item: FeedItem
+    var compact = false
     @ViewState private var showingNew = false
     @ViewState private var showingLink = false
 
     var body: some View {
+        if compact {
+            #if os(macOS)
+            buttons.buttonStyle(.link).font(.footnote).controlSize(.small)
+            #else
+            buttons.font(.footnote)
+            #endif
+        } else {
+            buttons
+        }
+    }
+
+    private var buttons: some View {
         HStack(spacing: 8) {
             styled(Button(item.newAction.title) { new() }, prominent: item.prominentAction == .new)
                 .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
@@ -39,7 +54,9 @@ struct UnknownRowActions: View {
     }
 
     @ViewBuilder private func styled(_ button: Button<Text>, prominent: Bool) -> some View {
-        if prominent {
+        if compact {
+            button.fontWeight(prominent ? .semibold : .regular)
+        } else if prominent {
             button.buttonStyle(.borderedProminent)
         } else {
             button

@@ -1774,6 +1774,7 @@ struct SessionLogTests {
         #expect(sink.events("session") == [
             "session delete: id=s-000012 spool=100",
             "session link: id=s-000012 spool=7",
+            "session push lookup: id=s-000012 spool=7",
         ])
     }
 

@@ -21,8 +21,10 @@ private func scan(_ scanId: String, _ name: String = "scan_mfc", autosave: Bool 
     return scan
 }
 
-private func row(status: FeedRow.Status, spool: Spool? = knownSpool(), request: FeedRow.HostRequest? = nil) throws -> FeedRow {
-    var row = FeedRow(scanId: "s-1", dump: try fixtureScan().tag, spool: spool, status: status)
+private func row(
+    status: FeedRow.Status, spool: Spool? = knownSpool(), request: FeedRow.HostRequest? = nil, _ name: String = "scan_mfc"
+) throws -> FeedRow {
+    var row = FeedRow(scanId: "s-1", dump: try fixtureScan(name).tag, spool: spool, status: status)
     row.request = request
     return row
 }
@@ -97,13 +99,24 @@ struct FeedItemRulesTests {
             #expect(!FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.scanned, .unknown(prefill: true), .unknown(prefill: false), .deleted] {
+        for status in [FeedRow.Status.scanned, .deleted] {
             #expect(!FeedItem(try row(status: status, spool: nil)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status, spool: nil)).isReopenable, "\(status)")
         }
-        // an error without a spool offers New and Link, not a weight
-        #expect(!FeedItem(try row(status: .error("boom"), spool: nil)).isEntry)
-        #expect(FeedItem(try row(status: .error("boom"), spool: nil)).offersUnknownActions)
+        // a tag without material and no spool: New and Link, no weight
+        for status in [FeedRow.Status.unknown(prefill: false), .error("boom")] {
+            #expect(!FeedItem(try row(status: status, spool: nil, "scan_ntag")).isEntry, "\(status)")
+            #expect(FeedItem(try row(status: status, spool: nil, "scan_ntag")).offersUnknownActions, "\(status)")
+        }
+        // a Bambu tag no spool carries (Auto-save new off): a weight, whose
+        // Save creates the spool, and New and Link; an error keeps them
+        for status in [FeedRow.Status.unknown(prefill: true), .saving, .error("boom")] {
+            let item = FeedItem(try row(status: status, spool: nil))
+            #expect(item.isEntry, "\(status)")
+            #expect(item.savesNewSpool, "\(status)")
+            #expect(item.offersUnknownActions, "\(status)")
+            #expect(!item.isReopenable, "\(status)")
+        }
         #expect(FeedItem(try row(status: .saving)).isSaving)
         #expect(FeedItem(try row(status: .updating)).isSaving)
         var created = try row(status: .created)
@@ -180,12 +193,14 @@ struct FeedItemDisplayTests {
             (timedOut, "Saved 484 g left · by host", false, true, true),
             (try row(status: .created), "Created in Bambuddy", true, false, false),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable", true, false, false),
-            (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
+            (try row(status: .unknown(prefill: true), spool: nil), "Not in Bambuddy", true, false, false),
+            (try row(status: .unknown(prefill: false), spool: nil, "scan_ntag"), "Not in Bambuddy; tag has no material",
              false, false, false),
-            (try row(status: .unknown(prefill: true), spool: nil, request: .create), "Flipper asks to create it here",
-             false, false, false),
+            (try row(status: .unknown(prefill: false), spool: nil, request: .create, "scan_ntag"),
+             "Flipper asks to create it here", false, false, false),
             (try row(status: .unknown(prefill: true), spool: nil, request: .link), "Flipper asks to link it here",
-             false, false, false),
+             true, false, false),
+            (try row(status: .updating), "Updating\u{2026}", true, false, false),
         ]
         for (row, status, entry, reopenable, note) in cases {
             let item = FeedItem(row)
@@ -397,7 +412,9 @@ struct FeedViewModelRulesTests {
         #expect(lookup.prefill == true)
         let item = try #require(model.items.first)
         #expect(item.statusText == "Error: \(BambuddyError.network("timed out").localizedDescription)")
-        #expect(!item.isEntry)
+        // a Save would create the spool too
+        #expect(item.isEntry)
+        #expect(item.savesNewSpool)
         #expect(item.offersUnknownActions)
         #expect(item.newAction == .fromTag)
 
