@@ -108,7 +108,11 @@ struct FeedRowView: View {
         content
             .contentShape(Rectangle())
             .simultaneousGesture(TapGesture().onEnded { reopenIfSaved() }, including: item.isReopenable ? .all : .subviews)
-            .accessibilityAction(named: "Re-weigh") { reopenIfSaved() }
+            .accessibilityActions {
+                if item.isReopenable {
+                    Button("Re-weigh") { reopenIfSaved() }
+                }
+            }
             .help(Text("Scanned \(item.scannedAt, style: .time)"))
             .overlay {
                 // A row that waits while the user types in another one.
@@ -155,6 +159,8 @@ struct FeedRowView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(item.accessibilityHeader)
+        // The timeout note and a failed host action sit in the header too.
+        .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
     }
 
     private var status: some View {
