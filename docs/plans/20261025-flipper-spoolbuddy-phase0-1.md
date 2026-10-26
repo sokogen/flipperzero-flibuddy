@@ -257,11 +257,15 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] run `cd host && swift test` - must pass before next task
 
 ### Task 15: Session feed model and intent handling
-- [ ] write `SessionTests.swift` first: a `scan` creates a `FeedRow(status: .scanned)`, lookup found → row carries the spool and `.awaitingWeight`; unknown with prefill → `.unknown(prefill: true)`; `lookup` reply built for the Flipper has `status`, `spool_id`, ≤ 4 `lines`, `defaults` (gross = last_scale_weight or label + core); an `intent weigh` with `mode: net` calls `updateWeight` with `net + core`; `intent new` creates with the configured catalog entry and links the row; `create_on_host` / `link_on_host` only flag the row; a repeated intent id returns the cached `result` without a second API call; editing a weight on the host sends the same update and marks `savedBy: .host`
-- [ ] implement `Sources/SpoolBuddyCore/Session/FeedRow.swift`, `Session.swift` (actor; owns rows, intent cache, settings reference), `LookupBuilder.swift`, `IntentHandler.swift`
-- [ ] implement `Settings.swift` (base URL, API key via Keychain with an injectable store for tests, catalog entry id + weight, default mode) with `SettingsTests.swift` (in-memory store)
-- [ ] implement startup check: `spoolmanEnabled == true` → session refuses with a clear message; permission missing → message naming the missing permission
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] write `SessionTests.swift` first: a `scan` creates a `FeedRow(status: .scanned)`, lookup found → row carries the spool and `.awaitingWeight`; unknown with prefill → `.unknown(prefill: true)`; `lookup` reply built for the Flipper has `status`, `spool_id`, ≤ 4 `lines`, `defaults` (gross = last_scale_weight or label + core); an `intent weigh` with `mode: net` calls `updateWeight` with `net + core`; `intent new` creates with the configured catalog entry and links the row; `create_on_host` / `link_on_host` only flag the row; a repeated intent id returns the cached `result` without a second API call; editing a weight on the host sends the same update and marks `savedBy: .host`
+- [x] implement `Sources/SpoolBuddyCore/Session/FeedRow.swift`, `Session.swift` (actor; owns rows, intent cache, settings reference), `LookupBuilder.swift`, `IntentHandler.swift`
+- [x] implement `Settings.swift` (base URL, API key via Keychain with an injectable store for tests, catalog entry id + weight, default mode) with `SettingsTests.swift` (in-memory store)
+- [x] implement startup check: `spoolmanEnabled == true` → session refuses with a clear message; permission missing → message naming the missing permission
+- [x] run `cd host && swift test` - must pass before next task
+- ➕ the found `defaults.gross` falls back to `remaining + core` (what the spool should weigh now) instead of `label + core` when Bambuddy has no `last_scale_weight`; the two agree for an unused spool
+- ➕ `SpoolInventory` protocol (`Bambuddy/SpoolInventory.swift`) is what `Session` calls; `BambuddyClient` conforms, tests use `FakeInventory`. `BambuddyState` (`unchecked`, `notConfigured`, `ready`, `refused(spoolmanMode | permissionMissing | unauthorized)`, `unreachable`) is checked on the first scan/intent; `refused` sticks until `checkBambuddy()`/`reconfigure`, `unreachable` is rechecked on the next scan
+- ➕ host actions for Task 16 live on `Session`: `saveWeight(row:grams:mode:)`, `createSpool(row:_:)` (New form), `link(row:toSpool:)` (picker; a 409 marks the row and rethrows `tagAlreadyLinked`); `snapshots()` streams `SessionSnapshot(rows, bambuddy)` to the views, rows kept oldest first
+- ➕ concurrent repeats of an intent id share one in-flight call; the result cache keeps the last 256 ids
 
 ### Task 16: macOS SwiftUI app
 - [ ] write `FeedViewModelTests.swift` first: rows render newest first; weight field accepts integers only; save enabled only with a value; row status text mapping; link picker filter matches material/colour/brand/note case-insensitively
