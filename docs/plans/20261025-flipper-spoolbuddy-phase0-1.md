@@ -243,10 +243,12 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] run `cd host && swift test` - must pass before next task
 
 ### Task 13: Swift Bambuddy client
-- [ ] write `BambuddyClientTests.swift` first with a `URLProtocol` stub: `findSpool(trayCandidates:uid:)` queries candidates in order then UID and maps 404 → `nil`; `updateWeight(spoolId:gross:)`; `createSpool(_:)` sends `material`, `label_weight`, `core_weight`, `core_weight_catalog_id`, `weight_used: 0`, tags, `data_origin: "flipper"`; `linkTag` maps 409 to `.tagAlreadyLinked(otherSpoolId)`; `listSpools`, `catalog`, `spoolmanEnabled` (403 → `.permissionMissing("settings:read")`); all send `X-API-Key`
-- [ ] implement `Sources/SpoolBuddyCore/Bambuddy/BambuddyClient.swift`, `Models.swift` (Spool, CatalogEntry), `BambuddyError.swift`
-- [ ] implement `WeightMath.swift`: `grossFromNet(net, core)`, `remaining(label, used)` with tests (negative clamp, zero core)
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] write `BambuddyClientTests.swift` first with a `URLProtocol` stub: `findSpool(trayCandidates:uid:)` queries candidates in order then UID and maps 404 → `nil`; `updateWeight(spoolId:gross:)`; `createSpool(_:)` sends `material`, `label_weight`, `core_weight`, `core_weight_catalog_id`, `weight_used: 0`, tags, `data_origin: "flipper"`; `linkTag` maps 409 to `.tagAlreadyLinked(otherSpoolId)`; `listSpools`, `catalog`, `spoolmanEnabled` (403 → `.permissionMissing("settings:read")`); all send `X-API-Key`
+- [x] implement `Sources/SpoolBuddyCore/Bambuddy/BambuddyClient.swift`, `Models.swift` (Spool, CatalogEntry), `BambuddyError.swift`
+- [x] implement `WeightMath.swift`: `grossFromNet(net, core)`, `remaining(label, used)` with tests (negative clamp, zero core)
+- [x] run `cd host && swift test` - must pass before next task
+- ⚠️ Bambuddy 1.2.5.2 answers the `link-tag` 409 with a plain string detail ("Tag UID already linked to another active spool"); only later releases (#3110) name the holder in `detail.spool_id`. `BambuddyError.tagAlreadyLinked(otherSpoolId:)` is therefore optional and filled when present.
+- ➕ `NewSpool(tag:coreWeight:coreWeightCatalogId:)` and `TagLink(tag:)` build the create/link bodies from a `ParsedTag` (same field rules as the Python bridge); `spool(id:)` reads one spool; 401 maps to `.unauthorized`, 404 by id to `.spoolNotFound`
 
 ### Task 14: Swift USB serial transport
 - [ ] write `SerialTransportTests.swift` first using an `openpty()` pair: lines written to the slave arrive as framed messages; `send` writes a newline-terminated line; closing the slave reports disconnect; `discoverFlipperPorts()` filters `/dev/cu.usbmodemflip*` from a given directory listing (injectable)
