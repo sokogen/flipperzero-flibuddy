@@ -3,8 +3,8 @@ import Observation
 
 /// Keeps the Flipper connected: opens the port (the chosen one or the first
 /// Flipper found), runs the `hello` handshake, hands every Flipper message to
-/// the session and sends its reply. A dropped or failed link is retried
-/// after `retryDelay` until `disconnect()`.
+/// the session and sends its reply. A dropped or failed link, or a reply that
+/// cannot be sent, is retried after `retryDelay` until `disconnect()`.
 @MainActor
 @Observable
 public final class FlipperLink {
@@ -89,8 +89,16 @@ public final class FlipperLink {
                     self.state = state
                     if state != .disconnected { self.problem = nil }
                 case .message(let message):
-                    if let reply = await self.session.handle(message) {
-                        try? await link.send(reply)
+                    guard let reply = await self.session.handle(message) else { continue }
+                    do {
+                        try await link.send(reply)
+                    } catch {
+                        // The Flipper would wait for a reply that never comes:
+                        // drop the link so it sees the host go, and reconnect.
+                        guard current == self.generation else { return }
+                        self.problem = Session.describe(error)
+                        await link.disconnect()
+                        return
                     }
                 }
             }

@@ -108,6 +108,25 @@ struct FlipperLinkTests {
         #expect(await eventually { link.state == .waitingForHello })
     }
 
+    @Test func aReplyThatCannotBeSentDropsTheLinkAndReconnects() async throws {
+        // The Flipper would wait for the lookup forever; closing the port
+        // tells it the host went away.
+        let transport = FakeTransport()
+        let (link, _) = makeLink(transport)
+        link.connect(port: nil)
+        defer { link.disconnect() }
+        #expect(await eventually { transport.state == .open })
+        transport.deliver(.flipperHello)
+        #expect(await eventually { if case .connected = link.state { true } else { false } })
+
+        transport.nextSendError = TransportError.writeTimedOut
+        transport.deliver(.scan(try fixtureScan()))
+
+        #expect(await eventually { link.problem == "Writing to the Flipper timed out" })
+        #expect(await eventually { transport.connectCount == 2 && transport.state == .open })
+        #expect(await eventually { link.state == .waitingForHello })
+    }
+
     @Test func aPortThatWillNotOpenIsReported() async {
         let transport = FakeTransport()
         transport.connectError = TransportError.openFailed(path: "/dev/cu.usbmodemflip_A", errno: 16)

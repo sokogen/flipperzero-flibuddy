@@ -339,6 +339,41 @@ static void test_host_lost_mid_intent_is_an_error(void) {
     CHECK(app.screen == AppScreenError);
 }
 
+static void test_a_scan_that_cannot_be_sent_shows_local_facts(void) {
+    setup();
+    scan_mfc();
+    CHECK(send(AppEventSendFailed) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultNoHost);
+    /* The link is still up: the next scan tries the host again. */
+    CHECK(app.connected);
+    send(AppEventBack);
+    scan_mfc();
+}
+
+static void test_an_intent_that_cannot_be_sent_is_an_error(void) {
+    setup();
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_found.json"));
+    send(AppEventMenuWeigh);
+    send_weight(600);
+    CHECK(send(AppEventSendFailed) == AppEffectNone);
+    CHECK(app.screen == AppScreenError);
+    CHECK(app.error == AppErrorSendFailed);
+    CHECK(!app_result_timed_out(&app, 60000));
+}
+
+static void test_send_failed_elsewhere_is_ignored(void) {
+    setup();
+    CHECK(send(AppEventSendFailed) == AppEffectNone);
+    CHECK(app.screen == AppScreenIdle);
+    scan_mfc();
+    send_lookup(fixture_lookup("lookup_found.json"));
+    CHECK(send(AppEventSendFailed) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultFound);
+}
+
 static void test_timeout_while_waiting_for_result(void) {
     setup();
     scan_mfc();
@@ -600,6 +635,9 @@ int main(void) {
     RUN_TEST(test_host_lost_while_waiting_for_lookup);
     RUN_TEST(test_host_lost_on_result_and_enter_weight);
     RUN_TEST(test_host_lost_mid_intent_is_an_error);
+    RUN_TEST(test_a_scan_that_cannot_be_sent_shows_local_facts);
+    RUN_TEST(test_an_intent_that_cannot_be_sent_is_an_error);
+    RUN_TEST(test_send_failed_elsewhere_is_ignored);
     RUN_TEST(test_timeout_while_waiting_for_result);
     RUN_TEST(test_back_while_waiting_for_result_is_ignored);
     RUN_TEST(test_read_failed_and_back_while_reading);

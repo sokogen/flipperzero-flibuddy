@@ -167,6 +167,8 @@ static AppEffect reduce_reading(AppState* s, const AppEvent* e) {
 static AppEffect reduce_waiting_lookup(AppState* s, const AppEvent* e) {
     if(e->type == AppEventLookupReceived)
         on_lookup(s, e->lookup);
+    else if(e->type == AppEventSendFailed)
+        go_result(s, AppResultNoHost);
     else if(e->type == AppEventBack)
         go_idle(s);
     return AppEffectNone;
@@ -219,6 +221,8 @@ static AppEffect reduce_waiting_result(AppState* s, const AppEvent* e) {
         on_result(s, e->result);
     else if(e->type == AppEventTimeout)
         go_error(s, AppErrorTimeout);
+    else if(e->type == AppEventSendFailed)
+        go_error(s, AppErrorSendFailed);
     return AppEffectNone;
 }
 

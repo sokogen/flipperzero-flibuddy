@@ -189,12 +189,24 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
   calling Bambuddy again; a repeat that arrives while the first is still
   running waits for the same result. Results of failed Bambuddy calls are
   not stored, so a repeat retries them. The Mac host keeps the last 256
-  results.
+  results. A repeat is the same intent again: a known id with any other
+  field changed (a restarted Flipper may reuse an id) is performed as a new
+  intent, after one still running under that id, and replaces the stored
+  result.
 - **Matching.** The Flipper applies a `lookup` only if its `scan_id` is the
   scan on screen, and a `result` only if its `id` is the intent in flight;
   anything else is ignored.
 - **Timeouts.** The Flipper waits 10 s for a `result`, then shows an error.
   The host does not time out on the Flipper.
+- **Send failures.** A side that cannot send does not leave the other
+  waiting: a Flipper whose `scan` does not go out whole shows the tag's
+  local facts, one whose `intent` surely did not go out shows an error at
+  once, and one whose `intent` may have arrived (only its end was not
+  taken) waits for the `result` or the timeout; a host that cannot send a
+  `lookup` or `result` closes the port (the Flipper sees the host go) and
+  reconnects. A Flipper line cut short is ended by an empty line sent
+  before the next one, so the receiver drops the fragment as malformed
+  instead of joining it to the next line.
 - **Wording.** The host owns all user-visible text. The Flipper renders
   `lines` verbatim and never parses them. Its screen is ASCII-only: each
   control character or non-ASCII character in a string shows as `?`, so

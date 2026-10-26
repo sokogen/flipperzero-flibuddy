@@ -165,11 +165,17 @@ def test_scan_of_a_known_spool_yields_the_found_lookup():
     assert reply == load("lookup_found.json")
 
 
-def test_found_lookup_without_a_scale_weight_omits_gross():
-    fake = FakeBambuddy([spool_42_on_tag(last_scale_weight=None, color_name=None)])
+def test_found_lookup_without_a_scale_weight_suggests_remaining_plus_core():
+    fake = FakeBambuddy([spool_42_on_tag(last_scale_weight=None, color_name=None, weight_used=400)])
     (reply,) = replies(bridge(fake), load("scan_mfc.json"))
-    assert reply["defaults"] == {"label": 1000, "core": 250}
+    assert reply["defaults"] == {"gross": 850, "label": 1000, "core": 250}
     assert reply["lines"][1] == "#FFFFFFFF"
+
+
+def test_found_lookup_of_an_unused_unweighed_spool_suggests_label_plus_core():
+    fake = FakeBambuddy([spool_42_on_tag(last_scale_weight=None, weight_used=0)])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply["defaults"]["gross"] == 1250
 
 
 def test_found_lookup_clamps_defaults_to_the_schema_range():
@@ -282,6 +288,17 @@ def test_repeated_intent_id_returns_the_cached_result():
     second = replies(b, load("intent_weigh.json"))
     assert second == first
     assert len(fake.calls) == calls  # no second API call
+
+
+def test_a_reused_intent_id_with_another_payload_is_performed_again():
+    # A restarted Flipper may reuse an id the bridge still remembers.
+    fake = FakeBambuddy([spool_42_on_tag(weight_used=0)])
+    b = bridge(fake)
+    replies(b, load("intent_weigh.json"))
+    other = {**load("intent_weigh.json"), "grams": 500}
+    (reply,) = replies(b, other)
+    assert reply["ok"] is True
+    assert fake.calls[-1] == ("update_weight", 42, 500)
 
 
 def test_failed_intent_is_retried_on_repeat():

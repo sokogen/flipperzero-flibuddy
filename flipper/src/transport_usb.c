@@ -4,12 +4,15 @@
 #include <cli/cli_vcp.h>
 
 #include "line_buffer.h"
+#include "line_sender.h"
 #include "proto_encode.h"
 #include "transport_usb.h"
 
 #define USB_CDC_IF 0
 #define USB_TX_TIMEOUT_MS 100 /* per packet; the host is not reading after that */
 #define USB_WORKER_STACK 2048
+
+_Static_assert(CDC_DATA_SZ <= LINE_SENDER_PACKET_MAX, "a CDC packet must fit the line sender");
 
 typedef enum {
     UsbEventStop = 1 << 0,
@@ -23,8 +26,11 @@ typedef struct {
     Transport base;
     FuriHalUsbInterface* usb_prev;
     FuriThread* worker;
-    FuriSemaphore* tx_done; /* taken while a packet is in flight */
-    FuriMutex* tx_lock;
+    FuriSemaphore* tx_done; /* released when a packet completes */
+    FuriMutex* tx_lock; /* guards sender and tx_busy */
+    bool tx_busy; /* a packet went out and did not complete yet */
+    volatile bool tx_lost; /* disconnected: no packet in flight completes */
+    LineSender sender;
     LineBuffer lines;
     char* line_storage;
     TransportRxCallback rx_callback;
@@ -47,6 +53,7 @@ static void cdc_state(void* ctx, CdcState state) {
     UsbTransport* t = ctx;
     if(state == CdcStateDisconnected) {
         t->dtr = false;
+        t->tx_lost = true;
         furi_thread_flags_set(furi_thread_get_id(t->worker), UsbEventCtrlLine);
     }
 }
@@ -117,6 +124,8 @@ static bool usb_open(Transport* base) {
     }
 
     line_buffer_reset(&t->lines);
+    t->tx_busy = false; /* the new configuration has nothing in flight */
+    t->tx_lost = false;
     furi_thread_start(t->worker);
     furi_hal_cdc_set_callbacks(USB_CDC_IF, &cdc_callbacks, t);
     t->dtr = (furi_hal_cdc_get_ctrl_line_state(USB_CDC_IF) & CdcCtrlLineDTR) != 0;
@@ -139,38 +148,40 @@ static void usb_close(Transport* base) {
     cli_vcp_set(true);
 }
 
-static bool send_packet(UsbTransport* t, uint8_t* data, uint16_t len) {
+static bool tx_wait(UsbTransport* t) {
     if(furi_semaphore_acquire(t->tx_done, furi_ms_to_ticks(USB_TX_TIMEOUT_MS)) != FuriStatusOk) {
         return false;
     }
-    furi_hal_cdc_send(USB_CDC_IF, data, len);
+    t->tx_busy = false;
     return true;
 }
 
-static bool usb_send_line(Transport* base, const char* line, size_t len) {
-    UsbTransport* t = (UsbTransport*)base;
-    if(!t->opened || !t->dtr || len >= PROTO_LINE_MAX) return false;
+/* furi_hal_cdc_send() only queues the packet; it went out once tx_done says
+ * so. */
+static LinePacketResult send_packet(const uint8_t* data, size_t len, void* ctx) {
+    UsbTransport* t = ctx;
+    if(t->tx_lost) {
+        t->tx_lost = false;
+        t->tx_busy = false;
+    }
+    if(t->tx_busy && !tx_wait(t)) return LinePacketNotSent; /* the last one is still stuck */
+    /* with none of ours in flight, a completion is stale or the zero-length
+     * packet the HAL sends on configuration */
+    while(furi_semaphore_acquire(t->tx_done, 0) == FuriStatusOk) {
+    }
+    furi_hal_cdc_send(USB_CDC_IF, (uint8_t*)data, (uint16_t)len);
+    t->tx_busy = true;
+    return tx_wait(t) ? LinePacketSent : LinePacketMaybeSent;
+}
 
-    uint8_t packet[CDC_DATA_SZ];
-    size_t total = len + 1; /* the line and its '\n' */
-    size_t sent = 0;
-    size_t last = 0;
-    bool ok = true;
+static TransportSendResult usb_send_line(Transport* base, const char* line, size_t len) {
+    UsbTransport* t = (UsbTransport*)base;
+    if(!t->opened || !t->dtr || len >= PROTO_LINE_MAX) return TransportNotSent;
 
     furi_mutex_acquire(t->tx_lock, FuriWaitForever);
-    while(ok && sent < total) {
-        size_t n = MIN(total - sent, sizeof(packet));
-        for(size_t i = 0; i < n; i++) {
-            packet[i] = sent + i < len ? (uint8_t)line[sent + i] : '\n';
-        }
-        ok = send_packet(t, packet, (uint16_t)n);
-        sent += n;
-        last = n;
-    }
-    /* a transfer that ends on a full packet needs a zero-length packet */
-    if(ok && last == CDC_DATA_SZ) ok = send_packet(t, NULL, 0);
+    TransportSendResult result = line_sender_send(&t->sender, line, len);
     furi_mutex_release(t->tx_lock);
-    return ok;
+    return result;
 }
 
 static void usb_set_rx_callback(Transport* base, TransportRxCallback callback, void* ctx) {
@@ -195,7 +206,8 @@ Transport* transport_usb_alloc(void) {
     t->base.is_connected = usb_is_connected;
     t->line_storage = malloc(PROTO_LINE_MAX);
     line_buffer_init(&t->lines, t->line_storage, PROTO_LINE_MAX, on_line, t);
-    t->tx_done = furi_semaphore_alloc(1, 1);
+    line_sender_init(&t->sender, CDC_DATA_SZ, send_packet, t);
+    t->tx_done = furi_semaphore_alloc(1, 0);
     t->tx_lock = furi_mutex_alloc(FuriMutexTypeNormal);
     t->worker = furi_thread_alloc_ex("SpoolBuddyUsb", USB_WORKER_STACK, usb_worker, t);
     return &t->base;

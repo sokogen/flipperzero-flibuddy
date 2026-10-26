@@ -29,6 +29,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
     /// Delay before `updateWeight` answers, to overlap concurrent intents.
     var updateDelay: Duration = .zero
+    /// Per-weight `updateDelay`, so that one of two overlapping updates ends first.
+    var updateDelays: [Int: Duration] = [:]
     /// Delay before `spoolmanEnabled` answers, to change the feed mid-check.
     var spoolmanDelay: Duration = .zero
     /// Answer `updateWeight` without `weight_used`, as a Bambuddy might.
@@ -61,7 +63,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func updateWeight(spoolId: Int, gross: Int) async throws -> WeightUpdate {
         record(.update(spoolId: spoolId, gross: gross))
-        if updateDelay > .zero { try await Task.sleep(for: updateDelay) }
+        let delay = updateDelays[gross] ?? updateDelay
+        if delay > .zero { try await Task.sleep(for: delay) }
         if let updateError { throw updateError }
         return try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {

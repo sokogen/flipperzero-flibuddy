@@ -30,8 +30,9 @@ static uint32_t now_ms(void) {
     return furi_get_tick();
 }
 
-static void send_text(SpoolBuddyApp* app, size_t len) {
-    if(len > 0) transport_send_line(app->transport, app->tx_buf, len);
+/* TransportNotSent also when the line did not encode. */
+static TransportSendResult send_text(SpoolBuddyApp* app, size_t len) {
+    return len > 0 ? transport_send_line(app->transport, app->tx_buf, len) : TransportNotSent;
 }
 
 static void send_hello(SpoolBuddyApp* app) {
@@ -98,20 +99,32 @@ void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
     AppEvent stamped = *event;
     stamped.now_ms = now_ms();
     AppScreen before = app->state.screen;
+    bool failed = false;
     switch(app_reduce(&app->state, &stamped)) {
     case AppEffectSendScan:
-        send_text(
-            app,
-            proto_encode_scan(
-                &app->state.scan.tag, app->state.scan.id, app->tx_buf, PROTO_LINE_MAX));
+        /* a scan that may not have arrived gets no lookup to wait for: the
+         * Flipper has no lookup timeout */
+        failed = send_text(
+                     app,
+                     proto_encode_scan(
+                         &app->state.scan.tag, app->state.scan.id, app->tx_buf, PROTO_LINE_MAX)) !=
+                 TransportSent;
         break;
     case AppEffectSendIntent:
-        send_text(
-            app,
-            intent_encode(intent_store_current(app->state.intents), app->tx_buf, PROTO_LINE_MAX));
+        /* an intent that may have arrived may be performed: wait for its
+         * result or the timeout, never claim it was not sent */
+        failed = send_text(
+                     app,
+                     intent_encode(
+                         intent_store_current(app->state.intents), app->tx_buf, PROTO_LINE_MAX)) ==
+                 TransportNotSent;
         break;
     case AppEffectNone:
         break;
+    }
+    if(failed) {
+        /* no answer will come: do not wait for one */
+        app_reduce(&app->state, &(AppEvent){.type = AppEventSendFailed, .now_ms = stamped.now_ms});
     }
     sync_reader(app, before);
     sync_scene(app);

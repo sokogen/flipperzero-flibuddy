@@ -14,7 +14,11 @@
  * s->scan.id); on AppEffectSendIntent it sends
  * intent_encode(intent_store_current(s->intents)). The caller stamps every
  * event with its clock (now_ms) and sends AppEventTimeout once
- * app_result_timed_out() says the `result` is overdue.
+ * app_result_timed_out() says the `result` is overdue. When the host cannot
+ * have the scan, or surely did not get the intent, it sends
+ * AppEventSendFailed: no answer would come, so a scan shows the local facts
+ * (Result{NoHost}) and an intent an error. An intent the host may have got
+ * waits for its result or the timeout.
  *
  * The net/gross mode belongs to the session. It toggles on the Found menu
  * and on EnterWeight; the EnterWeight pre-fill follows it: gross is the
@@ -58,6 +62,7 @@ typedef enum {
     AppErrorHost, /* the host answered `result` with ok false; see result */
     AppErrorTimeout, /* no `result` in time */
     AppErrorHostLost, /* the host went away while an intent was in flight */
+    AppErrorSendFailed, /* the intent could not be sent */
 } AppError;
 
 typedef enum {
@@ -75,6 +80,7 @@ typedef enum {
     AppEventWeightEntered, /* .grams */
     AppEventResultReceived, /* .result */
     AppEventTimeout, /* see app_result_timed_out() */
+    AppEventSendFailed, /* the scan or intent of the last effect was not sent */
     AppEventBack, /* back, or OK on Done / Error */
 } AppEventType;
 

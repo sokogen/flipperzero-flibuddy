@@ -112,6 +112,8 @@ final class FakeTransport: Transport, @unchecked Sendable {
     private var _sent: [Message] = []
     private var _connectCount = 0
     var connectError: Error?
+    /// Thrown by the next `send`, once.
+    var nextSendError: Error?
 
     var state: TransportState {
         lock.withLock { continuation == nil ? .closed : .open }
@@ -142,6 +144,10 @@ final class FakeTransport: Transport, @unchecked Sendable {
     func send(_ message: Message) throws {
         try lock.withLock {
             guard continuation != nil else { throw TransportError.notConnected }
+            if let error = nextSendError {
+                nextSendError = nil
+                throw error
+            }
             _sent.append(message)
         }
     }

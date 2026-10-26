@@ -56,6 +56,8 @@ static const char* local_error(AppError error) {
         return "No answer from the host in 10 s";
     case AppErrorHostLost:
         return "Host disconnected";
+    case AppErrorSendFailed:
+        return "Could not send to the host";
     case AppErrorLookup:
     case AppErrorHost:
     case AppErrorNone:

@@ -98,6 +98,9 @@ static void test_local_errors(void) {
     error_state(AppErrorHostLost);
     screen_outcome_text(&app, text, sizeof(text));
     CHECK_STR_EQ(text, "Host disconnected");
+    error_state(AppErrorSendFailed);
+    screen_outcome_text(&app, text, sizeof(text));
+    CHECK_STR_EQ(text, "Could not send to the host");
 }
 
 static void test_weight_mode_texts(void) {

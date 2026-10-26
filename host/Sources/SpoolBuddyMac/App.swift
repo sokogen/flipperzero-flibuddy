@@ -8,7 +8,8 @@ struct SpoolBuddyMacApp: App {
     @ViewState private var host = HostModel()
 
     var body: some Scene {
-        WindowGroup("SpoolBuddy") {
+        // One window: the feed and the Flipper link are app-wide.
+        Window("SpoolBuddy", id: "main") {
             FeedView(feed: host.feed, link: host.link)
                 .frame(minWidth: 760, minHeight: 420)
                 .task {

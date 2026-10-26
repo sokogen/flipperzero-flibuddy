@@ -3,14 +3,22 @@
  * The transport frames received bytes into lines (see line_buffer.h) and
  * hands each one to the rx callback on its own worker thread, so the
  * callback must be thread-safe and quick. send_line() appends the '\n' and
- * may block briefly; it returns false when the port is not open or the host
- * does not drain it. is_connected() reports whether a host holds the port
- * open (DTR for USB), not whether it said `hello` (see host_link.h).
+ * may block briefly; it reports whether the host can have the line: not
+ * when the port is not open or the host does not drain it, maybe when it
+ * stopped draining only at the very end or did not confirm the end.
+ * is_connected() reports whether a host holds the port open (DTR for USB),
+ * not whether it said `hello` (see host_link.h).
  */
 #pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
+
+typedef enum {
+    TransportSent,
+    TransportNotSent, /* the host will not get the line */
+    TransportMaybeSent, /* the host may get the line (late) or not */
+} TransportSendResult;
 
 typedef void (*TransportRxCallback)(const char* line, size_t len, void* ctx);
 
@@ -19,7 +27,7 @@ typedef struct Transport Transport;
 struct Transport {
     bool (*open)(Transport* transport);
     void (*close)(Transport* transport);
-    bool (*send_line)(Transport* transport, const char* line, size_t len);
+    TransportSendResult (*send_line)(Transport* transport, const char* line, size_t len);
     /* Set before open(); the callback must stay valid until close(). */
     void (*set_rx_callback)(Transport* transport, TransportRxCallback callback, void* ctx);
     bool (*is_connected)(const Transport* transport);
@@ -33,7 +41,8 @@ static inline void transport_close(Transport* transport) {
     transport->close(transport);
 }
 
-static inline bool transport_send_line(Transport* transport, const char* line, size_t len) {
+static inline TransportSendResult
+    transport_send_line(Transport* transport, const char* line, size_t len) {
     return transport->send_line(transport, line, len);
 }
 

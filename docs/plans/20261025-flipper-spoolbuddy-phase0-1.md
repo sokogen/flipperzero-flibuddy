@@ -187,6 +187,7 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ `AppState.draft` holds the intent being built: the ~2.2 KB `Intent` local in `app_reduce` was too big for the 4 KB app stack
 - ➕ scenes live in `flipper/src/scenes.h` (X-macro list) and `scene_<name>.c`; every SDK-dependent `.c` includes an SDK header directly so the host test build skips it (noted in `flipper/README.md`)
 - ➕ `transport_usb` disables the CLI VCP (`cli_vcp_disable`) while the app runs and re-enables it on close; packets go out in 64-byte chunks with a zero-length packet after a full last chunk
+- ➕ `furi_hal_cdc_send` only queues a packet: `transport_usb` waits for each packet's `tx_ep_callback` and reports an unconfirmed one as maybe sent, so a line whose end was not confirmed is never reported as sent
 - ⚠️ on-device behaviour (USB re-enumeration, DTR detection, hello with a real host) is not verified yet; see Post-Completion
 
 ### Task 8: NFC reading on the Flipper (Bambu MIFARE Classic and NTAG)
@@ -354,6 +355,7 @@ flipper/
   src/tag_dump.{c,h}          dump model (host-tested)
   src/json_writer.{c,h} / json_reader.{c,h} / proto_encode.{c,h} / proto_decode.{c,h}
   src/line_buffer.{c,h}       (host-tested)
+  src/line_sender.{c,h}       packets out, resync after a cut line (host-tested)
   src/crypto/sha256, hmac_sha256; src/bambu_keys.{c,h}   (host-tested)
   src/transport.h, transport_usb.c                        (Flipper only)
   src/nfc_read.{c,h}                                      (Flipper only)

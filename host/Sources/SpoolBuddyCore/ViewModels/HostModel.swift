@@ -23,6 +23,7 @@ public final class HostModel {
     private let store: SettingsStore
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
+    private var started = false
 
     public init(
         store: SettingsStore = SettingsStore(),
@@ -42,8 +43,11 @@ public final class HostModel {
         )
     }
 
-    /// Connects the Flipper and runs the startup check.
+    /// Connects the Flipper and runs the startup check, once: a later call
+    /// (another window) keeps the running link.
     public func start() {
+        guard !started else { return }
+        started = true
         link.connect(port: settings.port)
         Task { await session.checkBambuddy() }
     }

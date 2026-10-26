@@ -316,6 +316,21 @@ struct SessionStartupTests {
         #expect(await session.bambuddy == .unchecked)
         #expect(await session.checkBambuddy() == .ready)
     }
+
+    @Test func aCheckOfOldSettingsDoesNotOverwriteTheNewOnes() async throws {
+        let old = FakeInventory()
+        old.spoolman = true
+        old.spoolmanDelay = .milliseconds(200)
+        let session = makeSession(old)
+        let stale = Task { await session.checkBambuddy() }
+        try await Task.sleep(for: .milliseconds(50))
+
+        await session.reconfigure(settings: testSettings, inventory: FakeInventory())
+        #expect(await session.checkBambuddy() == .ready)
+
+        #expect(await stale.value == .ready)
+        #expect(await session.bambuddy == .ready)
+    }
 }
 
 @Suite("Session: intents")
@@ -507,6 +522,44 @@ struct SessionIntentTests {
         #expect(inventory.updates.count == 1)
     }
 
+    @Test func aReusedIdWithAnotherPayloadIsPerformedAgain() async throws {
+        // A restarted Flipper may reuse an id the host still remembers.
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+
+        _ = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
+        let second = await session.handleIntent(try weighIntent(grams: 500, mode: .gross))
+
+        #expect(second.ok)
+        #expect(inventory.updates == [.update(spoolId: 42, gross: 734), .update(spoolId: 42, gross: 500)])
+        // The newer intent is the one remembered.
+        _ = await session.handleIntent(try weighIntent(grams: 500, mode: .gross))
+        #expect(inventory.updates.count == 2)
+    }
+
+    @Test func aReusedIdWaitsForTheIntentStillRunningUnderIt() async throws {
+        // A Flipper that restarts mid-intent may reuse its id while the host
+        // still performs the old one: the newer intent goes second and stays.
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.updateDelays = [734: .milliseconds(200)]
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let older = try weighIntent(grams: 734, mode: .gross)
+        let newer = try weighIntent(grams: 500, mode: .gross)
+
+        async let pending = session.handleIntent(older)
+        #expect(await eventually { inventory.updates.count == 1 })
+        let result = await session.handleIntent(newer)
+        _ = await pending
+
+        #expect(result.ok)
+        #expect(inventory.spools.first?.lastScaleWeight == 500)
+        #expect(await session.rows.first?.spool?.lastScaleWeight == 500)
+        #expect(await session.handleIntent(newer) == result)
+        #expect(inventory.updates == [.update(spoolId: 42, gross: 734), .update(spoolId: 42, gross: 500)])
+    }
+
     @Test func definitiveFailuresAreCachedToo() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
@@ -553,6 +606,24 @@ struct SessionIntentTests {
         #expect(inventory.updates.count == count)
         _ = await session.handleIntent(try weighIntent(id: "i-0", grams: 734, mode: .gross))
         #expect(inventory.updates.count == count + 1)
+    }
+
+    @Test func anIdReusedForAnotherIntentCountsAsTheNewest() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        for n in 0..<Session.resultCacheSize {
+            _ = await session.handleIntent(try weighIntent(id: "i-\(n)", grams: 734, mode: .gross))
+        }
+        let reused = try weighIntent(id: "i-0", grams: 500, mode: .gross)
+        _ = await session.handleIntent(reused)
+        _ = await session.handleIntent(try weighIntent(id: "i-new", grams: 734, mode: .gross))
+        let updates = inventory.updates.count
+
+        _ = await session.handleIntent(reused)
+        #expect(inventory.updates.count == updates)
+        _ = await session.handleIntent(try weighIntent(id: "i-1", grams: 734, mode: .gross))
+        #expect(inventory.updates.count == updates + 1)
     }
 
     @Test func aWeighWithoutWeightUsedInTheReplyComputesIt() async throws {

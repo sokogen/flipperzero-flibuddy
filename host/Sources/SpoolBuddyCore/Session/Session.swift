@@ -94,9 +94,12 @@ public actor Session {
     public private(set) var settings: Settings
 
     private var inventory: (any SpoolInventory)?
-    private var results: [String: IntentResult] = [:]
+    /// Bumped by `reconfigure`; a check of older settings does not count.
+    private var configuration = 0
+    /// Completed intents by id, with the intent that produced each result.
+    private var results: [String: (intent: Intent, result: IntentResult)] = [:]
     private var resultOrder: [String] = []
-    private var inFlight: [String: Task<IntentResult, Never>] = [:]
+    private var inFlight: [String: (intent: Intent, task: Task<IntentResult, Never>)] = [:]
     private var observers: [UUID: AsyncStream<SessionSnapshot>.Continuation] = [:]
 
     public init(settings: Settings, inventory: (any SpoolInventory)?) {
@@ -112,6 +115,7 @@ public actor Session {
     public func reconfigure(settings: Settings, inventory: (any SpoolInventory)?) {
         self.settings = settings
         self.inventory = inventory
+        configuration += 1
         setBambuddy(.unchecked)
     }
 
@@ -136,9 +140,11 @@ public actor Session {
 
     // MARK: Startup check
 
-    /// Refuses Spoolman mode and keys that cannot read the settings.
+    /// Refuses Spoolman mode and keys that cannot read the settings. When the
+    /// settings change during the check, the new ones are checked instead.
     @discardableResult
     public func checkBambuddy() async -> BambuddyState {
+        let checking = configuration
         guard let inventory else {
             setBambuddy(.notConfigured)
             return bambuddy
@@ -153,6 +159,7 @@ public actor Session {
         } catch {
             state = .unreachable(Self.describe(error))
         }
+        guard checking == configuration else { return await checkBambuddy() }
         setBambuddy(state)
         return state
     }
@@ -222,15 +229,29 @@ public actor Session {
 
     /// Performs the intent once per `id`: a repeat (also while the first is
     /// still running) gets the same result. Only results that a retry would
-    /// not change are remembered; Bambuddy failures may be retried.
+    /// not change are remembered; Bambuddy failures may be retried. A repeat
+    /// is the same intent again: a restarted Flipper may reuse an id for
+    /// another intent, which is performed after the one still running under
+    /// that id, so the newer outcome is the one that stays.
     public func handleIntent(_ intent: Intent) async -> IntentResult {
-        if let cached = results[intent.id] { return cached }
-        if let running = inFlight[intent.id] { return await running.value }
-        let task = Task { await self.perform(intent) }
-        inFlight[intent.id] = task
-        let result = await task.value
-        inFlight[intent.id] = nil
-        return result
+        while true {
+            if let cached = results[intent.id], cached.intent == intent { return cached.result }
+            guard let running = inFlight[intent.id] else { break }
+            if running.intent == intent { return await running.task.value }
+            _ = await running.task.value
+        }
+        let task = Task {
+            let result = await self.perform(intent)
+            self.settle(intent)
+            return result
+        }
+        inFlight[intent.id] = (intent, task)
+        return await task.value
+    }
+
+    /// Ends the intent's run before anyone waiting on it resumes.
+    private func settle(_ intent: Intent) {
+        if inFlight[intent.id]?.intent == intent { inFlight[intent.id] = nil }
     }
 
     private func perform(_ intent: Intent) async -> IntentResult {
@@ -238,7 +259,7 @@ public actor Session {
         let failed = intent.action == .new ? "Not created" : "Not saved"
         if intent.action == .createOnHost || intent.action == .linkOnHost {
             guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
-            return finish(IntentHandler.flag(intent, on: row))
+            return finish(intent, IntentHandler.flag(intent, on: row))
         }
         guard let inventory = await ensureReady() else {
             let message = bambuddy.message ?? "Bambuddy not ready"
@@ -247,7 +268,7 @@ public actor Session {
         }
         guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
         do {
-            return finish(try await IntentHandler(inventory: inventory, settings: settings).perform(intent, on: row))
+            return finish(intent, try await IntentHandler(inventory: inventory, settings: settings).perform(intent, on: row))
         } catch {
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }
@@ -255,9 +276,9 @@ public actor Session {
         }
     }
 
-    private func finish(_ outcome: IntentHandler.Outcome) -> IntentResult {
+    private func finish(_ intent: Intent, _ outcome: IntentHandler.Outcome) -> IntentResult {
         replaceRow(outcome.row)
-        remember(outcome.result)
+        remember(intent, outcome.result)
         return outcome.result
     }
 
@@ -276,8 +297,12 @@ public actor Session {
         return record(Scan(scanId: intent.scanId, tag: intent.tag))
     }
 
-    private func remember(_ result: IntentResult) {
-        if results.updateValue(result, forKey: result.id) == nil { resultOrder.append(result.id) }
+    private func remember(_ intent: Intent, _ result: IntentResult) {
+        // an id reused for another intent counts as the newest
+        if results.updateValue((intent, result), forKey: result.id) != nil {
+            resultOrder.removeAll { $0 == result.id }
+        }
+        resultOrder.append(result.id)
         while resultOrder.count > Self.resultCacheSize {
             results[resultOrder.removeFirst()] = nil
         }

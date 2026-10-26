@@ -138,7 +138,7 @@ class Bridge:
         self.flipper: dict | None = None
         self._clock = clock
         self._hello_sent_at: float | None = None
-        self._results: dict[str, dict] = {}
+        self._results: dict[str, tuple[dict, dict]] = {}  # id -> (intent, result)
         self._validator = _validator()
 
     def hello(self) -> dict:
@@ -221,10 +221,11 @@ class Bridge:
 
         label = spool.get("label_weight") or DEFAULT_LABEL
         core = spool.get("core_weight") or 0
-        defaults = {}
-        if spool.get("last_scale_weight") is not None:
-            defaults["gross"] = _grams(spool["last_scale_weight"])
-        defaults.update(label=_grams(label), core=_grams(core))
+        # The last scale weight, or what the spool should weigh now.
+        gross = spool.get("last_scale_weight")
+        if gross is None:
+            gross = remaining({**spool, "label_weight": label}) + core
+        defaults = {"gross": _grams(gross), "label": _grams(label), "core": _grams(core)}
         color = spool.get("color_name") or (f"#{spool['rgba']}" if spool.get("rgba") else None)
         return {
             **base,
@@ -243,9 +244,12 @@ class Bridge:
 
     def _intent(self, intent: dict) -> dict:
         intent_id = intent["id"]
-        if intent_id in self._results:
+        # A repeat is the same intent again; a restarted Flipper may reuse an
+        # id for another one, which is performed.
+        cached = self._results.get(intent_id)
+        if cached is not None and cached[0] == intent:
             self.log(f"intent {intent_id}: repeated, cached result")
-            return self._results[intent_id]
+            return cached[1]
         self.log(f"intent {intent_id}: {intent['action']} for scan {intent['scan_id']}")
         try:
             result = self._perform(intent)
@@ -253,7 +257,7 @@ class Bridge:
             failed = {"weigh": "Not saved", "new": "Not created"}.get(intent["action"], "Failed")
             result = self._result(intent_id, False, [failed], str(error))
         else:
-            self._results[intent_id] = result  # transient failures may be retried
+            self._results[intent_id] = (intent, result)  # transient failures may be retried
         self.log(f"result {intent_id}: {compact(result)}")
         return result
 
