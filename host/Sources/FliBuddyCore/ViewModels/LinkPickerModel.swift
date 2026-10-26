@@ -2,7 +2,7 @@ import Foundation
 
 /// The Link to existing spool sheet for one row: the spools matching the
 /// filter, how each reads, and what linking the pick would do. The view keeps
-/// the query and the pick and builds this from them.
+/// the query, `FeedViewModel` the pick, and the view builds this from them.
 public struct LinkPickerModel: Equatable, Sendable {
     public static let title = "Link to existing spool"
     public static let placeholder = "material, colour, brand or note"

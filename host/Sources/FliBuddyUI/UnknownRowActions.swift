@@ -137,11 +137,10 @@ struct LinkSpoolSheet: View {
     let feed: FeedViewModel
     let item: FeedItem
     @ViewState private var query = ""
-    @ViewState private var selection: Spool.ID?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let picker = LinkPickerModel(item: item, spools: feed.linkCandidates, query: query, selection: selection)
+        let picker = LinkPickerModel(item: item, spools: feed.linkCandidates, query: query, selection: feed.linkSelection)
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(LinkPickerModel.title).font(.headline)
@@ -152,7 +151,7 @@ struct LinkSpoolSheet: View {
             if let error = feed.linkError {
                 Text(error).foregroundStyle(.red)
             }
-            List(picker.matches, selection: $selection) { spool in
+            List(picker.matches, selection: Bindable(feed).linkSelection) { spool in
                 SpoolPickerRow(spool: spool)
             }
             .overlay {
@@ -184,7 +183,7 @@ struct LinkSpoolSheet: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(!picker.canLink || feed.isBusy(item.id))
+                .disabled(!picker.canLink || feed.isBusy(item.id) || feed.isLoadingLinkCandidates)
             }
         }
         .padding(20)

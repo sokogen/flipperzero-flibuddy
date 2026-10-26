@@ -33,8 +33,13 @@ public final class SettingsViewModel {
         case failed(String)
     }
 
-    public var baseURL: String
-    public var apiKey: String
+    /// Editing the URL or the API key drops the test result, which was about the old ones.
+    public var baseURL: String {
+        didSet { if baseURL != oldValue { endpointEdited() } }
+    }
+    public var apiKey: String {
+        didSet { if apiKey != oldValue { endpointEdited() } }
+    }
     /// Picks the entry from `catalog`; choosing a different entry copies its
     /// weight into `coreWeight` once.
     public var catalogEntryId: Int? {
@@ -77,6 +82,10 @@ public final class SettingsViewModel {
     private var scanTimer: Task<Void, Never>?
     /// Bumped by every scan start and stop; a stale scan changes nothing.
     private var scanGeneration = 0
+    /// Bumped by every edit of the URL or the API key; a test of older ones changes nothing.
+    private var endpointGeneration = 0
+    /// Bumped by every catalog load; only the latest one sets `catalog` and `catalogError`.
+    private var catalogLoads = 0
 
     /// `discoverFlippers` streams Flippers advertising over Bluetooth; a scan
     /// stops by itself after `scanDuration`, or at once when `bluetoothPower`
@@ -157,13 +166,16 @@ public final class SettingsViewModel {
         return range.contains(coreWeight) ? nil : "Core weight must be \(range.lowerBound)–\(range.upperBound) g"
     }
 
-    /// Runs the session's startup check against the draft; loads the catalog when it passes.
+    /// Runs the session's startup check against the draft, then loads the
+    /// catalog (`GET /inventory/catalog`); the test passes only when both do.
+    /// A test that ends after the URL or the API key changed shows nothing
+    /// and keeps the catalog.
     public func testConnection() async {
         connection = .testing
-        let settings = draft
+        let tested = endpointGeneration
         let inventory: any SpoolInventory
         do {
-            inventory = try makeInventory(settings)
+            inventory = try makeInventory(draft)
         } catch {
             connection = .failed(Session.describe(error))
             return
@@ -172,17 +184,31 @@ public final class SettingsViewModel {
         do {
             state = try await Session.state(spoolmanEnabled: inventory.spoolmanEnabled())
         } catch BambuddyError.network(let reason) {
-            connection = .unreachable(reason)
+            if tested == endpointGeneration { connection = .unreachable(reason) }
             return
         } catch {
             state = Session.state(after: error)
         }
+        guard tested == endpointGeneration else { return }
         guard state.isReady else {
             connection = .failed(state.message ?? "Bambuddy not ready")
             return
         }
-        connection = .ready
-        await loadCatalog(from: inventory)
+        do {
+            try await fetchCatalog(from: inventory, editedSince: tested)
+            connection = .ready
+        } catch is CancellationError {
+            return
+        } catch BambuddyError.network(let reason) {
+            connection = .unreachable(reason)
+        } catch {
+            connection = .failed(Session.state(after: error).message ?? Session.describe(error))
+        }
+    }
+
+    private func endpointEdited() {
+        endpointGeneration += 1
+        connection = nil
     }
 
     /// The line next to Test connection.
@@ -203,19 +229,43 @@ public final class SettingsViewModel {
     }
 
     public func loadCatalog() async {
+        let inventory: any SpoolInventory
         do {
-            await loadCatalog(from: try makeInventory(draft))
+            inventory = try makeInventory(draft)
         } catch {
+            catalogLoads += 1
             catalogError = Session.describe(error)
+            return
         }
+        try? await fetchCatalog(from: inventory, editedSince: endpointGeneration)
     }
 
-    private func loadCatalog(from inventory: any SpoolInventory) async {
+    /// Loads the catalog; a failure is kept in `catalogError` and rethrown.
+    /// An answer for a URL or API key edited since `generation` is dropped
+    /// and reported as `CancellationError`. Loads overlap when Settings opens,
+    /// Test connection and Reload run together; one that ends after a newer
+    /// one started still returns its own answer but leaves `catalog` and
+    /// `catalogError` to the newer one.
+    private func fetchCatalog(from inventory: any SpoolInventory, editedSince generation: Int) async throws {
+        catalogLoads += 1
+        let load = catalogLoads
+        let loaded: Result<[CatalogEntry], any Error>
         do {
-            catalog = try await inventory.catalog()
-            catalogError = nil
+            loaded = .success(try await inventory.catalog())
         } catch {
-            catalogError = Session.describe(error)
+            loaded = .failure(error)
+        }
+        guard generation == endpointGeneration else { throw CancellationError() }
+        let latest = load == catalogLoads
+        switch loaded {
+        case .success(let entries):
+            if latest {
+                catalog = entries
+                catalogError = nil
+            }
+        case .failure(let error):
+            if latest { catalogError = Session.describe(error) }
+            throw error
         }
     }
 

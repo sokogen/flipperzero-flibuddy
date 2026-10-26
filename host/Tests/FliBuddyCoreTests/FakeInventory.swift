@@ -29,6 +29,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var linkError: BambuddyError?
     var deleteError: BambuddyError?
     var catalogError: BambuddyError?
+    var listError: BambuddyError?
     /// What `colorMap` answers; empty by default, so new items carry no colour name.
     var colorMapAnswer = ColorMap(colors: [:], byMaterial: [:])
     var colorMapError: BambuddyError?
@@ -49,6 +50,16 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var onUpdate: (@Sendable () -> Void)?
     /// Runs inside `createSpool` before it answers, e.g. to read the feed mid-create.
     var onCreate: (@Sendable () async -> Void)?
+    /// Runs inside `findSpool` before it answers, e.g. to change the settings mid-lookup.
+    var onFind: (@Sendable () async -> Void)?
+    /// Runs inside `spoolmanEnabled` before it answers, e.g. to edit the settings mid-test.
+    var onSpoolman: (@Sendable () async -> Void)?
+    /// Runs inside `catalog` before it answers, e.g. to edit the settings mid-load.
+    var onCatalog: (@Sendable () async -> Void)?
+    /// Runs inside `listSpools` before it answers, e.g. to change the settings mid-list.
+    var onList: (@Sendable () async -> Void)?
+    /// Runs inside `deleteSpool` before it answers, e.g. to change the settings mid-link.
+    var onDelete: (@Sendable () async -> Void)?
 
     init(spools: [Spool] = []) {
         stored = spools
@@ -66,6 +77,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
         record(.find(tray: trayUuid, uid: uid))
+        await onFind?()
         if let findError { throw findError }
         return lock.withLock {
             if let trayUuid, let spool = stored.first(where: { $0.trayUuid == trayUuid }) { return spool }
@@ -130,6 +142,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func deleteSpool(id: Int) async throws {
         record(.delete(spoolId: id))
+        await onDelete?()
         if let deleteError { throw deleteError }
         try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == id }) else { throw BambuddyError.spoolNotFound(id) }
@@ -140,17 +153,21 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     func spoolmanEnabled() async throws -> Bool {
         record(.spoolman)
         if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }
+        await onSpoolman?()
         if let spoolmanError { throw spoolmanError }
         return spoolman
     }
 
     func listSpools() async throws -> [Spool] {
         record(.list)
+        await onList?()
+        if let listError { throw listError }
         return spools
     }
 
     func catalog() async throws -> [CatalogEntry] {
         record(.catalog)
+        await onCatalog?()
         if let catalogError { throw catalogError }
         return catalogEntries
     }

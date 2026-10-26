@@ -58,6 +58,10 @@ public enum SessionError: Error, Equatable, Sendable {
     case notReady(String)
     /// Linking moves the tag off the spool created on scan, which could not be deleted.
     case createdSpoolKept(spoolId: Int, reason: String)
+    /// The settings changed while a host action ran; its write was not sent.
+    case settingsChanged
+    /// The Link picker's spools are from older settings, perhaps another Bambuddy.
+    case staleSpoolList
 }
 
 extension SessionError: LocalizedError {
@@ -69,8 +73,17 @@ extension SessionError: LocalizedError {
         case .notReady(let message): message
         case .createdSpoolKept(let id, let reason):
             "Spool \(id) created on scan could not be deleted, so the tag stays on it: \(reason)"
+        case .settingsChanged: "The Bambuddy settings changed; try again"
+        case .staleSpoolList: "The spool list is from older Bambuddy settings; pick the spool again"
         }
     }
+}
+
+/// Bambuddy's spools for the Link picker and the settings they were listed
+/// under: Link refuses a spool picked from a list of older settings.
+public struct SpoolListing: Equatable, Sendable {
+    public var spools: [Spool]
+    let configuration: Int
 }
 
 /// What the views render: the feed in arrival order, the Bambuddy state,
@@ -114,6 +127,9 @@ public actor Session {
     private var inventory: (any SpoolInventory)?
     /// Bumped by `reconfigure`; a check of older settings does not count.
     private var configuration = 0
+    /// Rows whose spool came from older settings, perhaps another Bambuddy:
+    /// shown as they are, looked up again by tag before the next write.
+    private var staleSpools: Set<FeedRow.ID> = []
     /// Bambuddy's colour names, loaded once per configuration after the
     /// startup check; `nil` until then or after a failed load.
     private var colorNames: ColorNameResolver?
@@ -137,8 +153,9 @@ public actor Session {
     }
 
     /// New settings (and the client built from them); the next scan checks
-    /// again. Spools created on scan belong to the old Bambuddy, so Link no
-    /// longer deletes them.
+    /// again. The rows' spools may belong to the old Bambuddy: the next write
+    /// looks each up again by tag, and Link no longer deletes spools created
+    /// on scan.
     public func reconfigure(settings: Settings, inventory: (any SpoolInventory)?) {
         self.settings = settings
         self.inventory = inventory
@@ -148,6 +165,7 @@ public actor Session {
         for index in rows.indices {
             rows[index].colorName = nil
             rows[index].createdSpoolId = nil
+            if rows[index].spool != nil { staleSpools.insert(rows[index].id) }
         }
         setBambuddy(.unchecked)
     }
@@ -172,6 +190,7 @@ public actor Session {
 
     public func clear() {
         rows.removeAll()
+        staleSpools.removeAll()
         publish()
     }
 
@@ -326,8 +345,18 @@ public actor Session {
             )
         }
         let handler = IntentHandler(inventory: inventory, settings: settings)
+        let started = configuration
+        let found: Result<Spool?, any Error>
         do {
-            let spool = try await handler.find(row.tag)
+            found = .success(try await handler.find(row.tag))
+        } catch {
+            found = .failure(error)
+        }
+        // The answer of a Bambuddy the settings have since left counts for
+        // nothing, least of all as a reason to create a spool there.
+        guard started == configuration else { return await lookup(row: id) }
+        do {
+            let spool = try found.get()
             // A tag about to be created on scan stays Looking up until the
             // create returns, rather than offering New and Link meanwhile.
             let createsOnScan = spool == nil && newSpoolOnScan(id) != nil
@@ -339,8 +368,9 @@ public actor Session {
                     $0.status = .unknown(prefill: row.tag.hasPrefill)
                 }
             }
+            staleSpools.remove(id)
             if let spool { return LookupBuilder.found(scanId: row.scanId, spool: spool) }
-            if let created = await createOnScan(id, handler) {
+            if let created = await createOnScan(id, handler, startedUnder: started) {
                 return LookupBuilder.found(scanId: row.scanId, spool: created)
             }
             return LookupBuilder.unknown(scanId: row.scanId, tag: row.tag, core: settings.coreWeight)
@@ -358,11 +388,12 @@ public actor Session {
     /// defaults (the New form's values); the row then waits for a weight. A
     /// failed create marks the row and leaves New as the retry; the Flipper
     /// gets `unknown` and keeps its own New.
-    private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler) async -> Spool? {
+    private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler, startedUnder started: Int) async -> Spool? {
         guard let newSpool = newSpoolOnScan(id) else { return nil }
         do {
             let created = try await handler.inventory.createSpool(newSpool)
             updateRow(id) { IntentHandler.markCreated(&$0, created, by: .host) }
+            settleSpool(id, startedUnder: started)
             return created
         } catch {
             let message = Self.describe(error)
@@ -423,24 +454,31 @@ public actor Session {
         }
         guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
         if intent.action == .weigh { updateRow(id) { $0.status = .saving } }
+        let started = configuration
+        let guarded = configured(inventory, under: started)
         do {
-            var outcome = try await IntentHandler(inventory: inventory, settings: settings).perform(intent, on: row)
+            var outcome = try await IntentHandler(inventory: guarded, settings: settings).perform(intent, on: forWrite(row))
+            if outlived(guarded, startedUnder: started) { return await perform(intent, arrived: arrived) }
             if intent.action == .weigh, outcome.result.ok,
                now().timeIntervalSince(arrived) > Self.flipperResultTimeout {
                 // The Flipper has shown an error by now; the host finished the save.
                 outcome.row.status = .savedAfterTimeout
                 outcome.row.savedBy = .host
             }
-            return finish(intent, outcome)
+            return finish(intent, outcome, startedUnder: started)
         } catch {
+            // the Flipper waits for the result: perform the intent on the new settings
+            if outlived(guarded, startedUnder: started) { return await perform(intent, arrived: arrived) }
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }
             return LookupBuilder.result(id: intent.id, ok: false, lines: [failed], error: message)
         }
     }
 
-    private func finish(_ intent: Intent, _ outcome: IntentHandler.Outcome) -> IntentResult {
+    /// `started`: the configuration a Bambuddy call ran under; `nil` when none was made.
+    private func finish(_ intent: Intent, _ outcome: IntentHandler.Outcome, startedUnder started: Int? = nil) -> IntentResult {
         replaceRow(outcome.row)
+        if let started { settleSpool(outcome.row.id, startedUnder: started) }
         remember(intent, outcome.result)
         return outcome.result
     }
@@ -506,15 +544,18 @@ public actor Session {
     /// tag another active spool carries. When the delete fails nothing
     /// changes; when the link fails after it, the row is left without a spool,
     /// so New and Link are offered again.
+    /// `listing` is the picker's list the spool was chosen from: a list from
+    /// older settings is refused, as its ids may name other spools now.
     @discardableResult
-    public func link(row id: FeedRow.ID, toSpool spoolId: Int) async throws -> Spool {
+    public func link(row id: FeedRow.ID, toSpool spoolId: Int, from listing: SpoolListing) async throws -> Spool {
+        guard listing.configuration == configuration else { throw SessionError.staleSpoolList }
         if let row = rows.first(where: { $0.id == id }), let created = row.createdSpoolId,
            created == row.spool?.id, created != spoolId {
-            try await hostUpdate(id) { handler, row in
+            try await hostUpdate(id, under: listing.configuration) { handler, row in
                 try await handler.deleteCreated(row)
             }
         }
-        return try await hostAction(id) { handler, row in
+        return try await hostAction(id, under: listing.configuration) { handler, row in
             try await handler.link(row, toSpool: spoolId)
         }
     }
@@ -527,19 +568,21 @@ public actor Session {
     }
 
     /// Every spool in Bambuddy, for the host's link picker.
-    public func listSpools() async throws -> [Spool] {
+    public func listSpools() async throws -> SpoolListing {
         guard let inventory = await ensureReady() else {
             throw SessionError.notReady(bambuddy.message ?? "Bambuddy not ready")
         }
-        return try await inventory.listSpools()
+        let started = configuration
+        return SpoolListing(spools: try await inventory.listSpools(), configuration: started)
     }
 
     /// A host action that ends with the row carrying a spool.
     @discardableResult
     private func hostAction(
-        _ id: FeedRow.ID, status: FeedRow.Status? = nil, _ action: (IntentHandler, FeedRow) async throws -> FeedRow
+        _ id: FeedRow.ID, under listed: Int? = nil, status: FeedRow.Status? = nil,
+        _ action: (IntentHandler, FeedRow) async throws -> FeedRow
     ) async throws -> Spool {
-        let updated = try await hostUpdate(id, status: status, action)
+        let updated = try await hostUpdate(id, under: listed, status: status, action)
         guard let spool = updated.spool else {
             let error = SessionError.spoolNotFound(updated.tag.uid)
             updateRow(id) { $0.status = .error(Self.describe(error)) }
@@ -550,21 +593,30 @@ public actor Session {
 
     /// Runs a host action against a ready Bambuddy and writes the row back;
     /// `status` shows while it runs. A failure marks the row and is rethrown.
+    /// `listed`: the configuration the action's input came from, when not the
+    /// current one; its writes are refused once the settings change.
     @discardableResult
     private func hostUpdate(
-        _ id: FeedRow.ID, status: FeedRow.Status? = nil, _ action: (IntentHandler, FeedRow) async throws -> FeedRow
+        _ id: FeedRow.ID, under listed: Int? = nil, status: FeedRow.Status? = nil,
+        _ action: (IntentHandler, FeedRow) async throws -> FeedRow
     ) async throws -> FeedRow {
         guard rows.contains(where: { $0.id == id }) else { throw SessionError.rowNotFound }
         guard let inventory = await ensureReady() else {
             throw SessionError.notReady(bambuddy.message ?? "Bambuddy not ready")
         }
         guard let row = rows.first(where: { $0.id == id }) else { throw SessionError.rowNotFound }
+        let started = listed ?? configuration
+        guard started == configuration else { throw SessionError.staleSpoolList }
         if let status { updateRow(id) { $0.status = status } }
+        let guarded = configured(inventory, under: started)
         do {
-            let updated = try await action(IntentHandler(inventory: inventory, settings: settings), row)
+            let updated = try await action(IntentHandler(inventory: guarded, settings: settings), forWrite(row))
+            if outlived(guarded, startedUnder: started) { throw SessionError.settingsChanged }
             replaceRow(updated)
-            return updated
+            settleSpool(id, startedUnder: started)
+            return rows.first { $0.id == id } ?? updated
         } catch {
+            let error = outlived(guarded, startedUnder: started) ? SessionError.settingsChanged : error
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }
             throw error
@@ -572,6 +624,24 @@ public actor Session {
     }
 
     // MARK: Plumbing
+
+    /// The inventory for an action under `started`: its writes are refused
+    /// once the settings leave `started`.
+    private func configured(_ inventory: any SpoolInventory, under started: Int) -> ConfiguredInventory {
+        ConfiguredInventory(base: inventory) { await self.isCurrent(started) }
+    }
+
+    /// Checked on the actor once the action ends: when the settings left
+    /// `started` and no write was begun, what the action read speaks for a
+    /// Bambuddy they have left, so it counts for nothing. A write begun there
+    /// counts, its spool stale.
+    private func outlived(_ guarded: ConfiguredInventory, startedUnder started: Int) -> Bool {
+        started != configuration && !guarded.writeBegan
+    }
+
+    private func isCurrent(_ started: Int) -> Bool {
+        started == configuration
+    }
 
     private func updateRow(_ id: FeedRow.ID, _ change: (inout FeedRow) -> Void) {
         guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
@@ -582,6 +652,31 @@ public actor Session {
     /// Writes back a row changed across an await; a cleared row stays cleared.
     private func replaceRow(_ row: FeedRow) {
         updateRow(row.id) { $0 = row }
+    }
+
+    /// The row as a Bambuddy write sees it: a spool from older settings is
+    /// left out, so the write looks the tag up again.
+    private func forWrite(_ row: FeedRow) -> FeedRow {
+        guard staleSpools.contains(row.id) else { return row }
+        var row = row
+        row.spool = nil
+        return row
+    }
+
+    /// After a Bambuddy call that ran under `started` set the row's spool:
+    /// under the current settings the spool is current; under older ones it
+    /// is stale, and a spool created then is not one Link may delete.
+    private func settleSpool(_ id: FeedRow.ID, startedUnder started: Int) {
+        guard started != configuration else {
+            staleSpools.remove(id)
+            return
+        }
+        guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
+        if rows[index].spool != nil { staleSpools.insert(id) }
+        if rows[index].createdSpoolId != nil {
+            rows[index].createdSpoolId = nil
+            publish()
+        }
     }
 
     private func setBambuddy(_ state: BambuddyState) {

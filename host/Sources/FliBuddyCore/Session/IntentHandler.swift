@@ -119,6 +119,8 @@ struct IntentHandler {
             try await inventory.deleteSpool(id: created)
         } catch BambuddyError.spoolNotFound(created) {
             // deleted elsewhere: the tag is free already
+        } catch SessionError.settingsChanged {
+            throw SessionError.settingsChanged
         } catch {
             throw SessionError.createdSpoolKept(spoolId: created, reason: Session.describe(error))
         }

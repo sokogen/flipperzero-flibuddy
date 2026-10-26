@@ -409,6 +409,7 @@ struct FeedViewModelRulesTests {
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
 
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 7))
 
         let tag = TagParser.parse(try fixtureScan().tag)
@@ -430,6 +431,7 @@ struct FeedViewModelRulesTests {
         let id = try #require(model.items.first?.id)
         inventory.deleteError = .http(status: 500, message: "boom")
 
+        await model.loadLinkCandidates()
         #expect(!(await model.link(id, toSpool: 7)))
 
         let reason = BambuddyError.http(status: 500, message: "boom").localizedDescription
@@ -443,6 +445,7 @@ struct FeedViewModelRulesTests {
         #expect(item.isEntry)
         #expect(item.offersLinkExisting)
         inventory.deleteError = nil
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 7))
         #expect(model.items.first?.spoolId == 7)
     }
@@ -456,6 +459,7 @@ struct FeedViewModelRulesTests {
         let id = try #require(model.items.first?.id)
         try await inventory.deleteSpool(id: 100)
 
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 7))
 
         #expect(model.items.first?.spoolId == 7)
@@ -490,9 +494,30 @@ struct FeedViewModelRulesTests {
         let id = try #require(model.items.first?.id)
 
         #expect(model.items.first?.offersLinkExisting == false)
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 100))
         // spool 100 on the new Bambuddy is someone else's: it is linked, never deleted
         #expect(!other.calls.contains { if case .delete = $0 { true } else { false } })
+    }
+
+    @Test func newSettingsBetweenTheDeleteAndTheLinkLinkNothingAndReloadTheList() async throws {
+        let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
+        let old = FakeInventory(spools: [target])
+        let (model, session) = makeModel(old)
+        _ = await session.handleScan(try scan("s-1"))
+        model.apply(await session.snapshot)
+        let id = try #require(model.items.first?.id)
+        await model.loadLinkCandidates()
+        // spool 7 on the new Bambuddy is someone else's
+        let other = FakeInventory(spools: [Spool(id: 7, material: "ASA", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        old.onDelete = { await session.reconfigure(settings: testSettings, inventory: other) }
+
+        #expect(!(await model.link(id, toSpool: 7)))
+
+        #expect(!old.calls.contains { if case .link = $0 { true } else { false } })
+        #expect(!other.calls.contains { if case .link = $0 { true } else { false } })
+        #expect(model.error(for: id) == SessionError.staleSpoolList.localizedDescription)
+        #expect(model.linkCandidates.map(\.material) == ["ASA"])
     }
 
     @Test func aFailedLinkAfterTheDeleteLeavesTheRowWithoutASpool() async throws {
@@ -504,6 +529,7 @@ struct FeedViewModelRulesTests {
         let id = try #require(model.items.first?.id)
         inventory.linkError = .network("timed out")
 
+        await model.loadLinkCandidates()
         #expect(!(await model.link(id, toSpool: 7)))
 
         let item = try #require(model.items.first)
@@ -520,6 +546,7 @@ struct FeedViewModelRulesTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 7))
 
         #expect(!inventory.calls.contains { if case .delete = $0 { true } else { false } })

@@ -19,8 +19,16 @@ public final class FeedViewModel {
 
     /// Bambuddy's spools for the Link picker; see `loadLinkCandidates()`.
     public private(set) var linkCandidates: [Spool] = []
+    /// The list `linkCandidates` came from; Link names it to the session.
+    private var linkListing: SpoolListing?
+    /// The Link picker's pick; every load of `linkCandidates` drops it, when
+    /// it starts and when it ends, as an id of an older list may name another
+    /// spool in the new one.
+    public var linkSelection: Spool.ID?
     public private(set) var linkError: String?
     public private(set) var isLoadingLinkCandidates = false
+    /// Counts the loads of `linkCandidates`; only the latest one publishes.
+    private var linkLoads = 0
 
     /// Which row has the keyboard; see `FocusModel`.
     public private(set) var focus = FocusModel()
@@ -257,19 +265,53 @@ public final class FeedViewModel {
         return await perform(id) { try await $0.createSpool(row: id, newSpool) }
     }
 
+    /// Links the row to a spool of `linkCandidates`. A pick from a list of
+    /// older settings links nothing and loads the list again; so does a pick
+    /// while the list loads.
     public func link(_ id: FeedRow.ID, toSpool spoolId: Int) async -> Bool {
-        await perform(id) { try await $0.link(row: id, toSpool: spoolId) }
+        guard !isLoadingLinkCandidates else { return false }
+        var stale = false
+        let linked = await perform(id) { session in
+            do {
+                guard let listing = linkListing else { throw SessionError.staleSpoolList }
+                try await session.link(row: id, toSpool: spoolId, from: listing)
+            } catch SessionError.staleSpoolList {
+                stale = true
+                throw SessionError.staleSpoolList
+            }
+        }
+        if stale { await loadLinkCandidates() }
+        return linked
     }
 
+    /// Loads overlap when the picker closes and opens again before the first
+    /// ends: only the latest one ends the loading, and a cancelled one (the
+    /// picker closed) leaves the list and its error as they were.
     public func loadLinkCandidates() async {
+        linkLoads += 1
+        let load = linkLoads
         isLoadingLinkCandidates = true
-        defer { isLoadingLinkCandidates = false }
+        linkSelection = nil
+        let listed: Result<SpoolListing, any Error>
         do {
-            linkCandidates = try await session.listSpools()
-            linkError = nil
+            listed = .success(try await session.listSpools())
         } catch {
-            linkCandidates = []
-            linkError = Session.describe(error)
+            listed = .failure(error)
+        }
+        guard load == linkLoads else { return }
+        isLoadingLinkCandidates = false
+        linkSelection = nil
+        if !Task.isCancelled {
+            switch listed {
+            case .success(let listing):
+                linkListing = listing
+                linkCandidates = listing.spools
+                linkError = nil
+            case .failure(let error):
+                linkListing = nil
+                linkCandidates = []
+                linkError = Session.describe(error)
+            }
         }
         apply(await session.snapshot)
     }

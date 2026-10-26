@@ -300,10 +300,149 @@ struct FeedViewModelUnknownTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
+        await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 2))
 
         #expect(model.items.first?.spoolId == 2)
         #expect(model.items.first?.isEntry == true)
+    }
+
+    @Test func aPickFromOlderSettingsReloadsTheList() async throws {
+        let (model, session) = makeModel(FakeInventory(spools: spools()))
+        let id = await session.record(try fixtureScan("scan_ntag"))
+        model.apply(await session.snapshot)
+        await model.loadLinkCandidates()
+        // spool 2 on the new Bambuddy is someone else's
+        let other = FakeInventory(spools: [Spool(id: 2, material: "ASA", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        await session.reconfigure(settings: testSettings, inventory: other)
+
+        #expect(!(await model.link(id, toSpool: 2)))
+
+        #expect(model.error(for: id) == SessionError.staleSpoolList.localizedDescription)
+        #expect(!other.calls.contains { if case .link = $0 { true } else { false } })
+        #expect(model.linkCandidates.map(\.material) == ["ASA"])
+    }
+
+    @Test func aReloadedListDropsThePick() async throws {
+        let (model, session) = makeModel(FakeInventory(spools: spools()))
+        let id = await session.record(try fixtureScan("scan_ntag"))
+        model.apply(await session.snapshot)
+        await model.loadLinkCandidates()
+        model.linkSelection = 2
+        // spool 2 on the new Bambuddy is someone else's
+        let other = FakeInventory(spools: [Spool(id: 2, material: "ASA", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        await session.reconfigure(settings: testSettings, inventory: other)
+
+        #expect(!(await model.link(id, toSpool: 2)))
+
+        // Link stays off until a spool of the new list is picked
+        #expect(model.linkSelection == nil)
+    }
+
+    @Test func loadingTheListDropsThePick() async throws {
+        let (model, _) = makeModel(FakeInventory(spools: spools()))
+        model.linkSelection = 2
+
+        await model.loadLinkCandidates()
+
+        #expect(model.linkSelection == nil)
+    }
+
+    @Test func whileTheListLoadsThereIsNoPickAndNoLink() async throws {
+        let inventory = FakeInventory(spools: spools())
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try fixtureScan("scan_ntag"))
+        model.apply(await session.snapshot)
+        await model.loadLinkCandidates()
+        // picked for another row, then Cancel
+        model.linkSelection = 2
+        let seen = Recorded<Spool.ID?>()
+        let linked = Recorded<Bool>()
+        inventory.onList = {
+            await seen.append(await model.linkSelection)
+            await linked.append(await model.link(id, toSpool: 2))
+        }
+
+        await model.loadLinkCandidates()
+
+        #expect(await seen.values == [nil])
+        #expect(await linked.values == [false])
+        #expect(!inventory.calls.contains { if case .link = $0 { true } else { false } })
+    }
+
+    @Test func anOlderLoadEndingLastChangesNothing() async throws {
+        let inventory = FakeInventory(spools: spools())
+        let held = HeldLists()
+        inventory.onList = { await held.hold() }
+        let (model, _) = makeModel(inventory)
+        // the picker closed and opened again: two loads at once
+        let older = Task { await model.loadLinkCandidates() }
+        await held.untilEntered(1)
+        let newer = Task { await model.loadLinkCandidates() }
+        await held.untilEntered(2)
+        await held.release(2)
+        await newer.value
+        model.linkSelection = 2
+        inventory.listError = .network("offline")
+
+        await held.release(1)
+        await older.value
+
+        #expect(model.linkCandidates.map(\.id) == [1, 2, 3])
+        #expect(model.linkError == nil)
+        #expect(model.linkSelection == 2)
+        #expect(!model.isLoadingLinkCandidates)
+    }
+
+    @Test func anOlderLoadEndingFirstLeavesTheNewerOneLoading() async throws {
+        let inventory = FakeInventory(spools: spools())
+        let held = HeldLists()
+        inventory.onList = { await held.hold() }
+        let (model, _) = makeModel(inventory)
+        let older = Task { await model.loadLinkCandidates() }
+        await held.untilEntered(1)
+        let newer = Task { await model.loadLinkCandidates() }
+        await held.untilEntered(2)
+
+        await held.release(1)
+        await older.value
+
+        #expect(model.isLoadingLinkCandidates)
+        await held.release(2)
+        await newer.value
+        #expect(!model.isLoadingLinkCandidates)
+        #expect(model.linkCandidates.map(\.id) == [1, 2, 3])
+    }
+
+    @Test func aCancelledLoadShowsNoError() async throws {
+        let inventory = FakeInventory(spools: spools())
+        let held = HeldLists()
+        inventory.onList = { await held.hold() }
+        let (model, _) = makeModel(inventory)
+        let load = Task { await model.loadLinkCandidates() }
+        await held.untilEntered(1)
+
+        // the picker closed; the client fails the cancelled request
+        load.cancel()
+        inventory.listError = .network("cancelled")
+        await held.release(1)
+        await load.value
+
+        #expect(model.linkError == nil)
+        #expect(!model.isLoadingLinkCandidates)
+    }
+
+    @Test func aPickWithoutAListLinksNothing() async throws {
+        let inventory = FakeInventory(spools: spools())
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try fixtureScan("scan_ntag"))
+        model.apply(await session.snapshot)
+
+        #expect(!(await model.link(id, toSpool: 2)))
+
+        #expect(model.error(for: id) == SessionError.staleSpoolList.localizedDescription)
+        #expect(!inventory.calls.contains { if case .link = $0 { true } else { false } })
+        #expect(model.linkCandidates.map(\.id) == [1, 2, 3])
     }
 
     @Test func aTagLinkedElsewhereShowsTheConflict() async throws {
@@ -314,6 +453,7 @@ struct FeedViewModelUnknownTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
+        await model.loadLinkCandidates()
         #expect(!(await model.link(id, toSpool: 2)))
 
         let message = try #require(model.error(for: id))
@@ -582,5 +722,32 @@ struct FeedViewModelUnknownTests {
         await model.clear()
 
         #expect(model.focusedRow == nil)
+    }
+}
+
+/// Holds each `listSpools` call, numbered from 1, until the test releases it.
+private actor HeldLists {
+    private var entered = 0
+    private var released: Set<Int> = []
+    private var holding: [Int: CheckedContinuation<Void, Never>] = [:]
+    private var watching: [(count: Int, CheckedContinuation<Void, Never>)] = []
+
+    func hold() async {
+        entered += 1
+        let call = entered
+        for watcher in watching where watcher.count <= entered { watcher.1.resume() }
+        watching.removeAll { $0.count <= entered }
+        guard !released.contains(call) else { return }
+        await withCheckedContinuation { holding[call] = $0 }
+    }
+
+    func release(_ call: Int) {
+        released.insert(call)
+        holding.removeValue(forKey: call)?.resume()
+    }
+
+    func untilEntered(_ count: Int) async {
+        guard entered < count else { return }
+        await withCheckedContinuation { watching.append((count, $0)) }
     }
 }

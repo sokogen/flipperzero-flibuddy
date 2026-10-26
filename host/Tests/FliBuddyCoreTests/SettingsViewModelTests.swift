@@ -122,6 +122,81 @@ struct SettingsViewModelTests {
         #expect(inventory.colorMapLoads == 0)
     }
 
+    @Test func aCatalogTheKeyCannotReadFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .permissionMissing("inventory:read")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyState.refused(.permissionMissing("inventory:read")).message!))
+        #expect(model.catalogError != nil)
+    }
+
+    @Test func aRejectedCatalogFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .unauthorized
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyState.refused(.unauthorized).message!))
+    }
+
+    @Test func anUnreachableCatalogFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .network("no answer within 5 s")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .unreachable("no answer within 5 s"))
+    }
+
+    @Test func aTestOfAnEditedURLShowsNoResult() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onSpoolman = { await MainActor.run { model.baseURL = "http://other.local:8000" } }
+
+        await model.testConnection()
+
+        #expect(model.connection == nil)
+    }
+
+    @Test func aTestOfAnEditedKeyKeepsTheCatalog() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = { await MainActor.run { model.apiKey = "bb_other" } }
+
+        await model.testConnection()
+
+        #expect(model.connection == nil)
+        #expect(model.catalog.isEmpty)
+    }
+
+    @Test func editingTheURLOrKeyDropsTheResult() async {
+        let model = makeModel()
+        await model.testConnection()
+        #expect(model.connection == .ready)
+
+        model.baseURL = "http://other.local:8000"
+        #expect(model.connection == nil)
+
+        await model.testConnection()
+        model.apiKey = "bb_other"
+        #expect(model.connection == nil)
+    }
+
+    @Test func editingOtherFieldsKeepsTheResult() async {
+        let model = makeModel()
+        await model.testConnection()
+
+        model.coreWeight = 300
+        model.defaultMode = .net
+
+        #expect(model.connection == .ready)
+    }
+
     @Test func spoolmanModeFailsTheTest() async {
         let inventory = FakeInventory()
         inventory.spoolman = true
@@ -252,6 +327,69 @@ struct SettingsViewModelTests {
 
         #expect(model.catalog.isEmpty)
         #expect(model.catalogError == BambuddyError.unauthorized.localizedDescription)
+    }
+
+    @Test func anOlderCatalogLoadThatFailsLastChangesNothing() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.loadCatalog()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
+    }
+
+    @Test func anOlderCatalogLoadThatSucceedsLastChangesNothing() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            inventory.catalogError = .unauthorized
+            await model.loadCatalog()
+            inventory.catalogError = nil
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.catalog.isEmpty)
+        #expect(model.catalogError == BambuddyError.unauthorized.localizedDescription)
+    }
+
+    @Test func aCatalogLoadThatEndsAfterATestKeepsTheTestsCatalog() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.testConnection()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.connection == .ready)
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
+    }
+
+    @Test func aTestWhoseCatalogLoadEndsAfterANewerOneStillShowsItsResult() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.loadCatalog()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.testConnection()
+
+        #expect(model.connection == .unreachable("no answer within 5 s"))
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
     }
 
     @Test func aCatalogLoadWithoutAClientIsReported() async {
@@ -409,11 +547,11 @@ struct SettingsViewModelTests {
 
     @Test func aScanWithTheRadioOnHasNoProblem() async {
         let scan = ManualScan()
-        var power = BLEPowerState.poweredOff
-        let model = makeModel(scan: scan.start, power: { power })
+        let power = LockedBox(BLEPowerState.poweredOff)
+        let model = makeModel(scan: scan.start, power: { power.value })
         model.scanForFlippers()
         #expect(await eventually { model.scanProblem != nil })
-        power = .poweredOn
+        power.mutate { $0 = .poweredOn }
 
         model.scanForFlippers()
 
