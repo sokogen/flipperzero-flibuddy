@@ -230,8 +230,9 @@
       project
 - [ ] `.github/workflows/flipper.yml`: artifact `flibuddy-fap`;
       `host.yml`: coverage step name; `.github/workflows/README.md`
-- [ ] `tools/tests/test_apple_project.py` and `test_mac_info_plist.py`
-      assert the new names and bundle ids; remove the TODO from task 2
+- [ ] `tools/tests/test_apple_project.py` asserts the new project, target,
+      package and scheme names and bundle ids (`test_mac_info_plist.py`
+      follows in Task 3; Task 2 added no TODO)
 - [ ] run `cd tools && uv run pytest` and `make apple-project apple-build`
       - must pass before task 5
 
