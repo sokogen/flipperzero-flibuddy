@@ -116,6 +116,58 @@ import Testing
         #expect(transport.state == .closed)
     }
 
+    @Test func openingAndClosingAreLogged() async throws {
+        let pty = try PseudoTerminal()
+        defer { pty.closeMaster() }
+        let transport = SerialTransport(path: pty.slavePath)
+
+        let sink = try await capturingLog {
+            try transport.connect()
+            transport.disconnect()
+            transport.disconnect()
+        }
+
+        #expect(sink.events == ["link open: port=\(pty.slavePath)", "link close: port=\(pty.slavePath)"])
+    }
+
+    @Test func aFailedOpenIsLoggedWithTheErrno() async {
+        let transport = SerialTransport(path: "/dev/cu.usbmodemflip_nope")
+
+        let sink = await capturingLog { _ = try? transport.connect() }
+
+        #expect(sink.events == ["link open failed: port=/dev/cu.usbmodemflip_nope errno=2 (No such file or directory)"])
+        #expect(sink.lines.map(\.level) == [.error])
+    }
+
+    @Test func wireLinesAndTheHangUpGoToTheLogInEffectAtConnect() async throws {
+        let pty = try PseudoTerminal()
+        let transport = SerialTransport(path: pty.slavePath)
+        let hello = String(decoding: try Message.flipperHello.encodedLine().dropLast(), as: UTF8.self)
+
+        let sink = try await capturingLog(level: .debug) {
+            try transport.connect()
+            pty.closeSlave()
+            let received = await Collector.draining(transport.messages)
+            try transport.send(.hostHello)
+            pty.write(#"{"t":"ping","v":1}"# + "\n")
+            pty.write(hello + "\n")
+            #expect(await eventually { await received.items == [.flipperHello] })
+            pty.closeMaster()
+            #expect(await eventually { await received.finished })
+        }
+
+        let events = sink.events
+        #expect(events.count == 6)
+        #expect(Array(events.prefix(5)) == [
+            "link open: port=\(pty.slavePath)",
+            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":1}"#,
+            #"wire rx: {"t":"ping","v":1}"#,
+            #"wire dropped: reason=unknown type ping line={"t":"ping","v":1}"#,
+            "wire rx: \(hello)",
+        ])
+        #expect(events.last?.hasPrefix("link hangup: port=\(pty.slavePath) reason=") == true)
+    }
+
     @Test func sendBeforeConnectThrows() {
         let transport = SerialTransport(path: "/dev/null")
         #expect(throws: TransportError.notConnected) { try transport.send(.hostHello) }

@@ -15,6 +15,128 @@ private func makeTransport(_ central: FakeCentral, peripheral: UUID?) -> BLETran
 
 @Suite("BLETransport")
 struct BLETransportTests {
+    @Test func connectingToARememberedPeripheralAndClosingAreLogged() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.peripheral(flipperA).maximumWriteValueLength = 182
+        let transport = makeTransport(central, peripheral: flipperA)
+
+        let sink = try await capturingLog {
+            try await transport.connect()
+            transport.disconnect()
+            transport.disconnect()
+        }
+
+        #expect(sink.events == [
+            "link bluetooth known: peripheral=\(flipperA.uuidString)",
+            "link bluetooth open: peripheral=\(flipperA.uuidString) max_write=182",
+            "link bluetooth close: peripheral=\(flipperA.uuidString)",
+        ])
+    }
+
+    @Test func aScannedPeripheralIsLoggedWithItsNameAndSignal() async throws {
+        let central = FakeCentral()
+        central.advertise(found(flipperB, "Flipper Other"))
+        central.advertise(found(flipperA))
+        let transport = makeTransport(central, peripheral: nil)
+
+        let sink = try await capturingLog { try await transport.connect() }
+        defer { transport.disconnect() }
+
+        #expect(sink.events == [
+            "link bluetooth scan: peripheral=any",
+            "link bluetooth found: peripheral=\(flipperB.uuidString) name=Flipper Other rssi=-60",
+            "link bluetooth open: peripheral=\(flipperB.uuidString) max_write=20",
+        ])
+    }
+
+    @Test func aFailedConnectIsLoggedWithItsError() async {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.withoutService = true
+        let off = FakeCentral()
+        off.power = .poweredOff
+
+        let sink = await capturingLog {
+            _ = try? await makeTransport(central, peripheral: flipperA).connect()
+            _ = try? await makeTransport(off, peripheral: nil).connect()
+        }
+
+        #expect(sink.events("link bluetooth connect failed:") == [
+            "link bluetooth connect failed: peripheral=\(flipperA.uuidString) error=\(TransportError.serviceNotFound.localizedDescription)",
+            "link bluetooth connect failed: peripheral=any error=Bluetooth is off",
+        ])
+        #expect(sink.lines.last?.level == .error)
+    }
+
+    @Test func aScanThatFindsNothingIsLoggedAsAFailedConnect() async {
+        let central = FakeCentral()
+
+        let sink = await capturingLog { _ = try? await makeTransport(central, peripheral: nil).connect() }
+
+        #expect(sink.events == [
+            "link bluetooth scan: peripheral=any",
+            "link bluetooth connect failed: peripheral=any error=\(TransportError.peripheralNotFound.localizedDescription)",
+        ])
+        #expect(sink.lines.last?.level == .error)
+    }
+
+    @Test func aCancelledConnectIsNotLoggedAsAFailure() async {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.connectHangs = true
+        let transport = BLETransport(central: central, peripheral: flipperA, scanTimeout: .seconds(10), connectTimeout: .seconds(10))
+
+        let sink = await capturingLog {
+            let attempt = Task { try await transport.connect() }
+            // Long enough for the attempt to reach the hanging connect.
+            try? await Task.sleep(for: .milliseconds(50))
+            attempt.cancel()
+            _ = try? await attempt.value
+        }
+
+        #expect(central.cancelled == [flipperA])
+        #expect(sink.events("link bluetooth connect failed:").isEmpty)
+    }
+
+    @Test func aDropAndAFailedWriteAreLogged() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA, flipperB]
+        let dropped = makeTransport(central, peripheral: flipperA)
+        let refused = makeTransport(central, peripheral: flipperB)
+
+        let sink = try await capturingLog {
+            try await dropped.connect()
+            try await refused.connect()
+            central.peripheral(flipperA).drop()
+            try refused.send(.hostHello)
+            central.peripheral(flipperB).failWrite()
+        }
+
+        #expect(sink.events("link bluetooth disconnected:") == ["link bluetooth disconnected: peripheral=\(flipperA.uuidString)"])
+        #expect(sink.events("link bluetooth write failed:") == ["link bluetooth write failed: peripheral=\(flipperB.uuidString)"])
+        #expect(sink.events("link bluetooth close:").isEmpty)
+    }
+
+    @Test func wireLinesAreLogged() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        let transport = makeTransport(central, peripheral: flipperA)
+        try await transport.connect()
+        defer { transport.disconnect() }
+
+        let sink = try await capturingLog(level: .debug) {
+            try transport.send(.hostHello)
+            central.peripheral(flipperA).notify(Data(#"{"t":"ping","v":1}"#.utf8 + [0x0A]))
+        }
+
+        #expect(sink.events == [
+            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":1}"#,
+            #"wire rx: {"t":"ping","v":1}"#,
+            #"wire dropped: reason=unknown type ping line={"t":"ping","v":1}"#,
+        ])
+    }
+
     @Test func connectingSubscribesAndKeepsTheHelloSentOnSubscribe() async throws {
         let central = FakeCentral()
         central.known = [flipperA]

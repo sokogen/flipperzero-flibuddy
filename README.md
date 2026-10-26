@@ -89,6 +89,10 @@ Flipper port defaults to the first `/dev/cu.usbmodemflip_*`. Every scan
 appears in the session feed, where the weight can be entered or corrected,
 new spools created and tags linked to existing spools. See `host/README.md`.
 
+The app logs to `~/Library/Logs/FliBuddy/flibuddy.log` (Help ▸ **Show Log
+File**); `FLIBUDDY_LOG=debug swift run FliBuddyMac` adds the protocol lines.
+See "Debugging" in `host/README.md`.
+
 The core weight of new items defaults to 325 g: everything on the scale that
 is not filament, a Bambu reusable spool (293 g) plus a refill core (32 g).
 Picking a catalog entry copies its weight, which can then be edited; the

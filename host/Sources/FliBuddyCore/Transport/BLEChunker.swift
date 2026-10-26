@@ -46,7 +46,9 @@ public struct BLEChunker: Sendable {
 
     /// Queues the encoded line of a message.
     public mutating func enqueue(_ message: Message) throws {
-        pending.append(contentsOf: try message.encodedLine())
+        let line = try message.encodedLine()
+        WireLog.sent(line)
+        pending.append(contentsOf: line)
     }
 
     /// The next write, or `nil` while one is in flight or nothing is queued.
@@ -67,7 +69,7 @@ public struct BLEChunker: Sendable {
     /// Feeds one TX notification; returns the messages it completes. Lines
     /// that do not decode or exceed the protocol limit are dropped.
     public mutating func receive(_ notification: Data) -> [Message] {
-        framer.push(notification).compactMap { try? Message.decode(line: $0) }
+        WireLog.receive(notification, framer: &framer)
     }
 
     /// Forgets queued writes, the write in flight and a partial inbound line,

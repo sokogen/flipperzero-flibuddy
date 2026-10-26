@@ -63,13 +63,13 @@
 ## Implementation Steps
 
 ### Task 1: `Log` facade with unified log and file sinks
-- [ ] write the failing tests first in `host/Tests/FliBuddyCoreTests/LogTests.swift`:
+- [x] write the failing tests first in `host/Tests/FliBuddyCoreTests/LogTests.swift`:
       a line logged at `.info` reaches an in-memory sink with timestamp,
       level, category and message; `.debug` lines are dropped unless the
       level is `.debug`; `redact` replaces any `bb_…` API key and any
       `key=` / `X-API-Key` value with `«redacted»`; the file sink rotates
       at the size limit and keeps the configured number of old files
-- [ ] add `host/Sources/FliBuddyCore/Logging/Log.swift`: `public enum Log`
+- [x] add `host/Sources/FliBuddyCore/Logging/Log.swift`: `public enum Log`
       with `static func info/notice/error/debug(_ category: Category,
       _ message: @autoclosure () -> String)`, `Category` cases `link`,
       `wire`, `session`, `bambuddy`, `settings`, `sync`, `ui`, `app`;
@@ -78,80 +78,105 @@
       `LogSink` protocol (`write(line:)`) with `OSLogSink` (one `os.Logger`
       per category, subsystem `com.sokolachko.flibuddy`), `FileSink` and
       `MemorySink` (tests); `Log.sinks` is configurable
-- [ ] `FileSink`: `~/Library/Logs/FliBuddy/flibuddy.log` on macOS, the app's
+- [x] `FileSink`: `~/Library/Logs/FliBuddy/flibuddy.log` on macOS, the app's
       Application Support `Logs/flibuddy.log` on iOS and watchOS; line
       format `2026-10-26T13:04:05.123+0300 INFO link message`; appends,
       flushes per line, rotates at 5 MB keeping 3 old files; a write
       failure is reported once through the unified log and then ignored
-- [ ] `Log.redact(_:)` applied to every message before the sinks
-- [ ] run `cd host && swift test` - must pass before task 2
+- [x] `Log.redact(_:)` applied to every message before the sinks
+- [x] run `cd host && swift test` - must pass before task 2
 
 ### Task 2: Link and wire events
-- [ ] tests first (`TransportSessionTests`, `FlipperLinkTests`,
+- [x] tests first (`TransportSessionTests`, `FlipperLinkTests`,
       `SerialTransportTests`, `BLETransportTests` with `MemorySink`): each
       event below appears once with the expected fields
-- [ ] `FlipperLink`: `link connect: transport=usb port=/dev/…` /
-      `transport=bluetooth peripheral=<uuid> name=…`, `link state:
+- [x] `FlipperLink`: `link connect: transport=usb port=/dev/…` /
+      `transport=bluetooth peripheral=<uuid>`, `link state:
       <old> -> <new>` with the problem text, `link retry: in=2s`,
       `link disconnect`
-- [ ] `SerialTransport`: open with the resolved path and the errno on
+- [x] `SerialTransport`: open with the resolved path and the errno on
       failure, close, write errors; `CoreBluetoothCentral` / `BLETransport`:
       scan start/stop, discovered peripheral (name, RSSI), connect,
       service/characteristic found or missing, MTU, disconnect with the
       CoreBluetooth error
-- [ ] `TransportSession`: `wire tx: <line>` and `wire rx: <line>` at
+- [x] `TransportSession`: `wire tx: <line>` and `wire rx: <line>` at
       `.debug`, truncated to 300 characters with `… (+N bytes)`; dropped
-      lines (`MessageError`) at `.error` with the reason and the first 120
+      lines (`ProtocolError`) at `.error` with the reason and the first 120
       characters; `hello sent: app=…`, `hello received: app=… fw=… os=…`,
       `hello timeout: after=2s`
-- [ ] run tests - must pass before task 3
+- [x] ➕ `TransportSession` only sees decoded messages, so the wire lines
+      are logged where lines are encoded and decoded: `WireLog` (in
+      `Transport/WireLog.swift`) is called by `SerialTransport` and
+      `BLEChunker`; it also reports lines the framer drops as too long.
+      `SerialTransport` reads on a dispatch queue and logs to the log in
+      effect at `connect()`. The peripheral's name is logged by
+      `BLETransport` when the scan finds it, not by `FlipperLink`, which
+      only knows the identifier. "No Flipper found" is logged once while
+      it lasts, its retries at `.debug`
+- [x] run tests - must pass before task 3
 
 ### Task 3: Session, Bambuddy and settings events
-- [ ] tests first (`SessionTests`, `BambuddyClientTests`, `SettingsTests`,
+- [x] tests first (`SessionTests`, `BambuddyClientTests`, `SettingsTests`,
       `SettingsViewModelTests`, `WatchSettingsSyncTests`)
-- [ ] `Session`: `session bambuddy: <state>` on every change with the
+- [x] `Session`: `session bambuddy: <state>` on every change with the
       message; `session scan: id=… uid=… tray=… kind=mfc|ntag material=…`;
       `session lookup: id=… status=found spool=… | not_found | created
       spool=… | error=…` with the elapsed ms; `session intent: id=… action=…
       spool=… grams=… mode=…` and `session result: id=… ok|error=…`;
       create on scan, link, delete and their failures
-- [ ] `BambuddyClient.send`: `bambuddy GET /inventory/spools/by-tag -> 200
+- [x] `BambuddyClient.send`: `bambuddy GET /inventory/spools/by-tag -> 200
       in 43 ms` at `.info`, the response body's first 200 characters at
       `.debug`, errors at `.error` with the Bambuddy message; the
       `X-API-Key` value never appears (assert in a test)
-- [ ] `SettingsStore`: `settings load: url=… key=present|absent catalog=…
+- [x] `SettingsStore`: `settings load: url=… key=present|absent catalog=…
       core=… mode=… transport=…`, `settings save: …`, Keychain failures
       with the `OSStatus` and `SecCopyErrorMessageString`
-- [ ] `SettingsViewModel`: test connection start/result, catalog load
+- [x] `SettingsViewModel`: test connection start/result, catalog load
       result; `WatchSettingsSync`: payload sent/received (version only, no
       key)
-- [ ] run tests - must pass before task 4
+- [x] ➕ the lookup line reads `lookup: id=… status=found|created spool=… ms=…`,
+      `status=not_found ms=…` or `status=error ms=… error=…`, timed with the
+      session's clock; host creates (`create` / `create failed`) and a failed
+      colour map load are logged too. `BambuddyClient` logs 2xx and 404 (a
+      lookup miss the callers interpret) at `.info`, other statuses at
+      `.error` with Bambuddy's `detail`, network failures at `.error`. The
+      watch sync logs held sends at `.debug`
+- [x] run tests - must pass before task 4
 
 ### Task 4: Apps: start-up line, level, Show Log File
-- [ ] `FliBuddyMac/App.swift`, `iOS/App.swift`, `Watch/App.swift`: on launch
+- [x] `FliBuddyMac/App.swift`, `iOS/App.swift`, `Watch/App.swift`: on launch
       `app start: FliBuddy <version> <platform> log=<file path>
       level=<level>`; the Mac app adds a Help menu item "Show Log File"
       (reveals the file in Finder) and reads `FLIBUDDY_LOG` from the
       environment; iOS and watch keep `.info`
-- [ ] `Log` installs `OSLogSink` and `FileSink` once per process
+- [x] `Log` installs `OSLogSink` and `FileSink` once per process
       (`Log.bootstrap(appName:)`), idempotent; tests cover bootstrap
       idempotence with the memory sink
-- [ ] run `make test`, `make lint`, `make coverage`, `make apple-project
+- [x] run `make test`, `make lint`, `make coverage`, `make apple-project
       apple-build` - must pass before task 5
+- [x] ➕ the start line is logged at `.notice` by `Log.bootstrap`, which
+      also takes the level, version, platform, file URL and sinks (tests
+      pass a memory sink); `Log.fileURL` is the installed file, which Show
+      Log File reveals. The apps bootstrap in `init()` before creating the
+      `HostModel`, whose settings load already logs
 
 ### Task 5: Verify acceptance criteria
-- [ ] every seam listed in Context emits its events (grep the sources for
+- [x] every seam listed in Context emits its events (grep the sources for
       `Log.` and compare with the lists in Tasks 2–3)
-- [ ] `git grep -n 'apiKey' host/Sources | grep -i log` shows no key reaching
+- [x] `git grep -n 'apiKey' host/Sources | grep -i log` shows no key reaching
       a log call; a test proves redaction of a `bb_` key
-- [ ] run the full test suite, lint and coverage
+- [x] run the full test suite, lint and coverage
+- [x] ➕ the grep's hits are false positives (the `Logging/` path, "catalog"
+      contains "log"); settings lines log `key=present|absent`; redaction is
+      proven by `LogTests` and by `BambuddyClientTests`, `SettingsTests` and
+      `WatchSettingsSyncTests` asserting the key never reaches a sink
 
 ### Task 6: Documentation
-- [ ] `host/README.md`: a "Debugging" section: the log file paths, the
+- [x] `host/README.md`: a "Debugging" section: the log file paths, the
       `FLIBUDDY_LOG=debug` switch, `log stream --predicate 'subsystem ==
       "com.sokolachko.flibuddy"'`, what each category records, and that
       the API key is never logged
-- [ ] `AGENTS.md`: one line that new code paths log their outcome through
+- [x] `AGENTS.md`: one line that new code paths log their outcome through
       `Log` and that secrets never reach it
 
 ## Technical Details

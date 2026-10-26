@@ -7,7 +7,14 @@ import SwiftUI
 @main
 struct FliBuddyMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @ViewState private var host = HostModel()
+    @ViewState private var host: HostModel
+
+    init() {
+        // Before the host model: loading the settings already logs. The
+        // level comes from `FLIBUDDY_LOG`.
+        Log.bootstrap(appName: "FliBuddy")
+        _host = ViewState(initialValue: HostModel())
+    }
 
     var body: some Scene {
         // One window: the feed and the Flipper link are app-wide.
@@ -20,6 +27,14 @@ struct FliBuddyMacApp: App {
                 }
         }
         .defaultSize(width: 1000, height: 600)
+        .commands {
+            CommandGroup(after: .help) {
+                Button("Show Log File") {
+                    guard let url = Log.fileURL else { return }
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            }
+        }
         // `Settings` alone would be FliBuddyCore's settings struct.
         SwiftUI.Settings {
             SettingsView(host: host)

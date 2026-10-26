@@ -35,6 +35,17 @@ public enum BambuddyState: Equatable, Sendable {
         }
     }
 
+    /// The case's name, for the log.
+    var name: String {
+        switch self {
+        case .unchecked: "unchecked"
+        case .notConfigured: "notConfigured"
+        case .ready: "ready"
+        case .refused: "refused"
+        case .unreachable: "unreachable"
+        }
+    }
+
     /// The same, short enough for the Flipper screen.
     var flipperLines: [String] {
         switch self {
@@ -276,6 +287,7 @@ public actor Session {
             }
         case .failure(let error):
             colorNamesProblem = "Colour names unavailable: \(Self.describe(error))"
+            Log.error(.session, "colour names failed: error=\(Self.describe(error))")
         }
         publish()
     }
@@ -302,7 +314,15 @@ public actor Session {
     }
 
     public func handleScan(_ scan: Scan) async -> Lookup {
-        await lookup(row: record(scan))
+        Log.info(.session, Self.describe(scan))
+        return await lookup(row: record(scan))
+    }
+
+    /// `scan: id=… uid=… tray=… kind=mfc|ntag material=…`.
+    private static func describe(_ scan: Scan) -> String {
+        let tag = TagParser.parse(scan.tag)
+        return "scan: id=\(scan.scanId) uid=\(tag.uid) tray=\(tag.trayUuid ?? "none") "
+            + "kind=\(scan.tag.type.rawValue) material=\(tag.material ?? "none")"
     }
 
     /// Adds a row for the scan, newest last. A tag already in the feed (same
@@ -335,13 +355,37 @@ public actor Session {
 
     /// Looks the row's tag up in Bambuddy and builds the Flipper's `lookup`.
     public func lookup(row id: FeedRow.ID) async -> Lookup {
+        let started = now()
+        let (lookup, outcome) = await find(row: id)
+        let ms = Int((now().timeIntervalSince(started) * 1000).rounded())
+        switch outcome {
+        case .found(let spool): Log.info(.session, "lookup: id=\(lookup.scanId) status=found spool=\(spool) ms=\(ms)")
+        case .created(let spool):
+            Log.info(.session, "lookup: id=\(lookup.scanId) status=created spool=\(spool) ms=\(ms)")
+        case .notFound: Log.info(.session, "lookup: id=\(lookup.scanId) status=not_found ms=\(ms)")
+        case .failed(let error): Log.error(.session, "lookup: id=\(lookup.scanId) status=error ms=\(ms) error=\(error)")
+        }
+        return lookup
+    }
+
+    /// What a lookup came to, for the log.
+    private enum LookupOutcome {
+        case found(Int)
+        case created(Int)
+        case notFound
+        case failed(String)
+    }
+
+    private func find(row id: FeedRow.ID) async -> (Lookup, LookupOutcome) {
         guard let row = rows.first(where: { $0.id == id }) else {
-            return LookupBuilder.error(scanId: "unknown", lines: ["Scan dropped"], error: "row cleared")
+            return (LookupBuilder.error(scanId: "unknown", lines: ["Scan dropped"], error: "row cleared"), .failed("row cleared"))
         }
         guard let inventory = await ensureReady() else {
-            updateRow(id) { $0.status = .error(bambuddy.message ?? "Bambuddy not ready") }
-            return LookupBuilder.error(
-                scanId: row.scanId, lines: bambuddy.flipperLines, error: bambuddy.message ?? "not ready"
+            let message = bambuddy.message ?? "Bambuddy not ready"
+            updateRow(id) { $0.status = .error(message) }
+            return (
+                LookupBuilder.error(scanId: row.scanId, lines: bambuddy.flipperLines, error: bambuddy.message ?? "not ready"),
+                .failed(message)
             )
         }
         let handler = IntentHandler(inventory: inventory, settings: settings)
@@ -354,7 +398,7 @@ public actor Session {
         }
         // The answer of a Bambuddy the settings have since left counts for
         // nothing, least of all as a reason to create a spool there.
-        guard started == configuration else { return await lookup(row: id) }
+        guard started == configuration else { return await find(row: id) }
         do {
             let spool = try found.get()
             // A tag about to be created on scan stays Looking up until the
@@ -369,18 +413,19 @@ public actor Session {
                 }
             }
             staleSpools.remove(id)
-            if let spool { return LookupBuilder.found(scanId: row.scanId, spool: spool) }
+            if let spool { return (LookupBuilder.found(scanId: row.scanId, spool: spool), .found(spool.id)) }
             if let created = await createOnScan(id, handler, startedUnder: started) {
-                return LookupBuilder.found(scanId: row.scanId, spool: created)
+                return (LookupBuilder.found(scanId: row.scanId, spool: created), .created(created.id))
             }
-            return LookupBuilder.unknown(scanId: row.scanId, tag: row.tag, core: settings.coreWeight)
+            return (LookupBuilder.unknown(scanId: row.scanId, tag: row.tag, core: settings.coreWeight), .notFound)
         } catch {
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }
             let isNetwork = if case BambuddyError.network = error { true } else { false }
-            return LookupBuilder.error(
+            let lookup = LookupBuilder.error(
                 scanId: row.scanId, lines: [isNetwork ? "Bambuddy unreachable" : "Lookup failed"], error: message
             )
+            return (lookup, .failed(message))
         }
     }
 
@@ -390,14 +435,17 @@ public actor Session {
     /// gets `unknown` and keeps its own New.
     private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler, startedUnder started: Int) async -> Spool? {
         guard let newSpool = newSpoolOnScan(id) else { return nil }
+        let scanId = scanId(of: id)
         do {
             let created = try await handler.inventory.createSpool(newSpool)
             updateRow(id) { IntentHandler.markCreated(&$0, created, by: .host) }
             settleSpool(id, startedUnder: started)
+            Log.info(.session, "create on scan: id=\(scanId) spool=\(created.id)")
             return created
         } catch {
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }
+            Log.error(.session, "create on scan failed: id=\(scanId) error=\(message)")
             return nil
         }
     }
@@ -419,6 +467,29 @@ public actor Session {
     /// another intent, which is performed after the one still running under
     /// that id, so the newer outcome is the one that stays.
     public func handleIntent(_ intent: Intent) async -> IntentResult {
+        Log.info(.session, describe(intent))
+        let result = await resolve(intent)
+        if result.ok {
+            Log.info(.session, "result: id=\(result.id) ok")
+        } else {
+            Log.error(.session, "result: id=\(result.id) error=\(result.error ?? result.lines.joined(separator: " / "))")
+        }
+        return result
+    }
+
+    /// `intent: id=… action=… spool=… grams=… mode=…`; the spool is the one
+    /// the host knows for the tag, if any.
+    private func describe(_ intent: Intent) -> String {
+        let tag = TagParser.parse(intent.tag)
+        let row = rows.last(where: { $0.scanId == intent.scanId && $0.tag.uid == tag.uid })
+            ?? rows.last(where: { Self.sameTag($0.tag, tag) })
+        var text = "intent: id=\(intent.id) action=\(intent.action.rawValue) spool=\(row?.spool.map { "\($0.id)" } ?? "none")"
+        if let grams = intent.grams { text += " grams=\(grams)" }
+        if let mode = intent.mode { text += " mode=\(mode.rawValue)" }
+        return text
+    }
+
+    private func resolve(_ intent: Intent) async -> IntentResult {
         while true {
             if let cached = results[intent.id], cached.intent == intent { return cached.result }
             guard let running = inFlight[intent.id] else { break }
@@ -527,15 +598,23 @@ public actor Session {
     /// instead, so no duplicate is created.
     @discardableResult
     public func createSpool(row id: FeedRow.ID, _ newSpool: NewSpool) async throws -> Spool {
-        try await hostAction(id) { handler, row in
-            guard let existing = try await handler.find(row.tag) else {
-                return try await handler.create(row, newSpool, by: .host)
+        let scanId = scanId(of: id)
+        do {
+            let spool = try await hostAction(id) { handler, row in
+                guard let existing = try await handler.find(row.tag) else {
+                    return try await handler.create(row, newSpool, by: .host)
+                }
+                var row = row
+                row.spool = existing
+                row.status = .awaitingWeight
+                row.request = nil
+                return row
             }
-            var row = row
-            row.spool = existing
-            row.status = .awaitingWeight
-            row.request = nil
-            return row
+            Log.info(.session, "create: id=\(scanId) spool=\(spool.id)")
+            return spool
+        } catch {
+            Log.error(.session, "create failed: id=\(scanId) error=\(Self.describe(error))")
+            throw error
         }
     }
 
@@ -548,15 +627,32 @@ public actor Session {
     /// older settings is refused, as its ids may name other spools now.
     @discardableResult
     public func link(row id: FeedRow.ID, toSpool spoolId: Int, from listing: SpoolListing) async throws -> Spool {
-        guard listing.configuration == configuration else { throw SessionError.staleSpoolList }
+        let scanId = scanId(of: id)
+        guard listing.configuration == configuration else {
+            Log.error(.session, "link failed: id=\(scanId) spool=\(spoolId) error=\(Self.describe(SessionError.staleSpoolList))")
+            throw SessionError.staleSpoolList
+        }
         if let row = rows.first(where: { $0.id == id }), let created = row.createdSpoolId,
            created == row.spool?.id, created != spoolId {
-            try await hostUpdate(id, under: listing.configuration) { handler, row in
-                try await handler.deleteCreated(row)
+            do {
+                try await hostUpdate(id, under: listing.configuration) { handler, row in
+                    try await handler.deleteCreated(row)
+                }
+                Log.info(.session, "delete: id=\(scanId) spool=\(created)")
+            } catch {
+                Log.error(.session, "delete failed: id=\(scanId) spool=\(created) error=\(Self.describe(error))")
+                throw error
             }
         }
-        return try await hostAction(id, under: listing.configuration) { handler, row in
-            try await handler.link(row, toSpool: spoolId)
+        do {
+            let spool = try await hostAction(id, under: listing.configuration) { handler, row in
+                try await handler.link(row, toSpool: spoolId)
+            }
+            Log.info(.session, "link: id=\(scanId) spool=\(spool.id)")
+            return spool
+        } catch {
+            Log.error(.session, "link failed: id=\(scanId) spool=\(spoolId) error=\(Self.describe(error))")
+            throw error
         }
     }
 
@@ -682,7 +778,18 @@ public actor Session {
     private func setBambuddy(_ state: BambuddyState) {
         guard state != bambuddy else { return }
         bambuddy = state
+        let line = "bambuddy: \(state.name)" + (state.message.map { " message=\($0)" } ?? "")
+        switch state {
+        case .unchecked, .ready: Log.info(.session, line)
+        case .notConfigured: Log.notice(.session, line)
+        case .refused, .unreachable: Log.error(.session, line)
+        }
         publish()
+    }
+
+    /// The row's scan id for the log; `unknown` once the row is gone.
+    private func scanId(of id: FeedRow.ID) -> String {
+        rows.first { $0.id == id }?.scanId ?? "unknown"
     }
 
     private func publish() {

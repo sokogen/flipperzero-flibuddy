@@ -27,6 +27,9 @@ Instructions for coding agents (and humans) working in this repository.
   means changing the schema, the fixtures and both sides in one commit.
 - Bambuddy internal inventory mode only; the host refuses Spoolman mode.
 - The Flipper never creates an item without `material`.
+- New host code paths log their outcome through `Log` (`FliBuddyCore/Logging`,
+  see "Debugging" in `host/README.md`); secrets (the API key, the QR and
+  sync payloads) never reach it.
 
 ## Layout
 

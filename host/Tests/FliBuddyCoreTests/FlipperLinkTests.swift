@@ -164,6 +164,139 @@ struct FlipperLinkTests {
         #expect(await eventually { transport.connectCount >= 2 })
     }
 
+    @Test func connectingTheHandshakeAndDisconnectingAreLogged() async {
+        let transport = FakeTransport()
+        let (link, _) = makeLink(transport)
+
+        let sink = await capturingLog {
+            link.connect(.usb(port: nil))
+            #expect(await eventually { link.state == .waitingForHello })
+            transport.deliver(.flipperHello)
+            #expect(await eventually { link.connectedTransport == .usb })
+            link.disconnect()
+            link.disconnect()
+        }
+
+        #expect(sink.events("link connect") == ["link connect: transport=usb port=/dev/cu.usbmodemflip_A"])
+        #expect(sink.events("link state:") == [
+            "link state: disconnected -> waitingForHello",
+            "link state: waitingForHello -> connected",
+            "link state: connected -> disconnected",
+        ])
+        #expect(sink.events("link disconnect") == ["link disconnect"])
+        #expect(sink.events("link retry").isEmpty)
+    }
+
+    @Test func aDroppedLinkIsLoggedAndRetried() async {
+        let transport = FakeTransport()
+        let (link, _) = makeLink(transport)
+
+        let sink = await capturingLog {
+            link.connect(.usb(port: nil))
+            defer { link.disconnect() }
+            #expect(await eventually { link.state == .waitingForHello })
+            transport.disconnect()
+            #expect(await eventually { transport.connectCount == 2 && link.state == .waitingForHello })
+        }
+
+        #expect(sink.events("link state:") == [
+            "link state: disconnected -> waitingForHello",
+            "link state: waitingForHello -> disconnected",
+            "link state: disconnected -> waitingForHello",
+            "link state: waitingForHello -> disconnected",
+        ])
+        #expect(sink.events("link retry") == ["link retry: in=50ms"])
+        #expect(sink.events("link connect") == [
+            "link connect: transport=usb port=/dev/cu.usbmodemflip_A",
+            "link connect: transport=usb port=/dev/cu.usbmodemflip_A",
+        ])
+    }
+
+    @Test func aFailedConnectIsLoggedWithItsError() async {
+        let transport = FakeTransport()
+        transport.connectError = TransportError.openFailed(path: "/dev/cu.usbmodemflip_A", errno: 16)
+        let (link, _) = makeLink(transport)
+
+        let sink = await capturingLog {
+            link.connect(.usb(port: "/dev/cu.usbmodemflip_A"))
+            defer { link.disconnect() }
+            #expect(await eventually { transport.connectCount >= 2 })
+        }
+
+        let failed = sink.lines.filter { $0.message.hasPrefix("connect failed:") }
+        #expect(failed.first?.message == "connect failed: error=Cannot open /dev/cu.usbmodemflip_A: Resource busy")
+        #expect(failed.first?.level == .error)
+        #expect(sink.events("link state:").isEmpty)
+        #expect(sink.events("link retry").first == "link retry: in=50ms")
+    }
+
+    @Test func aReplyThatCannotBeSentIsLoggedWithTheProblem() async throws {
+        let transport = FakeTransport()
+        let (link, _) = makeLink(transport)
+
+        let sink = try await capturingLog {
+            link.connect(.usb(port: nil))
+            defer { link.disconnect() }
+            #expect(await eventually { link.state == .waitingForHello })
+            transport.deliver(.flipperHello)
+            #expect(await eventually { link.connectedTransport == .usb })
+            transport.nextSendError = TransportError.writeTimedOut
+            transport.deliver(.scan(try fixtureScan()))
+            #expect(await eventually { transport.connectCount == 2 })
+        }
+
+        #expect(sink.events("link reply failed") == ["link reply failed: type=lookup error=Writing to the Flipper timed out"])
+        #expect(sink.events("link state: connected") == [
+            #"link state: connected -> disconnected problem="Writing to the Flipper timed out""#,
+        ])
+    }
+
+    @Test func noFlipperIsLoggedOnceWhileItStaysAway() async {
+        let session = Session(settings: testSettings, inventory: nil)
+        let link = FlipperLink(
+            session: session, hello: hostHello, makeTransport: { _ in FakeTransport() },
+            discoverPorts: { [] }, retryDelay: .milliseconds(10)
+        )
+
+        let sink = await capturingLog {
+            link.connect(.usb(port: nil))
+            defer { link.disconnect() }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        #expect(sink.events == ["link problem: No Flipper found", "link disconnect"])
+    }
+
+    @Test func bluetoothConnectsAreLoggedWithThePeripheral() async {
+        let flipper = UUID(uuidString: "00000000-0000-0000-0000-00000000000A")!
+        let central = FakeCentral()
+        central.known = [flipper]
+        central.advertise(DiscoveredPeripheral(id: flipper, name: "Flipper Anmaa1", rssi: -50))
+        let session = Session(settings: testSettings, inventory: nil)
+        let link = FlipperLink(
+            session: session, hello: hostHello,
+            makeTransport: { choice in
+                guard case .bluetooth(let id) = choice else { return FakeTransport() }
+                return BLETransport(central: central, peripheral: id)
+            },
+            retryDelay: .milliseconds(50)
+        )
+
+        let sink = await capturingLog {
+            link.connect(.bluetooth(peripheral: flipper))
+            #expect(await eventually { link.state == .waitingForHello })
+            link.connect(.bluetooth(peripheral: nil))
+            #expect(await eventually { link.state == .waitingForHello })
+            link.disconnect()
+        }
+
+        #expect(sink.events("link connect:") == [
+            "link connect: transport=bluetooth peripheral=\(flipper.uuidString)",
+            "link connect: transport=bluetooth peripheral=any",
+        ])
+        #expect(sink.events("link disconnect") == ["link disconnect", "link disconnect"])
+    }
+
     @Test func disconnectingClosesThePortAndStops() async {
         let transport = FakeTransport()
         let (link, _) = makeLink(transport)

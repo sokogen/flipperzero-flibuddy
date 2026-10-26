@@ -41,13 +41,29 @@ public final class WatchSettingsSender {
     }
 
     private func flush() {
-        guard let pending, session.isSupported, session.isActivated, session.isCounterpartInstalled else { return }
+        guard let pending else { return }
+        let held: String? = if !session.isSupported {
+            "unsupported"
+        } else if !session.isActivated {
+            "not activated"
+        } else if !session.isCounterpartInstalled {
+            "no watch app"
+        } else {
+            nil
+        }
+        if let held {
+            Log.debug(.sync, "held: reason=\(held)")
+            return
+        }
         do {
+            // The payload carries the API key: only its version is logged.
             try session.updateApplicationContext(pending.dictionary)
             self.pending = nil
             lastError = nil
+            Log.info(.sync, "sent: v=\(SettingsSyncPayload.version)")
         } catch {
             lastError = error.localizedDescription
+            Log.error(.sync, "send failed: error=\(error.localizedDescription)")
         }
     }
 }
@@ -77,16 +93,24 @@ public final class WatchSettingsReceiver {
         case .success(let value): payload = value
         case .failure(let error):
             lastError = error.localizedDescription
+            Log.error(.sync, "rejected: error=\(error.localizedDescription)")
             return
         }
+        Log.info(.sync, "received: v=\(SettingsSyncPayload.version)")
         lastReceived = .now
         let settings = payload.applied(to: host.settings)
         do {
             // The context is delivered again on every activation.
-            if settings != host.settings { try await host.apply(settings) }
+            if settings != host.settings {
+                try await host.apply(settings)
+                Log.info(.sync, "applied")
+            } else {
+                Log.info(.sync, "unchanged")
+            }
             lastError = nil
         } catch {
             lastError = Session.describe(error)
+            Log.error(.sync, "apply failed: error=\(Session.describe(error))")
         }
     }
 }

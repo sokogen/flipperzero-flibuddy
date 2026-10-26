@@ -1452,3 +1452,224 @@ actor Recorded<Value: Sendable> {
         values.append(value)
     }
 }
+
+@Suite("Session: log")
+struct SessionLogTests {
+    /// A clock that stands still, so lookups take 0 ms.
+    private func makeSession(_ inventory: FakeInventory?, settings: Settings = testSettings) -> Session {
+        Session(settings: settings, inventory: inventory, now: { Date(timeIntervalSince1970: 1_800_000_000) })
+    }
+
+    private func tray() throws -> String {
+        try #require(TagParser.parse(try fixtureScan().tag).trayUuid)
+    }
+
+    @Test func aScanAndAFoundLookupAreLogged() async throws {
+        let session = makeSession(FakeInventory(spools: [knownSpool()]))
+
+        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+
+        #expect(sink.events("session") == [
+            "session scan: id=s-000012 uid=5A3C9E21 tray=\(try tray()) kind=mfc material=PLA",
+            "session bambuddy: ready",
+            "session lookup: id=s-000012 status=found spool=42 ms=0",
+        ])
+    }
+
+    @Test func anNTAGScanWithoutMaterialSaysNone() async throws {
+        let session = makeSession(FakeInventory())
+
+        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan("scan_ntag")) }
+
+        #expect(sink.events("session scan") == ["session scan: id=s-000013 uid=04112233445566 tray=none kind=ntag material=none"])
+        #expect(sink.events("session lookup") == ["session lookup: id=s-000013 status=not_found ms=0"])
+    }
+
+    @Test func aCreateOnScanIsLogged() async throws {
+        let session = makeSession(FakeInventory())
+
+        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+
+        #expect(sink.events("session create") == ["session create on scan: id=s-000012 spool=100"])
+        #expect(sink.events("session lookup") == ["session lookup: id=s-000012 status=created spool=100 ms=0"])
+    }
+
+    @Test func aFailedCreateOnScanIsLoggedAsAnError() async throws {
+        let inventory = FakeInventory()
+        inventory.createError = .network("timed out")
+        let session = makeSession(inventory)
+
+        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+
+        let failed = sink.lines.filter { $0.message.hasPrefix("create on scan failed:") }
+        #expect(failed.map(\.message) == ["create on scan failed: id=s-000012 error=Bambuddy unreachable: timed out"])
+        #expect(failed.map(\.level) == [.error])
+        #expect(sink.events("session lookup") == ["session lookup: id=s-000012 status=not_found ms=0"])
+    }
+
+    @Test func aFailedLookupIsLoggedAsAnErrorWithTheElapsedTime() async throws {
+        let inventory = FakeInventory()
+        inventory.findError = .network("connection timed out")
+        let clock = LockedBox(Date(timeIntervalSince1970: 1_800_000_000))
+        inventory.onFind = { clock.mutate { $0 += 0.043 } }
+        let session = Session(settings: testSettings, inventory: inventory, now: { clock.value })
+
+        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+
+        let lookups = sink.lines.filter { $0.message.hasPrefix("lookup:") }
+        #expect(lookups.map(\.message) == [
+            "lookup: id=s-000012 status=error ms=43 error=Bambuddy unreachable: connection timed out"
+        ])
+        #expect(lookups.map(\.level) == [.error])
+    }
+
+    @Test func aLookupForAClearedRowIsLogged() async throws {
+        let session = makeSession(FakeInventory())
+        let sink = await capturingLog { _ = await session.lookup(row: UUID()) }
+        #expect(sink.events("session lookup") == ["session lookup: id=unknown status=error ms=0 error=row cleared"])
+    }
+
+    @Test func everyBambuddyStateChangeIsLoggedWithItsMessage() async throws {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .unauthorized
+        let session = makeSession(inventory)
+
+        let sink = await capturingLog {
+            await session.checkBambuddy()
+            await session.checkBambuddy()
+            await session.reconfigure(settings: testSettings, inventory: nil)
+            await session.checkBambuddy()
+        }
+
+        #expect(sink.events("session bambuddy") == [
+            "session bambuddy: refused message=Bambuddy rejected the API key; check it in Settings",
+            "session bambuddy: unchecked",
+            "session bambuddy: notConfigured message=Set the Bambuddy URL and API key in Settings",
+        ])
+        #expect(sink.lines.filter { $0.message.hasPrefix("bambuddy:") }.map(\.level) == [.error, .info, .notice])
+    }
+
+    @Test func anUnreachableOrRefusingBambuddyKeepsItsWordsThroughRedaction() async throws {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .permissionMissing("settings:read")
+        let session = makeSession(inventory)
+
+        let sink = await capturingLog {
+            await session.checkBambuddy()
+            inventory.spoolmanError = .network("no answer within 5 s")
+            await session.reconfigure(settings: testSettings, inventory: inventory)
+            await session.checkBambuddy()
+        }
+
+        #expect(sink.events("session bambuddy") == [
+            "session bambuddy: refused message=API key lacks the settings:read permission; add it to the key in Bambuddy",
+            "session bambuddy: unchecked",
+            "session bambuddy: unreachable message=Bambuddy unreachable: no answer within 5 s",
+        ])
+    }
+
+    @Test func anIntentAndItsResultAreLogged() async throws {
+        let session = makeSession(FakeInventory(spools: [knownSpool()]))
+        _ = await session.handleScan(try fixtureScan())
+
+        let sink = try await capturingLog { _ = await session.handleIntent(try fixtureIntent("intent_weigh")) }
+
+        #expect(sink.events("session") == [
+            "session intent: id=i-000003 action=weigh spool=42 grams=734 mode=gross",
+            "session result: id=i-000003 ok",
+        ])
+    }
+
+    @Test func anIntentForATagTheHostHasNotSeenHasNoSpool() async throws {
+        let session = makeSession(FakeInventory())
+
+        let sink = try await capturingLog { _ = await session.handleIntent(try fixtureIntent("intent_new")) }
+
+        #expect(sink.events("session intent") == ["session intent: id=i-000004 action=new spool=none"])
+        #expect(sink.events("session result") == ["session result: id=i-000004 ok"])
+    }
+
+    @Test func aFailedIntentIsLoggedAsAnError() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.updateError = .network("timed out")
+        let session = makeSession(inventory)
+
+        let sink = try await capturingLog { _ = await session.handleIntent(try fixtureIntent("intent_weigh")) }
+
+        let results = sink.lines.filter { $0.message.hasPrefix("result:") }
+        #expect(results.map(\.message) == ["result: id=i-000003 error=Bambuddy unreachable: timed out"])
+        #expect(results.map(\.level) == [.error])
+    }
+
+    @Test func aLinkThatDeletesTheSpoolCreatedOnScanLogsBoth() async throws {
+        let inventory = FakeInventory(spools: [Spool(id: 7, material: "PETG", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let rowID = try #require(await session.rows.first?.id)
+        let listing = try await session.listSpools()
+
+        let sink = try await capturingLog { _ = try await session.link(row: rowID, toSpool: 7, from: listing) }
+
+        #expect(sink.events("session") == [
+            "session delete: id=s-000012 spool=100",
+            "session link: id=s-000012 spool=7",
+        ])
+    }
+
+    @Test func aFailedDeleteIsLoggedAndNoLinkFollows() async throws {
+        let inventory = FakeInventory(spools: [Spool(id: 7, material: "PETG", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        inventory.deleteError = .http(status: 500, message: "boom")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let rowID = try #require(await session.rows.first?.id)
+        let listing = try await session.listSpools()
+
+        let sink = await capturingLog { _ = try? await session.link(row: rowID, toSpool: 7, from: listing) }
+
+        let failed = sink.lines.filter { $0.category == .session }
+        #expect(failed.map(\.message) == [
+            "delete failed: id=s-000012 spool=100 error=Spool 100 created on scan could not be deleted, "
+                + "so the tag stays on it: Bambuddy HTTP 500: boom"
+        ])
+        #expect(failed.map(\.level) == [.error])
+    }
+
+    @Test func aFailedLinkIsLoggedAsAnError() async throws {
+        let inventory = FakeInventory(spools: [Spool(id: 7, material: "PETG", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
+        inventory.linkError = .tagAlreadyLinked(otherSpoolId: 42)
+        let session = makeSession(inventory)
+        _ = await session.handleIntent(try fixtureIntent("intent_link_on_host"))
+        let rowID = try #require(await session.rows.first?.id)
+        let listing = try await session.listSpools()
+
+        let sink = await capturingLog { _ = try? await session.link(row: rowID, toSpool: 7, from: listing) }
+
+        let failed = sink.lines.filter { $0.category == .session }
+        #expect(failed.map(\.message) == ["link failed: id=s-000013 spool=7 error=Tag already linked to spool #42"])
+        #expect(failed.map(\.level) == [.error])
+    }
+
+    @Test func aHostCreateAndItsFailureAreLogged() async throws {
+        let failing = FakeInventory()
+        failing.createError = .network("timed out")
+        let sessions = [makeSession(FakeInventory()), makeSession(failing)]
+        var rows: [FeedRow] = []
+        for session in sessions {
+            _ = await session.handleIntent(try fixtureIntent("intent_create_on_host"))
+            rows.append(try #require(await session.rows.first))
+        }
+
+        let sink = await capturingLog {
+            for (session, row) in zip(sessions, rows) {
+                _ = try? await session.createSpool(row: row.id, ntagForm(row.tag))
+            }
+        }
+
+        let created = sink.lines.filter { $0.message.hasPrefix("create") }
+        #expect(created.map(\.message) == [
+            "create: id=s-000013 spool=100",
+            "create failed: id=s-000013 error=Bambuddy unreachable: timed out",
+        ])
+        #expect(created.map(\.level) == [.info, .error])
+    }
+}

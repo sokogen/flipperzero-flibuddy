@@ -263,3 +263,89 @@ struct WatchSettingsReceiverTests {
         #expect(model.settings.apiKey == "bb_phone")
     }
 }
+
+@MainActor
+@Suite("WatchSettingsSender: log")
+struct WatchSettingsSenderLogTests {
+    @Test func aSentPayloadIsLoggedByVersionOnly() async {
+        var settings = testSettings
+        settings.apiKey = "secret-key-123"
+        let sender = WatchSettingsSender(session: FakeSessionMessaging())
+
+        let sink = await capturingLog { sender.settingsSaved(settings) }
+
+        #expect(sink.events == ["sync sent: v=1"])
+    }
+
+    @Test func aHeldAndAFailedSendAreLogged() async {
+        let session = FakeSessionMessaging()
+        session.isCounterpartInstalled = false
+        let sender = WatchSettingsSender(session: session)
+
+        let sink = await capturingLog(level: .debug) {
+            sender.settingsSaved(testSettings)
+            session.isCounterpartInstalled = true
+            session.failure = SendFailed()
+            sender.sessionStateChanged()
+        }
+
+        #expect(sink.events == ["sync held: reason=no watch app", "sync send failed: error=Watch not reachable"])
+        #expect(sink.lines.map(\.level) == [.debug, .error])
+    }
+
+    @Test func aSendHeldOnAnUnsupportedOrInactiveSessionIsLoggedWithTheReason() async {
+        let session = FakeSessionMessaging()
+        session.isSupported = false
+        let sender = WatchSettingsSender(session: session)
+
+        let sink = await capturingLog(level: .debug) {
+            sender.settingsSaved(testSettings)
+            session.isSupported = true
+            session.isActivated = false
+            sender.sessionStateChanged()
+        }
+
+        #expect(sink.events == ["sync held: reason=unsupported", "sync held: reason=not activated"])
+    }
+}
+
+extension WatchSettingsReceiverTests {
+    @Test func aReceivedPayloadIsLoggedByVersionOnly() async throws {
+        let (model, _) = try makeWatch(InMemoryKeyValueStore())
+        let receiver = WatchSettingsReceiver(host: model)
+        var payload = Self.phone
+        payload.apiKey = "secret-key-123"
+
+        let sink = await capturingLog {
+            await receiver.receive(.success(payload))
+            await receiver.receive(.success(payload))
+        }
+
+        #expect(sink.events("sync") == [
+            "sync received: v=1", "sync applied", "sync received: v=1", "sync unchanged",
+        ])
+        #expect(!sink.lines.contains { $0.message.contains("secret-key-123") })
+    }
+
+    @Test func aRejectedPayloadAndAFailedSaveAreErrors() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: FailingSecretStore())
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        let receiver = WatchSettingsReceiver(host: model)
+
+        let sink = await capturingLog {
+            await receiver.receive(.failure(.unsupportedVersion(2)))
+            await receiver.receive(.success(Self.phone))
+        }
+
+        let lines = sink.lines.filter { $0.category == .sync }
+        #expect(lines.map(\.message) == [
+            "rejected: error=Settings from the iPhone have version 2; update FliBuddy",
+            "received: v=1",
+            "apply failed: error=\(Session.describe(SecretStoreError.status(-25300)))",
+        ])
+        #expect(lines.map(\.level) == [.error, .info, .error])
+    }
+}

@@ -95,6 +95,7 @@ public actor TransportSession {
             continuation.yield(.message(message))
             return
         }
+        Log.info(.link, "hello received: \(flipper.logFields)")
         let answersOurs = helloSentAt.map { ContinuousClock.now - $0 < helloTimeout } ?? false
         if !answersOurs { try? sayHello() }
         timeoutTask?.cancel()
@@ -105,6 +106,7 @@ public actor TransportSession {
     private func sayHello() throws {
         try transport.send(.hello(hello))
         helloSentAt = .now
+        Log.info(.link, "hello sent: \(hello.logFields)")
     }
 
     private func armTimeout() {
@@ -116,12 +118,22 @@ public actor TransportSession {
     }
 
     private func helloTimedOut() {
-        if state == .waitingForHello { setState(.noAnswer) }
+        guard state == .waitingForHello else { return }
+        Log.notice(.link, "hello timeout: after=\(helloTimeout.logDescription)")
+        setState(.noAnswer)
     }
 
     private func setState(_ new: LinkState) {
         guard new != state else { return }
         state = new
         continuation.yield(.state(new))
+    }
+}
+
+extension Hello {
+    /// `app=… fw=… os=…`, leaving out the fields not sent.
+    var logFields: String {
+        [("app", app), ("fw", fw), ("os", os)].compactMap { name, value in value.map { "\(name)=\($0)" } }
+            .joined(separator: " ")
     }
 }
