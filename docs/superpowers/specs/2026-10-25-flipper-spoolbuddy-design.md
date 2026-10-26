@@ -370,6 +370,11 @@ paid Apple Developer account once the app is ready, and TestFlight takes
 over then. Minimum OS versions: the current major release minus one, set
 by the builder at project creation.
 
+Settings on iPad and iPhone also take the Bambuddy API key from the QR
+code Bambuddy shows when a key is created (camera scan), with typing as
+the fallback. The builder checks what the QR encodes (the bare key or a
+URL carrying it) before designing the parser.
+
 ### Later (not designed here)
 
 - Offline queue on the Flipper (SD‑backed intent store, replay on connect).
