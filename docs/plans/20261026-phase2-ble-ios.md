@@ -1,23 +1,28 @@
-# Phase 2: Bluetooth LE transport, shared SwiftUI, iPad and iPhone app
+# Phase 2: Bluetooth LE transport, shared SwiftUI, iPhone, iPad and Apple Watch apps
 
 ## Overview
 Phase 1 links the Flipper to a Mac over USB. Phase 2 adds Bluetooth LE on
-both sides and an iOS/iPadOS app, so the owner can weigh spools with an iPad
-or iPhone in hand. The design is in
+both sides, an iOS/iPadOS app and an Apple Watch app, so the owner can weigh
+spools with a phone, a tablet or a watch in hand. The design is in
 `docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`, section
-"Phase 2: BLE transport, iPad and iPhone", whose verified facts (GATT UUIDs,
-flow control, profile lifecycle, QR payload) bind this plan.
+"Phase 2: BLE transport, iPad and iPhone", whose verified facts bind this
+plan. The stock Flipper serial profile is NOT used: it needs passkey pairing,
+which watchOS cannot complete. The FAP publishes its own GATT service without
+pairing instead.
 
 What changes:
-- the Flipper app gets a BLE serial backend behind the existing `Transport`
-  interface and a persisted transport setting (USB or Bluetooth);
+- the Flipper app gets a BLE backend (own profile and GATT service) behind
+  the existing `Transport` interface and a persisted transport setting (USB
+  or Bluetooth);
 - `SpoolBuddyCore` gets a CoreBluetooth `BLETransport` behind the existing
-  Swift `Transport` protocol, with flow control, and settings for the
-  transport kind and the remembered peripheral; macOS gains BLE too;
-- the SwiftUI views move into a platform-neutral `SpoolBuddyUI` target;
-- a new iOS app target is generated from an XcodeGen `project.yml`;
+  Swift `Transport` protocol, usable on macOS, iOS and watchOS, and settings
+  for the transport kind and the remembered peripheral; macOS gains BLE too;
+- the SwiftUI views live in the platform-neutral `SpoolBuddyUI` target
+  (Task 1, done);
+- iOS and watchOS app targets are generated from an XcodeGen `project.yml`;
+  the iPhone pushes the settings to the watch over WatchConnectivity;
 - iOS Settings can scan Bambuddy's API-key QR code;
-- CI builds the iOS app for the simulator.
+- CI builds both apps for the simulators.
 
 The wire protocol (`protocol/PROTOCOL.md`, the schema, the fixtures) does
 not change. BLE carries the same NDJSON lines.
@@ -29,18 +34,33 @@ not change. BLE carries the same NDJSON lines.
   `line_sender` (packetised sends with a completion wait); the app wires the
   transport in `flipper/src/spoolbuddy_app.c`, hello handling in
   `flipper/src/host_link.c`, Idle screen in `flipper/src/scene_idle.c`.
-- SDK 1.5.1 (in `flipper/.ufbt/current/sdk_headers`): `ble_profile_serial`,
-  `ble_profile_serial_tx`, `ble_profile_serial_set_event_callback`,
-  `ble_profile_serial_notify_buffer_is_empty`, `bt_profile_start`,
-  `bt_profile_restore_default`, `bt_set_status_changed_callback`,
-  `bt_disconnect`, `furi_hal_bt_is_active`, `saved_struct_load/save`,
-  `storage_common_mkdir`. Headers:
-  `targets/f7/ble_glue/profiles/serial_profile.h`,
-  `targets/f7/ble_glue/services/serial_service.h`
-  (`BLE_SVC_SERIAL_DATA_LEN_MAX` 486, `BLE_SVC_SERIAL_CHAR_VALUE_LEN_MAX` 243,
-  `SerialServiceEvent{DataReceived, DataSent, BleResetRequest}`),
-  `applications/services/bt/bt_service/bt.h` (`BtStatus{Unavailable, Off,
-  Advertising, Connected}`). The Bt service record name is `RECORD_BT`.
+- SDK 1.5.1 (in `flipper/.ufbt/current/sdk_headers`), all exported:
+  `bt_profile_start`, `bt_profile_restore_default`, `bt_disconnect`,
+  `bt_set_status_changed_callback` (`BtStatus{Unavailable, Off, Advertising,
+  Connected}`, record `RECORD_BT`), `ble_gatt_service_add`,
+  `ble_gatt_service_delete`, `ble_gatt_characteristic_init`,
+  `ble_gatt_characteristic_update`, `ble_gatt_characteristic_delete`,
+  `ble_event_dispatcher_register_svc_handler` /
+  `…_unregister_svc_handler`, `furi_hal_bt_is_active`,
+  `furi_hal_version_get_ble_mac`, `furi_hal_version_get_ble_local_device_name_ptr`,
+  `saved_struct_load/save`, `storage_common_mkdir`. Headers:
+  `targets/f7/ble_glue/furi_ble/profile_interface.h`
+  (`FuriHalBleProfileTemplate{start, stop, get_gap_config}`,
+  `FuriHalBleProfileBase`), `targets/f7/ble_glue/furi_ble/gatt.h`
+  (`BleGattCharacteristicParams`, `BleGattCharacteristicInstance`),
+  `targets/f7/ble_glue/furi_ble/event_dispatcher.h`
+  (`BleSvcEventHandlerCb(void* event, void* context)` receives raw ACI
+  events: `hci_event_pckt` → `evt_blecore_aci` with
+  `ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE` and
+  `ACI_ATT_EXCHANGE_MTU_RESP_VSEVT_CODE`), `targets/f7/ble_glue/gap.h`
+  (`GapConfig{adv_service, appearance_char, bonding_mode, pairing_method,
+  mac_address, adv_name, conn_param}`, `GapPairingNone` = "just works" in
+  `gap.c`, no security request from the Flipper),
+  `lib/stm32wb_copro/wpan/ble/core/ble_defs.h` (`CHAR_PROP_*`,
+  `ATTR_PERMISSION_NONE`, `ATTR_PERMISSION_ENCRY_READ/WRITE`,
+  `GATT_NOTIFY_ATTRIBUTE_WRITE`). Reference implementation to read:
+  `targets/f7/ble_glue/services/serial_service.c` and
+  `profiles/serial_profile.c` in the firmware repository (tag 1.5.1).
 - Host transport: `host/Sources/SpoolBuddyCore/Transport/Transport.swift`
   (protocol with `state`, `messages`, `connect`, `send`, `disconnect`),
   `SerialTransport.swift` (POSIX serial, `discoverFlipperPorts`),
@@ -52,9 +72,13 @@ not change. BLE carries the same NDJSON lines.
 - `host/Package.swift`: swift-tools 6.0, `platforms: [.macOS(.v14)]`,
   targets `SpoolBuddyCore`, `SpoolBuddyMac`, `SpoolBuddyCoreTests`
   (fixtures via a symlink resource), CLT plugin workaround.
-- Tooling on the owner's Mac: Xcode 27.1 (license accepted), iOS 27.1 SDK
-  and simulators, Homebrew; `xcodegen` not installed yet (`brew install
-  xcodegen`). CI: `.github/workflows/host.yml` runs `swift test` on macOS.
+- Tooling on the owner's Mac: Xcode 27.1 (license accepted), iOS 27.1 and
+  watchOS SDKs and simulators, Homebrew, XcodeGen 2.46 installed. CI:
+  `.github/workflows/host.yml` runs `swift test` on macOS.
+- watchOS CoreBluetooth: central role only, two connections, 30 ms minimum
+  connection interval, no state preservation/restoration, background only
+  with the `bluetooth-central` mode; no passkey prompt for third-party
+  peripherals.
 - Bambuddy QR payload: `bambuddy://config?v=1&url=<encodeURIComponent(baseUrl)>&key=<encodeURIComponent(apiKey)>`
   (frontend `utils/apiKeyQr.ts`, version 1).
 
@@ -78,15 +102,19 @@ not change. BLE carries the same NDJSON lines.
   with fakes; the thin adapters are read-reviewed and checked on hardware in
   Post-Completion
 - Follow `AGENTS.md`: English everywhere in the repository, one commit per task
-- Minimum OS versions: macOS 14 stays; iOS and iPadOS 26 (current major
-  minus one, per the design)
+- Minimum OS versions: macOS 14 stays; iOS, iPadOS and watchOS 26 (current
+  major minus one, per the design)
+- The BLE link is unencrypted by design (no pairing). One macro,
+  `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` (default 0), switches the
+  characteristics to `ATTR_PERMISSION_ENCRY_*` so the owner can try
+  "just works" pairing on real devices without code changes
 
 ## Testing Strategy
 - **Unit tests**: required for every task (see Development Approach above)
 - Suites: `make -C flipper/tests test`, `cd host && swift test`,
   `cd tools && uv run pytest`; `make test` runs all; `make lint`,
-  `make coverage` gate the end; the iOS target is built for the simulator
-  with `make ios-build`
+  `make coverage` gate the end; the iOS and watchOS targets are built for
+  the simulators with `make apple-build`
 - No e2e suite; pairing and BLE on real devices are Post-Completion
 
 ## Progress Tracking
@@ -113,23 +141,23 @@ not change. BLE carries the same NDJSON lines.
 - ➕ deviations: the manifest uses `.iOS("26.0")` because `.v26` needs tools version 6.2; `.keyboardShortcut` stays unguarded (SwiftUI has it on iOS too); off macOS `SerialTransport.init` stays available (HostModel's default factory uses it) and the stub's `connect`/`send` throw `notConnected`; `SpoolBuddyMac/App.swift` has an `#else` stub `main` so the whole package (tests included) builds for iOS
 - ➕ `xcodebuild test -scheme SpoolBuddy-Package -destination 'platform=iOS Simulator,…'` runs the suite on the iOS simulator (299 tests pass, the pty tests are macOS-only); `xcodebuild -scheme SpoolBuddyUI -destination 'generic/platform=iOS Simulator' build` succeeds
 
-### Task 2: Flow-control and chunking model for BLE (pure Swift)
-- [ ] `host/Sources/SpoolBuddyCore/Transport/BLEFlow.swift`: `BLEFlow` keeps the credit (bytes the Flipper will accept, from the flow-control characteristic, uint32 big-endian), the write size (`min(negotiatedMTU - 3, 243)`), and a queue of outgoing bytes; `enqueue(line)`, `nextChunk()` returns the next write (never longer than the write size nor the remaining credit, `nil` when nothing may be sent), `creditUpdated(_:)`, `writeConfirmed()`; lines longer than 8192 bytes are rejected as in PROTOCOL.md
-- [ ] `BLEFlow` also reassembles inbound notifications into lines through `NDJSONFramer`
-- [ ] write tests: credit parsing from 4 bytes; chunk sizes at MTU boundaries; no send with zero credit; credit refill resumes; a 2000-byte line crosses several chunks in order; inbound notifications split mid-line reassemble; empty and oversize inputs
+### Task 2: Chunking and line reassembly for BLE (pure Swift)
+- [ ] `host/Sources/SpoolBuddyCore/Transport/BLEChunker.swift`: `BLEChunker` splits outgoing lines (newline appended) into writes no longer than `writeSize` (set from `maximumWriteValueLength(for: .withResponse)`, capped at 243), hands out one write at a time (`nextWrite()` returns `nil` while one is in flight or the queue is empty, `writeConfirmed()` releases the next), and reassembles inbound notifications into messages through `NDJSONFramer`; lines over 8192 bytes are rejected as in PROTOCOL.md
+- [ ] write tests: write sizes at the cap and below; a 2000-byte line crosses several writes in order; nothing is handed out while a write is in flight; inbound notifications split mid-line reassemble; empty and oversize inputs; the write size changing mid-stream
 - [ ] run all three suites - must pass before task 3
 
 ### Task 3: `BLETransport` on CoreBluetooth behind testable protocols
-- [ ] `host/Sources/SpoolBuddyCore/Transport/BLE/Central.swift`: protocols `BLECentral` (state, scan for the service UUID, connect, retrieve a remembered peripheral by identifier, cancel) and `BLEPeripheralLink` (discover service and characteristics, set notify on TX and flow control, read flow control, write RX with response, events); `CoreBluetoothCentral` adapter implementing them on `CBCentralManager`/`CBPeripheral` (not unit-tested); `FakeCentral` in the test target
-- [ ] `host/Sources/SpoolBuddyCore/Transport/BLE/BLETransport.swift`: implements `Transport` with `BLEFlow`: `connect()` scans or reconnects to the remembered identifier, discovers, subscribes, reads the initial credit, then reports `.open`; `send` enqueues and drains through `nextChunk`/`writeConfirmed`; disconnect or a central power-off finishes the `messages` stream; errors mapped to new `TransportError` cases (`bluetoothOff`, `unauthorized`, `peripheralNotFound`, `pairingFailed`)
-- [ ] `FlipperLink`: a `TransportChoice` (`.usb(port:)` / `.bluetooth(peripheral:)`) replaces the port string; the reconnect loop and `isActive` behave the same for both; discovery of BLE peripherals exposed for the settings picker (name, identifier, RSSI)
-- [ ] write tests with `FakeCentral`: connect/subscribe/credit handshake → `.open` and the Flipper hello reaches `messages`; a long `intent` is written as several chunks respecting credit; disconnect finishes the stream and `FlipperLink` retries; central off → `bluetoothOff`; unknown identifier → scan; remembered identifier → direct connect
+- [ ] `host/Sources/SpoolBuddyCore/Transport/BLE/SpoolBuddyGATT.swift`: the UUID constants (service `51C07E84-E37E-4D52-AC6D-B2003116F506`, RX `D250A7B1-D301-43F6-928E-BF2CA5D115BD`, TX `C3AB2366-401D-482C-9002-B0A046C2A4E4`)
+- [ ] `host/Sources/SpoolBuddyCore/Transport/BLE/Central.swift`: protocols `BLECentral` (power state, scan for the service UUID, retrieve a remembered peripheral by identifier, connect, cancel) and `BLEPeripheralLink` (discover the service and the two characteristics, set notify on TX, `maximumWriteValueLength`, write RX with response, an event stream: ready, notification data, write confirmed, disconnected); `CoreBluetoothCentral` adapter on `CBCentralManager`/`CBPeripheral` compiled for macOS, iOS and watchOS (not unit-tested); `FakeCentral` in the test target
+- [ ] `host/Sources/SpoolBuddyCore/Transport/BLE/BLETransport.swift`: implements `Transport` with `BLEChunker`: `connect()` reconnects to the remembered identifier or scans, discovers, subscribes to TX, then reports `.open`; `send` enqueues and drains one write at a time; disconnect or power-off finishes the `messages` stream; new `TransportError` cases `bluetoothOff`, `bluetoothUnauthorized`, `peripheralNotFound`, `serviceNotFound`
+- [ ] `FlipperLink`: a `TransportChoice` (`.usb(port:)` / `.bluetooth(peripheral:)`) replaces the port string; the reconnect loop and `isActive` behave the same for both; BLE discovery exposed for the settings picker (name, identifier, RSSI)
+- [ ] write tests with `FakeCentral`: connect/subscribe → `.open` and the Flipper hello reaches `messages`; a long `intent` goes out as several writes, each after the previous confirmation; disconnect finishes the stream and `FlipperLink` retries; power off → `bluetoothOff`; unknown identifier → scan; remembered identifier → direct connect; a peripheral without the service → `serviceNotFound`
 - [ ] run all three suites - must pass before task 4
 
 ### Task 4: Transport settings on the host
-- [ ] `Settings`: `transport: TransportKind` (`usb` default on macOS, `bluetooth` on iOS), `peripheralId: UUID?`, `peripheralName: String?`; `SettingsStore` persists them; `HostModel.apply` reconnects when the choice changes
+- [ ] `Settings`: `transport: TransportKind` (`usb` default on macOS, `bluetooth` elsewhere), `peripheralId: UUID?`, `peripheralName: String?`; `SettingsStore` persists them; `HostModel.apply` reconnects when the choice changes
 - [ ] `SettingsViewModel`: transport picker, a list of discovered Flippers while scanning ("Scan for Flipper"), "Forget Flipper"; USB section only on macOS
-- [ ] `SettingsForm` in `SpoolBuddyUI`: the Transport section for both platforms; the macOS window keeps its minimum size
+- [ ] `SettingsForm` in `SpoolBuddyUI`: the Transport section for macOS and iOS; the macOS window keeps its minimum size
 - [ ] write tests: defaults per platform; persistence round trip; choosing a peripheral stores id and name; forget clears them; `HostModel` reconnects on a change of kind or peripheral and not otherwise
 - [ ] run all three suites - must pass before task 5
 
@@ -140,76 +168,90 @@ not change. BLE carries the same NDJSON lines.
 - [ ] write C tests: settings defaults and version handling (with a fake storage), reducer transitions for BLE statuses, status-line text for each state
 - [ ] run all three suites - must pass before task 6
 
-### Task 6: Flipper BLE transport
-- [ ] `flipper/src/ble_lines.{c,h}` (host-tested, no SDK): outbound chunking at `BLE_PROFILE_SERIAL_PACKET_SIZE_MAX`, one packet in flight until `DataSent`, inbound bytes into `line_buffer`, a counter of consumed bytes that says when to grant new credit
-- [ ] `flipper/src/transport_ble.c` implementing `Transport`: `open` records the Bt service (`furi_record_open(RECORD_BT)`), sets the status callback, `bt_profile_start(bt, ble_profile_serial, NULL)`, `ble_profile_serial_set_event_callback(profile, BUFFER, cb, ctx)`; the callback feeds `ble_lines` and calls `ble_profile_serial_notify_buffer_is_empty` once the received bytes are consumed; `send_line` uses `ble_profile_serial_tx` through `line_sender` with the `DataSent` wait; `is_connected` is `BtStatusConnected`; `close` disconnects, restores the default profile and closes the record; `BleResetRequest` closes and reopens
-- [ ] `spoolbuddy_app.c`: pick the transport from `app_settings`; the hello is sent on BLE connect as it is on USB DTR; the USB CLI stays untouched while BLE is selected
-- [ ] write C tests for `ble_lines` (chunk boundaries, in-flight gating, credit grant after consumption, partial lines) and for the app wiring that is pure; `ufbt` builds the FAP
+### Task 6: Flipper BLE profile, GATT service and transport
+- [ ] `flipper/src/ble_lines.{c,h}` (host-tested, no SDK): outbound chunking at `mtu - 3` (20 until an MTU exchange says more, never above 243), one notification in flight until the stack accepts the next, retry bookkeeping when the stack reports busy; inbound bytes into `line_buffer`
+- [ ] `flipper/src/ble_spoolbuddy_svc.{c,h}`: the profile template (`get_gap_config`: `bonding_mode = false`, `pairing_method = GapPairingNone`, MAC and name from `furi_hal_version_*`, `adv_service` set to the service UUID; `start`: `ble_gatt_service_add` plus RX (write with and without response, variable, 243) and TX (notify, variable, 243) with `ATTR_PERMISSION_NONE`, or `ATTR_PERMISSION_ENCRY_READ | ATTR_PERMISSION_ENCRY_WRITE` when `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` is 1; `stop`: delete them); an event handler registered with `ble_event_dispatcher_register_svc_handler` that turns RX attribute-modified events into received bytes, the TX CCCD write into "host subscribed", and the MTU exchange response into the chunk size
+- [ ] `flipper/src/transport_ble.c` implementing `Transport`: `open` records the Bt service, sets the status callback, `bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)`; `send_line` uses `ble_gatt_characteristic_update` on TX through `line_sender` and `ble_lines`; `is_connected` is `BtStatusConnected` and subscribed; `close` disconnects, restores the default profile and closes the record
+- [ ] `spoolbuddy_app.c`: pick the transport from `app_settings`; the hello is sent when the host subscribes to TX, as it is on USB DTR; the USB CLI stays untouched while BLE is selected
+- [ ] write C tests for `ble_lines` (chunk boundaries at 20 and 182 bytes, in-flight gating, busy retry, partial lines) and for the event decoding that is pure (attribute-modified payload → bytes, CCCD value → subscribed flag, MTU response → chunk size); `ufbt` builds the FAP
 - [ ] run all three suites - must pass before task 7
 
 ### Task 7: iOS app project with XcodeGen
-- [ ] `host/iOS/project.yml`: target `SpoolBuddyiOS` (iOS 26, iPhone and iPad), depends on the local package products `SpoolBuddyCore` and `SpoolBuddyUI`; `Info.plist` keys `NSBluetoothAlwaysUsageDescription`, `NSCameraUsageDescription`; bundle id `cool.bambuddy.spoolbuddy` placeholder; `Signing.xcconfig` is git-ignored and `Signing.example.xcconfig` carries `DEVELOPMENT_TEAM = `; CI builds with `CODE_SIGNING_ALLOWED=NO`
-- [ ] `host/iOS/Sources/App.swift`: `@main` SwiftUI app with a `TabView` or `NavigationSplitView` over `FeedView` and the settings form from `SpoolBuddyUI`; `HostModel` constructed with the BLE transport factory
-- [ ] root `Makefile`: `ios-project` (`xcodegen generate`), `ios-build` (`xcodebuild -scheme SpoolBuddyiOS -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`); `.gitignore` for `*.xcodeproj` under `host/iOS`
-- [ ] write tests: the iOS app has no logic of its own; verify instead that `make ios-project ios-build` succeeds locally (record the command output in the plan) and that `swift test` still passes
-- [ ] run all three suites and `make ios-build` - must pass before task 8
+- [ ] `host/Apple/project.yml`: target `SpoolBuddyiOS` (iOS 26, iPhone and iPad), depends on the local package products `SpoolBuddyCore` and `SpoolBuddyUI`; `Info.plist` keys `NSBluetoothAlwaysUsageDescription`, `NSCameraUsageDescription`; bundle id `cool.bambuddy.spoolbuddy` placeholder; `Signing.xcconfig` is git-ignored and `Signing.example.xcconfig` carries `DEVELOPMENT_TEAM = `; CI builds with `CODE_SIGNING_ALLOWED=NO`
+- [ ] `host/Apple/iOS/App.swift`: `@main` SwiftUI app with a `NavigationSplitView` (iPad) / `TabView` (iPhone) over `FeedView` and the settings form from `SpoolBuddyUI`; `HostModel` constructed with the BLE transport factory
+- [ ] root `Makefile`: `apple-project` (`xcodegen generate` in `host/Apple`), `apple-build` (builds `SpoolBuddyiOS` for `generic/platform=iOS Simulator` with `CODE_SIGNING_ALLOWED=NO`; Task 8 adds the watch scheme); `.gitignore` for `*.xcodeproj` under `host/Apple`
+- [ ] write tests: the app target has no logic of its own; verify instead that `make apple-project apple-build` succeeds locally (record the command output in the plan) and that `swift test` still passes
+- [ ] run all three suites and `make apple-build` - must pass before task 8
 
-### Task 8: API key from Bambuddy's QR code
+### Task 8: Apple Watch app and settings sync from the iPhone
+- [ ] `host/Package.swift`: add `.watchOS("26.0")` to the platforms; `SpoolBuddyCore` compiles for watchOS (`SerialTransport` already guarded; `KeychainSecretStore` and `URLSession` work unchanged)
+- [ ] `host/Sources/SpoolBuddyCore/Session/SettingsSync.swift`: `SettingsSyncPayload` (base URL, API key, core weight, catalog entry id, default mode) with a versioned dictionary codec for WatchConnectivity (`v: 1`); unknown versions rejected
+- [ ] `host/Sources/SpoolBuddyCore/Session/WatchSettingsSync.swift`: on iOS, a `WatchSettingsSender` behind a `SessionMessaging` protocol (`WCSession` adapter) that sends the payload with `updateApplicationContext` whenever settings are saved and the watch app is installed; on watchOS, a `WatchSettingsReceiver` that stores the payload through `SettingsStore` and reconfigures `HostModel`
+- [ ] `host/Apple/project.yml`: target `SpoolBuddyWatch` (watchOS 26, companion embedded in `SpoolBuddyiOS`, `NSBluetoothAlwaysUsageDescription`, `WKBackgroundModes` not needed); `host/Apple/Watch/App.swift` plus compact views in `host/Sources/SpoolBuddyUI/Watch/` under `#if os(watchOS)`: a feed list (colour swatch, material, remaining, status), a row detail with the weight bound to the Digital Crown (`.digitalCrownRotation`, 1 g steps, 5 g with faster turns) and the net/gross toggle, **Save** and **New**, a settings page that only shows what arrived from the phone and a "Scan for Flipper" button
+- [ ] `make apple-build` also builds `SpoolBuddyWatch` for `generic/platform=watchOS Simulator`
+- [ ] write tests: payload codec round trip, version check, missing fields; the sender sends on save and not otherwise (fake session); the receiver stores and reconfigures; crown weight model clamps to 0…9999 and rounds; `make apple-project apple-build` succeeds
+- [ ] run all three suites and `make apple-build` - must pass before task 9
+
+### Task 9: API key from Bambuddy's QR code
 - [ ] `host/Sources/SpoolBuddyCore/Session/APIKeyQRPayload.swift`: `parse(_ string:) throws -> (baseURL: String, apiKey: String)` for `bambuddy://config?v=1&url=…&key=…`; errors for wrong scheme or host, unsupported `v`, missing or empty fields, invalid percent-encoding; the URL is normalised the way Settings expects (scheme and host, optional port, no trailing slash)
 - [ ] `SettingsViewModel.applyQRPayload(_:)` fills `baseURL` and `apiKey` and sets a status line; a `QRScanning` protocol with a `scan() async throws -> String` entry so the view model is testable
 - [ ] iOS only: "Scan QR code" button in the Settings form presenting a VisionKit `DataScannerViewController` (`.barcode(symbologies: [.qr])`) through a `UIViewControllerRepresentable`; unavailable device → the button is hidden
 - [ ] write tests: valid payload; `bambuddy://config?v=2…` rejected; missing key rejected; percent-decoding of `http%3A%2F%2F192.168.1.10%3A8000`; view model applies and reports; a failing scanner leaves the fields untouched
-- [ ] run all three suites - must pass before task 9
-
-### Task 9: CI for the iOS build
-- [ ] `.github/workflows/host.yml`: add a job on `macos-latest` that installs `xcodegen` with Homebrew, runs `make ios-project ios-build`; path filters include `host/iOS/**`
-- [ ] `.github/workflows/README.md` documents the job and the signing policy
-- [ ] write tests: `tools/tests/test_ci.py` checks the new job and the path filters as it does for the others
 - [ ] run all three suites - must pass before task 10
 
-### Task 10: Verify acceptance criteria
+### Task 10: CI for the Apple builds
+- [ ] `.github/workflows/host.yml`: add a job on `macos-latest` that installs `xcodegen` with Homebrew and runs `make apple-project apple-build`; path filters include `host/Apple/**`
+- [ ] `.github/workflows/README.md` documents the job and the signing policy
+- [ ] write tests: `tools/tests/test_ci.py` checks the new job and the path filters as it does for the others
+- [ ] run all three suites - must pass before task 11
+
+### Task 11: Verify acceptance criteria
 - [ ] verify every bullet of the Overview is implemented
 - [ ] `protocol/` unchanged (`git diff --stat main...HEAD -- protocol` is empty)
 - [ ] `make test`, `make lint`, `make coverage` (80 %) pass
 - [ ] `cd flipper && ufbt` builds the FAP
-- [ ] `make ios-project ios-build` succeeds
+- [ ] `make apple-project apple-build` succeeds for both targets
 
-### Task 11: Documentation
-- [ ] root `README.md`: Phase 2 section (transport setting on both sides, pairing steps: start Bluetooth on the Flipper, scan in Settings, type the passkey the Flipper shows, iPad/iPhone install from Xcode with free provisioning), the `host/iOS` layout, `make ios-*` targets
-- [ ] `flipper/README.md`: the transport submenu, status-line values, the note that the official Flipper app cannot connect while SpoolBuddy holds the BLE serial profile
-- [ ] `host/README.md`: `SpoolBuddyUI`, `BLETransport`, QR scanning, signing files
-- [ ] `docs/superpowers/specs/…design.md`: mark Phase 2 decisions taken by the builder in "Decisions made by the designer"
+### Task 12: Documentation
+- [ ] root `README.md`: Phase 2 section (transport setting on both sides, no pairing, the encryption macro, iPhone/iPad/Watch install from Xcode with free provisioning, settings reach the watch from the phone), the `host/Apple` layout, `make apple-*` targets
+- [ ] `flipper/README.md`: the transport submenu, status-line values, the note that the official Flipper app cannot connect while SpoolBuddy holds the BLE profile, the GATT table
+- [ ] `host/README.md`: `SpoolBuddyUI`, `BLETransport`, watch sync, QR scanning, signing files
+- [ ] `docs/superpowers/specs/…design.md`: record the builder's Phase 2 decisions in "Decisions made by the designer"
 
 ## Technical Details
 
-### GATT (Flipper serial service, firmware 1.5.1)
+### GATT (SpoolBuddy service, defined by the FAP)
 | Role | UUID | Properties |
 |---|---|---|
-| Service | `8FE5B3D5-2E7F-4A98-2A48-7ACC60FE0000` | |
-| TX (Flipper → host) | `19ED82AE-ED21-4C9D-4145-228E61FE0000` | notify |
-| RX (host → Flipper) | `19ED82AE-ED21-4C9D-4145-228E62FE0000` | write with response |
-| Flow control | `19ED82AE-ED21-4C9D-4145-228E63FE0000` | read, notify; uint32 big-endian credit |
-| RPC status | `19ED82AE-ED21-4C9D-4145-228E64FE0000` | leave at 0; a write of 0 raises `BleResetRequest` on the Flipper |
+| Service | `51C07E84-E37E-4D52-AC6D-B2003116F506` | advertised |
+| RX (host → Flipper) | `D250A7B1-D301-43F6-928E-BF2CA5D115BD` | write with response, write without response; variable, ≤ 243 bytes |
+| TX (Flipper → host) | `C3AB2366-401D-482C-9002-B0A046C2A4E4` | notify; variable, ≤ 243 bytes |
 
-Write size ≤ 243 bytes per write and ≤ MTU − 3. The Flipper grants a new
-credit only when its counter reaches zero, so the host sends up to the
-credit, then waits for the flow-control notification.
+Permissions `ATTR_PERMISSION_NONE` (or `ENCRY_READ | ENCRY_WRITE` with the
+macro). Chunks ≤ ATT MTU − 3 on both sides (20 until the MTU exchange).
+Flow control: one write in flight from the host, one notification in flight
+from the Flipper. Lines ≤ 8192 bytes.
 
 ### Flipper BLE lifecycle
 ```
 open:  furi_record_open(RECORD_BT) → bt_set_status_changed_callback →
-       bt_profile_start(bt, ble_profile_serial, NULL) →
-       ble_profile_serial_set_event_callback(profile, 1024, cb, ctx)
-rx:    DataReceived → ble_lines → line_buffer → rx callback;
-       after consumption: ble_profile_serial_notify_buffer_is_empty
-tx:    ble_profile_serial_tx(≤ 486 bytes) → wait DataSent → next packet
-close: bt_disconnect → bt_profile_restore_default → furi_record_close
+       bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)
+       (start: ble_gatt_service_add + 2 × ble_gatt_characteristic_init,
+        ble_event_dispatcher_register_svc_handler)
+rx:    ACI_GATT_ATTRIBUTE_MODIFIED on RX handle → ble_lines → line_buffer → rx callback
+       ACI_GATT_ATTRIBUTE_MODIFIED on TX CCCD → subscribed → hello
+       ACI_ATT_EXCHANGE_MTU_RESP → chunk size = mtu - 3
+tx:    ble_gatt_characteristic_update(TX, chunk) → retry on busy → next chunk
+close: bt_disconnect → bt_profile_restore_default (stop: delete service,
+       unregister handler) → furi_record_close
 ```
-`BtStatusConnected` is "connected"; the hello goes out on that transition.
 
 ### Settings on the Flipper
 `/ext/apps_data/spoolbuddy/settings.bin`, `saved_struct` magic `0x5B`,
 version 1: `{ transport: 0 = USB, 1 = Bluetooth }`.
+
+### Watch settings payload (WatchConnectivity application context)
+`{"v": 1, "baseURL": "...", "apiKey": "...", "coreWeight": 325, "catalogEntryId": 24, "defaultMode": "gross"}`
 
 ### QR payload
 `bambuddy://config?v=1&url=<percent-encoded base URL>&key=<percent-encoded key>`.
@@ -217,31 +259,37 @@ Only `v=1` is accepted.
 
 ### Repository additions
 ```
-host/Sources/SpoolBuddyUI/        shared SwiftUI views
-host/Sources/SpoolBuddyCore/Transport/BLEFlow.swift
-host/Sources/SpoolBuddyCore/Transport/BLE/{Central,BLETransport,CoreBluetoothCentral}.swift
-host/Sources/SpoolBuddyCore/Session/APIKeyQRPayload.swift
-host/iOS/project.yml, host/iOS/Sources/App.swift, host/iOS/Signing.example.xcconfig
-flipper/src/app_settings.{c,h}, ble_lines.{c,h}, transport_ble.c, scene_transport.c
+host/Sources/SpoolBuddyCore/Transport/BLEChunker.swift
+host/Sources/SpoolBuddyCore/Transport/BLE/{SpoolBuddyGATT,Central,BLETransport,CoreBluetoothCentral}.swift
+host/Sources/SpoolBuddyCore/Session/{SettingsSync,WatchSettingsSync,APIKeyQRPayload}.swift
+host/Sources/SpoolBuddyUI/Watch/            compact watch views
+host/Apple/project.yml, host/Apple/iOS/App.swift, host/Apple/Watch/App.swift,
+host/Apple/Signing.example.xcconfig
+flipper/src/app_settings.{c,h}, ble_lines.{c,h}, ble_spoolbuddy_svc.{c,h},
+transport_ble.c, scene_transport.c
 ```
 
 ## Post-Completion
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 
-**Manual verification** (owner, with the Flipper, the Mac and an iPad):
+**Manual verification** (owner, with the Flipper, the Mac, an iPhone, an iPad and the watch):
 - Flipper: Idle → OK → Transport: Bluetooth; the status line shows `BLE adv`.
-- Mac: Settings → Transport Bluetooth → Scan → pick "Flipper <name>" →
-  type the passkey the Flipper shows; status `BLE`; scan a spool and weigh
-  it; compare with the USB path.
-- iPad: `brew install xcodegen`, `make ios-project`, open
-  `host/iOS/SpoolBuddy.xcodeproj` in Xcode, sign with the personal team
-  (free provisioning, 7-day certificate), run on the iPad; pair, scan the
-  API-key QR from Bambuddy's key dialog, Test connection, weigh a spool.
+- Mac: Settings → Transport Bluetooth → Scan → pick "Flipper <name>"; no
+  pairing prompt; status `BLE`; scan a spool and weigh it; compare with USB.
+- iPhone/iPad: `make apple-project`, open `host/Apple/SpoolBuddy.xcodeproj`
+  in Xcode, sign with the personal team (free provisioning, 7-day
+  certificate), run on the device; scan the API-key QR from Bambuddy's key
+  dialog, Test connection, weigh a spool.
+- Watch: install the watch app from the iPhone, check the settings arrived,
+  Scan for Flipper, weigh a spool with the crown.
+- Encryption trial: build the FAP with `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION=1`
+  and see whether the watch, the phone and the Mac pair "just works"
+  without a prompt; if all three do, make it the default.
 - Long lines: a `scan` with 64 blocks (~2.8 KB) must arrive intact over BLE
-  in both directions; watch for stalls (credit) and reordering.
+  in both directions; watch for stalls and reordering.
 - Leaving the FAP restores the default BLE profile: the official Flipper
   app connects again afterwards.
 
 **External systems**:
-- Apple Developer account and TestFlight when the app is ready (later).
-- App icon and bundle id are placeholders until then.
+- Apple Developer account and TestFlight when the apps are ready (later).
+- App icons and bundle ids are placeholders until then.

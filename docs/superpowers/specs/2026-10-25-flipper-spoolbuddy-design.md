@@ -160,12 +160,12 @@ SpoolBuddy daemon).
 - macOS: the Flipper enumerates as a USB CDC serial device
   (`/dev/cu.usbmodemflip_…`). Plain POSIX termios is enough; no third‑party
   serial library.
-- iPadOS and iOS: third‑party apps have no USB serial access. Bluetooth LE
-  via CoreBluetooth against the Flipper's serial GATT service is the only
-  transport. The Flipper's BLE serial needs bonding; the app must handle
-  the pairing flow. Service and characteristic UUIDs are taken from the
-  firmware source (`ble_profile_serial` / GATT definitions), not guessed.
-- While a FAP owns the BLE serial profile, the official Flipper mobile app
+- iPadOS, iOS and watchOS: third‑party apps have no USB serial access.
+  Bluetooth LE via CoreBluetooth is the only transport. The Flipper's stock
+  serial profile demands passkey pairing and authenticated characteristics,
+  which watchOS cannot complete (no passkey prompt on the watch), so the FAP
+  publishes its own GATT service without pairing (see Phase 2).
+- While the FAP owns the BLE profile, the official Flipper mobile app
   cannot connect. That is acceptable.
 
 ### Repository conventions
@@ -375,43 +375,60 @@ paid Apple Developer account once the app is ready, and TestFlight takes
 over then. Minimum OS versions: the current major release minus one, set
 by the builder at project creation.
 
-Facts verified on 2026-10-26 against firmware 1.5.1 and the deployed
-Bambuddy; they bind Phase 2:
+Facts verified on 2026-10-26 against firmware 1.5.1, Apple's developer
+forums and the deployed Bambuddy; they bind Phase 2:
 
-- **Flipper BLE serial.** `bt_profile_start(bt, ble_profile_serial, NULL)`
-  switches the radio to the serial profile (restarts the second core; the
-  official mobile app cannot connect meanwhile), `bt_profile_restore_default`
-  on exit. Data arrives through `ble_profile_serial_set_event_callback`
-  (events `DataReceived`, `DataSent`, `BleResetRequest`), leaves through
-  `ble_profile_serial_tx` in packets of at most
-  `BLE_PROFILE_SERIAL_PACKET_SIZE_MAX` (486) bytes, one in flight until
-  `DataSent`. The service credits the central with a receive buffer: the
-  FAP names the size when it sets the callback and must call
-  `ble_profile_serial_notify_buffer_is_empty` once it has consumed what it
-  received; the central gets fresh credit only when the counter reaches
-  zero. `bt_set_status_changed_callback` reports `Advertising` /
-  `Connected`; pairing (passkey shown on the Flipper, typed on the phone)
-  is handled by the Bt service, not by the FAP.
-- **GATT.** Service `8FE5B3D5-2E7F-4A98-2A48-7ACC60FE0000`; characteristics
-  TX (notify, Flipper → host) `19ED82AE-ED21-4C9D-4145-228E61FE0000`, RX
-  (write, host → Flipper) `…62FE0000`, flow control (read/notify, uint32
-  big‑endian credit) `…63FE0000`, RPC status `…64FE0000` (left at 0). A
-  single write is at most 243 bytes; the host chunks lines to the
-  negotiated MTU and never exceeds the credit.
+- **Why not the stock serial profile.** `ble_profile_serial` pairs with
+  `GapPairingPinCodeShow` (the Flipper shows a six‑digit passkey, the
+  central types it) and every characteristic requires authentication.
+  macOS and iOS show the passkey prompt; watchOS does not, so a watch can
+  never finish pairing. The project therefore publishes its own profile.
+- **SpoolBuddy BLE profile (FAP‑defined).** A `FuriHalBleProfileTemplate`
+  whose `get_gap_config` sets `bonding_mode = false`,
+  `pairing_method = GapPairingNone`, the Flipper's BLE MAC and name
+  (`furi_hal_version_get_ble_mac`, `…_get_ble_local_device_name_ptr`)
+  and advertises the service UUID; `start` adds the service with
+  `ble_gatt_service_add` / `ble_gatt_characteristic_init`, `stop` deletes
+  it. Started with `bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)`
+  (restarts the second core), ended with `bt_profile_restore_default`.
+  `bt_set_status_changed_callback` reports `Advertising` / `Connected`.
+  Events reach the FAP through
+  `ble_event_dispatcher_register_svc_handler`: attribute‑modified events
+  for RX writes and for the TX client‑configuration descriptor (the host
+  subscribing), and the ATT MTU exchange response for the chunk size.
+- **GATT.** Service `51C07E84-E37E-4D52-AC6D-B2003116F506`.
+  RX (host → Flipper) `D250A7B1-D301-43F6-928E-BF2CA5D115BD`: write with response and write without
+  response, variable length up to 243 bytes, `ATTR_PERMISSION_NONE`.
+  TX (Flipper → host) `C3AB2366-401D-482C-9002-B0A046C2A4E4`: notify, variable length up to 243 bytes,
+  `ATTR_PERMISSION_NONE`. Chunks never exceed ATT MTU − 3 (20 bytes until
+  the MTU exchange says more). Flow control: the host sends one write at
+  a time and waits for the response; the Flipper sends one notification
+  at a time and retries when the stack reports busy. Lines stay ≤ 8192
+  bytes as in PROTOCOL.md. No encryption on the link: it carries tag dumps
+  and grams; the API key never crosses it.
 - **Transport is a setting on both sides.** Flipper: USB or Bluetooth,
   chosen from the Idle screen and persisted under
   `/ext/apps_data/spoolbuddy/`; the app starts the chosen backend only.
-  Host: USB (macOS only) or Bluetooth (macOS and iOS), plus the remembered
-  peripheral; CoreBluetooth is available on macOS, so the Mac gains BLE
-  for free.
-- **One SwiftUI code base.** Views move from the macOS executable into a
-  platform‑neutral `SpoolBuddyUI` target used by the macOS app and the
-  iOS app; macOS‑only pieces (serial port picker, keyboard shortcuts) are
-  conditional.
-- **iOS project.** No hand‑maintained `.xcodeproj`: an XcodeGen
-  `project.yml` is committed, the project is generated locally and in CI
-  (`brew install xcodegen`). Signing comes from an untracked xcconfig with
-  the owner's team id; CI builds for the simulator with signing disabled.
+  Host: USB (macOS only) or Bluetooth (macOS, iOS, watchOS), plus the
+  remembered peripheral; no pairing step anywhere.
+- **One SwiftUI code base.** Views live in a platform‑neutral
+  `SpoolBuddyUI` target used by the macOS app and the iOS app; macOS‑only
+  pieces (serial port picker) are conditional. The watch has its own
+  compact views over the same `HostModel`.
+- **Apple Watch app.** A watchOS target in the same project, companion of
+  the iOS app. The iPhone app pushes the Bambuddy URL, API key, core weight
+  and catalog entry to the watch over WatchConnectivity whenever they are
+  saved; the watch keeps them in its own Keychain and defaults and talks to
+  Bambuddy itself (Wi‑Fi or through the phone). The watch connects to the
+  Flipper over BLE like the phone does (CoreBluetooth on watchOS: central
+  only, two connections, 30 ms minimum interval, no state restoration,
+  `bluetooth-central` background mode). Screens: the feed, a row with the
+  weight entered by the Digital Crown and the net/gross toggle, **New**.
+- **iOS and watchOS projects.** No hand‑maintained `.xcodeproj`: an
+  XcodeGen `project.yml` is committed, the project is generated locally and
+  in CI (`brew install xcodegen`). Signing comes from an untracked xcconfig
+  with the owner's team id; CI builds for the simulators with signing
+  disabled.
 - **API key by QR.** Bambuddy's QR encodes
   `bambuddy://config?v=1&url=<base URL>&key=<API key>` (percent‑encoded).
   iOS Settings scan it with the camera and fill both fields; typing stays
