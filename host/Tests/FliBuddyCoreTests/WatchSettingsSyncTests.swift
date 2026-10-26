@@ -129,8 +129,8 @@ struct WatchSettingsSenderTests {
     }
 
     @Test func theHostModelHookSendsOnSaveOnly() async throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         try store.save(testSettings)
         let session = FakeSessionMessaging()
         let sender = WatchSettingsSender(session: session)
@@ -162,10 +162,10 @@ struct WatchSettingsReceiverTests {
 
     /// A watch that knows its Flipper but nothing about Bambuddy yet.
     private func makeWatch(
-        _ scratch: ScratchDefaults, inventory: FakeInventory = FakeInventory(),
+        _ defaults: InMemoryKeyValueStore, inventory: FakeInventory = FakeInventory(),
         opened: LockedBox<[TransportChoice]> = LockedBox([])
     ) throws -> (HostModel, SettingsStore) {
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         try store.save(Settings(transport: .bluetooth, peripheralId: Self.flipper, peripheralName: "Flipper Anmaa1"))
         let model = HostModel(
             store: store, makeInventory: { _ in inventory },
@@ -179,10 +179,10 @@ struct WatchSettingsReceiverTests {
     }
 
     @Test func storesThePayloadAndReconfigures() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let inventory = FakeInventory()
         let opened = LockedBox<[TransportChoice]>([])
-        let (model, store) = try makeWatch(scratch, inventory: inventory, opened: opened)
+        let (model, store) = try makeWatch(defaults, inventory: inventory, opened: opened)
         model.start()
         defer { model.link.disconnect() }
         #expect(await eventually { opened.value.count == 1 })
@@ -209,8 +209,8 @@ struct WatchSettingsReceiverTests {
     }
 
     @Test func aRejectedPayloadChangesNothing() async throws {
-        let scratch = ScratchDefaults()
-        let (model, store) = try makeWatch(scratch)
+        let defaults = InMemoryKeyValueStore()
+        let (model, store) = try makeWatch(defaults)
         let before = store.load()
         let receiver = WatchSettingsReceiver(host: model)
 
@@ -223,9 +223,9 @@ struct WatchSettingsReceiverTests {
     }
 
     @Test func theSameSettingsAreNotAppliedAgain() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let inventory = FakeInventory()
-        let (model, _) = try makeWatch(scratch, inventory: inventory)
+        let (model, _) = try makeWatch(defaults, inventory: inventory)
         let receiver = WatchSettingsReceiver(host: model)
         await receiver.receive(.success(Self.phone))
         let checks = inventory.calls.filter { $0 == .spoolman }.count
@@ -236,8 +236,8 @@ struct WatchSettingsReceiverTests {
     }
 
     @Test func aFailedSaveIsReportedAndChangesNothing() async throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: FailingSecretStore())
         let model = HostModel(
             store: store, makeInventory: { _ in FakeInventory() },
             makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
@@ -252,8 +252,8 @@ struct WatchSettingsReceiverTests {
     }
 
     @Test func aGoodPayloadClearsAnEarlierError() async throws {
-        let scratch = ScratchDefaults()
-        let (model, _) = try makeWatch(scratch)
+        let defaults = InMemoryKeyValueStore()
+        let (model, _) = try makeWatch(defaults)
         let receiver = WatchSettingsReceiver(host: model)
         await receiver.receive(.failure(.missingField("apiKey")))
 

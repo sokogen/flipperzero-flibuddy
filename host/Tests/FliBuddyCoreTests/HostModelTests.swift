@@ -6,10 +6,10 @@ import Testing
 @Suite("HostModel")
 struct HostModelTests {
     private func makeModel(
-        _ scratch: ScratchDefaults, settings: Settings = testSettings, inventory: FakeInventory = FakeInventory(),
+        _ defaults: InMemoryKeyValueStore, settings: Settings = testSettings, inventory: FakeInventory = FakeInventory(),
         opened: LockedBox<[TransportChoice]> = LockedBox([])
     ) throws -> HostModel {
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         try store.save(settings)
         return HostModel(
             store: store,
@@ -40,8 +40,8 @@ struct HostModelTests {
     }
 
     @Test func startsWithTheSavedSettings() async throws {
-        let scratch = ScratchDefaults()
-        let model = try makeModel(scratch)
+        let defaults = InMemoryKeyValueStore()
+        let model = try makeModel(defaults)
         #expect(model.settings == testSettings)
         #expect(model.feed.settings == testSettings)
         #expect(await model.session.settings == testSettings)
@@ -49,9 +49,9 @@ struct HostModelTests {
     }
 
     @Test func applyingSettingsSavesAndReconfigures() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let inventory = FakeInventory()
-        let model = try makeModel(scratch, inventory: inventory)
+        let model = try makeModel(defaults, inventory: inventory)
         var changed = testSettings
         changed.defaultMode = .net
         changed.baseURL = "http://10.0.0.5:8000"
@@ -61,15 +61,15 @@ struct HostModelTests {
         #expect(model.settings == changed)
         #expect(model.feed.settings == changed)
         #expect(await model.session.settings == changed)
-        #expect(SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore()).load().baseURL == changed.baseURL)
+        #expect(SettingsStore(defaults: defaults, secrets: InMemorySecretStore()).load().baseURL == changed.baseURL)
         // The new settings are checked right away.
         #expect(await model.session.bambuddy == .ready)
         #expect(inventory.calls.contains(.spoolman))
     }
 
     @Test func settingsWithoutAClientLeaveBambuddyNotConfigured() async throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         let model = HostModel(
             store: store, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
         )
@@ -80,8 +80,8 @@ struct HostModelTests {
     }
 
     @Test func choosingAPortReconnects() async throws {
-        let scratch = ScratchDefaults()
-        let model = try makeModel(scratch, settings: usbSettings)
+        let defaults = InMemoryKeyValueStore()
+        let model = try makeModel(defaults, settings: usbSettings)
         model.start()
         defer { model.link.disconnect() }
         #expect(model.link.choice == .usb(port: nil))
@@ -94,17 +94,17 @@ struct HostModelTests {
     }
 
     @Test func startUsesTheSavedTransport() throws {
-        let scratch = ScratchDefaults()
-        let model = try makeModel(scratch, settings: bluetoothSettings)
+        let defaults = InMemoryKeyValueStore()
+        let model = try makeModel(defaults, settings: bluetoothSettings)
         model.start()
         defer { model.link.disconnect() }
         #expect(model.link.choice == .bluetooth(peripheral: Self.flipperA))
     }
 
     @Test func changingTheTransportKindReconnects() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let opened = LockedBox<[TransportChoice]>([])
-        let model = try makeModel(scratch, settings: usbSettings, opened: opened)
+        let model = try makeModel(defaults, settings: usbSettings, opened: opened)
         model.start()
         defer { model.link.disconnect() }
         #expect(await eventually { opened.value == [.usb(port: "/dev/cu.usbmodemflip_A")] })
@@ -118,9 +118,9 @@ struct HostModelTests {
     }
 
     @Test func choosingAnotherPeripheralReconnects() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let opened = LockedBox<[TransportChoice]>([])
-        let model = try makeModel(scratch, settings: bluetoothSettings, opened: opened)
+        let model = try makeModel(defaults, settings: bluetoothSettings, opened: opened)
         model.start()
         defer { model.link.disconnect() }
         #expect(await eventually { opened.value == [.bluetooth(peripheral: Self.flipperA)] })
@@ -135,9 +135,9 @@ struct HostModelTests {
     }
 
     @Test func otherChangesKeepTheLink() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let opened = LockedBox<[TransportChoice]>([])
-        let model = try makeModel(scratch, settings: bluetoothSettings, opened: opened)
+        let model = try makeModel(defaults, settings: bluetoothSettings, opened: opened)
         model.start()
         defer { model.link.disconnect() }
         #expect(await eventually { opened.value.count == 1 })
@@ -155,9 +155,9 @@ struct HostModelTests {
     }
 
     @Test func aChangeBeforeStartDoesNotConnect() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let opened = LockedBox<[TransportChoice]>([])
-        let model = try makeModel(scratch, settings: usbSettings, opened: opened)
+        let model = try makeModel(defaults, settings: usbSettings, opened: opened)
 
         try await model.apply(bluetoothSettings)
 
@@ -168,9 +168,9 @@ struct HostModelTests {
     @Test func startingAgainKeepsTheRunningLink() async throws {
         // Every window's `.task` calls `start()`; a second window must not
         // reopen the port under a running scan or intent.
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let transport = FakeTransport()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         try store.save(testSettings)
         let model = HostModel(
             store: store, makeInventory: { _ in FakeInventory() },
@@ -188,8 +188,8 @@ struct HostModelTests {
     }
 
     @Test func theSaveHookRunsAfterEverySaveOnly() async throws {
-        let scratch = ScratchDefaults()
-        let model = try makeModel(scratch)
+        let defaults = InMemoryKeyValueStore()
+        let model = try makeModel(defaults)
         var saved: [Settings] = []
         model.onSettingsSaved = { saved.append($0) }
         model.start()
@@ -205,8 +205,8 @@ struct HostModelTests {
     }
 
     @Test func aFailedSaveSkipsTheHook() async throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: FailingSecretStore())
         let model = HostModel(store: store, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] })
         var saved: [Settings] = []
         model.onSettingsSaved = { saved.append($0) }
@@ -217,9 +217,9 @@ struct HostModelTests {
     }
 
     @Test func usingAFlipperRemembersItAndReconnects() async throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let opened = LockedBox<[TransportChoice]>([])
-        let model = try makeModel(scratch, settings: bluetoothSettings, opened: opened)
+        let model = try makeModel(defaults, settings: bluetoothSettings, opened: opened)
         model.start()
         defer { model.link.disconnect() }
         #expect(await eventually { opened.value.count == 1 })
@@ -230,13 +230,13 @@ struct HostModelTests {
         expected.peripheralId = Self.flipperB
         expected.peripheralName = "Flipper Brrr2"
         #expect(model.settings == expected)
-        #expect(SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore()).load().peripheralId == Self.flipperB)
+        #expect(SettingsStore(defaults: defaults, secrets: InMemorySecretStore()).load().peripheralId == Self.flipperB)
         #expect(await eventually { opened.value.last == .bluetooth(peripheral: Self.flipperB) })
     }
 
     @Test func usingAFlipperSwitchesToBluetooth() async throws {
-        let scratch = ScratchDefaults()
-        let model = try makeModel(scratch, settings: usbSettings)
+        let defaults = InMemoryKeyValueStore()
+        let model = try makeModel(defaults, settings: usbSettings)
 
         try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperA, name: "Flipper Anmaa1", rssi: -50))
 

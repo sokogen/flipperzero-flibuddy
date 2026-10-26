@@ -2,26 +2,6 @@ import Foundation
 import Testing
 @testable import FliBuddyCore
 
-/// A `UserDefaults` suite private to one test, removed when the test ends.
-final class ScratchDefaults {
-    let name = "flibuddy-tests-\(UUID().uuidString)"
-    let defaults: UserDefaults
-
-    init() {
-        defaults = UserDefaults(suiteName: name)!
-    }
-
-    deinit {
-        // `removePersistentDomain` empties the suite but leaves its plist in
-        // ~/Library/Preferences; delete the file too so test runs leave no
-        // litter behind.
-        defaults.removePersistentDomain(forName: name)
-        UserDefaults.standard.removeSuite(named: name)
-        let plist = URL.homeDirectory.appendingPathComponent("Library/Preferences/\(name).plist")
-        try? FileManager.default.removeItem(at: plist)
-    }
-}
-
 @Suite struct SettingsTests {
     @Test func defaultsMatchTheDesign() {
         let settings = Settings()
@@ -57,9 +37,55 @@ final class ScratchDefaults {
         #expect(settings.transportChoice == .bluetooth(peripheral: nil))
     }
 
+    @Test func anInMemoryStoreRoundTripsEverySettingUnderTheStoredKeys() throws {
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        let settings = Settings(
+            baseURL: "http://192.168.1.20:8000", apiKey: "bb_full", catalogEntryId: 24, coreWeight: 293,
+            defaultMode: .net, transport: .bluetooth, port: "/dev/cu.usbmodemflip_Anmaa1",
+            peripheralId: UUID(uuidString: "6B1E6B52-7D2C-4C8B-9E55-3A1F0F3C2D10"), peripheralName: "Flipper Anmaa1"
+        )
+
+        try store.save(settings)
+
+        #expect(store.load() == settings)
+        #expect(Set(defaults.dictionaryRepresentation().keys) == [
+            "bambuddy.baseURL", "bambuddy.catalogEntryId", "bambuddy.coreWeight", "weight.defaultMode",
+            "flipper.transport", "flipper.port", "flipper.peripheralId", "flipper.peripheralName",
+        ])
+    }
+
+    @Test func inMemoryValuesRoundTrip() {
+        let defaults = InMemoryKeyValueStore()
+        #expect(defaults.object(forKey: "a") == nil)
+        defaults.set("x", forKey: "a")
+        defaults.set(7, forKey: "b")
+        #expect(defaults.string(forKey: "a") == "x")
+        #expect(defaults.string(forKey: "b") == nil)
+        #expect(defaults.object(forKey: "b") as? Int == 7)
+        defaults.set(nil, forKey: "b")
+        #expect(defaults.object(forKey: "b") == nil)
+        defaults.removeObject(forKey: "a")
+        #expect(defaults.dictionaryRepresentation().isEmpty)
+    }
+
+    /// `UserDefaults` is the store the apps use. The standard domain, not a
+    /// suite: a suite leaves a plist in ~/Library/Preferences behind.
+    @Test func userDefaultsIsAKeyValueStore() {
+        let key = "flibuddy-tests.\(UUID().uuidString)"
+        let defaults: any KeyValueStore = UserDefaults.standard
+        defer { defaults.removeObject(forKey: key) }
+        defaults.set("x", forKey: key)
+        #expect(defaults.string(forKey: key) == "x")
+        defaults.set(12, forKey: key)
+        #expect(defaults.object(forKey: key) as? Int == 12)
+        defaults.removeObject(forKey: key)
+        #expect(defaults.object(forKey: key) == nil)
+    }
+
     @Test func theTransportAndPeripheralLoadBackAndClear() throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         var settings = testSettings
         settings.transport = .bluetooth
         settings.peripheralId = UUID(uuidString: "6B1E6B52-7D2C-4C8B-9E55-3A1F0F3C2D10")
@@ -75,34 +101,34 @@ final class ScratchDefaults {
     }
 
     @Test func anUnknownTransportLoadsAsThePlatformDefault() {
-        let scratch = ScratchDefaults()
-        scratch.defaults.set("carrier-pigeon", forKey: "flipper.transport")
-        scratch.defaults.set("not-a-uuid", forKey: "flipper.peripheralId")
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        defaults.set("carrier-pigeon", forKey: "flipper.transport")
+        defaults.set("not-a-uuid", forKey: "flipper.peripheralId")
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         #expect(store.load().transport == TransportKind.platformDefault)
         #expect(store.load().peripheralId == nil)
     }
 
     @Test func aStoreWithNothingSavedLoadsTheDefaults() {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         #expect(store.load() == Settings())
     }
 
     @Test func savedSettingsLoadBack() throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let secrets = InMemorySecretStore()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: secrets)
+        let store = SettingsStore(defaults: defaults, secrets: secrets)
 
         try store.save(testSettings)
 
         #expect(store.load() == testSettings)
-        #expect(SettingsStore(defaults: scratch.defaults, secrets: secrets).load() == testSettings)
+        #expect(SettingsStore(defaults: defaults, secrets: secrets).load() == testSettings)
     }
 
     @Test func anEditedCoreWeightLoadsBack() throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         var settings = testSettings
         settings.coreWeight = 412
 
@@ -113,21 +139,20 @@ final class ScratchDefaults {
     }
 
     @Test func theAPIKeyGoesToTheSecretStoreOnly() throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let secrets = InMemorySecretStore()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: secrets)
+        let store = SettingsStore(defaults: defaults, secrets: secrets)
 
         try store.save(testSettings)
 
         #expect(try secrets.secret(for: SettingsStore.apiKeyAccount) == "bb_test")
-        let plist = scratch.defaults.dictionaryRepresentation()
-        #expect(!plist.values.contains { ($0 as? String) == "bb_test" })
+        #expect(!defaults.dictionaryRepresentation().values.contains { ($0 as? String) == "bb_test" })
     }
 
     @Test func anEmptyAPIKeyDeletesTheSecret() throws {
-        let scratch = ScratchDefaults()
+        let defaults = InMemoryKeyValueStore()
         let secrets = InMemorySecretStore()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: secrets)
+        let store = SettingsStore(defaults: defaults, secrets: secrets)
         try store.save(testSettings)
 
         var cleared = testSettings
@@ -139,8 +164,8 @@ final class ScratchDefaults {
     }
 
     @Test func aChosenPortLoadsBackAndClears() throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         var settings = testSettings
         settings.port = "/dev/cu.usbmodemflip_Anmaa1"
         try store.save(settings)
@@ -151,8 +176,8 @@ final class ScratchDefaults {
     }
 
     @Test func aClearedCatalogEntryLoadsAsNil() throws {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
         try store.save(testSettings)
         var cleared = testSettings
         cleared.catalogEntryId = nil
@@ -161,8 +186,8 @@ final class ScratchDefaults {
     }
 
     @Test func aFailingSecretStoreSurfaces() {
-        let scratch = ScratchDefaults()
-        let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: FailingSecretStore())
         #expect(throws: SecretStoreError.status(-25300)) { try store.save(testSettings) }
         #expect(store.load().apiKey == "")
     }

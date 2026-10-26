@@ -256,27 +256,34 @@
       display name FliBuddy; `make lint` passes)
 
 ### Task 5: Stop the tests from littering ~/Library/Preferences
-- [ ] write the failing test first in `host/Tests/FliBuddyCoreTests/
+- [x] write the failing test first in `host/Tests/FliBuddyCoreTests/
       SettingsTests.swift`: `SettingsStore` backed by an in-memory key-value
       store saves and loads a full `Settings` round trip without touching
-      `UserDefaults`
-- [ ] add `public protocol KeyValueStore` in
+      `UserDefaults` (➕ it also pins the eight stored keys; a second test
+      covers `InMemoryKeyValueStore` itself)
+- [x] add `public protocol KeyValueStore` in
       `host/Sources/FliBuddyCore/Session/Settings.swift` with the handful of
       accessors `SettingsStore` uses (`string(forKey:)`, `integer`/`object`,
       `set(_:forKey:)`, `removeObject(forKey:)`), make `UserDefaults` conform
       in an extension, and change `SettingsStore.init(defaults:)` to take
       `any KeyValueStore` (default `UserDefaults.standard`); keep the stored
-      keys exactly as they are
-- [ ] add `InMemoryKeyValueStore` next to `InMemorySecretStore` (test
+      keys exactly as they are (`string`, `object`, `set(_: Any?)`,
+      `removeObject`: `SettingsStore` reads integers through `object`, so
+      `integer` was not needed)
+- [x] add `InMemoryKeyValueStore` next to `InMemorySecretStore` (test
       support or the library, matching where `InMemorySecretStore` lives)
-- [ ] replace `ScratchDefaults` and every `UserDefaults(suiteName:)` in the
+      (in the library, with `dictionaryRepresentation()` for tests)
+- [x] replace `ScratchDefaults` and every `UserDefaults(suiteName:)` in the
       tests with the in-memory store; delete the plist-removal workaround
-- [ ] keep one test that `UserDefaults` satisfies the protocol, using
+- [x] keep one test that `UserDefaults` satisfies the protocol, using
       `UserDefaults.standard` with a unique key that the test removes
       afterwards (no suite, so no plist)
-- [ ] verify: `ls ~/Library/Preferences | grep -c -E
+- [x] verify: `ls ~/Library/Preferences | grep -c -E
       '(spoolbuddy|flibuddy)-tests-'` prints 0 after `cd host && swift test`
-- [ ] run `cd host && swift test` - must pass before task 6
+      (the 130 empty plists left by earlier runs were deleted first; 0 after
+      `swift test` and again after `make coverage`)
+- [x] run `cd host && swift test` - must pass before task 6 (443 passed;
+      `make lint` and `make coverage`, FliBuddyCore 88.2 %, pass)
 
 ### Task 6: Verify acceptance criteria
 - [ ] `git grep -n -i spoolbuddy` lists only the "must stay" references from

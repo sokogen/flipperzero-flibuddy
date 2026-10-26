@@ -25,7 +25,8 @@ public enum TransportKind: String, CaseIterable, Sendable {
     }
 }
 
-/// Host settings. The API key lives in the Keychain; the rest in `UserDefaults`.
+/// Host settings. The API key lives in the Keychain; the rest in a
+/// `KeyValueStore` (`UserDefaults` in the apps).
 public struct Settings: Equatable, Sendable {
     /// Everything on the scale that is not filament: Bambu reusable spool
     /// 293 g + refill core 32 g, measured in Phase 0.
@@ -103,7 +104,7 @@ extension SettingsError: LocalizedError {
 }
 
 /// Loads and saves `Settings`: the API key through a `SecretStore`, the rest in
-/// `UserDefaults`.
+/// a `KeyValueStore`.
 public struct SettingsStore: @unchecked Sendable {
     public static let apiKeyAccount = "bambuddy-api-key"
     private enum Key {
@@ -117,11 +118,11 @@ public struct SettingsStore: @unchecked Sendable {
         static let peripheralName = "flipper.peripheralName"
     }
 
-    // UserDefaults is thread-safe.
-    private let defaults: UserDefaults
+    // UserDefaults and InMemoryKeyValueStore are thread-safe.
+    private let defaults: any KeyValueStore
     private let secrets: any SecretStore
 
-    public init(defaults: UserDefaults = .standard, secrets: any SecretStore = KeychainSecretStore()) {
+    public init(defaults: any KeyValueStore = UserDefaults.standard, secrets: any SecretStore = KeychainSecretStore()) {
         self.defaults = defaults
         self.secrets = secrets
     }
@@ -169,6 +170,49 @@ public struct SettingsStore: @unchecked Sendable {
         } else {
             defaults.removeObject(forKey: key)
         }
+    }
+}
+
+/// Where settings other than the API key are kept: `UserDefaults` in the app,
+/// memory in tests. The accessors `SettingsStore` uses, with `UserDefaults`'
+/// signatures.
+public protocol KeyValueStore: AnyObject {
+    func string(forKey key: String) -> String?
+    func object(forKey key: String) -> Any?
+    /// `nil` removes the key.
+    func set(_ value: Any?, forKey key: String)
+    func removeObject(forKey key: String)
+}
+
+extension UserDefaults: KeyValueStore {}
+
+/// Values in memory, for tests and previews. Unlike a `UserDefaults` suite it
+/// leaves no plist in ~/Library/Preferences.
+public final class InMemoryKeyValueStore: KeyValueStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: Any] = [:]
+
+    public init() {}
+
+    public func string(forKey key: String) -> String? {
+        lock.withLock { values[key] as? String }
+    }
+
+    public func object(forKey key: String) -> Any? {
+        lock.withLock { values[key] }
+    }
+
+    public func set(_ value: Any?, forKey key: String) {
+        lock.withLock { values[key] = value }
+    }
+
+    public func removeObject(forKey key: String) {
+        lock.withLock { values[key] = nil }
+    }
+
+    /// Everything stored, like `UserDefaults.dictionaryRepresentation()`.
+    public func dictionaryRepresentation() -> [String: Any] {
+        lock.withLock { values }
     }
 }
 
