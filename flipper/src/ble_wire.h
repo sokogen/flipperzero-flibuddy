@@ -67,6 +67,20 @@ size_t ble_wire_mfg_data(uint8_t* out, const char* flipper_name);
 /* The scan response's size with `mfg_len` bytes of manufacturer data. */
 size_t ble_wire_scan_response_size(size_t mfg_len);
 
+/* The transport's link for the status line. Firmware 1.5.1's gap.c raises
+ * GapEventTypeConnected only on pairing complete, which a host never does,
+ * so the Bt service keeps saying advertising after a central connects. A
+ * host is connected once it subscribed to TX (a disconnect unsubscribes
+ * it); without one the link is advertising when the Bt status says so,
+ * else off. */
+typedef enum {
+    BleWireLinkOff,
+    BleWireLinkAdvertising,
+    BleWireLinkConnected,
+} BleWireLink;
+
+BleWireLink ble_wire_link(bool opened, bool advertising, bool subscribed);
+
 /* The address the service advertises with: the Flipper's, with byte 2
  * changed, so that a central never mixes it up with the default profile
  * (whose bonds and cached GATT table it may hold) or the HID profile

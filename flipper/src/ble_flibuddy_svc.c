@@ -66,7 +66,9 @@ static const BleGattCharacteristicParams chars[CharCount] = {
          .uuid_type = UUID_TYPE_128,
          .char_properties = CHAR_PROP_NOTIFY,
          .security_permissions = SVC_PERMISSIONS,
-         .gatt_evt_mask = GATT_DONT_NOTIFY_EVENTS,
+         /* the host's CCCD write must reach on_event as an attribute
+          * modified event: the subscription is how a host connects */
+         .gatt_evt_mask = GATT_NOTIFY_ATTRIBUTE_WRITE,
          .is_variable = CHAR_VALUE_LEN_VARIABLE},
 };
 

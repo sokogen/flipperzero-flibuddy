@@ -97,6 +97,25 @@ static void test_scan_response_fits_31_bytes(void) {
     CHECK(ble_wire_scan_response_size(BLE_WIRE_MFG_DATA_MAX) <= BLE_WIRE_ADV_MAX);
 }
 
+static void test_link_is_off_until_the_transport_opens(void) {
+    CHECK_EQ_INT(ble_wire_link(false, false, false), BleWireLinkOff);
+    CHECK_EQ_INT(ble_wire_link(false, true, false), BleWireLinkOff);
+    /* a stale subscription of a closed transport is no host */
+    CHECK_EQ_INT(ble_wire_link(false, true, true), BleWireLinkOff);
+}
+
+static void test_link_advertises_while_no_host_subscribed(void) {
+    CHECK_EQ_INT(ble_wire_link(true, true, false), BleWireLinkAdvertising);
+    CHECK_EQ_INT(ble_wire_link(true, false, false), BleWireLinkOff);
+}
+
+static void test_subscribed_host_is_connected(void) {
+    /* firmware 1.5.1 reports Connected only after pairing, which a host
+     * never does, so the Bt status may still say advertising */
+    CHECK_EQ_INT(ble_wire_link(true, true, true), BleWireLinkConnected);
+    CHECK_EQ_INT(ble_wire_link(true, false, true), BleWireLinkConnected);
+}
+
 static void test_mac_differs_from_the_default_profile(void) {
     const uint8_t base[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
     uint8_t mac[6];
@@ -270,6 +289,9 @@ int main(void) {
     RUN_TEST(test_mfg_data_falls_back_when_the_flipper_has_none);
     RUN_TEST(test_mfg_data_is_cut_to_what_gap_takes);
     RUN_TEST(test_scan_response_fits_31_bytes);
+    RUN_TEST(test_link_is_off_until_the_transport_opens);
+    RUN_TEST(test_link_advertises_while_no_host_subscribed);
+    RUN_TEST(test_subscribed_host_is_connected);
     RUN_TEST(test_mac_differs_from_the_default_profile);
     RUN_TEST(test_write_to_rx_is_received_bytes);
     RUN_TEST(test_write_of_243_bytes_is_received_whole);

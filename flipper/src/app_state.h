@@ -79,7 +79,7 @@ typedef enum {
 typedef enum {
     AppBleOff, /* not advertising, or Bluetooth is not the transport */
     AppBleAdvertising,
-    AppBleConnected, /* a central is connected; it may not have said hello */
+    AppBleConnected, /* a host subscribed to TX; it may not have said hello */
 } AppBleStatus;
 
 typedef enum {

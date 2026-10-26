@@ -25,6 +25,12 @@ size_t ble_wire_adv_size(size_t name_len) {
     return name_len > 0 ? size + AD_HEADER + name_len : size;
 }
 
+BleWireLink ble_wire_link(bool opened, bool advertising, bool subscribed) {
+    if(!opened) return BleWireLinkOff;
+    if(subscribed) return BleWireLinkConnected;
+    return advertising ? BleWireLinkAdvertising : BleWireLinkOff;
+}
+
 static const char* name_or_fallback(const char* flipper_name) {
     return flipper_name && flipper_name[0] ? flipper_name : UNNAMED_FLIPPER;
 }
