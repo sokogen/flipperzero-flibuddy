@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 #else
-/// The package also builds for iOS (the iOS app is `host/iOS`); there this
+/// The package also builds for iOS (the iOS app is `host/Apple/iOS`); there this
 /// executable has nothing to run.
 @main
 enum SpoolBuddyMacUnsupported {

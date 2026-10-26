@@ -1,0 +1,49 @@
+# XcodeGen spec for the iPhone/iPad app (and, from Task 8, the watch app).
+# `make apple-project` generates SpoolBuddy.xcodeproj here; the project is
+# not checked in. The apps are thin shells over the local Swift package in
+# `host/`: all logic lives in SpoolBuddyCore, the views in SpoolBuddyUI.
+name: SpoolBuddy
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+configFiles:
+  # Base.xcconfig optionally includes the git-ignored Signing.xcconfig
+  # (copy Signing.example.xcconfig and fill in DEVELOPMENT_TEAM).
+  Debug: Base.xcconfig
+  Release: Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  SpoolBuddy:
+    path: ..
+targets:
+  SpoolBuddyiOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - iOS
+    dependencies:
+      - package: SpoolBuddy
+        product: SpoolBuddyCore
+      - package: SpoolBuddy
+        product: SpoolBuddyUI
+    settings:
+      base:
+        # Placeholder until the apps get an Apple Developer account.
+        PRODUCT_BUNDLE_IDENTIFIER: cool.bambuddy.spoolbuddy
+        PRODUCT_NAME: SpoolBuddy
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SpoolBuddy
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: SpoolBuddy connects to the Flipper Zero over Bluetooth to read spool tags.
+        INFOPLIST_KEY_NSCameraUsageDescription: SpoolBuddy scans the API-key QR code shown by Bambuddy.
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
