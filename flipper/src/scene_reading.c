@@ -1,10 +1,10 @@
 #include <gui/scene_manager.h>
 
 #include "scenes.h"
-#include "spoolbuddy_app.h"
+#include "flibuddy_app.h"
 
 /* Progress while the NFC reads the tag or the host looks it up. */
-static void render(SpoolBuddyApp* app) {
+static void render(FliBuddyApp* app) {
     const char* title = "Reading tag";
     const char* hint = "Keep the spool still";
     switch(app->state.screen) {
@@ -21,27 +21,27 @@ static void render(SpoolBuddyApp* app) {
     widget_add_string_element(widget, 64, 40, AlignCenter, AlignCenter, FontSecondary, hint);
 }
 
-void spoolbuddy_scene_reading_on_enter(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+void flibuddy_scene_reading_on_enter(void* ctx) {
+    FliBuddyApp* app = ctx;
     render(app);
-    view_dispatcher_switch_to_view(app->view_dispatcher, SpoolBuddyViewWidget);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FliBuddyViewWidget);
 }
 
-bool spoolbuddy_scene_reading_on_event(void* ctx, SceneManagerEvent event) {
-    SpoolBuddyApp* app = ctx;
+bool flibuddy_scene_reading_on_event(void* ctx, SceneManagerEvent event) {
+    FliBuddyApp* app = ctx;
     if(event.type == SceneManagerEventTypeBack) {
-        /* stops the NFC (spoolbuddy_app.c, sync_reader) */
-        spoolbuddy_reduce_type(app, AppEventBack);
+        /* stops the NFC (flibuddy_app.c, sync_reader) */
+        flibuddy_reduce_type(app, AppEventBack);
         return true;
     }
-    if(event.type == SceneManagerEventTypeCustom && event.event == SpoolBuddyEventRedraw) {
+    if(event.type == SceneManagerEventTypeCustom && event.event == FliBuddyEventRedraw) {
         render(app);
         return true;
     }
     return false;
 }
 
-void spoolbuddy_scene_reading_on_exit(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+void flibuddy_scene_reading_on_exit(void* ctx) {
+    FliBuddyApp* app = ctx;
     widget_reset(app->widget);
 }

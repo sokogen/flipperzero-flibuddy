@@ -35,7 +35,7 @@ jobs:
       - name: Swift tests
         working-directory: host
         run: swift test --enable-code-coverage
-      - name: SpoolBuddyCore line coverage >= 80 %
+      - name: FliBuddyCore line coverage >= 80 %
         working-directory: tools
         run: uv run python swift_coverage.py "$(cd ../host && swift test --show-codecov-path)" --min 80
 

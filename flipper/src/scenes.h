@@ -1,11 +1,11 @@
-/* Scene list of the FAP. spoolbuddy_app.c maps each AppScreen to one of
+/* Scene list of the FAP. flibuddy_app.c maps each AppScreen to one of
  * them (scene_for); scenes render from the state and send user input to
- * spoolbuddy_reduce(). */
+ * flibuddy_reduce(). */
 #pragma once
 
 #include <gui/scene_manager.h>
 
-#define SPOOLBUDDY_SCENES(X)     \
+#define FLIBUDDY_SCENES(X)       \
     X(idle, Idle)                \
     X(reading, Reading)          \
     X(result, Result)            \
@@ -14,17 +14,17 @@
     X(done, Done)                \
     X(transport, Transport)
 
-#define SPOOLBUDDY_SCENE_ENUM(name, Name) SpoolBuddyScene##Name,
+#define FLIBUDDY_SCENE_ENUM(name, Name) FliBuddyScene##Name,
 typedef enum {
-    SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_ENUM) SpoolBuddySceneCount,
-} SpoolBuddyScene;
-#undef SPOOLBUDDY_SCENE_ENUM
+    FLIBUDDY_SCENES(FLIBUDDY_SCENE_ENUM) FliBuddySceneCount,
+} FliBuddyScene;
+#undef FLIBUDDY_SCENE_ENUM
 
-#define SPOOLBUDDY_SCENE_DECLARE(name, Name)                                     \
-    void spoolbuddy_scene_##name##_on_enter(void* ctx);                          \
-    bool spoolbuddy_scene_##name##_on_event(void* ctx, SceneManagerEvent event); \
-    void spoolbuddy_scene_##name##_on_exit(void* ctx);
-SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_DECLARE)
-#undef SPOOLBUDDY_SCENE_DECLARE
+#define FLIBUDDY_SCENE_DECLARE(name, Name)                                     \
+    void flibuddy_scene_##name##_on_enter(void* ctx);                          \
+    bool flibuddy_scene_##name##_on_event(void* ctx, SceneManagerEvent event); \
+    void flibuddy_scene_##name##_on_exit(void* ctx);
+FLIBUDDY_SCENES(FLIBUDDY_SCENE_DECLARE)
+#undef FLIBUDDY_SCENE_DECLARE
 
-extern const SceneManagerHandlers spoolbuddy_scene_handlers;
+extern const SceneManagerHandlers flibuddy_scene_handlers;

@@ -16,7 +16,7 @@ let testSwiftSettings: [SwiftSetting] = usesCommandLineTools
 // `swift run` starts a bare executable without an app bundle; macOS reads the
 // Bluetooth usage description from an Info.plist embedded in the binary, and
 // without one touching CoreBluetooth ends the process.
-let macInfoPlistPath = Context.packageDirectory + "/Sources/SpoolBuddyMac/Info.plist"
+let macInfoPlistPath = Context.packageDirectory + "/Sources/FliBuddyMac/Info.plist"
 let macLinkerSettings: [LinkerSetting] = [
     .unsafeFlags(
         ["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", macInfoPlistPath],
@@ -25,25 +25,25 @@ let macLinkerSettings: [LinkerSetting] = [
 ]
 
 let package = Package(
-    name: "SpoolBuddy",
+    name: "FliBuddy",
     // `.v26` needs tools version 6.2; the string form works with 6.0.
     platforms: [.macOS(.v14), .iOS("26.0"), .watchOS("26.0")],
     products: [
-        .library(name: "SpoolBuddyCore", targets: ["SpoolBuddyCore"]),
-        .library(name: "SpoolBuddyUI", targets: ["SpoolBuddyUI"]),
-        .executable(name: "SpoolBuddyMac", targets: ["SpoolBuddyMac"]),
+        .library(name: "FliBuddyCore", targets: ["FliBuddyCore"]),
+        .library(name: "FliBuddyUI", targets: ["FliBuddyUI"]),
+        .executable(name: "FliBuddyMac", targets: ["FliBuddyMac"]),
     ],
     targets: [
-        .target(name: "SpoolBuddyCore"),
+        .target(name: "FliBuddyCore"),
         // SwiftUI views shared by the macOS and iOS apps.
-        .target(name: "SpoolBuddyUI", dependencies: ["SpoolBuddyCore"]),
+        .target(name: "FliBuddyUI", dependencies: ["FliBuddyCore"]),
         .executableTarget(
-            name: "SpoolBuddyMac", dependencies: ["SpoolBuddyCore", "SpoolBuddyUI"],
+            name: "FliBuddyMac", dependencies: ["FliBuddyCore", "FliBuddyUI"],
             exclude: ["Info.plist"], linkerSettings: macLinkerSettings
         ),
         .testTarget(
-            name: "SpoolBuddyCoreTests",
-            dependencies: ["SpoolBuddyCore"],
+            name: "FliBuddyCoreTests",
+            dependencies: ["FliBuddyCore"],
             // Fixtures is a symlink to ../../../protocol/fixtures (see README.md).
             resources: [.copy("Fixtures")],
             swiftSettings: testSwiftSettings

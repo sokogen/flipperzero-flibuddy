@@ -1,14 +1,17 @@
-# flipper-spoolbuddy
+# flipper-flibuddy
 
-Keep a [Bambuddy](https://github.com/maziggy/bambuddy) filament inventory
-accurate with a Flipper Zero instead of SpoolBuddy hardware. The Flipper
-reads a spool's NFC tag (Bambu MIFARE Classic or NTAG) and streams the raw
-dump over USB or Bluetooth LE to a host app on the Mac, an iPhone, an iPad
-or an Apple Watch; the host parses the tag, looks the spool up in Bambuddy,
-and records weights typed in from an ordinary kitchen scale, on either the
-Flipper or the host. New spools can be created and
-existing ones linked to a tag. See
+FliBuddy keeps a [Bambuddy](https://github.com/maziggy/bambuddy) filament
+inventory accurate with a Flipper Zero instead of SpoolBuddy hardware. The
+Flipper reads a spool's NFC tag (Bambu MIFARE Classic or NTAG) and streams
+the raw dump over USB or Bluetooth LE to a host app on the Mac, an iPhone,
+an iPad or an Apple Watch; the host parses the tag, looks the spool up in
+Bambuddy, and records weights typed in from an ordinary kitchen scale, on
+either the Flipper or the host. New spools can be created and existing ones
+linked to a tag. See
 `docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`.
+
+FliBuddy, not SpoolBuddy: SpoolBuddy is Bambuddy's own kiosk device. The
+project was renamed on 2026-10-26; the design spec keeps its old file name.
 
 Bambuddy must run in internal inventory mode; the host refuses Spoolman
 mode.
@@ -22,9 +25,9 @@ protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
                           sample messages) shared by all test suites
 flipper/                  the FAP: application.fam, src/, host-compiled
                           unit tests in tests/
-host/                     Swift package: SpoolBuddyCore library,
-                          SpoolBuddyUI shared SwiftUI views,
-                          SpoolBuddyMac SwiftUI executable, tests
+host/                     Swift package: FliBuddyCore library,
+                          FliBuddyUI shared SwiftUI views,
+                          FliBuddyMac SwiftUI executable, tests
 host/Apple/               XcodeGen project.yml for the iPhone/iPad app
                           (iOS/) and its Apple Watch companion (Watch/),
                           Base.xcconfig, Signing.example.xcconfig
@@ -62,7 +65,7 @@ and `cc` from `/usr/bin` exit with 69. Prefix the commands below with
 ```
 cd flipper
 ufbt update --branch=1.5.1    # once; the SDK goes to flipper/.ufbt (.env)
-ufbt                          # builds dist/spoolbuddy.fap
+ufbt                          # builds dist/flibuddy.fap
 ufbt launch                   # builds, installs and starts it over USB
 ```
 
@@ -76,7 +79,7 @@ tag's local facts only. See `flipper/README.md` for the screens.
 
 ```
 cd host
-swift run SpoolBuddyMac
+swift run FliBuddyMac
 ```
 
 Open Settings (⌘,), enter the Bambuddy URL (`http://<BAMBUDDY_LAN_IP>:8000`)
@@ -100,7 +103,7 @@ The transport is a setting on both sides; nothing negotiates it.
 
 - Flipper: on the Idle screen OK opens **Transport** with **USB** and
   **Bluetooth**. The choice is saved in
-  `/ext/apps_data/spoolbuddy/settings.bin` and the app starts that backend
+  `/ext/apps_data/flibuddy/settings.bin` and the app starts that backend
   only; with Bluetooth the USB port stays with the CLI and qFlipper. The
   status line shows `BLE adv` while advertising and `BLE` once a host has
   said hello. See `flipper/README.md`.
@@ -113,12 +116,12 @@ There is no pairing step anywhere. The FAP publishes its own GATT service
 instead of the stock serial profile, whose passkey prompt watchOS cannot
 show, and the link is unencrypted: it carries tag dumps and grams, never
 the API key. To try "just works" pairing, build the FAP with
-`SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION=1` (add
-`cdefines=["SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION=1"]` to
+`FLIBUDDY_BLE_REQUIRE_ENCRYPTION=1` (add
+`cdefines=["FLIBUDDY_BLE_REQUIRE_ENCRYPTION=1"]` to
 `flipper/application.fam`), which makes the characteristics require an
 encrypted link.
 
-While SpoolBuddy holds the Flipper's Bluetooth, the official Flipper mobile
+While FliBuddy holds the Flipper's Bluetooth, the official Flipper mobile
 app cannot connect; leaving the app restores the default profile.
 
 ### Installing on an iPhone, iPad or Apple Watch
@@ -130,13 +133,13 @@ and has to be repeated):
 ```
 cp host/Apple/Signing.example.xcconfig host/Apple/Signing.xcconfig
 # set DEVELOPMENT_TEAM in it (Xcode → Settings → Accounts shows the team ID)
-make apple-project            # generates host/Apple/SpoolBuddy.xcodeproj
-open host/Apple/SpoolBuddy.xcodeproj
+make apple-project            # generates host/Apple/FliBuddy.xcodeproj
+open host/Apple/FliBuddy.xcodeproj
 ```
 
-Run the `SpoolBuddyiOS` scheme on the device. The watch app is embedded in
+Run the `FliBuddyiOS` scheme on the device. The watch app is embedded in
 the iPhone app and installs from the Watch app on the phone. The bundle
-ids (`cool.bambuddy.spoolbuddy`, `….watchkitapp`) are placeholders; a free
+ids (`com.sokolachko.flibuddy`, `….watchkitapp`) are placeholders; a free
 team may need them changed to something unique.
 
 In the iOS Settings, **Scan QR code** reads the QR code Bambuddy shows when
@@ -155,7 +158,7 @@ to.
 
 ```
 make apple-project            # xcodegen generate in host/Apple
-make apple-build              # SpoolBuddyiOS and SpoolBuddyWatch for the
+make apple-build              # FliBuddyiOS and FliBuddyWatch for the
                               # simulators, CODE_SIGNING_ALLOWED=NO
 ```
 
@@ -225,7 +228,7 @@ make -C flipper/tests test   # C unit tests, host-compiled, no Flipper needed
 cd host && swift test        # Swift
 cd tools && uv run pytest    # Python
 make lint                    # C with -Werror, Swift with -warnings-as-errors, ruff
-make coverage                # line coverage of SpoolBuddyCore and tools, >= 80 %
+make coverage                # line coverage of FliBuddyCore and tools, >= 80 %
 make apple-project apple-build  # the iOS and watch apps for the simulators
 ```
 

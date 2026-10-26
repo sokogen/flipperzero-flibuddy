@@ -72,7 +72,7 @@ static bool read_mfc(TagReader* r, TagDump* out) {
     } else {
         ok = tag_present(r);
     }
-    FURI_LOG_I("SpoolBuddy", "mfc read: error %d, ok %d", error, ok);
+    FURI_LOG_I("FliBuddy", "mfc read: error %d, ok %d", error, ok);
 
     mf_classic_free(data);
     free(keys);
@@ -87,7 +87,7 @@ static bool read_ntag(TagReader* r, TagDump* out) {
         for(uint16_t p = 0; p < data->pages_read; p++)
             if(!tag_dump_append_page(out, data->page[p].data)) break;
     }
-    FURI_LOG_I("SpoolBuddy", "ntag read: error %d, pages %u", error, out->page_count);
+    FURI_LOG_I("FliBuddy", "ntag read: error %d, pages %u", error, out->page_count);
     mf_ultralight_free(data);
     return out->page_count > 0; /* `scan` needs at least one page */
 }
@@ -97,7 +97,7 @@ bool tag_reader_read(TagReader* r, TagDump* out) {
     if(iso14443_3a_poller_sync_read(r->nfc, &iso) != Iso14443_3aErrorNone) return false;
     TagType type;
     if(!tag_type_from_sak(iso.sak, &type)) {
-        FURI_LOG_I("SpoolBuddy", "unsupported SAK %02X", iso.sak);
+        FURI_LOG_I("FliBuddy", "unsupported SAK %02X", iso.sak);
         return false;
     }
     tag_dump_init(out, type);
@@ -140,7 +140,7 @@ TagReader* tag_reader_alloc(void) {
     memset(r, 0, sizeof(TagReader));
     r->nfc = nfc_alloc();
     r->scanner = nfc_scanner_alloc(r->nfc);
-    r->worker = furi_thread_alloc_ex("SpoolBuddyNfc", READER_STACK, reader_worker, r);
+    r->worker = furi_thread_alloc_ex("FliBuddyNfc", READER_STACK, reader_worker, r);
     return r;
 }
 

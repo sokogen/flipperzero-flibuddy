@@ -8,9 +8,12 @@ firmware 1.5.1, and its host-compiled unit tests.
 ```
 cd flipper
 ufbt update --branch=1.5.1   # once; dotenv mode keeps the SDK in .ufbt
-ufbt                         # builds dist/spoolbuddy.fap
+ufbt                         # builds dist/flibuddy.fap
 ufbt launch                  # builds, installs and starts it on a Flipper
 ```
+
+`ufbt launch` installs the app as `/ext/apps/Tools/flibuddy.fap`; the
+Flipper lists it as **FliBuddy** under Apps → Tools.
 
 `.env` (from `ufbt dotenv_create`) points `UFBT_HOME` at `flipper/.ufbt`.
 `application.fam` limits the sources to `src/`, so the tests and the SDK
@@ -28,7 +31,7 @@ On the Idle screen OK opens the **Transport** menu with **USB** and
 **Bluetooth**; the one in use is selected and Back returns to Idle without
 a change. Choosing a different one closes the running backend and opens the
 other. The choice is saved with `saved_struct` in
-`/ext/apps_data/spoolbuddy/settings.bin` (version 1, `0` = USB, `1` =
+`/ext/apps_data/flibuddy/settings.bin` (version 1, `0` = USB, `1` =
 Bluetooth); a missing or unreadable file, or one of another version, means USB
 (`src/app_settings.h`, the SDK side in `src/app_settings_file.c`). Only the
 chosen backend runs: with Bluetooth the USB port stays with the CLI and
@@ -47,7 +50,7 @@ The status line under the title shows:
 
 The app does not use the stock serial profile: its passkey pairing cannot
 be completed on an Apple Watch. While Bluetooth is chosen it starts its own
-BLE profile (`src/ble_spoolbuddy_svc.c`, `src/transport_ble.c`) with
+BLE profile (`src/ble_flibuddy_svc.c`, `src/transport_ble.c`) with
 `bt_profile_start`: no bonding, no pairing, one GATT service. It advertises
 the service UUID and the bare Flipper name (the 31-byte advertisement has
 no room for more), with the Flipper's MAC changed in one byte so centrals
@@ -55,7 +58,7 @@ keep it apart from the default profile's bonds. Leaving the app, or
 switching back to USB, restores the default profile with
 `bt_profile_restore_default`.
 
-While SpoolBuddy holds the Bluetooth profile, the official Flipper mobile
+While FliBuddy holds the Bluetooth profile, the official Flipper mobile
 app cannot connect to the Flipper; it can again once you leave the app.
 
 | Role | UUID | Properties |
@@ -73,13 +76,13 @@ sends its `hello` when the host subscribes to TX, as it does on USB when
 the host raises DTR. Unsubscribing or disconnecting ends the session.
 
 The link is unencrypted by design: it carries tag dumps and grams, never
-the API key. Setting `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` to 1 makes both
+the API key. Setting `FLIBUDDY_BLE_REQUIRE_ENCRYPTION` to 1 makes both
 characteristics require an encrypted link (`ATTR_PERMISSION_ENCRY_READ |
 ATTR_PERMISSION_ENCRY_WRITE`), so a central has to pair "just works" first:
 
 ```
 # in application.fam, inside App(...)
-cdefines=["SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION=1"],
+cdefines=["FLIBUDDY_BLE_REQUIRE_ENCRYPTION=1"],
 ```
 
 The raw ACI events the profile handles are decoded by offset in
@@ -99,7 +102,7 @@ without one the Flipper shows the UID, the type and, for a Bambu tag, the
 ASCII of blocks 2 and 4 and the block 9 hex, the tray UUID; in Phase 0 it
 matched the `tray_uuid` an AMS reported (`src/nfc_classify.h`). Every
 screen change goes through the reducer in `src/app_state.h`;
-`spoolbuddy_app.c` picks the scene for the new screen.
+`flibuddy_app.c` picks the scene for the new screen.
 
 With a host, the Result screen shows the host's `lookup` lines; OK opens
 the actions: a found spool offers **Enter weight** and **Mode: gross/net**

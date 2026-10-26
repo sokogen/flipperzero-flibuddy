@@ -21,7 +21,7 @@ static const char* uuid_text(const uint8_t* lsb_first) {
 }
 
 static void test_uuids_match_the_gatt_table(void) {
-    /* plan, Technical Details; the host has the same in SpoolBuddyGATT.swift */
+    /* plan, Technical Details; the host has the same in FliBuddyGATT.swift */
     CHECK_STR_EQ(uuid_text(service_uuid), "51C07E84-E37E-4D52-AC6D-B2003116F506");
     CHECK_STR_EQ(uuid_text(rx_uuid), "D250A7B1-D301-43F6-928E-BF2CA5D115BD");
     CHECK_STR_EQ(uuid_text(tx_uuid), "C3AB2366-401D-482C-9002-B0A046C2A4E4");

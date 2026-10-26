@@ -38,9 +38,9 @@ protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
                           sample messages) shared by all test suites
 flipper/                  the FAP: application.fam, src/, host-compiled
                           unit tests in tests/
-host/                     Swift package: SpoolBuddyCore library,
-                          SpoolBuddyUI shared SwiftUI views,
-                          SpoolBuddyMac SwiftUI executable, tests
+host/                     Swift package: FliBuddyCore library,
+                          FliBuddyUI shared SwiftUI views,
+                          FliBuddyMac SwiftUI executable, tests
 host/Apple/               XcodeGen project.yml, iOS/ and Watch/ app shells,
                           Base.xcconfig, Signing.example.xcconfig
 tools/                    Python dev bridge (Phase 0 spike, kept as a
@@ -53,10 +53,10 @@ tools/                    Python dev bridge (Phase 0 spike, kept as a
 ```
 make test                    # all three suites below
 make -C flipper/tests test   # C unit tests, host-compiled
-cd host && swift test        # Swift (SpoolBuddyCore)
+cd host && swift test        # Swift (FliBuddyCore)
 cd tools && uv run pytest    # Python bridge, fixtures, schema
 make lint                    # warnings fail: C -Werror, Swift, ruff
-make coverage                # SpoolBuddyCore and tools line coverage >= 80 %
+make coverage                # FliBuddyCore and tools line coverage >= 80 %
 make apple-project apple-build  # iOS and watch apps for the simulators
 ```
 
@@ -72,9 +72,12 @@ make apple-project apple-build  # iOS and watch apps for the simulators
   macro plugin needs the `-plugin-path` workaround that `host/Package.swift`
   applies when `DEVELOPER_DIR` is the Command Line Tools (see
   `host/README.md`).
-- In `host/Sources/SpoolBuddyUI` and `SpoolBuddyMac` views use `@ViewState`, not `@State`: the
+- In `host/Sources/FliBuddyUI` and `FliBuddyMac` views use `@ViewState`, not `@State`: the
   SDK declares `@State` as a macro whose plugin only Xcode ships, so `@State`
   does not build with the Command Line Tools (see `host/README.md`).
 - `make apple-project apple-build` needs XcodeGen and a licensed Xcode with
   the iOS and watchOS 26 SDKs; the Command Line Tools workaround above does
   not apply to them.
+- Host tests give `SettingsStore` an `InMemoryKeyValueStore`, never
+  `UserDefaults(suiteName:)`: `cfprefsd` rewrites a deleted suite's plist,
+  so every test would leave one in `~/Library/Preferences`.

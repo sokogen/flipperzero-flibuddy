@@ -1,10 +1,10 @@
 #include <gui/scene_manager.h>
 
 #include "scenes.h"
-#include "spoolbuddy_app.h"
+#include "flibuddy_app.h"
 
 /* Done: the host's result lines. Error: what went wrong, under a title. */
-static void build_text(SpoolBuddyApp* app) {
+static void build_text(FliBuddyApp* app) {
     static const char title[] = "\e#Error\n";
     size_t head = 0;
     if(app->state.screen == AppScreenError) {
@@ -15,13 +15,13 @@ static void build_text(SpoolBuddyApp* app) {
 }
 
 static void on_button(GuiButtonType button, InputType type, void* ctx) {
-    SpoolBuddyApp* app = ctx;
+    FliBuddyApp* app = ctx;
     if(button == GuiButtonTypeCenter && type == InputTypeShort) {
-        view_dispatcher_send_custom_event(app->view_dispatcher, SpoolBuddyEventOk);
+        view_dispatcher_send_custom_event(app->view_dispatcher, FliBuddyEventOk);
     }
 }
 
-static void render(SpoolBuddyApp* app) {
+static void render(FliBuddyApp* app) {
     build_text(app);
     Widget* widget = app->widget;
     widget_reset(widget);
@@ -29,27 +29,27 @@ static void render(SpoolBuddyApp* app) {
     widget_add_button_element(widget, GuiButtonTypeCenter, "OK", on_button, app);
 }
 
-void spoolbuddy_scene_done_on_enter(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+void flibuddy_scene_done_on_enter(void* ctx) {
+    FliBuddyApp* app = ctx;
     render(app);
-    view_dispatcher_switch_to_view(app->view_dispatcher, SpoolBuddyViewWidget);
+    view_dispatcher_switch_to_view(app->view_dispatcher, FliBuddyViewWidget);
 }
 
-bool spoolbuddy_scene_done_on_event(void* ctx, SceneManagerEvent event) {
-    SpoolBuddyApp* app = ctx;
+bool flibuddy_scene_done_on_event(void* ctx, SceneManagerEvent event) {
+    FliBuddyApp* app = ctx;
     if(event.type == SceneManagerEventTypeBack ||
-       (event.type == SceneManagerEventTypeCustom && event.event == SpoolBuddyEventOk)) {
-        spoolbuddy_reduce_type(app, AppEventBack);
+       (event.type == SceneManagerEventTypeCustom && event.event == FliBuddyEventOk)) {
+        flibuddy_reduce_type(app, AppEventBack);
         return true;
     }
-    if(event.type == SceneManagerEventTypeCustom && event.event == SpoolBuddyEventRedraw) {
+    if(event.type == SceneManagerEventTypeCustom && event.event == FliBuddyEventRedraw) {
         render(app);
         return true;
     }
     return false;
 }
 
-void spoolbuddy_scene_done_on_exit(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+void flibuddy_scene_done_on_exit(void* ctx) {
+    FliBuddyApp* app = ctx;
     widget_reset(app->widget);
 }

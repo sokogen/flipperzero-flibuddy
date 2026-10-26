@@ -2,12 +2,12 @@
 #include <bt/bt_service/bt.h>
 
 #include "ble_lines.h"
-#include "ble_spoolbuddy_svc.h"
+#include "ble_flibuddy_svc.h"
 #include "line_sender.h"
 #include "proto_encode.h"
 #include "transport_ble.h"
 
-#define TAG "SpoolBuddyBle"
+#define TAG "FliBuddyBle"
 
 #define BLE_WORKER_STACK 2048
 #define BLE_RX_STREAM    1024 /* RX frames waiting for the worker */
@@ -33,7 +33,7 @@ typedef struct {
     Transport base;
     Bt* bt;
     FuriHalBleProfileBase* profile;
-    SpoolBuddyBleCallbacks callbacks;
+    FliBuddyBleCallbacks callbacks;
     FuriThread* worker;
     FuriStreamBuffer* rx_stream;
     uint8_t rx_frame[1 + BLE_RX_FRAME_MAX]; /* BLE event thread */
@@ -145,7 +145,7 @@ static int32_t ble_worker(void* ctx) {
 static BleNotifyResult notify_chunk(const uint8_t* data, size_t len, void* ctx) {
     BleTransport* t = ctx;
     if(!t->subscribed) return BleNotifyLost;
-    return spoolbuddy_ble_notify(t->profile, data, len) ? BleNotifyOk : BleNotifyBusy;
+    return flibuddy_ble_notify(t->profile, data, len) ? BleNotifyOk : BleNotifyBusy;
 }
 
 static uint32_t tick_ms(void* ctx) {
@@ -167,7 +167,7 @@ static bool ble_open(Transport* base) {
     furi_thread_start(t->worker);
     bt_set_status_changed_callback(t->bt, bt_status_changed, t);
 
-    t->profile = bt_profile_start(t->bt, spoolbuddy_ble_profile, &t->callbacks);
+    t->profile = bt_profile_start(t->bt, flibuddy_ble_profile, &t->callbacks);
     if(!t->profile) {
         FURI_LOG_E(TAG, "profile not started");
         bt_profile_restore_default(t->bt);
@@ -233,7 +233,7 @@ Transport* transport_ble_alloc(void) {
     t->base.send_line = ble_send_line;
     t->base.set_rx_callback = ble_set_rx_callback;
     t->base.is_connected = ble_is_connected;
-    t->callbacks = (SpoolBuddyBleCallbacks){
+    t->callbacks = (FliBuddyBleCallbacks){
         .on_rx = svc_rx,
         .on_subscribe = svc_subscribe,
         .on_mtu = svc_mtu,
@@ -247,7 +247,7 @@ Transport* transport_ble_alloc(void) {
     line_sender_init(&t->sender, ble_lines_chunk(&t->lines), ble_lines_send, &t->lines);
     t->rx_stream = furi_stream_buffer_alloc(BLE_RX_STREAM, 1);
     t->tx_lock = furi_mutex_alloc(FuriMutexTypeNormal);
-    t->worker = furi_thread_alloc_ex("SpoolBuddyBle", BLE_WORKER_STACK, ble_worker, t);
+    t->worker = furi_thread_alloc_ex("FliBuddyBle", BLE_WORKER_STACK, ble_worker, t);
     return &t->base;
 }
 

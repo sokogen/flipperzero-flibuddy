@@ -1,5 +1,5 @@
-/* The raw bytes between the Flipper BLE stack and the SpoolBuddy GATT
- * service (ble_spoolbuddy_svc.h), free of SDK headers so that they are
+/* The raw bytes between the Flipper BLE stack and the FliBuddy GATT
+ * service (ble_flibuddy_svc.h), free of SDK headers so that they are
  * tested on the host: the UUIDs, the advertised name and address, and the
  * stack events the service handles.
  *

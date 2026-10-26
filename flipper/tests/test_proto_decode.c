@@ -105,13 +105,13 @@ static void test_result_error_fixture(void) {
 static void test_hello_fixtures(void) {
     CHECK(decode_fixture("hello_host.json", false) == ProtoDecodeOk);
     CHECK(msg.type == ProtoMsgHello);
-    CHECK_STR_EQ(msg.hello.app, "spoolbuddy-mac/0.1.0");
+    CHECK_STR_EQ(msg.hello.app, "flibuddy-mac/0.1.0");
     CHECK_STR_EQ(msg.hello.os, "macOS 26.0");
     CHECK_STR_EQ(msg.hello.fw, "");
 
     CHECK(decode_fixture("hello_flipper.json", true) == ProtoDecodeOk);
     CHECK(msg.type == ProtoMsgHello);
-    CHECK_STR_EQ(msg.hello.app, "spoolbuddy-fap/0.1.0");
+    CHECK_STR_EQ(msg.hello.app, "flibuddy-fap/0.1.0");
     CHECK_STR_EQ(msg.hello.fw, "1.5.1");
     CHECK_STR_EQ(msg.hello.os, "");
 }

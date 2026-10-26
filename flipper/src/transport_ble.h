@@ -1,6 +1,6 @@
-/* Transport over the SpoolBuddy BLE profile (ble_spoolbuddy_svc.h).
+/* Transport over the FliBuddy BLE profile (ble_flibuddy_svc.h).
  *
- * open() replaces the Flipper's default BLE profile with SpoolBuddy's;
+ * open() replaces the Flipper's default BLE profile with FliBuddy's;
  * close() disconnects the host and restores the default one, so the
  * official Flipper app cannot connect while the transport is open. A host
  * is connected once it holds the link and subscribed to TX, as DTR on

@@ -209,7 +209,7 @@ Transport* transport_usb_alloc(void) {
     line_sender_init(&t->sender, CDC_DATA_SZ, send_packet, t);
     t->tx_done = furi_semaphore_alloc(1, 0);
     t->tx_lock = furi_mutex_alloc(FuriMutexTypeNormal);
-    t->worker = furi_thread_alloc_ex("SpoolBuddyUsb", USB_WORKER_STACK, usb_worker, t);
+    t->worker = furi_thread_alloc_ex("FliBuddyUsb", USB_WORKER_STACK, usb_worker, t);
     return &t->base;
 }
 

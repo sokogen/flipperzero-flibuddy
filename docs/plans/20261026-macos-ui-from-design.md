@@ -23,19 +23,19 @@ What changes:
   saved/unsaved line.
 
 ## Context (from discovery)
-- Views (after Phase 2 and the rename; adjust names if the rename has not
-  happened): `host/Sources/SpoolBuddyUI/FeedView.swift` (feed, row, status
+- Views (after Phase 2 and the FliBuddy rename):
+  `host/Sources/FliBuddyUI/FeedView.swift` (feed, row, status
   bar), `UnknownRowActions.swift` (New form, Link picker), `SettingsForm.swift`,
-  `host/Sources/SpoolBuddyMac/{App,SettingsView}.swift`.
-- View models: `host/Sources/SpoolBuddyCore/ViewModels/FeedViewModel.swift`,
+  `host/Sources/FliBuddyMac/{App,SettingsView}.swift`.
+- View models: `host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift`,
   `FeedItem.swift` (status text, `suggested(mode)`, `savedByText`,
   `requestText`), `FlipperLink.swift` (`statusText`), `HostModel.swift`,
   `SettingsViewModel.swift`, `NewSpoolForm.swift`.
-- Session: `host/Sources/SpoolBuddyCore/Session/{Session,FeedRow,IntentHandler,LookupBuilder}.swift`
+- Session: `host/Sources/FliBuddyCore/Session/{Session,FeedRow,IntentHandler,LookupBuilder}.swift`
   (`FeedRow.Status`: scanned, awaitingWeight, unknown(prefill), saved,
   created, error; `Side`; `HostRequest`).
-- Weight math: `host/Sources/SpoolBuddyCore/Bambuddy/WeightMath.swift`.
-- Tests: `host/Tests/SpoolBuddyCoreTests/{FeedViewModelTests,SessionTests,FlipperLinkTests,SettingsViewModelTests}.swift`.
+- Weight math: `host/Sources/FliBuddyCore/Bambuddy/WeightMath.swift`.
+- Tests: `host/Tests/FliBuddyCoreTests/{FeedViewModelTests,SessionTests,FlipperLinkTests,SettingsViewModelTests}.swift`.
 - The spec's prototype model (`flibuddy-core.js` in the design project) is
   the reference for the rules; its copy is quoted in the spec file.
 
@@ -118,7 +118,7 @@ What changes:
 
 ### Task 7: Verify acceptance criteria
 - [ ] every item of "Differences from the shipped macOS app" in the spec is implemented
-- [ ] `swift run SpoolBuddyMac` (or the renamed target): main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
+- [ ] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
 - [ ] `make test`, `make lint`, `make coverage` pass
 
 ### Task 8: Documentation
