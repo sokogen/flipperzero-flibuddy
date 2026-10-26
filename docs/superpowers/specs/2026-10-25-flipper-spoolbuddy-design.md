@@ -285,22 +285,26 @@ One SwiftUI code base targeting macOS, iPadOS and iOS.
 - **Flipper and host are peers.** Whichever side enters a weight first sends
   it; a later edit on the other side sends another update; last write wins.
   Each row shows which side saved last.
-- **Settings.** Bambuddy base URL, API key (Keychain), the catalog entry
-  used as the empty‑spool weight for new items (default "Bambu Lab -
-  Plastic Low Temp", 250 g), net/gross default, transport (USB device or
-  BLE peripheral). A "Test connection"
-  button calls `GET /inventory/catalog`.
-- **Tag parser.** Turns a dump into: tag type, UID, tray UUID (Bambu),
-  material, subtype, colour RGBA, label weight, temperatures (Bambu block
-  layout); or UID plus optional NDEF prefill (NTAG). Pure functions,
-  fixture‑tested.
+- **Settings.** Bambuddy base URL, API key (Keychain), the core weight
+  used for new items as an editable number (default 325 g, see "Phase 0
+  findings"), the catalog entry recorded as `core_weight_catalog_id`
+  (picking one copies its weight into the number; editing the number
+  keeps the entry), net/gross default, transport (USB device or BLE
+  peripheral). A "Test connection" button calls `GET /inventory/catalog`.
+- **Tag parser.** Turns a dump into: tag type, UID, tray UUID (Bambu,
+  block 9), material, subtype (detailed type without the material word,
+  as the AMS stores it), colour RGBA, label weight, temperatures (Bambu
+  block layout); or UID plus optional NDEF prefill (NTAG). Pure
+  functions, fixture‑tested.
 - **Bambuddy client.** The six calls in the table above, with typed
   responses and error mapping (404 → unknown, 409 → tag already linked with
   the other spool named, network errors → feed row error).
 - **Rules for new items.** `label_weight` from the tag (fallback 1000),
-  `core_weight` and `core_weight_catalog_id` from the configured catalog
-  entry, `weight_used` 0, `tag_uid`, `tray_uuid`, `tag_type`,
-  `data_origin: "flipper"`, material and colour from the tag. Spools and
+  `core_weight` and `core_weight_catalog_id` from the settings,
+  `weight_used` 0, `tag_uid` (AMS form, see "Phase 0 findings"),
+  `tray_uuid`, `tag_type`, `data_origin: "flipper"`, material and colour
+  from the tag; `color_name` from Bambuddy's colour map when the RGBA is
+  known there, otherwise left empty. Spools and
   refills are created the same way: a refill is weighed only once it is on
   a reusable spool, so the spool's weight is the right tare for both. Net
   to gross: `gross = net + core_weight` of the spool in question.
@@ -381,6 +385,49 @@ URL carrying it) before designing the parser.
 - NDEF prefill from OpenTag3D / OpenSpool tags.
 - Colour name lookup through Bambuddy's colour catalog.
 
+## Phase 0 findings (2026-10-26)
+
+Checked with the owner's Flipper (firmware 1.5.1), real Bambu spools and
+the Bambuddy on the NAS (1.2.5.x, internal inventory, 62 AMS‑added
+spools). Everything below is settled and supersedes earlier wording.
+
+- **Tray UUID is block 9**, raw hex. The AMS‑reported `tray_uuid` of a
+  known spool matched block 9 byte for byte. Blocks 4+5 hold the detailed
+  type as ASCII ("PLA Pure"), so the SpoolBuddy daemon's reading of those
+  blocks yields a name, not a UUID. The parsers keep a single tray UUID;
+  the candidate list goes. Filing an upstream issue on maziggy/bambuddy is
+  the owner's call.
+- **AMS tag UID form.** Bambuddy stores the AMS‑reported `tag_uid` as the
+  4‑byte MIFARE UID followed by `00000100` (`ECA8FEDE00000100` for UID
+  `ECA8FEDE`). Bambuddy normalises to the last 16 hex characters and does
+  not pad. The host sends Bambu tag UIDs in that form for lookup, create
+  and link so records look the same whichever side made them. NTAG UIDs
+  are sent as read.
+- **Weights.** Measured: empty reusable Bambu spool 293 g, refill core
+  32 g. Bambuddy has one knob, `core_weight` per spool, meaning everything
+  on the scale that is not filament; `net = gross − core_weight`. For
+  Bambu PLA/PETG that is **325 g** for a sealed spool and for a refill on a
+  reusable spool alike, so **New** always uses it; refills in their box are
+  not modelled. Default core weight in the host and the bridge is 325 g,
+  editable. The owner set the three "Bambu Lab" catalog entries in
+  Bambuddy to 325 g (they were 1000 g), because AMS‑added spools take
+  their core weight from the first "Bambu Lab" entry, and all existing
+  spools were updated to 325 g.
+- **Colour names.** `GET /inventory/colors/map` returns
+  `{colors: {hex6: name}, by_material: {"<material>|<hex6>": name}}`,
+  keys lower‑case. New items look up `by_material` with the detailed type,
+  then `colors`; when neither matches `color_name` stays empty rather than
+  carrying the hex string.
+- **Subtype.** AMS‑added spools carry the detailed type without the
+  material word ("Basic", not "PLA Basic"). New items do the same.
+- **Reading.** Both tags of a spool resolve to the same tray UUID; a sealed
+  refill reads through its box; a tag moved away early yields a dump with
+  all sectors missing, which the host shows as unreadable. Leaving the app
+  with Back on the Idle screen returns the USB port to the Flipper CLI.
+- **Why weighing matters.** Bambuddy's AMS remain‑percent fallback charged
+  a full label (100 %) to one spool when it was swapped during a print;
+  the scale weight overrode it. The project's premise holds.
+
 ## Decisions made by the designer (owner may override)
 
 - No SpoolBuddy device registration; inventory API only.
@@ -397,6 +444,8 @@ URL carrying it) before designing the parser.
 - "Link to existing" lives on the host; the Flipper only flags the row.
 - The Flipper offers **New** only when the tag gave prefill data;
   otherwise it defers to the host's form.
+- Settings on iPad and iPhone can take the API key from the QR code
+  Bambuddy shows when a key is created (Phase 2).
 - Flipper firmware: the latest stable release at the time of building, and
   `ufbt` pinned to that release channel in CI. The owner updates the
   Flipper if it is older; no support for older API versions.
