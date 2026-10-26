@@ -397,9 +397,11 @@ forums and the deployed Bambuddy; they bind Phase 2:
   never finish pairing. The project therefore publishes its own profile.
 - **FliBuddy BLE profile (FAP‑defined).** A `FuriHalBleProfileTemplate`
   whose `get_gap_config` sets `bonding_mode = false`,
-  `pairing_method = GapPairingNone`, the Flipper's BLE MAC and name
-  (`furi_hal_version_get_ble_mac`, `…_get_ble_local_device_name_ptr`)
-  and advertises the service UUID; `start` adds the service with
+  `pairing_method = GapPairingNone`, the Flipper's BLE MAC
+  (`furi_hal_version_get_ble_mac`), the GAP device name and the
+  scan-response manufacturer data (`GapConfig.adv_name`, `mfg_data`, from
+  `furi_hal_version_get_name_ptr`, see `src/ble_wire.h`) and advertises
+  the service UUID; `start` adds the service with
   `ble_gatt_service_add` / `ble_gatt_characteristic_init`, `stop` deletes
   it. Started with `bt_profile_start(bt, &flibuddy_ble_profile, NULL)`
   (restarts the second core), ended with `bt_profile_restore_default`.
@@ -558,11 +560,14 @@ Phase 2, decided by the builder (2026-10-26; the plan is
   characteristics require encryption so "just works" pairing can be tried
   on real devices; if the Mac, the iPhone and the watch all pair without a
   prompt, it may become the default.
-- The profile advertises the 128‑bit service UUID and the bare Flipper
-  name (the 31‑byte advertisement has no room for "Flipper <name>"), with
-  the Flipper's MAC changed in one byte (byte 2 XOR 0x5B, as the HID
-  profile does) so a central never mixes it up with the default profile's
-  bonds and cached GATT table.
+- The profile advertises the 128‑bit service UUID and no name (flags 3 +
+  TX power 3 + UUID 18 = 24 of 31 bytes; a name AD does not fit and made
+  the stack refuse the advertisement). The name (8 chars at most,
+  "Flipper" when none) travels in the scan response as manufacturer data,
+  company id 0xFFFF, and is the GAP device name. The Flipper's MAC is
+  changed in one byte (byte 2 XOR 0x5B, as the HID profile does) so a
+  central never mixes it up with the default profile's bonds and cached
+  GATT table.
 - Flow control: the host sends one write with response at a time, chunks
   of `maximumWriteValueLength` up to 243 bytes; the Flipper sends one
   notification at a time in chunks of ATT MTU − 3; a stack still busy

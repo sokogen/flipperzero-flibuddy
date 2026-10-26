@@ -53,6 +53,10 @@ static void test_gap_name_keeps_the_device_name(void) {
     /* gap.c takes the GAP device name from name + 1 */
     ble_wire_gap_name(name, "Mars");
     CHECK_STR_EQ(name + 1, "Mars");
+    ble_wire_gap_name(name, "Abcdefgh");
+    CHECK_STR_EQ(name + 1, "Abcdefgh");
+    ble_wire_gap_name(name, "Abcdefghi");
+    CHECK_STR_EQ(name + 1, "Abcdefgh");
     ble_wire_gap_name(name, "Abcdefghij");
     CHECK_STR_EQ(name + 1, "Abcdefgh");
 }
@@ -87,6 +91,16 @@ static void test_mfg_data_falls_back_when_the_flipper_has_none(void) {
 static void test_mfg_data_is_cut_to_what_gap_takes(void) {
     uint8_t data[BLE_WIRE_MFG_DATA_MAX];
     size_t len = ble_wire_mfg_data(data, "Abcdefghijklmnopqrstuvwxyz");
+    CHECK_EQ_INT(len, BLE_WIRE_MFG_DATA_MAX);
+    CHECK_MEM_EQ(data + 2, "Abcdefghijklmnopqrs", BLE_WIRE_MFG_DATA_MAX - 2);
+    len = ble_wire_mfg_data(data, "Abcdefghijklmnopqrst");
+    CHECK_EQ_INT(len, BLE_WIRE_MFG_DATA_MAX);
+    CHECK_MEM_EQ(data + 2, "Abcdefghijklmnopqrs", BLE_WIRE_MFG_DATA_MAX - 2);
+}
+
+static void test_mfg_data_keeps_a_name_that_just_fits(void) {
+    uint8_t data[BLE_WIRE_MFG_DATA_MAX];
+    size_t len = ble_wire_mfg_data(data, "Abcdefghijklmnopqrs");
     CHECK_EQ_INT(len, BLE_WIRE_MFG_DATA_MAX);
     CHECK_MEM_EQ(data + 2, "Abcdefghijklmnopqrs", BLE_WIRE_MFG_DATA_MAX - 2);
 }
@@ -288,6 +302,7 @@ int main(void) {
     RUN_TEST(test_mfg_data_is_the_test_company_id_and_the_name);
     RUN_TEST(test_mfg_data_falls_back_when_the_flipper_has_none);
     RUN_TEST(test_mfg_data_is_cut_to_what_gap_takes);
+    RUN_TEST(test_mfg_data_keeps_a_name_that_just_fits);
     RUN_TEST(test_scan_response_fits_31_bytes);
     RUN_TEST(test_link_is_off_until_the_transport_opens);
     RUN_TEST(test_link_advertises_while_no_host_subscribed);

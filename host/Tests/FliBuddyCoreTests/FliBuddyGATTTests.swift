@@ -11,6 +11,7 @@ import Testing
 
     @Test func nameIsReadFromTheManufacturerData() {
         #expect(FliBuddyGATT.name(manufacturerData: manufacturerData("Mars")) == "Mars")
+        #expect(FliBuddyGATT.name(manufacturerData: manufacturerData("M")) == "M")
     }
 
     @Test func manufacturerDataOfAnotherCompanyHasNoName() {
