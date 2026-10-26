@@ -30,6 +30,18 @@ public final class FlipperLink {
 
     public var statusText: String { Self.statusText(state, problem: problem) }
 
+    /// How the Flipper is connected once it said hello; `nil` before.
+    public var connectedTransport: TransportKind? { Self.connectedTransport(state, choice: choice) }
+
+    public static func connectedTransport(_ state: LinkState, choice: TransportChoice?) -> TransportKind? {
+        guard case .connected = state else { return nil }
+        return switch choice {
+        case .usb: .usb
+        case .bluetooth: .bluetooth
+        case nil: nil
+        }
+    }
+
     private let session: Session
     private let hello: Hello
     private let makeTransport: @Sendable (TransportChoice) -> any Transport

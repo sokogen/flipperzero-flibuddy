@@ -211,13 +211,23 @@ public actor Session {
     /// The startup check alone, without the colour map (the settings' "Test connection").
     static func check(_ inventory: any SpoolInventory) async -> BambuddyState {
         do {
-            return try await inventory.spoolmanEnabled() ? .refused(.spoolmanMode) : .ready
-        } catch BambuddyError.permissionMissing(let permission) {
-            return .refused(.permissionMissing(permission))
-        } catch BambuddyError.unauthorized {
-            return .refused(.unauthorized)
+            return try await state(spoolmanEnabled: inventory.spoolmanEnabled())
         } catch {
-            return .unreachable(describe(error))
+            return state(after: error)
+        }
+    }
+
+    /// The startup check's answer when Bambuddy said whether it is in Spoolman mode.
+    static func state(spoolmanEnabled: Bool) -> BambuddyState {
+        spoolmanEnabled ? .refused(.spoolmanMode) : .ready
+    }
+
+    /// The startup check's answer when asking Bambuddy failed.
+    static func state(after error: any Error) -> BambuddyState {
+        switch error {
+        case BambuddyError.permissionMissing(let permission): .refused(.permissionMissing(permission))
+        case BambuddyError.unauthorized: .refused(.unauthorized)
+        default: .unreachable(describe(error))
         }
     }
 

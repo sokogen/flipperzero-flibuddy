@@ -164,6 +164,8 @@ public struct BambuddyClient: Sendable {
             (data, response) = try await session.data(for: request)
         } catch let error as CancellationError {
             throw error
+        } catch let error as URLError where error.code == .timedOut {
+            throw BambuddyError.network("no answer within \(Int(Self.timeout)) s")
         } catch {
             throw BambuddyError.network(error.localizedDescription)
         }

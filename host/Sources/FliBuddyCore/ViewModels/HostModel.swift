@@ -96,6 +96,7 @@ public final class HostModel {
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
+            connectedTransport: { [link] in link.connectedTransport },
             apply: { [weak self] in try await self?.apply($0) }
         )
     }

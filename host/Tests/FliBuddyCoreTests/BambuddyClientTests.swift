@@ -490,11 +490,8 @@ struct BambuddyClientTests {
             baseURL: URL(string: "http://unreachable.test:8000")!, apiKey: "bb_test",
             session: URLSession(configuration: configuration)
         )
-        await #expect {
+        await #expect(throws: BambuddyError.network("no answer within 5 s")) {
             try await client.listSpools()
-        } throws: { error in
-            if case BambuddyError.network = error { return true }
-            return false
         }
     }
 
