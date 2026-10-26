@@ -499,6 +499,75 @@ struct SessionColorNameTests {
         #expect(other.colorMapLoads == 1)
         #expect(await session.rows.first?.colorName == "Snow")
     }
+
+    @Test func newSettingsRenameTheRowsInTheFeed() async throws {
+        let session = makeSession(namingInventory())
+        _ = await session.handleScan(try fixtureScan())
+        #expect(await session.rows.first?.colorName == "Jade White")
+
+        let other = namingInventory()
+        other.colorMapAnswer = ColorMap(colors: ["ffffff": "Snow"], byMaterial: [:])
+        await session.reconfigure(settings: testSettings, inventory: other)
+        #expect(await session.rows.first?.colorName == nil)
+        _ = await session.checkBambuddy()
+
+        #expect(await session.rows.first?.colorName == "Snow")
+    }
+
+    @Test func newSettingsWhoseMapFailsLeaveTheRowsUnnamed() async throws {
+        let session = makeSession(namingInventory())
+        _ = await session.handleScan(try fixtureScan())
+        #expect(await session.rows.first?.colorName == "Jade White")
+
+        let other = namingInventory()
+        other.colorMapError = .network("timed out")
+        await session.reconfigure(settings: testSettings, inventory: other)
+        _ = await session.checkBambuddy()
+
+        #expect(await session.snapshot.colorNamesProblem != nil)
+        #expect(await session.rows.first?.colorName == nil)
+    }
+
+    @Test func overlappingChecksShareOneCheckAndOneMapLoad() async throws {
+        let inventory = namingInventory()
+        inventory.spoolmanDelay = .milliseconds(100)
+        let session = makeSession(inventory)
+
+        async let first = session.checkBambuddy()
+        async let second = session.handleScan(try fixtureScan())
+        let (state, lookup) = try await (first, second)
+
+        #expect(state == .ready)
+        #expect(lookup.status == .unknown)
+        #expect(inventory.calls.filter { $0 == .spoolman }.count == 1)
+        #expect(inventory.colorMapLoads == 1)
+    }
+
+    @Test func aCheckOfNewSettingsDoesNotReuseTheFinishedCheck() async throws {
+        let old = FakeInventory()
+        old.spoolmanDelay = .milliseconds(100)
+        let session = makeSession(old)
+        let first = Task { await session.checkBambuddy() }
+        try await Task.sleep(for: .milliseconds(20))
+
+        let other = FakeInventory()
+        let state = await session.waitThenCheck(newInventory: other)
+        _ = await first.value
+
+        #expect(state == .ready)
+        #expect(await session.bambuddy == .ready)
+        #expect(other.calls.contains(.spoolman))
+    }
+}
+
+extension Session {
+    /// Waits for the check under way, then saves new settings and checks
+    /// them in the same actor turn, before the first caller resumes.
+    fileprivate func waitThenCheck(newInventory: FakeInventory) async -> BambuddyState {
+        await checkBambuddy()
+        reconfigure(settings: testSettings, inventory: newInventory)
+        return await checkBambuddy()
+    }
 }
 
 @Suite("Session: intents")

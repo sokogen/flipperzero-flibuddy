@@ -104,6 +104,8 @@ public actor Session {
     /// Bambuddy's colour names, loaded once per configuration after the
     /// startup check; `nil` until then or after a failed load.
     private var colorNames: ColorNameResolver?
+    /// The startup check under way; overlapping callers wait for it.
+    private var checking: Task<BambuddyState, Never>?
     /// Completed intents by id, with the intent that produced each result.
     private var results: [String: (intent: Intent, result: IntentResult)] = [:]
     private var resultOrder: [String] = []
@@ -126,6 +128,7 @@ public actor Session {
         configuration += 1
         colorNames = nil
         colorNamesProblem = nil
+        for index in rows.indices { rows[index].colorName = nil }
         setBambuddy(.unchecked)
     }
 
@@ -154,20 +157,34 @@ public actor Session {
 
     /// Refuses Spoolman mode and keys that cannot read the settings, then
     /// loads the colour map unless it is loaded already. When the settings
-    /// change during the check, the new ones are checked instead.
+    /// change during the check, the new ones are checked instead. A call
+    /// while a check is under way waits for that check.
     @discardableResult
     public func checkBambuddy() async -> BambuddyState {
+        if let checking { return await checking.value }
+        // The task forgets itself in the actor turn that finishes the check,
+        // so a call after that turn (new settings, say) checks afresh.
+        let task = Task {
+            let state = await runCheck()
+            checking = nil
+            return state
+        }
+        checking = task
+        return await task.value
+    }
+
+    private func runCheck() async -> BambuddyState {
         let checking = configuration
         guard let inventory else {
             setBambuddy(.notConfigured)
             return bambuddy
         }
         let state = await Self.check(inventory)
-        guard checking == configuration else { return await checkBambuddy() }
+        guard checking == configuration else { return await runCheck() }
         setBambuddy(state)
         if state.isReady, colorNames == nil {
             await loadColorNames(from: inventory, checking: checking)
-            guard checking == configuration else { return await checkBambuddy() }
+            guard checking == configuration else { return await runCheck() }
         }
         return state
     }
@@ -186,8 +203,8 @@ public actor Session {
     }
 
     /// A failed load is reported and leaves new items unnamed; the next
-    /// startup check (a settings save) tries again. Rows already in the feed
-    /// are named when the map arrives.
+    /// startup check (a settings save) tries again. Every row in the feed is
+    /// named again when the map arrives.
     private func loadColorNames(from inventory: any SpoolInventory, checking: Int) async {
         let loaded: Result<ColorMap, any Error>
         do {
@@ -201,7 +218,7 @@ public actor Session {
             let resolver = ColorNameResolver(map)
             colorNames = resolver
             colorNamesProblem = nil
-            for index in rows.indices where rows[index].colorName == nil {
+            for index in rows.indices {
                 rows[index].colorName = resolver.name(for: rows[index].tag)
             }
         case .failure(let error):
