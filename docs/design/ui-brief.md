@@ -1,4 +1,4 @@
-# SpoolBuddy: UI design brief for macOS, iPhone, iPad and Apple Watch
+# FliBuddy: UI design brief for macOS, iPhone, iPad and Apple Watch
 
 Prompt for an external design model. Paste it whole, or trim the platform
 sections you do not need. The "Deliverables" section can be shortened when the
@@ -8,7 +8,7 @@ tool only renders frames.
 
 ## Role and goal
 
-You are designing the user interface of **SpoolBuddy**, a small production
+You are designing the user interface of **FliBuddy**, a small production
 tool for a 3D-printing workshop. Design native Apple apps for macOS, iPhone,
 iPad and Apple Watch that follow the current Apple Human Interface Guidelines
 (the iOS 27, iPadOS 27, macOS 27 and watchOS 27 idiom: system materials and
@@ -21,7 +21,7 @@ styling; no custom chrome, no illustrations, no onboarding tour.
 ## Who uses it and how
 
 One person in a workshop. In one hand a **Flipper Zero** (a handheld NFC
-reader running our app), on the bench a **kitchen scale** and a filament
+reader running our FliBuddy app), on the bench a **kitchen scale** and a filament
 spool. The person:
 
 1. holds the spool's NFC tag to the Flipper → a row appears in the app's feed
@@ -118,7 +118,7 @@ glyph (watch). Every state needs a design, light and dark:
   rows show no colour name).
 - Row-level: saving in progress; the Flipper's 10-second timeout fired while
   the host still saved (row shows saved, Flipper showed an error).
-- Empty feed: "Hold a spool's tag to the Flipper running SpoolBuddy."
+- Empty feed: "Hold a spool's tag to the Flipper running FliBuddy."
 - Settings: connection test in progress / ok / failed; QR scan unavailable
   on this device.
 
@@ -166,7 +166,8 @@ and remaining only.
   colour name are always present.
 - No account system, no multi-user, no charts or analytics, no offline
   queue, no Spoolman, no onboarding flow beyond Settings and the QR scan.
-- Name the app "SpoolBuddy" and the server "Bambuddy" in copy. Copy is
+- Name the app "FliBuddy" and the server "Bambuddy" in copy. Do not use
+  "SpoolBuddy": that is the name of Bambuddy's own kiosk device. Copy is
   English, short, sentence case.
 
 ## Deliverables
