@@ -228,13 +228,13 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test-flipper` — must pass before Task 5
 
 ### Task 5: Flipper drawing and input
-- [ ] replace the scene views with canvas drawing per the spec (shared widgets: header with transport icon, bottom chips, list with selection and scrollbar, swatch with 4×4 Bayer dithering, spool + waves, big digits with dimmed leading zeros); add XBM icons under `flipper/images/`
-- [ ] ➕ port `flibuddy_app.c` to the Task 4 reducer API: send `AppEventKey` / `AppEventTick` (drop `app_result_timed_out`), encode with `app_encode_scan` / `app_encode_intent`, run the reader per `app_reader_wanted`, handle `AppEffectSaveSettings` / `AppEffectExit`, map `s->cue`; settings live in `state.settings`
-- [ ] ➕ re-arm the NFC reader on Result / Saved / Toast only after the tag left the field (or drop a re-read of the same UID on the screen it produced), so a spool still on the Flipper does not rescan in a loop, cut Saved short or hide Toast·Added; a different tag still commits a pending Mark toast
-- [ ] map keys per screen, including long-press repeat on ▲▼ in Weight; a timer tick drives the animations and toast deadlines
-- [ ] map feedback events to `notification_message` sequences honouring Feedback / Sound
-- [ ] keep pure helpers (text fitting, UID shortening, swatch luminance, outcome strings) in SDK-free files and write C tests for them
-- [ ] `cd flipper && ufbt` builds without warnings; run `make test-flipper` — must pass before Task 6
+- [x] replace the scene views with canvas drawing per the spec (shared widgets: header with transport icon, bottom chips, list with selection and scrollbar, swatch with 4×4 Bayer dithering, spool + waves, big digits with dimmed leading zeros); add XBM icons under `flipper/images/`
+- [x] ➕ port `flibuddy_app.c` to the Task 4 reducer API: send `AppEventKey` / `AppEventTick` (drop `app_result_timed_out`), encode with `app_encode_scan` / `app_encode_intent`, run the reader per `app_reader_wanted`, handle `AppEffectSaveSettings` / `AppEffectExit`, map `s->cue`; settings live in `state.settings`
+- [x] ➕ re-arm the NFC reader on Result / Saved / Toast only after the tag left the field (or drop a re-read of the same UID on the screen it produced), so a spool still on the Flipper does not rescan in a loop, cut Saved short or hide Toast·Added; a different tag still commits a pending Mark toast
+- [x] map keys per screen, including long-press repeat on ▲▼ in Weight; a timer tick drives the animations and toast deadlines
+- [x] map feedback events to `notification_message` sequences honouring Feedback / Sound
+- [x] keep pure helpers (text fitting, UID shortening, swatch luminance, outcome strings) in SDK-free files and write C tests for them
+- [x] `cd flipper && ufbt` builds without warnings; run `make test-flipper` — must pass before Task 6
 
 ### Task 6: Host session for v2
 - [ ] Swift codecs for v2 (`Message.swift`, `Intent.swift`); read `v` first, log a version mismatch once and show it in the status, then drop the line
@@ -334,3 +334,45 @@ over USB and Bluetooth:
 - Task 4: the scenes and `flibuddy_app.c` (SDK code) still use the old
   reducer API, so `ufbt` does not build the FAP between Task 4 and Task 5,
   which replaces them; `make test-flipper` passes.
+- Task 5: the scenes, Widget, Submenu and NumberInput are gone: one custom
+  View whose locked model is a `UiFrame` (`src/ui_frame.h`), built by the
+  SDK-free `ui_frame_build()` after every state change and tick and laid
+  out by `src/ui_draw.c` on the GUI thread, which never reads `AppState`.
+  All wording lives in the frame builder and is tested on the host
+  (`tests/test_ui_frame.c`); `screen_text.{h,c}` and
+  `tag_summary_text()` are replaced by `ui_text.{h,c}` and
+  `tag_block_text()` / `tag_sectors_read()`.
+- Task 5: the firmware fonts are ASCII only: "..." stands for the ellipsis
+  (`04B7...3C80`; a 4-byte UID is shown whole) and " - " for the middle dot
+  (`PLA Basic - 590 g left`, `Net 484 g - core 250`). "Ready" and "Saved"
+  use FontPrimary (no double-size text font); the weight digits use
+  FontBigNumbers, dimmed by a checkerboard; the bottom chips are the
+  firmware's `elements_button_left/center/right`. Icons are XBM files in
+  `flipper/images/`, generated from the design's bitmaps by
+  `tools/fixtures/make_flipper_icons.py` (a pytest fails when they are
+  stale), with a 20x20 `app_2x` for About since the canvas does not scale.
+- Task 5: the reader re-arm is inside `TagReader`: it remembers the UID of
+  every tag it read (a failed read too, when a tag answered) and its next
+  worker first waits until that tag has left the field (three 150 ms polls
+  in a row without an answer, `tag_watch.h`) or another tag answers. It
+  holds on every screen that reads, Waiting and Ready included, so Back
+  from a result with the spool still on the Flipper does not read it
+  again; a different tag still commits a pending Mark toast.
+- Task 5: wording the spec left open: Waiting shows "USB: no host app" /
+  "USB unavailable", "Visible as <name>", "Bluetooth: no host app" (a
+  central subscribed without a hello) or "Bluetooth off"; Looking up shows
+  the tag's own detailed type or material and "Asking the host";
+  Result·NoHost is titled by the tag's text or type with the bar "No host";
+  an unknown tag without material is titled "Spool tag" with OK "Create";
+  Tag details' Data row is "15/16 sectors" or "135 pages"; Weight in gross
+  without a known core says "Core weight unknown"; error titles follow the
+  failed action ("Not saved", "Not added", "Not deleted", "Not updated",
+  "Not linked") or the case ("Lookup failed", "No host reply", "Host
+  lost", "Not sent", "Tag not read"), and ▶ Retry is shown only when the
+  intent can be resent (▶ still goes home otherwise).
+- Task 5: feedback uses one static notification sequence per LED / vibro /
+  sound combination (the service keeps the pointer); each wakes the
+  backlight, the success vibro is short like the blue ones, and the beeps
+  follow the vibro rather than overlapping it.
+- Task 5: `flipper/README.md` still describes the old Idle / Transport
+  screens; Task 9 rewrites it for the new UI.
