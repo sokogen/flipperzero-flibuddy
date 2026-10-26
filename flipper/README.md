@@ -42,7 +42,7 @@ The status line under the title shows:
 | Text | Meaning |
 |---|---|
 | `USB` | USB; a host has opened the port and said hello |
-| `BLE adv` | Bluetooth; advertising, no host connected yet |
+| `BLE adv` | Bluetooth; the Bt service says advertising, no host subscribed yet (shown even when the stack refused the advertisement, see "Findings on hardware") |
 | `BLE` | Bluetooth; a host is connected, subscribed and said hello |
 | `no host` | no host on the chosen transport; on Bluetooth also when it does not advertise (Bluetooth switched off in the Flipper's Settings, or the radio stack could not start the profile, in which case the app falls back to a backend that never connects) |
 
@@ -52,11 +52,13 @@ The app does not use the stock serial profile: its passkey pairing cannot
 be completed on an Apple Watch. While Bluetooth is chosen it starts its own
 BLE profile (`src/ble_flibuddy_svc.c`, `src/transport_ble.c`) with
 `bt_profile_start`: no bonding, no pairing, one GATT service. It advertises
-the service UUID and the bare Flipper name (the 31-byte advertisement has
-no room for more), with the Flipper's MAC changed in one byte so centrals
-keep it apart from the default profile's bonds. Leaving the app, or
-switching back to USB, restores the default profile with
-`bt_profile_restore_default`.
+the service UUID and no name, with the Flipper's MAC changed in one byte so
+centrals keep it apart from the default profile's bonds. The name (8 chars
+at most, "Flipper" when the Flipper has none) goes in the scan response as
+manufacturer data, company id `0xFFFF` (reserved for tests) followed by the
+name, and is the GAP device name a central reads after connecting
+(`src/ble_wire.h` has the byte budget). Leaving the app, or switching back
+to USB, restores the default profile with `bt_profile_restore_default`.
 
 While FliBuddy holds the Bluetooth profile, the official Flipper mobile
 app cannot connect to the Flipper; it can again once you leave the app.
@@ -73,7 +75,8 @@ until the MTU exchange says more, at most 243). The Flipper sends one
 notification at a time and retries a chunk up to 3 times when the stack is
 busy (`src/ble_lines.h`); the host writes one chunk at a time. The Flipper
 sends its `hello` when the host subscribes to TX, as it does on USB when
-the host raises DTR. Unsubscribing or disconnecting ends the session.
+the host raises DTR. A subscribed host is a connected host; unsubscribing
+or disconnecting ends the session.
 
 The link is unencrypted by design: it carries tag dumps and grams, never
 the API key. Setting `FLIBUDDY_BLE_REQUIRE_ENCRYPTION` to 1 makes both
@@ -88,6 +91,51 @@ cdefines=["FLIBUDDY_BLE_REQUIRE_ENCRYPTION=1"],
 The raw ACI events the profile handles are decoded by offset in
 `src/ble_wire.c` (the stack's structs are not in the SDK); `ble_wire`,
 `ble_lines` and `app_settings` are host-compiled and tested.
+
+### Findings on hardware
+
+The first Bluetooth build never connected on a real Flipper (firmware
+1.5.1). Three causes, each fixed and covered where it can be tested on the
+host:
+
+1. **The advertisement did not fit.** An advertisement holds 31 bytes. The
+   stack adds the flags (3) and the TX power level (3), the 128-bit service
+   UUID takes 18, and the name AD up to 10: 34. The stack refused it
+   (`[E][BleGap] set_discoverable failed 146`, `BLE_STATUS_INVALID_PARAMS`)
+   and nothing was on air. The advertisement now carries no name (24
+   bytes) and the name moved to the scan response;
+   `tests/test_ble_wire.c` asserts both sizes against `BLE_WIRE_ADV_MAX`.
+   The host takes the name from the peripheral, the advertised local name
+   or, failing both, the manufacturer data
+   (`FliBuddyGATT.displayName` in the host package).
+2. **"Connected" never came.** Firmware 1.5.1's `gap.c` raises
+   `GapEventTypeConnected` only when pairing completes, which a FliBuddy
+   host never does, so the Bt service never reports `BtStatusConnected`.
+   The Flipper received the host's `hello` and never answered. A host now
+   counts as connected once it has subscribed to TX (a disconnect clears
+   the subscription); `ble_wire_link` holds the table and is tested.
+3. **The subscription event.** TX's `gatt_evt_mask` is
+   `GATT_NOTIFY_ATTRIBUTE_WRITE` (it was `GATT_DONT_NOTIFY_EVENTS`), so the
+   host's CCCD write reaches the service as an attribute-modified event and
+   the subscription is seen at all.
+
+`BLE adv` on the Idle screen does not prove the Flipper is on air: the
+firmware raises `GapEventTypeStartAdvertising` even when
+`aci_gap_set_discoverable` fails (`gap_advertise_start` in
+`targets/f7/ble_glue/gap.c`), so the app shows `BLE adv` either way. The
+Flipper log tells.
+
+### Reading the Flipper log
+
+With Bluetooth chosen the USB port stays with the CLI, so the log can be
+read while the app runs. Open a CLI session (`ufbt cli` from `flipper/`,
+or any serial terminal on the Flipper's USB port) and run `log debug`
+(`log ?` lists the levels; Ctrl+C stops, and the previous level comes
+back). Then start the app and choose Bluetooth. The lines to look for:
+`BleGap` (advertising, connections; `set_discoverable failed` means
+nothing is advertised), `FliBuddyBle` (the profile and the service) and
+`FliBuddy` (the app). With the USB transport the app holds the port, so
+there is no CLI to read the log from.
 
 ## Scanning
 

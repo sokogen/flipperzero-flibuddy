@@ -197,7 +197,9 @@ which would ask for Bluetooth permission.
 `Settings` holds `transport` (`usb` default on macOS, `bluetooth`
 elsewhere, where USB is not offered), `peripheralId` and `peripheralName`.
 **Scan for Flipper** in the settings lists the Flippers found for 15 s
-with their RSSI; choosing one stores it and selects Bluetooth. **Forget**
+with their RSSI (the name from the peripheral, the advertised local name or
+the scan response's manufacturer data, `FliBuddyGATT.displayName`; the FAP
+advertises no name); choosing one stores it and selects Bluetooth. **Forget**
 clears the remembered Flipper of the chosen transport (the USB port back to
 Automatic, the Bluetooth peripheral to the first found); like every other
 field it takes effect on **Save**. `HostModel` reconnects when the transport choice

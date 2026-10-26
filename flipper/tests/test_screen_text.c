@@ -160,10 +160,18 @@ static void test_status_line_over_bluetooth(void) {
     CHECK_STR_EQ(screen_status_text(&app), "no host");
     status_state(TransportKindBluetooth, AppBleAdvertising, false);
     CHECK_STR_EQ(screen_status_text(&app), "BLE adv");
-    /* a central connected but no hello yet */
+    /* a host subscribed but no hello yet */
     status_state(TransportKindBluetooth, AppBleConnected, false);
     CHECK_STR_EQ(screen_status_text(&app), "no host");
     status_state(TransportKindBluetooth, AppBleConnected, true);
+    CHECK_STR_EQ(screen_status_text(&app), "BLE");
+}
+
+static void test_status_line_after_hello_over_bluetooth(void) {
+    /* the host said hello: connected, whatever the last BLE status was */
+    status_state(TransportKindBluetooth, AppBleAdvertising, true);
+    CHECK_STR_EQ(screen_status_text(&app), "BLE");
+    status_state(TransportKindBluetooth, AppBleOff, true);
     CHECK_STR_EQ(screen_status_text(&app), "BLE");
 }
 
@@ -182,6 +190,7 @@ int main(void) {
     RUN_TEST(test_intent_texts);
     RUN_TEST(test_status_line_over_usb);
     RUN_TEST(test_status_line_over_bluetooth);
+    RUN_TEST(test_status_line_after_hello_over_bluetooth);
     RUN_TEST(test_transport_names);
     return MINITEST_RESULT();
 }

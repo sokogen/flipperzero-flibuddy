@@ -397,13 +397,16 @@ forums and the deployed Bambuddy; they bind Phase 2:
   never finish pairing. The project therefore publishes its own profile.
 - **FliBuddy BLE profile (FAP‑defined).** A `FuriHalBleProfileTemplate`
   whose `get_gap_config` sets `bonding_mode = false`,
-  `pairing_method = GapPairingNone`, the Flipper's BLE MAC and name
-  (`furi_hal_version_get_ble_mac`, `…_get_ble_local_device_name_ptr`)
-  and advertises the service UUID; `start` adds the service with
+  `pairing_method = GapPairingNone`, the Flipper's BLE MAC
+  (`furi_hal_version_get_ble_mac`), the GAP device name and the
+  scan-response manufacturer data (`GapConfig.adv_name`, `mfg_data`, from
+  `furi_hal_version_get_name_ptr`, see `src/ble_wire.h`) and advertises
+  the service UUID; `start` adds the service with
   `ble_gatt_service_add` / `ble_gatt_characteristic_init`, `stop` deletes
   it. Started with `bt_profile_start(bt, &flibuddy_ble_profile, NULL)`
   (restarts the second core), ended with `bt_profile_restore_default`.
-  `bt_set_status_changed_callback` reports `Advertising` / `Connected`.
+  `bt_set_status_changed_callback` reports `Advertising`; `Connected`
+  never comes without pairing (see the hardware findings below).
   Events reach the FAP through
   `ble_event_dispatcher_register_svc_handler`: attribute‑modified events
   for RX writes and for the TX client‑configuration descriptor (the host
@@ -445,6 +448,37 @@ forums and the deployed Bambuddy; they bind Phase 2:
   `bambuddy://config?v=1&url=<base URL>&key=<API key>` (percent‑encoded).
   iOS Settings scan it with the camera and fill both fields; typing stays
   as the fallback. Unknown versions or schemes are rejected with a message.
+
+Findings on the owner's Flipper (firmware 1.5.1, 2026-10-26). The first
+Bluetooth build never connected; a test build with the three fixes below
+did (`hello` both ways, link connected), and they supersede the profile
+bullet above where it differs:
+
+- **The advertisement did not fit.** The stack adds the flags (3 bytes)
+  and the TX power level (3) to the 128-bit service UUID AD (18) and the
+  name AD (up to 10): 34 of 31 bytes. The log showed
+  `[E][BleGap] set_discoverable failed 146` (`BLE_STATUS_INVALID_PARAMS`)
+  and nothing was advertised. Fix: the advertisement carries no name (24
+  bytes); the name travels in the scan response as manufacturer data
+  (company id `0xFFFF`, reserved for tests, then the name) and stays the
+  GAP device name. The host falls back to the manufacturer data when the
+  peripheral and the advertisement give no name; the scan filters on the
+  service UUID, so the name is display only.
+- **"Connected" never came.** In 1.5.1 `gap.c` raises
+  `GapEventTypeConnected` only on `ACI_GAP_PAIRING_COMPLETE_VSEVT_CODE`. A
+  FliBuddy host never pairs, so the Bt service never reports
+  `BtStatusConnected` and the Flipper took the host's `hello` without
+  answering. Fix: a host that has subscribed to TX is a connected host;
+  a disconnect clears the subscription.
+- **The subscription event.** TX's `gatt_evt_mask` must be
+  `GATT_NOTIFY_ATTRIBUTE_WRITE` (it was `GATT_DONT_NOTIFY_EVENTS`) for the
+  host's CCCD write to reach the service as an attribute‑modified event.
+- **"BLE adv" is not proof of advertising.** `gap_advertise_start` raises
+  `GapEventTypeStartAdvertising` even when `aci_gap_set_discoverable`
+  fails, so the Idle screen says "BLE adv" either way. The Flipper log
+  tells: with the app on Bluetooth the USB port stays with the CLI; run
+  `log debug` there (`ufbt cli`) and watch the `BleGap`, `FliBuddyBle` and
+  `FliBuddy` lines.
 
 ### Later (not designed here)
 
@@ -526,11 +560,14 @@ Phase 2, decided by the builder (2026-10-26; the plan is
   characteristics require encryption so "just works" pairing can be tried
   on real devices; if the Mac, the iPhone and the watch all pair without a
   prompt, it may become the default.
-- The profile advertises the 128‑bit service UUID and the bare Flipper
-  name (the 31‑byte advertisement has no room for "Flipper <name>"), with
-  the Flipper's MAC changed in one byte (byte 2 XOR 0x5B, as the HID
-  profile does) so a central never mixes it up with the default profile's
-  bonds and cached GATT table.
+- The profile advertises the 128‑bit service UUID and no name (flags 3 +
+  TX power 3 + UUID 18 = 24 of 31 bytes; a name AD does not fit and made
+  the stack refuse the advertisement). The name (8 chars at most,
+  "Flipper" when none) travels in the scan response as manufacturer data,
+  company id 0xFFFF, and is the GAP device name. The Flipper's MAC is
+  changed in one byte (byte 2 XOR 0x5B, as the HID profile does) so a
+  central never mixes it up with the default profile's bonds and cached
+  GATT table.
 - Flow control: the host sends one write with response at a time, chunks
   of `maximumWriteValueLength` up to 243 bytes; the Flipper sends one
   notification at a time in chunks of ATT MTU − 3; a stack still busy

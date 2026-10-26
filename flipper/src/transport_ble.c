@@ -3,6 +3,7 @@
 
 #include "ble_lines.h"
 #include "ble_flibuddy_svc.h"
+#include "ble_wire.h"
 #include "line_sender.h"
 #include "proto_encode.h"
 #include "transport_ble.h"
@@ -201,9 +202,15 @@ static void ble_close(Transport* base) {
     t->status = BtStatusOff;
 }
 
+/* Firmware 1.5.1 reports BtStatusConnected only after pairing, which a
+ * host never does, so the subscription alone says a host is there; a
+ * disconnect clears it (svc_disconnect). */
+static BleWireLink ble_link(const BleTransport* t) {
+    return ble_wire_link(t->opened, t->status == BtStatusAdvertising, t->subscribed);
+}
+
 static bool ble_is_connected(const Transport* base) {
-    const BleTransport* t = (const BleTransport*)base;
-    return t->opened && t->status == BtStatusConnected && t->subscribed;
+    return ble_link((const BleTransport*)base) == BleWireLinkConnected;
 }
 
 static TransportSendResult ble_send_line(Transport* base, const char* line, size_t len) {
@@ -262,14 +269,13 @@ void transport_ble_free(Transport* base) {
 }
 
 TransportBleStatus transport_ble_status(const Transport* base) {
-    const BleTransport* t = (const BleTransport*)base;
-    if(!t->opened) return TransportBleOff;
-    switch(t->status) {
-    case BtStatusAdvertising:
+    switch(ble_link((const BleTransport*)base)) {
+    case BleWireLinkAdvertising:
         return TransportBleAdvertising;
-    case BtStatusConnected:
+    case BleWireLinkConnected:
         return TransportBleConnected;
-    default:
-        return TransportBleOff;
+    case BleWireLinkOff:
+        break;
     }
+    return TransportBleOff;
 }
