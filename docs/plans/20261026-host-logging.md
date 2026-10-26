@@ -172,11 +172,11 @@
       `WatchSettingsSyncTests` asserting the key never reaches a sink
 
 ### Task 6: Documentation
-- [ ] `host/README.md`: a "Debugging" section: the log file paths, the
+- [x] `host/README.md`: a "Debugging" section: the log file paths, the
       `FLIBUDDY_LOG=debug` switch, `log stream --predicate 'subsystem ==
       "com.sokolachko.flibuddy"'`, what each category records, and that
       the API key is never logged
-- [ ] `AGENTS.md`: one line that new code paths log their outcome through
+- [x] `AGENTS.md`: one line that new code paths log their outcome through
       `Log` and that secrets never reach it
 
 ## Technical Details

@@ -272,6 +272,60 @@ Tools, `@State` fails with "plugin for module 'SwiftUIMacros' not found".
 `Sources/FliBuddyUI/ViewState.swift` aliases the `State` property wrapper
 struct as a public `ViewState`; use `@ViewState` in both SwiftUI targets.
 
+## Debugging
+
+Every link, wire, session, Bambuddy and settings event is logged through
+`FliBuddyCore/Logging/Log.swift`, both to the unified log and to a plain
+text file:
+
+- macOS: `~/Library/Logs/FliBuddy/flibuddy.log` (Help ▸ **Show Log File**
+  reveals it in Finder)
+- iOS, iPadOS and watchOS: `Logs/flibuddy.log` in the app's Application
+  Support directory (download the container from Xcode's Devices window)
+
+The file has one event per line, `2026-10-26T13:04:05.123+0300 INFO link
+state: waitingForHello -> connected`, and rotates at 5 MB to `flibuddy.log.1`,
+`.2` and `.3`. The first line of each run is `app start: …` with the
+version, platform, log file and level. Follow it while scanning a tag:
+
+```
+tail -f ~/Library/Logs/FliBuddy/flibuddy.log
+```
+
+The level is `info` by default. The Mac app reads `FLIBUDDY_LOG`
+(`debug`, `info`, `notice`, `error`); `debug` adds the wire lines and
+Bambuddy's response bodies:
+
+```
+cd host
+FLIBUDDY_LOG=debug swift run FliBuddyMac
+```
+
+The iPhone, iPad and watch apps always log at `info`. The same lines go to
+the unified log, subsystem `com.sokolachko.flibuddy`, with one category
+per kind of event:
+
+```
+log stream --level debug --predicate 'subsystem == "com.sokolachko.flibuddy"'
+log show --last 1h --predicate 'subsystem == "com.sokolachko.flibuddy" && category == "bambuddy"'
+```
+
+| Category | Records |
+| --- | --- |
+| `app` | the start line, a log file that cannot be written |
+| `link` | connect and disconnect, link state changes with the problem, retries, the serial port opening and closing (with `errno`), Bluetooth scan, peripherals found (name, RSSI), services, MTU, disconnects, the hello handshake |
+| `wire` | each protocol line sent (`tx`) and received (`rx`) at `debug`, cut to 300 characters; dropped lines at `error` with the reason |
+| `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, colour map failures |
+| `bambuddy` | each request's method, path, status and time; errors with Bambuddy's `detail`; response bodies at `debug` |
+| `settings` | settings load and save (`key=present` or `absent`), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
+| `sync` | watch settings sync: payloads sent, held, received, applied or rejected, by version only |
+
+The API key is never logged: settings lines only say whether a key is
+present, and `Log.redact` replaces any `bb_…` key and any `key=`,
+`X-API-Key` or `apiKey` value with `«redacted»` before a line reaches the
+unified log or the file. Neither the QR payload nor the sync payload is
+logged.
+
 ## Protocol fixtures
 
 The tests read the shared contract in `protocol/fixtures/` as package
