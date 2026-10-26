@@ -1,0 +1,183 @@
+# SpoolBuddy: UI design brief for macOS, iPhone, iPad and Apple Watch
+
+Prompt for an external design model. Paste it whole, or trim the platform
+sections you do not need. The "Deliverables" section can be shortened when the
+tool only renders frames.
+
+---
+
+## Role and goal
+
+You are designing the user interface of **SpoolBuddy**, a small production
+tool for a 3D-printing workshop. Design native Apple apps for macOS, iPhone,
+iPad and Apple Watch that follow the current Apple Human Interface Guidelines
+(iOS 26, iPadOS 26, macOS 26, watchOS 26: system materials and Liquid Glass
+through standard controls; the macOS app must still look right on macOS 14).
+Optimise for speed and glanceability during repetitive physical work, not for
+marketing polish. Use only native, standard SwiftUI components and system
+styling; no custom chrome, no illustrations, no onboarding tour.
+
+## Who uses it and how
+
+One person in a workshop. In one hand a **Flipper Zero** (a handheld NFC
+reader running our app), on the bench a **kitchen scale** and a filament
+spool. The person:
+
+1. holds the spool's NFC tag to the Flipper → a row appears in the app's feed
+   within a second, already identified against the inventory server
+   (**Bambuddy**, self-hosted on the LAN);
+2. reads the number on the scale and types it (**gross**, the whole spool) or
+   types the filament-only number (**net**); the app sends it to Bambuddy;
+3. moves on to the next spool.
+
+The weight entry is the critical path on every platform. Typing must need
+the fewest taps possible, the suggested value must be pre-filled, and the
+result must be readable from arm's length. The Flipper itself also lets the
+user type the weight on its own buttons; the app and the Flipper are peers,
+whichever side saves last wins, and the app shows which side saved.
+
+Secondary flows:
+
+- **New**: the tag is not in the inventory yet. For Bambu Lab tags the app
+  already knows material, subtype, colour and label weight, so **New** is one
+  tap. For other tags a short form asks for material (required), subtype,
+  colour, brand and label weight.
+- **Link to existing**: the tag belongs to a spool that was added to Bambuddy
+  by hand. A picker over the inventory with a text filter (material, colour,
+  brand or note); if the tag is already linked to another spool the app says
+  which one and offers to move it.
+- **Settings**: Bambuddy URL and API key, the empty-spool weight used for new
+  items, net/gross default, the Flipper connection (USB on Mac, Bluetooth
+  everywhere), and on iPhone/iPad a **Scan QR code** button that fills URL
+  and key from the QR code Bambuddy shows when a key is created.
+
+Everything is one session in memory: the feed is a log of what was scanned
+since the app started, newest first, with a **Clear** action.
+
+## Platform matrix
+
+| Platform | Transport to the Flipper | Layout | Screens |
+|---|---|---|---|
+| macOS 14+ | USB serial or Bluetooth LE | one main window, Settings window via ⌘, | Feed, Settings |
+| iPhone | Bluetooth LE | `TabView` | Feed, Settings |
+| iPad | Bluetooth LE | `NavigationSplitView`, landscape first | Feed (detail), sidebar with status and settings entry |
+| Apple Watch | Bluetooth LE | compact | Feed list, Row detail (weight entry), Settings (read-only, received from the iPhone), Scan for Flipper |
+
+Out of scope: the Flipper's own 128×64 monochrome screens; the watch never
+types settings (they arrive from the phone); USB exists only on macOS.
+
+## The feed row
+
+Each row shows, in this priority:
+
+1. **Colour swatch** from the tag's RGBA, or a neutral placeholder when the
+   tag has no colour.
+2. **Title**: material and subtype, e.g. "PLA Basic", "PLA Pure", "PETG HF".
+3. **Colour name** when the inventory knows it ("Pumpkin Orange"); nothing
+   when it does not (never show the hex as a name).
+4. **Remaining**: "15 g left of 1000" for known spools; "label 1000 g" for
+   unknown tags with prefill; empty otherwise.
+5. **Status** (secondary text, red for errors):
+   - `Looking up` (just scanned, waiting for the inventory)
+   - `Enter weight` (found; the weight field is active)
+   - `Not in Bambuddy` (unknown; offers New and Link to existing)
+   - `Not in Bambuddy; tag has no material` (unknown, no prefill; New opens the form)
+   - `Saved 15 g left`, with `by host` or `by Flipper`
+   - `Created in Bambuddy`
+   - `Error: …` (network, permission, conflict)
+   - a request from the Flipper: `Flipper asks to create it here` / `Flipper asks to link it here`
+6. **Weight entry**: a numeric field pre-filled with the suggested value
+   (last scale weight, or remaining + core), unit "g", a Net/Gross segmented
+   control, **Save**. On the watch this is the Digital Crown.
+7. **UID** of the tag in tertiary text (e.g. `7EF1AB04`), useful when two
+   spools look alike.
+
+Example rows from a real session (use them in the mock-ups):
+
+- Swatch #FF9016 · **PLA Basic** · Pumpkin Orange · 15 g left of 1000 ·
+  Saved 15 g left · by host · suggested gross 340 g (core 325 g)
+- Swatch #A4DBE8 · **PLA Pure** · (no colour name) · label 1000 g ·
+  Not in Bambuddy → **New** / **Link to existing…**
+- Swatch #00AE42 · **PLA Basic** · Bambu Green · 590 g left of 1000 ·
+  Enter weight · suggested gross 915 g
+- No swatch · **NTAG 7-byte UID 04A2…** · Not in Bambuddy; tag has no
+  material → **New…** (form) / **Link to existing…**
+
+## Connection and system states
+
+Show these in a status bar (macOS, iPad), a compact banner (iPhone) or a
+glyph (watch). Every state needs a design, light and dark:
+
+- Flipper: `No Flipper` (searching) · `USB` · `BLE advertising` (Flipper
+  visible, not connected) · `BLE connected` · `Connected, no hello` (link
+  open, app on the Flipper not running).
+- Bambuddy: `not checked yet` · `ready` · `unreachable` · `API key lacks
+  inventory permission` · `Bambuddy is in Spoolman mode` (the app refuses to
+  work until the user changes it) · `colour names unavailable` (non-blocking;
+  rows show no colour name).
+- Row-level: saving in progress; the Flipper's 10-second timeout fired while
+  the host still saved (row shows saved, Flipper showed an error).
+- Empty feed: "Hold a spool's tag to the Flipper running SpoolBuddy."
+- Settings: connection test in progress / ok / failed; QR scan unavailable
+  on this device.
+
+## Platform specifics
+
+**macOS.** Main window: toolbar with Clear and Settings; the feed as a
+`List`; status bar at the bottom with the Flipper and Bambuddy states. The
+weight field accepts typing immediately when a row becomes `Enter weight`
+(focus follows the newest row that needs a weight). Keyboard: ⌘S save, ⌘⌫
+clear, ⌘, settings, Tab between field and mode. Settings is a grouped `Form`
+with five sections: Bambuddy (URL, API key, Test connection), New items
+(empty-spool catalog entry, core weight number with the explanation "weight
+of everything that is not filament; 325 g = Bambu reusable spool 293 g +
+refill core 32 g"), Weighing (Net/Gross default), Flipper (transport:
+USB/Bluetooth, port picker or Scan for Flipper, Forget), Save.
+
+**iPhone.** Feed tab and Settings tab. Rows are tall enough for a thumb;
+the weight field opens the numeric keypad with the suggested value selected;
+Net/Gross is a segmented control under the field; Save is a prominent
+button. The New form and the Link picker are sheets. Settings has the Scan
+QR code button in the Bambuddy section, opening the camera full-screen.
+
+**iPad.** Landscape on a bench: sidebar with the connection states, Settings
+entry and Clear; detail is the feed with wider rows (swatch, title, colour,
+remaining, status and the weight entry on one line). Portrait collapses to
+the iPhone layout. Keyboard shortcuts as on macOS.
+
+**Apple Watch.** Three screens. *Feed list*: swatch, title, remaining,
+status glyph; newest first; tap opens the row. *Row detail*: the weight as a
+large number driven by the Digital Crown (1 g per detent, faster turns move
+5 g), Net/Gross toggle, Save; for unknown tags a single **New** button. A
+haptic on save and on error. *Settings*: read-only values received from the
+iPhone (server, core weight, mode), a "Scan for Flipper" button, and the
+Flipper connection state. Always-on display: the feed list dims to title
+and remaining only.
+
+## Constraints
+
+- Native SwiftUI only: `List`, `Form` (grouped), `NavigationSplitView`,
+  `TabView`, toolbars, sheets, `ContentUnavailableView`, SF Symbols, system
+  semantic colours, system materials, Dynamic Type, VoiceOver labels on
+  every control, keyboard shortcuts on macOS/iPad, haptics on watch.
+- Large hit targets, minimal typing, numbers readable from one metre.
+- Colour swatches must not be the only carrier of meaning; the title and
+  colour name are always present.
+- No account system, no multi-user, no charts or analytics, no offline
+  queue, no Spoolman, no onboarding flow beyond Settings and the QR scan.
+- Name the app "SpoolBuddy" and the server "Bambuddy" in copy. Copy is
+  English, short, sentence case.
+
+## Deliverables
+
+1. Screen-by-screen specification per platform: layout, component
+   hierarchy in SwiftUI terms, every state listed above, light and dark,
+   iPad landscape and portrait, watch with and without always-on dimming.
+2. The feed row as a component spec: anatomy, states, spacing, type roles.
+3. The weight-entry interaction on each platform, step by step, including
+   focus and keyboard behaviour on macOS and the crown behaviour on watch.
+4. A token list: spacing scale, type roles (system text styles), semantic
+   colours (system names), corner radii, SF Symbol names used.
+5. Rendered frames for: macOS main window with four rows; macOS Settings;
+   iPhone feed with a row in `Enter weight`; iPhone New form sheet; iPad
+   landscape; watch feed list and watch row detail.
