@@ -44,6 +44,16 @@ final class FakeCentral: BLECentral, @unchecked Sendable {
         }
     }
 
+    /// Hands out a new `FakePeripheral` for `id` from the next `connect` on,
+    /// as CoreBluetooth makes a new link per connection.
+    func replacePeripheral(_ id: UUID) -> FakePeripheral {
+        lock.withLock {
+            let created = FakePeripheral(identifier: id, hasService: !withoutService, autoConfirm: autoConfirm)
+            _peripherals[id] = created
+            return created
+        }
+    }
+
     /// A Flipper starts advertising; running scans see it too.
     func advertise(_ found: DiscoveredPeripheral) {
         let running = lock.withLock {
@@ -106,11 +116,15 @@ final class FakePeripheral: BLEPeripheralLink, @unchecked Sendable {
     private let hasService: Bool
     private let autoConfirm: Bool
     private var events: (@Sendable (BLELinkEvent) -> Void)?
+    /// The handler `open` got, kept after a drop for `emitLate`.
+    private var openedWith: (@Sendable (BLELinkEvent) -> Void)?
     private var _writes: [Data] = []
     private var _isConnected = false
     private var _writeLength = 20
     /// Notified while `open` subscribes, as the FAP sends its `hello` then.
     var onSubscribe: Data?
+    /// The connection drops while `open` subscribes.
+    var dropsWhileOpening = false
 
     init(identifier: UUID, hasService: Bool, autoConfirm: Bool) {
         self.identifier = identifier
@@ -134,8 +148,12 @@ final class FakePeripheral: BLEPeripheralLink, @unchecked Sendable {
         guard hasService, service == SpoolBuddyGATT.service, rx == SpoolBuddyGATT.rx, tx == SpoolBuddyGATT.tx else {
             throw TransportError.serviceNotFound
         }
-        lock.withLock { self.events = events }
+        lock.withLock {
+            self.events = events
+            openedWith = events
+        }
         if let onSubscribe { notify(onSubscribe) }
+        if dropsWhileOpening { drop() }
     }
 
     func write(_ data: Data) {
@@ -168,6 +186,12 @@ final class FakePeripheral: BLEPeripheralLink, @unchecked Sendable {
             return self.events
         }
         events?(.disconnected)
+    }
+
+    /// An event that arrives after the link dropped, as a late CoreBluetooth
+    /// callback would.
+    func emitLate(_ event: BLELinkEvent) {
+        lock.withLock { openedWith }?(event)
     }
 
     private func emit(_ event: BLELinkEvent) {

@@ -4,7 +4,10 @@ Date: 2026-10-25
 Status: Phase 0 tooling and Phase 1 (Flipper + macOS over USB) are
 implemented (`docs/plans/20261025-flipper-spoolbuddy-phase0-1.md`); the
 Phase 0 hardware checks ran on 2026-10-26 (see "Phase 0 findings"), the
-remaining ones are listed in README, "Phase 0 results".
+remaining ones are listed in README, "Phase 0 results". Phase 2 (BLE,
+iPhone, iPad and Apple Watch apps) is implemented
+(`docs/plans/20261026-phase2-ble-ios.md`); its hardware checks are listed
+in that plan's Post-Completion.
 
 ## Intent
 
@@ -374,6 +377,11 @@ run from Xcode with free provisioning (expires weekly); the owner opens a
 paid Apple Developer account once the app is ready, and TestFlight takes
 over then. Minimum OS versions: the current major release minus one, set
 by the builder at project creation.
+
+As built, this paragraph is superseded by the facts and decisions below:
+the FAP runs its own GATT service with no pairing instead of the BLE
+serial profile, an Apple Watch app joins the iPhone and iPad, and the
+minimum OS versions are macOS 14 and iOS, iPadOS and watchOS 26.
 
 Facts verified on 2026-10-26 against firmware 1.5.1, Apple's developer
 forums and the deployed Bambuddy; they bind Phase 2:

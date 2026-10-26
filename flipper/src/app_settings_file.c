@@ -12,9 +12,11 @@ static bool file_load(void* ctx, void* data, size_t size) {
 static bool file_save(void* ctx, const void* data, size_t size) {
     UNUSED(ctx);
     Storage* storage = furi_record_open(RECORD_STORAGE);
-    storage_common_mkdir(storage, APP_SETTINGS_DIR);
+    /* mkdir creates one level; true when the directory already exists */
+    bool dir = storage_simply_mkdir(storage, APP_SETTINGS_PARENT) &&
+               storage_simply_mkdir(storage, APP_SETTINGS_DIR);
     furi_record_close(RECORD_STORAGE);
-    return saved_struct_save(
+    return dir && saved_struct_save(
         APP_SETTINGS_PATH, data, size, APP_SETTINGS_MAGIC, APP_SETTINGS_VERSION);
 }
 

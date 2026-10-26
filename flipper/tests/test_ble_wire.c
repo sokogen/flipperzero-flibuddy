@@ -212,6 +212,20 @@ static void test_failed_disconnection_keeps_the_link(void) {
     CHECK_EQ_INT(e.type, BleWireEventOther);
 }
 
+static void test_short_attribute_modified_is_ignored(void) {
+    /* seven of the eight header bytes: no data length */
+    const uint8_t params[] = {0x01, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00};
+    CHECK_EQ_INT(
+        ble_wire_decode(vendor_event(0x0C01, params, sizeof(params)), &handles).type,
+        BleWireEventOther);
+}
+
+static void test_short_disconnection_complete_is_ignored(void) {
+    /* status and connection handle, no reason */
+    const uint8_t short_event[] = {0x04, 0x05, 0x03, 0x00, 0x01, 0x08};
+    CHECK_EQ_INT(ble_wire_decode(short_event, &handles).type, BleWireEventOther);
+}
+
 static void test_other_events_are_not_ours(void) {
     const uint8_t meta[] = {0x04, 0x3E, 0x01, 0x01};
     CHECK_EQ_INT(ble_wire_decode(meta, &handles).type, BleWireEventOther);
@@ -245,6 +259,8 @@ int main(void) {
     RUN_TEST(test_tx_pool_available_frees_the_sender);
     RUN_TEST(test_disconnection_complete_ends_the_link);
     RUN_TEST(test_failed_disconnection_keeps_the_link);
+    RUN_TEST(test_short_attribute_modified_is_ignored);
+    RUN_TEST(test_short_disconnection_complete_is_ignored);
     RUN_TEST(test_other_events_are_not_ours);
     return MINITEST_RESULT();
 }

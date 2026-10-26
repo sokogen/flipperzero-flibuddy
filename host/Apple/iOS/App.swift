@@ -71,7 +71,8 @@ struct RootView: View {
     }
 }
 
-/// Edits a fresh copy of the saved settings each time it appears.
+/// Edits a copy of the saved settings. The copy is made once, so unsaved edits
+/// (a scanned QR code too) survive switching tabs.
 struct SettingsScreen: View {
     let host: HostModel
     @ViewState private var model: SettingsViewModel?
@@ -85,6 +86,7 @@ struct SettingsScreen: View {
             }
         }
         .onAppear {
+            guard model == nil else { return }
             let model = host.makeSettingsViewModel()
             self.model = model
             Task { await model.loadCatalog() }

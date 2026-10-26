@@ -235,6 +235,22 @@ struct WatchSettingsReceiverTests {
         #expect(inventory.calls.filter { $0 == .spoolman }.count == checks)
     }
 
+    @Test func aFailedSaveIsReportedAndChangesNothing() async throws {
+        let scratch = ScratchDefaults()
+        let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        let before = model.settings
+        let receiver = WatchSettingsReceiver(host: model)
+
+        await receiver.receive(.success(Self.phone))
+
+        #expect(model.settings == before)
+        #expect(receiver.lastError == Session.describe(SecretStoreError.status(-25300)))
+    }
+
     @Test func aGoodPayloadClearsAnEarlierError() async throws {
         let scratch = ScratchDefaults()
         let (model, _) = try makeWatch(scratch)

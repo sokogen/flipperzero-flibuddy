@@ -66,7 +66,7 @@ public final class FlipperLink {
             #if canImport(CoreBluetooth)
             return BLETransport(central: CoreBluetoothCentral.shared, peripheral: peripheral)
             #else
-            return SerialTransport(path: "")
+            preconditionFailure("Bluetooth needs CoreBluetooth")
             #endif
         }
     }

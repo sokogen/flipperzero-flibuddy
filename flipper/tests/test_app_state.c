@@ -690,6 +690,28 @@ static void test_unknown_transport_kind_is_ignored(void) {
     CHECK(app.screen == AppScreenTransport);
 }
 
+static void test_transport_choice_needs_the_menu(void) {
+    setup();
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectNone);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.screen == AppScreenIdle);
+}
+
+static void test_transport_menu_stays_open_across_host_and_timeout_events(void) {
+    setup();
+    send(AppEventMenuTransport);
+    CHECK(send(AppEventHostLost) == AppEffectNone);
+    CHECK(!app.connected);
+    CHECK(app.screen == AppScreenTransport);
+    CHECK(send(AppEventHostConnected) == AppEffectNone);
+    CHECK(app.connected);
+    CHECK(app.screen == AppScreenTransport);
+    CHECK(send(AppEventTimeout) == AppEffectNone);
+    CHECK(app.screen == AppScreenTransport);
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectSwitchTransport);
+    CHECK(app.screen == AppScreenIdle);
+}
+
 static void test_switching_transport_resets_the_ble_status(void) {
     setup();
     app.transport = TransportKindBluetooth;
@@ -753,6 +775,8 @@ int main(void) {
     RUN_TEST(test_init_uses_usb_with_ble_off);
     RUN_TEST(test_transport_menu_opens_from_idle_and_closes_with_back);
     RUN_TEST(test_transport_menu_only_from_idle);
+    RUN_TEST(test_transport_choice_needs_the_menu);
+    RUN_TEST(test_transport_menu_stays_open_across_host_and_timeout_events);
     RUN_TEST(test_choosing_another_transport_switches_it);
     RUN_TEST(test_choosing_the_same_transport_changes_nothing);
     RUN_TEST(test_unknown_transport_kind_is_ignored);

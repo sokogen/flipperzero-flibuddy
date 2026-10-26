@@ -146,8 +146,10 @@ settings of its own beyond the Flipper: whenever the settings are saved on
 the iPhone (and once at launch), the phone pushes the Bambuddy URL, API key,
 core weight, catalog entry and default mode to the watch over
 WatchConnectivity. The watch keeps them and talks to Bambuddy itself. On
-the watch the weight is entered with the Digital Crown. The iPad has no
-watch to sync to.
+the watch the weight is entered with the Digital Crown. The watch saves
+weights and creates new items from a tag; linking a tag to an existing
+spool is done on the iPhone, iPad or Mac. The iPad has no watch to sync
+to.
 
 ### Apple builds
 

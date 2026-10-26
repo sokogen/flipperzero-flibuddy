@@ -234,8 +234,6 @@ struct BLETransportTests {
 
         #expect(await eventually { await first.finished })
         #expect(central.cancelled == [flipperA])
-        // Events of the old connection are ignored.
-        peripheral.confirmWrite()
         try await transport.connect()
         #expect(central.connected == [flipperA, flipperA])
         let second = await Collector.draining(transport.messages)
@@ -243,6 +241,48 @@ struct BLETransportTests {
         #expect(await eventually { await second.items == [.flipperHello] })
         try transport.send(.hostHello)
         #expect(peripheral.writes.count == 2)
+    }
+
+    @Test func lateEventsOfAnOldConnectionAreIgnored() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        let old = central.peripheral(flipperA)
+        let transport = makeTransport(central, peripheral: flipperA)
+        try await transport.connect()
+        transport.disconnect()
+        let current = central.replacePeripheral(flipperA)
+        try await transport.connect()
+        let messages = await Collector.draining(transport.messages)
+        try transport.send(.hostHello)
+        #expect(current.writes.count == 1)
+
+        // A confirmation, a notification and a disconnect from the old link.
+        old.emitLate(.writeConfirmed)
+        old.emitLate(.notification(try Message.flipperHello.encodedLine()))
+        old.emitLate(.disconnected)
+        old.emitLate(.writeFailed)
+
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(current.writes.count == 1)
+        #expect(old.writes.isEmpty)
+        #expect(await messages.items.isEmpty)
+        #expect(transport.state == .open)
+        #expect(central.cancelled == [flipperA])
+        // The current link still works.
+        current.confirmWrite()
+        #expect(current.writes.count == 2)
+    }
+
+    @Test func aDropWhileOpeningFailsTheConnect() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.peripheral(flipperA).dropsWhileOpening = true
+        let transport = makeTransport(central, peripheral: flipperA)
+
+        await #expect(throws: TransportError.notConnected) { try await transport.connect() }
+
+        #expect(transport.state == .closed)
+        #expect(central.cancelled == [flipperA])
     }
 
     @Test func connectingWhileOpenDoesNothing() async throws {

@@ -14,7 +14,8 @@ public struct BLEChunker: Sendable {
     public static let defaultWriteSize = 20
 
     /// The payload of one write, kept within `1...maxWriteSize`. Set it from
-    /// `maximumWriteValueLength(for: .withResponse)`.
+    /// `maximumWriteValueLength(for: .withoutResponse)`, which is ATT MTU - 3
+    /// (the with-response value is the 512-byte limit of long writes).
     public var writeSize: Int {
         didSet { writeSize = Self.clamp(writeSize) }
     }
@@ -28,14 +29,14 @@ public struct BLEChunker: Sendable {
     }
 
     /// A write was handed out and is not confirmed yet.
-    public var isWriteInFlight: Bool { inFlight }
+    var isWriteInFlight: Bool { inFlight }
 
     /// Bytes are queued that have not been handed out yet.
-    public var hasPendingWrites: Bool { !pending.isEmpty }
+    var hasPendingWrites: Bool { !pending.isEmpty }
 
     /// Queues one line, given without its terminator; "\n" is appended. An
     /// empty line queues nothing.
-    public mutating func enqueue(line: Data) throws {
+    mutating func enqueue(line: Data) throws {
         guard !line.isEmpty else { return }
         var terminated = line
         terminated.append(0x0A)

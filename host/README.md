@@ -112,8 +112,8 @@ scans for the service (scan and connect each give up after 10 s with
 `peripheralNotFound`), discovers RX and TX, subscribes to TX and only then
 reports `.open`, so the `hello` the Flipper sends on subscription is kept.
 `BLEChunker` cuts outgoing lines into writes of
-`maximumWriteValueLength(for: .withResponse)` (at most 243 bytes), sends one
-write with response at a time, and reassembles TX notifications into lines
+`maximumWriteValueLength(for: .withoutResponse)`, which is ATT MTU - 3 (at
+most 243 bytes), sends one write with response at a time, and reassembles TX notifications into lines
 with `NDJSONFramer`. A disconnect, a failed write or Bluetooth turning off
 finishes the message stream, and `FlipperLink` reconnects as it does on
 USB. Errors: `bluetoothOff`, `bluetoothUnauthorized`,

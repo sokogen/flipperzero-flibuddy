@@ -61,7 +61,7 @@ public final class WatchSettingsReceiver {
     /// Why the last payload was rejected or could not be saved.
     public private(set) var lastError: String?
     /// When settings last arrived.
-    public private(set) var lastReceived: Date?
+    private(set) var lastReceived: Date?
 
     private let host: HostModel
     /// Keeps the WatchConnectivity delegate alive (`WCSession` holds it weakly).

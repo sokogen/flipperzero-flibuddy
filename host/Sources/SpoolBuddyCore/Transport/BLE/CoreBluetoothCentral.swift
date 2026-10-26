@@ -171,6 +171,8 @@ final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked
     private var opening: BLEPromise<Void>?
     private var uuids: (service: CBUUID, rx: CBUUID, tx: CBUUID)?
     private var rx: CBCharacteristic?
+    /// The connection dropped; an `open` that comes later fails at once.
+    private var lost = false
     /// Written on the queue before `open` returns, read after.
     private var writeLength = BLEChunker.defaultWriteSize
 
@@ -186,6 +188,10 @@ final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked
     func open(service: UUID, rx: UUID, tx: UUID, events: @escaping @Sendable (BLELinkEvent) -> Void) async throws {
         let promise = BLEPromise<Void>()
         queue.async { [self] in
+            // The link may drop between `didConnect` and this block.
+            guard !lost, peripheral.state == .connected else {
+                return promise.resolve(.failure(TransportError.notConnected))
+            }
             self.events = events
             opening = promise
             let service = CBUUID(nsuuid: service)
@@ -205,6 +211,7 @@ final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked
 
     /// Called by the central on its queue when the connection is gone.
     func connectionLost() {
+        lost = true
         opening?.resolve(.failure(TransportError.notConnected))
         opening = nil
         events?(.disconnected)
@@ -237,7 +244,9 @@ extension CoreBluetoothPeripheralLink: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard characteristic.uuid == uuids?.tx else { return }
         guard error == nil, characteristic.isNotifying else { return failOpening(.serviceNotFound) }
-        writeLength = peripheral.maximumWriteValueLength(for: .withResponse)
+        // The without-response length follows the ATT MTU; the with-response
+        // one is the 512-byte attribute limit, reached only by long writes.
+        writeLength = peripheral.maximumWriteValueLength(for: .withoutResponse)
         opening?.resolve(.success(()))
         opening = nil
     }

@@ -14,7 +14,8 @@
 
 #include "transport.h"
 
-#define APP_SETTINGS_DIR     "/ext/apps_data/spoolbuddy"
+#define APP_SETTINGS_PARENT  "/ext/apps_data"
+#define APP_SETTINGS_DIR     APP_SETTINGS_PARENT "/spoolbuddy"
 #define APP_SETTINGS_PATH    APP_SETTINGS_DIR "/settings.bin"
 #define APP_SETTINGS_MAGIC   0x5B
 #define APP_SETTINGS_VERSION 1

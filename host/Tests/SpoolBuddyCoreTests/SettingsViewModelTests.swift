@@ -250,6 +250,15 @@ struct SettingsViewModelTests {
         #expect(model.catalogError == BambuddyError.unauthorized.localizedDescription)
     }
 
+    @Test func aCatalogLoadWithoutAClientIsReported() async {
+        let model = makeModel(nil)
+
+        await model.loadCatalog()
+
+        #expect(model.catalog.isEmpty)
+        #expect(model.catalogError == "no client")
+    }
+
     @Test func portsComeFromDiscovery() {
         let model = makeModel(ports: ["/dev/cu.usbmodemflip_A", "/dev/cu.usbmodemflip_B"])
         #expect(model.ports.isEmpty)

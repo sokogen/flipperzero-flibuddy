@@ -11,7 +11,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
     public static let defaultConnectTimeout: Duration = .seconds(10)
 
     /// The peripheral asked for; `nil` takes the first Flipper found.
-    public let requestedPeripheral: UUID?
+    let requestedPeripheral: UUID?
 
     private let central: any BLECentral
     private let scanTimeout: Duration
@@ -44,7 +44,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
     }
 
     /// The peripheral of the open connection.
-    public var connectedPeripheral: UUID? {
+    var connectedPeripheral: UUID? {
         lock.withLock { isOpen ? link?.identifier : nil }
     }
 

@@ -18,9 +18,9 @@ stay out of the FAP.
 
 With the USB transport (the default) the app takes the USB CDC port from
 the CLI while it runs (qFlipper and the CLI are unavailable until it exits)
-and gives it back on exit: Back on the Idle screen leaves the app and hands the port back to the CLI. A host that
-opens the port gets a `hello`; a host `hello` within 2 s marks it connected
-(`src/host_link.h`).
+and gives it back on exit: Back on the Idle screen leaves the app and hands
+the port back to the CLI. A host that opens the port gets a `hello`; a host
+`hello` within 2 s marks it connected (`src/host_link.h`).
 
 ## Transport
 
@@ -116,7 +116,7 @@ the host.
 Host-compiled unit tests live in `tests/`: `make -C flipper/tests test`
 builds every `test_*.c` against each source in `src/` that includes no
 Flipper SDK header (`tests/minitest.h` is the assert runner). Sources that
-use the SDK (NFC, USB, GUI) stay behind small interfaces and are left out
+use the SDK (NFC, USB, BLE, GUI) stay behind small interfaces and are left out
 automatically, so every such `.c` file must include an SDK header itself
 (`<furi.h>`, `<gui/...>`), not only through a project header.
 
