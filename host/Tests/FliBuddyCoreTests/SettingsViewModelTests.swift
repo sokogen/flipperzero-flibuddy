@@ -569,6 +569,17 @@ struct SettingsViewModelTests {
         #expect(model.catalog.isEmpty)
     }
 
+    @Test func aServerErrorFailsWithBambuddysAnswer() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .http(status: 500, message: "boom")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyError.http(status: 500, message: "boom").localizedDescription))
+        #expect(model.catalog.isEmpty)
+    }
+
     @Test func aRejectedKeyFailsWithTheSessionsMessage() async {
         let inventory = FakeInventory()
         inventory.spoolmanError = .unauthorized

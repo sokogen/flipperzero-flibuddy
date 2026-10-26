@@ -348,7 +348,10 @@ Feed row
   delete fails, nothing changes and the row reads "Spool <id> created on
   scan could not be deleted, so the tag stays on it: <reason>" (Save and
   Link stay); if the link fails after the delete, the row has no spool and
-  offers New and Link again.
+  offers New and Link again. A created spool already gone from Bambuddy
+  counts as deleted. Once a weight is saved on it, or Settings point at
+  another Bambuddy, the spool is no longer deleted and Link is not offered
+  on that row.
 
 Status bar
 - A bottom `safeAreaInset` on `.bar` with a top `Divider()`. By eye: drop

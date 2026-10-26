@@ -83,6 +83,8 @@ struct IntentHandler {
         row.status = .saved
         row.weight = FeedRow.Weight(grams: grams, mode: mode)
         row.savedBy = side
+        // A spool with a weight is no longer a stand-in Link may delete.
+        row.createdSpoolId = nil
         return row
     }
 
@@ -110,10 +112,13 @@ struct IntentHandler {
     }
 
     /// Deletes the spool created for the row, which frees the tag for a link.
+    /// A spool already gone counts as deleted.
     func deleteCreated(_ row: FeedRow) async throws -> FeedRow {
         guard let created = row.createdSpoolId else { return row }
         do {
             try await inventory.deleteSpool(id: created)
+        } catch BambuddyError.spoolNotFound(created) {
+            // deleted elsewhere: the tag is free already
         } catch {
             throw SessionError.createdSpoolKept(spoolId: created, reason: Session.describe(error))
         }

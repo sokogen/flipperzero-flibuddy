@@ -31,8 +31,10 @@ public struct FeedView: View {
                 }
             }
             .background { FeedKeyboardShortcuts(feed: feed) }
-            .onAppear { focusField(on: feed.focusedRow) }
-            .onChange(of: feed.focusedRow) { _, row in focusField(on: row) }
+            // The field of a row in weight entry takes the keyboard; AppKit
+            // selects its text, so the first keystroke replaces the suggestion.
+            .onAppear { focusedField = feed.focusedField }
+            .onChange(of: feed.focusedField) { _, row in focusedField = row }
             .onChange(of: focusedField) { _, row in
                 // Losing the field keeps the row focused, so ⌘S still has a target.
                 if let row { feed.focusedRow = row }
@@ -100,12 +102,6 @@ public struct FeedView: View {
             FeedRowView(feed: feed, item: item, focusedField: $focusedField)
         }
         #endif
-    }
-
-    /// The field of a row in weight entry takes the keyboard; AppKit selects
-    /// its text, so the first keystroke replaces the suggestion.
-    private func focusField(on row: FeedRow.ID?) {
-        focusedField = row.flatMap { feed.item($0)?.isEntry == true ? $0 : nil }
     }
 }
 
@@ -320,7 +316,7 @@ struct WeightEntry: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if item.isCreated {
+                if item.offersLinkExisting {
                     #if os(macOS)
                     LinkExistingButton(feed: feed, item: item)
                         .buttonStyle(.link)

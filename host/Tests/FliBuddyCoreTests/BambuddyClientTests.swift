@@ -495,6 +495,18 @@ struct BambuddyClientTests {
         }
     }
 
+    @Test func otherNetworkFailuresKeepTheSystemReason() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RefusingURLProtocol.self]
+        let client = try BambuddyClient(
+            baseURL: URL(string: "http://unreachable.test:8000")!, apiKey: "bb_test",
+            session: URLSession(configuration: configuration)
+        )
+        await #expect(throws: BambuddyError.network(URLError(.cannotConnectToHost).localizedDescription)) {
+            try await client.listSpools()
+        }
+    }
+
     @Test func errorsHaveReadableDescriptions() {
         let cases: [(BambuddyError, String)] = [
             (.invalidBaseURL("nas"), "Bambuddy URL must start with http:// or https://: nas"),
@@ -514,10 +526,18 @@ struct BambuddyClientTests {
     }
 }
 
-/// Fails every load, as a dead network would.
+/// Fails every load with a timeout, as a dead network would.
 final class FailingURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.timedOut)) }
+    override func stopLoading() {}
+}
+
+/// Refuses every connection, as a host with nothing listening would.
+final class RefusingURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost)) }
     override func stopLoading() {}
 }

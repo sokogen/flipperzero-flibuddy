@@ -200,6 +200,13 @@ public final class FeedViewModel {
         set { focus.focus(newValue) }
     }
 
+    /// The weight field that has the keyboard: the focused row's, while it
+    /// shows one. A row that turns back into an entry (a re-weigh, a rescan)
+    /// gets its field focused again although `focusedRow` did not change.
+    public var focusedField: FeedRow.ID? {
+        focus.focusedRow.flatMap { itemsByID[$0]?.isEntry == true ? $0 : nil }
+    }
+
     /// ⌘↑ / ⌘↓.
     public func moveFocus(_ direction: FocusModel.Direction) {
         focus.moveFocus(direction)
@@ -265,15 +272,6 @@ public final class FeedViewModel {
             linkError = Session.describe(error)
         }
         apply(await session.snapshot)
-    }
-
-    public func linkMatches(_ query: String) -> [Spool] {
-        Self.filter(linkCandidates, query: query)
-    }
-
-    /// See `LinkPickerModel.filter`.
-    public static func filter(_ spools: [Spool], query: String) -> [Spool] {
-        LinkPickerModel.filter(spools, query: query)
     }
 
     // MARK: Feed

@@ -108,7 +108,6 @@ struct FeedViewModelTests {
         #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
         let item = try #require(model.items.first)
         #expect(item.statusText == "Saved 484 g left · by host")
-        #expect(item.savedByText == "by host")
         #expect(!model.draft(for: id).touched)
         #expect(model.error(for: id) == nil)
     }
@@ -164,18 +163,11 @@ struct FeedViewModelTests {
         }
     }
 
-    @Test func savedByAndHostRequestTexts() throws {
-        var row = try row(status: .unknown(prefill: true))
-        #expect(FeedItem(row).savedByText == nil)
-        #expect(FeedItem(row).requestText == nil)
-        row.request = .create
-        #expect(FeedItem(row).requestText == "Flipper asks to create it here")
-        row.request = .link
-        #expect(FeedItem(row).requestText == "Flipper asks to link it here")
-        row.savedBy = .flipper
-        #expect(FeedItem(row).savedByText == "by Flipper")
-        row.savedBy = .host
-        #expect(FeedItem(row).savedByText == "by host")
+    @Test func savedByAndHostRequestTexts() {
+        #expect(FeedItem.requestText(.create) == "Flipper asks to create it here")
+        #expect(FeedItem.requestText(.link) == "Flipper asks to link it here")
+        #expect(FeedItem.savedByText(.flipper) == "by Flipper")
+        #expect(FeedItem.savedByText(.host) == "by host")
     }
 
     @Test func aKnownSpoolShowsBambuddysData() throws {
@@ -184,7 +176,7 @@ struct FeedViewModelTests {
         #expect(item.colorName == "Jade White")
         #expect(item.remainingText == "484 g left of 1000")
         #expect(item.swatch == Swatch(rgba: "FFFFFFFF"))
-        #expect(item.canWeigh)
+        #expect(item.isEntry)
         #expect(!item.offersUnknownActions)
     }
 
@@ -214,9 +206,9 @@ struct FeedViewModelTests {
         // the hex is never a colour name; the swatch shows the colour
         #expect(item.colorName == nil)
         #expect(item.remainingText == "label \(tag.labelWeight ?? 0) g")
-        #expect(!item.canWeigh)
+        #expect(!item.isEntry)
         #expect(item.offersUnknownActions)
-        #expect(item.hasPrefill)
+        #expect(item.newAction == .fromTag)
     }
 
     @Test func anNTAGWithoutMaterialIsTitledByItsType() throws {
@@ -225,7 +217,7 @@ struct FeedViewModelTests {
         #expect(item.colorName == nil)
         #expect(item.swatch == nil)
         #expect(item.offersUnknownActions)
-        #expect(!item.hasPrefill)
+        #expect(item.newAction == .form)
     }
 
     @Test func titlesJoinMaterialAndSubtype() {
@@ -237,7 +229,7 @@ struct FeedViewModelTests {
 
     @Test func aRowStillLookingUpOffersNoActions() throws {
         let item = FeedItem(try row(status: .scanned))
-        #expect(!item.canWeigh)
+        #expect(!item.isEntry)
         #expect(!item.offersUnknownActions)
     }
 
@@ -280,13 +272,6 @@ struct FeedViewModelUnknownTests {
         ]
     }
 
-    /// The filter itself is `LinkPickerModel.filter`.
-    @Test func theLinkFilterIsThePickersFilter() {
-        let all = spools()
-        #expect(FeedViewModel.filter(all, query: "teal shelf").map(\.id) == [2])
-        #expect(FeedViewModel.filter(all, query: "").map(\.id) == [1, 2, 3])
-    }
-
     @Test func linkCandidatesLoadFromBambuddy() async throws {
         let inventory = FakeInventory(spools: spools())
         let (model, _) = makeModel(inventory)
@@ -294,7 +279,6 @@ struct FeedViewModelUnknownTests {
         await model.loadLinkCandidates()
 
         #expect(model.linkCandidates.map(\.id) == [1, 2, 3])
-        #expect(model.linkMatches("tpu").map(\.id) == [3])
         #expect(model.linkError == nil)
     }
 
@@ -319,7 +303,7 @@ struct FeedViewModelUnknownTests {
         #expect(await model.link(id, toSpool: 2))
 
         #expect(model.items.first?.spoolId == 2)
-        #expect(model.items.first?.canWeigh == true)
+        #expect(model.items.first?.isEntry == true)
     }
 
     @Test func aTagLinkedElsewhereShowsTheConflict() async throws {
@@ -425,8 +409,7 @@ struct FeedViewModelUnknownTests {
         #expect(sent.colorName == "Jade White")
         let item = try #require(model.items.first)
         #expect(item.statusText == "Created in Bambuddy")
-        #expect(item.savedByText == "by host")
-        #expect(item.canWeigh)
+        #expect(item.isEntry)
     }
 
     @Test func noRowNoForm() {
@@ -517,6 +500,24 @@ struct FeedViewModelUnknownTests {
         model.apply(snapshot([row]))
 
         #expect(model.focusedRow == row.id)
+    }
+
+    @Test func theFieldOfAFocusedRowTakesTheKeyboardOnceItIsAnEntryAgain() throws {
+        let (model, _) = makeModel()
+        var row = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([row]))
+        #expect(model.focusedField == row.id)
+
+        // saved with no other waiting row: the selection stays, the field goes
+        row.status = .saved
+        model.apply(snapshot([row]))
+        #expect(model.focusedRow == row.id)
+        #expect(model.focusedField == nil)
+
+        // a re-weigh keeps the same focused row; its field comes back
+        row.status = .awaitingWeight
+        model.apply(snapshot([row]))
+        #expect(model.focusedField == row.id)
     }
 
     @Test func writingBackTheUntouchedSuggestionDoesNotTouchTheRow() throws {

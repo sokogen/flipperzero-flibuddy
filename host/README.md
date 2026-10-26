@@ -64,7 +64,9 @@ Bambuddy URL and API key (stored in the login Keychain, service
 used for new items, the default weight mode and the transport: USB with
 the Flipper port ("Automatic" opens the first `/dev/cu.usbmodemflip_*`), the
 default on the Mac, or Bluetooth (see below). Use **Test connection** after
-entering the key; it also loads the catalog.
+entering the key; it also loads the catalog. Nothing applies until **Save**
+(Return); **Revert** drops the edits, and the line beside them reads
+"Unsaved changes" or "All changes saved".
 
 `swift run` has no app bundle, so the Bluetooth usage description macOS asks
 for lives in `Sources/FliBuddyMac/Info.plist`, linked into the executable's

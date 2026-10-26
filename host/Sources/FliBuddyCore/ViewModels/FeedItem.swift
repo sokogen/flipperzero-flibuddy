@@ -26,10 +26,6 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let detailText: String
     public let statusText: String
     public let isError: Bool
-    /// "by Flipper" / "by host" once a weight was saved or the item created.
-    public let savedByText: String?
-    /// What the Flipper asked the host to do with the tag, if anything.
-    public let requestText: String?
     public let spoolId: Int?
     /// Filament grams the suggestion starts from: the spool's remaining
     /// grams, which right after Created are its label weight.
@@ -37,8 +33,6 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The spool's core weight (`core_weight`); for a Created row the
     /// settings value just sent.
     public let core: Int?
-    /// A spool is known, so a weight can be saved.
-    public let canWeigh: Bool
     /// The row shows the weight field, mode and Save (Enter weight, Saving…,
     /// Created, or an error on a known spool, which keeps the value for a retry).
     public let isEntry: Bool
@@ -48,8 +42,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let isSaving: Bool
     /// A saved row; a click opens it again for a re-weigh.
     public let isReopenable: Bool
-    /// Created in Bambuddy: Link to existing… moves the tag and deletes this spool.
-    public let isCreated: Bool
+    /// Created in Bambuddy and not weighed yet (also after a failed save or
+    /// delete): Link to existing… moves the tag and deletes this spool.
+    public let offersLinkExisting: Bool
     /// Under the status of a save the Flipper gave up waiting for.
     public let timeoutNote: String?
     public let statusSymbol: StatusSymbol
@@ -59,8 +54,6 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let accessibilityHeader: String
     /// The lookup is done and found no spool: offer New and Link.
     public let offersUnknownActions: Bool
-    /// The tag carries a material, so the New form starts filled in.
-    public let hasPrefill: Bool
     /// What New does on an unknown row.
     public let newAction: NewAction
     /// The action the Flipper asked for, shown prominent.
@@ -112,19 +105,16 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
-        savedByText = row.savedBy.map(Self.savedByText)
-        requestText = row.request.map(Self.requestText)
         spoolId = spool?.id
-        canWeigh = spool != nil
         offersUnknownActions = spool == nil && row.status != .scanned
-        hasPrefill = row.tag.hasPrefill
         newAction = row.tag.hasPrefill ? .fromTag : .form
         prominentAction = row.request.map { $0 == .create ? .new : .link }
         isEntry = spool != nil && Self.isEntryState(row.status)
         isWaiting = spool != nil && (row.status == .awaitingWeight || row.status == .created)
         isSaving = row.status == .saving
         isReopenable = spool != nil && (row.status == .saved || row.status == .savedAfterTimeout)
-        isCreated = row.status == .created
+        offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
+            && (row.status == .created || isError)
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(

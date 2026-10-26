@@ -136,14 +136,19 @@ public actor Session {
         for observer in observers.values { observer.finish() }
     }
 
-    /// New settings (and the client built from them); the next scan checks again.
+    /// New settings (and the client built from them); the next scan checks
+    /// again. Spools created on scan belong to the old Bambuddy, so Link no
+    /// longer deletes them.
     public func reconfigure(settings: Settings, inventory: (any SpoolInventory)?) {
         self.settings = settings
         self.inventory = inventory
         configuration += 1
         colorNames = nil
         colorNamesProblem = nil
-        for index in rows.indices { rows[index].colorName = nil }
+        for index in rows.indices {
+            rows[index].colorName = nil
+            rows[index].createdSpoolId = nil
+        }
         setBambuddy(.unchecked)
     }
 

@@ -100,7 +100,14 @@ struct FeedItemRulesTests {
         #expect(!FeedItem(try row(status: .error("boom"), spool: nil)).isEntry)
         #expect(FeedItem(try row(status: .error("boom"), spool: nil)).offersUnknownActions)
         #expect(FeedItem(try row(status: .saving)).isSaving)
-        #expect(FeedItem(try row(status: .created)).isCreated)
+        var created = try row(status: .created)
+        created.createdSpoolId = created.spool?.id
+        #expect(FeedItem(created).offersLinkExisting)
+        // a failed save or delete keeps Link; a known spool never offers it
+        created.status = .error("boom")
+        #expect(FeedItem(created).offersLinkExisting)
+        #expect(!FeedItem(try row(status: .error("boom"))).offersLinkExisting)
+        #expect(!FeedItem(try row(status: .awaitingWeight)).offersLinkExisting)
     }
 
     @Test func onlyATimedOutSaveHasTheNote() throws {
@@ -345,9 +352,8 @@ struct FeedViewModelRulesTests {
         #expect(lookup.defaults == Lookup.Defaults(gross: 1250, label: 1000, core: 250))
         let item = try #require(model.items.first)
         #expect(item.statusText == "Created in Bambuddy")
-        #expect(item.savedByText == "by host")
         #expect(item.isEntry)
-        #expect(item.isCreated)
+        #expect(item.offersLinkExisting)
         #expect(model.draft(for: item.id) == FeedViewModel.Draft(value: "1250", touched: false, mode: .gross))
         #expect(model.readout(for: item.id)?.text == "Saves 1000 g left · 1250 \u{2212} 250 g core")
 
@@ -387,7 +393,7 @@ struct FeedViewModelRulesTests {
         #expect(item.statusText == "Error: \(BambuddyError.network("timed out").localizedDescription)")
         #expect(!item.isEntry)
         #expect(item.offersUnknownActions)
-        #expect(item.hasPrefill)
+        #expect(item.newAction == .fromTag)
 
         inventory.createError = nil
         #expect(await model.createFromTag(item.id))
@@ -411,7 +417,7 @@ struct FeedViewModelRulesTests {
         let item = try #require(model.items.first)
         #expect(item.spoolId == 7)
         #expect(item.statusText == "Enter weight")
-        #expect(!item.isCreated)
+        #expect(!item.offersLinkExisting)
         #expect(model.error(for: id) == nil)
     }
 
@@ -435,9 +441,58 @@ struct FeedViewModelRulesTests {
         #expect(item.statusText == "Error: \(message)")
         // the weight can still be saved on the created spool, and Link retried
         #expect(item.isEntry)
+        #expect(item.offersLinkExisting)
         inventory.deleteError = nil
         #expect(await model.link(id, toSpool: 7))
         #expect(model.items.first?.spoolId == 7)
+    }
+
+    @Test func aCreatedSpoolDeletedElsewhereStillLetsTheTagLink() async throws {
+        let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
+        let inventory = FakeInventory(spools: [target])
+        let (model, session) = makeModel(inventory)
+        _ = await session.handleScan(try scan("s-1"))
+        model.apply(await session.snapshot)
+        let id = try #require(model.items.first?.id)
+        try await inventory.deleteSpool(id: 100)
+
+        #expect(await model.link(id, toSpool: 7))
+
+        #expect(model.items.first?.spoolId == 7)
+        #expect(model.error(for: id) == nil)
+    }
+
+    @Test func aWeighedCreatedSpoolIsNotOfferedForDeletion() async throws {
+        let inventory = FakeInventory()
+        let (model, session) = makeModel(inventory)
+        _ = await session.handleScan(try scan("s-1"))
+        model.apply(await session.snapshot)
+        let id = try #require(model.items.first?.id)
+        model.setWeightText("1100", for: id)
+        await model.save(id)
+        await model.reopen(id)
+        inventory.updateError = .network("timed out")
+        model.setWeightText("1000", for: id)
+        await model.save(id)
+
+        // a failed re-weigh: the spool holds a saved weight, so Link would not delete it
+        #expect(model.items.first?.isError == true)
+        #expect(model.items.first?.offersLinkExisting == false)
+    }
+
+    @Test func newSettingsForgetTheSpoolCreatedOnTheOldBambuddy() async throws {
+        let (model, session) = makeModel(FakeInventory())
+        _ = await session.handleScan(try scan("s-1"))
+        let target = Spool(id: 100, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
+        let other = FakeInventory(spools: [target])
+        await session.reconfigure(settings: testSettings, inventory: other)
+        model.apply(await session.snapshot)
+        let id = try #require(model.items.first?.id)
+
+        #expect(model.items.first?.offersLinkExisting == false)
+        #expect(await model.link(id, toSpool: 100))
+        // spool 100 on the new Bambuddy is someone else's: it is linked, never deleted
+        #expect(!other.calls.contains { if case .delete = $0 { true } else { false } })
     }
 
     @Test func aFailedLinkAfterTheDeleteLeavesTheRowWithoutASpool() async throws {
