@@ -136,6 +136,19 @@ struct SessionScanTests {
         #expect(row.createdSpoolId == 100)
     }
 
+    @Test func aRowBeingCreatedOnScanStaysLookingUpUntilTheCreateReturns() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        let seen = Recorded<FeedRow.Status?>()
+        inventory.onCreate = { await seen.append(session.rows.first?.status) }
+
+        _ = await session.handleScan(try fixtureScan())
+
+        // Not "Not in Bambuddy" with New and Link while the create runs.
+        #expect(await seen.values == [.scanned])
+        #expect(await session.rows.first?.status == .created)
+    }
+
     @Test func anUnknownTagWhoseCreateFailsOffersPrefill() async throws {
         let inventory = FakeInventory()
         inventory.createError = .network("timed out")
@@ -1148,5 +1161,14 @@ struct SessionHostActionTests {
             try await session.createSpool(row: row.id, form)
         }
         #expect(inventory.creates.isEmpty)
+    }
+}
+
+/// Values a test callback saw, in order.
+actor Recorded<Value: Sendable> {
+    private(set) var values: [Value] = []
+
+    func append(_ value: Value) {
+        values.append(value)
     }
 }

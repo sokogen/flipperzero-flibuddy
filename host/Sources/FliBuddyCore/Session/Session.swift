@@ -323,9 +323,16 @@ public actor Session {
         let handler = IntentHandler(inventory: inventory, settings: settings)
         do {
             let spool = try await handler.find(row.tag)
+            // A tag about to be created on scan stays Looking up until the
+            // create returns, rather than offering New and Link meanwhile.
+            let createsOnScan = spool == nil && newSpoolOnScan(id) != nil
             updateRow(id) {
                 $0.spool = spool
-                $0.status = spool == nil ? .unknown(prefill: row.tag.hasPrefill) : .awaitingWeight
+                if spool != nil {
+                    $0.status = .awaitingWeight
+                } else if !createsOnScan {
+                    $0.status = .unknown(prefill: row.tag.hasPrefill)
+                }
             }
             if let spool { return LookupBuilder.found(scanId: row.scanId, spool: spool) }
             if let created = await createOnScan(id, handler) {
@@ -347,12 +354,7 @@ public actor Session {
     /// failed create marks the row and leaves New as the retry; the Flipper
     /// gets `unknown` and keeps its own New.
     private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler) async -> Spool? {
-        guard let row = rows.first(where: { $0.id == id }),
-              let newSpool = NewSpool(
-                  tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
-                  colorName: row.colorName
-              )
-        else { return nil }
+        guard let newSpool = newSpoolOnScan(id) else { return nil }
         do {
             let created = try await handler.inventory.createSpool(newSpool)
             updateRow(id) { IntentHandler.markCreated(&$0, created, by: .host) }
@@ -362,6 +364,16 @@ public actor Session {
             updateRow(id) { $0.status = .error(message) }
             return nil
         }
+    }
+
+    /// The spool a scan creates for the row's tag: the New form's defaults,
+    /// or nil for a tag without material.
+    private func newSpoolOnScan(_ id: FeedRow.ID) -> NewSpool? {
+        guard let row = rows.first(where: { $0.id == id }) else { return nil }
+        return NewSpool(
+            tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
+            colorName: row.colorName
+        )
     }
 
     /// Performs the intent once per `id`: a repeat (also while the first is

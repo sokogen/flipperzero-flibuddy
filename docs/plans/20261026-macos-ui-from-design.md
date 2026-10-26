@@ -134,14 +134,17 @@ What changes:
 - [x] run tests - must pass before task 7
 
 ### Task 7: Verify acceptance criteria
-- [ ] every item of "Differences from the shipped macOS app" in the spec is implemented
-- [ ] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
+- [x] every item of "Differences from the shipped macOS app" in the spec is implemented
+  - ➕ Checked item by item against the views and view models: 1 `FeedRowView`/`WeightEntry`; 2 `FocusModel` + `FeedKeyboardShortcuts`; 3 `FeedViewModel.setMode`; 4 `saving`/`savedAfterTimeout`/`reopen`/`created`; 5 `StatusItem` tables incl. `nohello` and `nocolors`; 6 the two `ContentUnavailableView`s; 7 Clear + ⌘⌫ + dialog copy; 8 `NewSpoolSheet` and `FeedItem.newAction`; 9 `LinkSpoolSheet`/`LinkPickerModel`; 10 `SettingsForm`; 11 `Session.createOnScan`; 12 `Session` rescan move. Every phrase and SF Symbol in the spec's tables is in the sources.
+  - ➕ Gap found and fixed: the main window had no default size; `Window` now has `.defaultSize(width: 1000, height: 600)` (minimum 760 × 420 was already set).
+  - ➕ Fixed instead of checked by eye: an unknown Bambu tag flashed "Not in Bambuddy" with New and Link while the create on scan ran. `Session.lookup` now leaves the row in "Looking up" until the create returns (test: `aRowBeingCreatedOnScanStaysLookingUpUntilTheCreateReturns`, with a `FakeInventory.onCreate` hook).
+- [x] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan (skipped - not automatable: the app builds and launches, but this session has no Screen Recording permission (`screencapture` fails with "could not create image from display") and no computer-use tools, so nothing was compared by eye. The checks below move to Post-Completion for the owner.)
   - ➕ status bar checks from Task 4: the `.bar` background plus the top `Divider()` does not draw a double separator on macOS 27 (drop the divider if it does); the searching item shows only a spinner where the spec row names `antenna.radiowaves.left.and.right.slash` "(spinning progress)", so confirm it reads right; action buttons fit at 760 pt
   - ➕ sheet checks from Task 5: ⌘⌫ with the insertion point in a weight field opens the Clear dialog rather than deleting text; the Material menu renders as a pop-up in the grouped Form; the Link picker's "Tag <uid>" badge and warning line fit at the sheet's 520 pt
-  - ⚠️ `Session.lookup` publishes `unknown(prefill: true)` before the create on scan runs, so an unknown Bambu row may show "Not in Bambuddy" with New and Link for the length of the create call; check by eye whether the flash is visible against a real Bambuddy and, if it is, keep the row in "Looking up" until the create returns
+  - ➕ ~~check the "Not in Bambuddy" flash during a create on scan~~: fixed in code (see above), no by-eye check needed
   - ➕ focus checks from Task 2: a field selects its text when focus lands on it; Tab goes field → mode → Save; focus a field, Tab away without typing, scan → the new row takes focus (no hint); ⌘↑/⌘↓ with the insertion point in a field move rows rather than the cursor; focus on a row scrolled off-screen lands in its field once it scrolls in
   - ➕ Settings checks from Task 6: at 640 pt the "I type the weight as" segmented picker and its label fit; the Core weight field and its "g" line up in the grouped Form; both footers show; Forget is red, disabled with nothing remembered; the connection line turns to "Connected over USB" when the Flipper says hello while Settings is open; the test result line fits next to Test connection
-- [ ] `make test`, `make lint`, `make coverage` pass
+- [x] `make test`, `make lint`, `make coverage` pass (555 Swift tests, 321 Python tests, C suite, lint clean; FliBuddyCore line coverage 89.9 %, tools 96.5 %)
 
 ### Task 8: Documentation
 - [ ] `host/README.md`: keyboard shortcuts, row states, status bar actions
@@ -159,5 +162,8 @@ just sent.
 - Owner: run the app on the bench with the Flipper; check that focus lands
   on the newest row after a scan, that ⌘S saves without touching the mouse,
   and that the readout matches the scale arithmetic.
+- Owner: the by-eye checks listed under Task 7 (status bar, sheets, focus,
+  Settings at 640 pt, light and dark), which this run could not do without
+  screen access.
 - The iPhone, iPad and watch pages of the design get their own spec files
   and plans once Phase 2's targets exist.

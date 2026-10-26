@@ -19,6 +19,7 @@ struct FliBuddyMacApp: App {
                     await host.feed.observe()
                 }
         }
+        .defaultSize(width: 1000, height: 600)
         // `Settings` alone would be FliBuddyCore's settings struct.
         SwiftUI.Settings {
             SettingsView(host: host)

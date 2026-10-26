@@ -47,6 +47,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var omitWeightUsed = false
     /// Runs inside `updateWeight` before it answers, e.g. to move a test clock.
     var onUpdate: (@Sendable () -> Void)?
+    /// Runs inside `createSpool` before it answers, e.g. to read the feed mid-create.
+    var onCreate: (@Sendable () async -> Void)?
 
     init(spools: [Spool] = []) {
         stored = spools
@@ -90,6 +92,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func createSpool(_ spool: NewSpool) async throws -> Spool {
         record(.create(spool))
+        await onCreate?()
         if let createError { throw createError }
         return lock.withLock {
             let created = Spool(
