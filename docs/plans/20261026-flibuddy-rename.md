@@ -65,7 +65,13 @@
   `Models.swift`; "SpoolBuddy daemon (`pn5180.py`)" in `tools/bambu_keys.py`;
   the design spec's API table and its Phase 0 findings about the daemon;
   the README sentence "instead of SpoolBuddy hardware"; everything under
-  `docs/plans/completed/` (history) and `.ralphex/progress/`.
+  `docs/plans/completed/` (history) and `.ralphex/progress/`; (➕ found in
+  Task 6) "the SpoolBuddy daemon" in `flipper/src/bambu_keys.h` and the
+  daemon comments in `TagParserTests.swift` and `tools/tests/test_bambu_tag.py`;
+  the `/spoolbuddy/scale/update-spool-weight` route in `protocol/PROTOCOL.md`,
+  `tools/bridge/bambuddy.py`, `BambuddyClientTests.swift` and
+  `tools/tests/test_bambuddy.py`; `docs/design/ui-brief.md` line 170, which
+  explains the name; this plan file.
 - **Unchanged by design**: the GATT UUIDs (`SpoolBuddyGATT.swift`,
   `flipper/src/ble_wire.h`); the BLE advertised name (it is the Flipper's own
   name); `UserDefaults` keys (`bambuddy.*`, `weight.*`, `flipper.*`); the
@@ -286,17 +292,43 @@
       `make lint` and `make coverage`, FliBuddyCore 88.2 %, pass)
 
 ### Task 6: Verify acceptance criteria
-- [ ] `git grep -n -i spoolbuddy` lists only the "must stay" references from
+- [x] `git grep -n -i spoolbuddy` lists only the "must stay" references from
       Context (Bambuddy route, Bambuddy daemon, README "instead of SpoolBuddy
       hardware", the design spec's API table and Phase 0 findings about the
       daemon, `docs/plans/completed/`, `.ralphex/`); paste the list into the
       plan under a ➕ note
-- [ ] `git grep -n -i -E 'cool\.bambuddy'` finds nothing
-- [ ] run `cd host && swift test`, `make -C flipper/tests test`,
+      (➕ hits outside `docs/plans/` and `.ralphex/`, all Bambuddy's:
+      `flipper/src/bambu_keys.h:1` (daemon),
+      `host/Sources/FliBuddyCore/Bambuddy/BambuddyClient.swift:81` and
+      `Models.swift:75` (route),
+      `host/Tests/FliBuddyCoreTests/BambuddyClientTests.swift:99,423` (route),
+      `host/Tests/FliBuddyCoreTests/TagParserTests.swift:179` (daemon),
+      `protocol/PROTOCOL.md:177` (route), `tools/bambu_keys.py:3` (daemon),
+      `tools/bridge/bambuddy.py:106` (route),
+      `tools/tests/test_bambu_tag.py:128` (daemon),
+      `tools/tests/test_bambuddy.py:93` (route),
+      `docs/design/ui-brief.md:170` (explains the name), `README.md:4`
+      ("instead of SpoolBuddy hardware"), and in the design spec lines 15,
+      25, 27, 32, 69, 98, 113-116, 159, 458, 496 (the kiosk, the daemon,
+      the API table). ⚠️ still ours, left for Task 7: `README.md` lines 1, 25-27,
+      79, 116-117, 121, 133-139, 158, 228 (line 11 is the spec's file name,
+      kept); the design spec lines 1, 186, 394, 400, 419, 423, 521, 552
+      (line 5 links a completed plan's file name, kept))
+- [x] `git grep -n -i -E 'cool\.bambuddy'` finds nothing (⚠️ outside history
+      in `docs/plans/completed/` and this plan's own Context it finds
+      `README.md:139` and the design spec line 552, both fixed in Task 7)
+- [x] run `cd host && swift test`, `make -C flipper/tests test`,
       `cd tools && uv run pytest`, `cd flipper && ufbt`,
-      `make apple-project apple-build`, `make coverage`
-- [ ] run `make lint` (flipper, host, tools) - all issues must be fixed
-- [ ] verify test coverage still meets the 80 % gate
+      `make apple-project apple-build`, `make coverage` (Swift 443 passed,
+      C 235 with 0 failures, pytest 321 passed, `ufbt` builds and APPCHKs
+      `flibuddy.fap`, `FliBuddy.xcodeproj` generated and both simulator
+      builds succeed, `make coverage` passes; 0 test plists in
+      `~/Library/Preferences` afterwards)
+- [x] run `make lint` (flipper, host, tools) - all issues must be fixed
+      (exit 0; only the Command Line Tools' ld search-path warnings, which
+      are not lint findings)
+- [x] verify test coverage still meets the 80 % gate (FliBuddyCore 88.3 %,
+      tools 96.51 %)
 
 ### Task 7: Update documentation
 - [ ] `README.md`: title `# flipper-flibuddy`, first paragraph introduces
@@ -313,6 +345,13 @@
       `.github/workflows/README.md`, `tools/README.md`: final pass for
       leftovers
 - [ ] update project knowledge docs if new patterns discovered
+- [ ] ➕ re-run `git grep -n -i spoolbuddy -- ':!docs/plans' ':!.ralphex'`
+      and `git grep -n -i -E 'cool\.bambuddy' -- ':!docs/plans'` after the
+      doc edits: only the "must stay" hits listed in Task 6 remain (README:
+      `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` becomes
+      `FLIBUDDY_BLE_REQUIRE_ENCRYPTION`, the bundle ids become
+      `com.sokolachko.flibuddy`; spec: the tree root, the BLE profile symbol,
+      the settings dir, the UI target, the macro, the bundle id)
 
 ## Technical Details
 - Name scheme: `FliBuddy` in prose, titles and Swift type/target names;
