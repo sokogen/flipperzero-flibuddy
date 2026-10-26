@@ -23,6 +23,8 @@ public struct BLEChunker: Sendable {
     private var pending: [UInt8] = []
     private var inFlight = false
     private var framer = NDJSONFramer()
+    /// The protocol version the peer's lines carry, when not ours.
+    public private(set) var otherVersion: Int?
 
     public init(writeSize: Int = defaultWriteSize) {
         self.writeSize = Self.clamp(writeSize)
@@ -69,7 +71,7 @@ public struct BLEChunker: Sendable {
     /// Feeds one TX notification; returns the messages it completes. Lines
     /// that do not decode or exceed the protocol limit are dropped.
     public mutating func receive(_ notification: Data) -> [Message] {
-        WireLog.receive(notification, framer: &framer)
+        WireLog.receive(notification, framer: &framer, otherVersion: &otherVersion)
     }
 
     /// Forgets queued writes, the write in flight and a partial inbound line,
@@ -78,6 +80,7 @@ public struct BLEChunker: Sendable {
         pending.removeAll()
         inFlight = false
         framer.reset()
+        otherVersion = nil
     }
 
     private static func clamp(_ size: Int) -> Int {

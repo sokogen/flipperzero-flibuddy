@@ -60,6 +60,11 @@ extension FlipperLink {
             return StatusItem(text: "No Flipper \u{00B7} searching", symbol: .progress, tint: .gray, detail: problem)
         case .noAnswer:
             return StatusItem(text: "Open FliBuddy on the Flipper", symbol: .symbol("app.dashed"), tint: .orange)
+        case .otherVersion(let version):
+            return StatusItem(
+                text: versionMismatchText(version), symbol: .symbol("exclamationmark.triangle"), tint: .orange,
+                detail: versionMismatchAdvice(version)
+            )
         case .connected(let hello):
             let firmware = hello.fw.map { "firmware \($0)" }
             if case .bluetooth = choice {

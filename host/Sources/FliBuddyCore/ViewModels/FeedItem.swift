@@ -111,8 +111,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         prominentAction = row.request.map { $0 == .create ? .new : .link }
         isEntry = spool != nil && Self.isEntryState(row.status)
         isWaiting = spool != nil && (row.status == .awaitingWeight || row.status == .created)
-        isSaving = row.status == .saving
-        isReopenable = spool != nil && (row.status == .saved || row.status == .savedAfterTimeout)
+        isSaving = row.status == .saving || row.status == .updating
+        isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
         offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
             && (row.status == .created || isError)
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
@@ -173,8 +173,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
 
     static func isEntryState(_ status: FeedRow.Status) -> Bool {
         switch status {
-        case .awaitingWeight, .saving, .created, .error: true
-        case .scanned, .unknown, .saved, .savedAfterTimeout: false
+        case .awaitingWeight, .saving, .created, .updating, .error: true
+        case .scanned, .unknown, .saved, .savedAfterTimeout, .markedNew, .markedEmpty, .deleted: false
         }
     }
 
@@ -190,19 +190,28 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
             return row.savedBy.map { "\(saved) · \(savedByText($0))" } ?? saved
         case .created: return "Created in Bambuddy"
+        case .updating: return "Updating\u{2026}"
+        case .markedNew:
+            let marked = row.spool.map { "Marked as new · \($0.remaining) g left" } ?? "Marked as new"
+            return row.savedBy.map { "\(marked) · \(savedByText($0))" } ?? marked
+        case .markedEmpty: return "Marked as empty · archived"
+        case .deleted: return "Deleted from Bambuddy"
         case .error(let message): return "Error: \(message)"
         }
     }
 
     static func statusLook(_ row: FeedRow) -> (StatusSymbol, StatusTint) {
         switch row.status {
-        case .scanned, .saving: (.progress, .secondary)
+        case .scanned, .saving, .updating: (.progress, .secondary)
         case .awaitingWeight: (.symbol("scalemass"), .blue)
         case .unknown: row.request == nil
             ? (.symbol("questionmark.circle"), .secondary)
             : (.symbol("dot.radiowaves.left.and.right"), .blue)
         case .saved, .savedAfterTimeout: (.symbol("checkmark.circle.fill"), .green)
         case .created: (.symbol("plus.circle.fill"), .green)
+        case .markedNew: (.symbol("arrow.counterclockwise.circle.fill"), .green)
+        case .markedEmpty: (.symbol("archivebox"), .secondary)
+        case .deleted: (.symbol("trash"), .secondary)
         case .error: (.symbol("exclamationmark.triangle.fill"), .red)
         }
     }

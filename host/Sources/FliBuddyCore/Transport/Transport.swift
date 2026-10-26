@@ -25,11 +25,18 @@ public protocol Transport: AnyObject, Sendable {
     /// stream finishes when the connection drops; each `connect()` starts a new
     /// one. Lines that do not decode are dropped (PROTOCOL.md).
     var messages: AsyncStream<Message> { get }
+    /// The protocol version the peer's lines on the current connection
+    /// carry, when it is not `Message.version` (those lines are dropped).
+    var peerVersion: Int? { get }
     /// Opens the link; does nothing while it is open.
     func connect() async throws
     /// Writes one newline-terminated line.
     func send(_ message: Message) throws
     func disconnect()
+}
+
+extension Transport {
+    public var peerVersion: Int? { nil }
 }
 
 extension TransportError: LocalizedError {

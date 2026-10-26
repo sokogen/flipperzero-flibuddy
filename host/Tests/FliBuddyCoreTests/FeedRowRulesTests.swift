@@ -14,9 +14,10 @@ final class TestClock: @unchecked Sendable {
     }
 }
 
-private func scan(_ scanId: String, _ name: String = "scan_mfc") throws -> Scan {
+private func scan(_ scanId: String, _ name: String = "scan_mfc", autosave: Bool = false) throws -> Scan {
     var scan = try fixtureScan(name)
     scan.scanId = scanId
+    scan.autosave = autosave
     return scan
 }
 
@@ -64,6 +65,10 @@ struct FeedItemRulesTests {
             (saved, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
             (timedOut, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
             (try row(status: .created), "Created in Bambuddy", .symbol("plus.circle.fill"), .green),
+            (try row(status: .updating), "Updating\u{2026}", .progress, .secondary),
+            (try row(status: .markedNew), "Marked as new · 484 g left", .symbol("arrow.counterclockwise.circle.fill"), .green),
+            (try row(status: .markedEmpty), "Marked as empty · archived", .symbol("archivebox"), .secondary),
+            (try row(status: .deleted, spool: nil), "Deleted from Bambuddy", .symbol("trash"), .secondary),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable",
              .symbol("exclamationmark.triangle.fill"), .red),
             (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
@@ -83,16 +88,16 @@ struct FeedItemRulesTests {
     }
 
     @Test func entryAndReopenableStates() throws {
-        let entry: [FeedRow.Status] = [.awaitingWeight, .saving, .created, .error("boom")]
+        let entry: [FeedRow.Status] = [.awaitingWeight, .saving, .created, .updating, .error("boom")]
         for status in entry {
             #expect(FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.saved, .savedAfterTimeout] {
+        for status in [FeedRow.Status.saved, .savedAfterTimeout, .markedNew, .markedEmpty] {
             #expect(!FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.scanned, .unknown(prefill: true), .unknown(prefill: false)] {
+        for status in [FeedRow.Status.scanned, .unknown(prefill: true), .unknown(prefill: false), .deleted] {
             #expect(!FeedItem(try row(status: status, spool: nil)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status, spool: nil)).isReopenable, "\(status)")
         }
@@ -100,6 +105,7 @@ struct FeedItemRulesTests {
         #expect(!FeedItem(try row(status: .error("boom"), spool: nil)).isEntry)
         #expect(FeedItem(try row(status: .error("boom"), spool: nil)).offersUnknownActions)
         #expect(FeedItem(try row(status: .saving)).isSaving)
+        #expect(FeedItem(try row(status: .updating)).isSaving)
         var created = try row(status: .created)
         created.createdSpoolId = created.spool?.id
         #expect(FeedItem(created).offersLinkExisting)
@@ -340,7 +346,7 @@ struct FeedViewModelRulesTests {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
 
-        let lookup = await session.handleScan(try scan("s-1"))
+        let lookup = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
 
         let tag = TagParser.parse(try fixtureScan().tag)
@@ -367,8 +373,8 @@ struct FeedViewModelRulesTests {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
 
-        _ = await session.handleScan(try scan("s-1"))
-        let again = await session.handleScan(try scan("s-2"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
+        let again = await session.handleScan(try scan("s-2", autosave: true))
         model.apply(await session.snapshot)
 
         #expect(inventory.creates.count == 1)
@@ -383,7 +389,7 @@ struct FeedViewModelRulesTests {
         inventory.createError = .network("timed out")
         let (model, session) = makeModel(inventory)
 
-        let lookup = await session.handleScan(try scan("s-1"))
+        let lookup = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
 
         // the Flipper keeps its own New
@@ -405,7 +411,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
 
@@ -426,7 +432,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         inventory.deleteError = .http(status: 500, message: "boom")
@@ -454,7 +460,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         try await inventory.deleteSpool(id: 100)
@@ -469,7 +475,7 @@ struct FeedViewModelRulesTests {
     @Test func aWeighedCreatedSpoolIsNotOfferedForDeletion() async throws {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         model.setWeightText("1100", for: id)
@@ -486,7 +492,7 @@ struct FeedViewModelRulesTests {
 
     @Test func newSettingsForgetTheSpoolCreatedOnTheOldBambuddy() async throws {
         let (model, session) = makeModel(FakeInventory())
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         let target = Spool(id: 100, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let other = FakeInventory(spools: [target])
         await session.reconfigure(settings: testSettings, inventory: other)
@@ -504,7 +510,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let old = FakeInventory(spools: [target])
         let (model, session) = makeModel(old)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         await model.loadLinkCandidates()
@@ -524,7 +530,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         inventory.linkError = .network("timed out")

@@ -21,7 +21,7 @@ import Testing
         let loud = await capturingLog(level: .debug) { WireLog.sent(line) }
 
         #expect(quiet.events.isEmpty)
-        #expect(loud.events == [#"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":1}"#])
+        #expect(loud.events == [#"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":2}"#])
         #expect(loud.lines.map(\.level) == [.debug])
     }
 
@@ -36,9 +36,9 @@ import Testing
 
     @Test func aLineThatDoesNotDecodeIsDroppedAtErrorWithTheReasonAndItsStart() async {
         var messages: [Message?] = []
-        let long = #"{"t":"ping","v":1,"pad":""# + String(repeating: "x", count: 200) + #""}"#
+        let long = #"{"t":"ping","v":2,"pad":""# + String(repeating: "x", count: 200) + #""}"#
         let sink = await capturingLog {
-            messages.append(WireLog.received(Data(#"{"t":"ping","v":1}"#.utf8)))
+            messages.append(WireLog.received(Data(#"{"t":"ping","v":2}"#.utf8)))
             messages.append(WireLog.received(Data(#"{"t":"hello","v":2,"app":"x"}"#.utf8)))
             messages.append(WireLog.received(Data(long.utf8)))
             messages.append(WireLog.received(Data("not json".utf8)))
@@ -48,8 +48,8 @@ import Testing
         #expect(sink.lines.map(\.level) == [.error, .error, .error, .error])
         let events = sink.events
         #expect(events.count == 4)
-        #expect(events[0] == #"wire dropped: reason=unknown type ping line={"t":"ping","v":1}"#)
-        #expect(events[1] == #"wire dropped: reason=unsupported version 2 line={"t":"hello","v":2,"app":"x"}"#)
+        #expect(events[0] == #"wire dropped: reason=unknown type ping line={"t":"ping","v":2}"#)
+        #expect(events[1] == #"wire dropped: reason=invalid hello needs exactly one of fw / os line={"t":"hello","v":2,"app":"x"}"#)
         #expect(events[2] == "wire dropped: reason=unknown type ping line=\(long.prefix(120))… (+\(long.utf8.count - 120) bytes)")
         #expect(events[3].hasPrefix("wire dropped: reason=malformed: "))
         #expect(events[3].hasSuffix(" line=not json"))
@@ -60,11 +60,36 @@ import Testing
         var messages: [Message] = []
         let hello = try Message.flipperHello.encodedLine()
         let sink = await capturingLog {
-            messages = WireLog.receive(Data(String(repeating: "x", count: 100).utf8 + [0x0A]) + hello, framer: &framer)
+            var otherVersion: Int?
+            messages = WireLog.receive(
+                Data(String(repeating: "x", count: 100).utf8 + [0x0A]) + hello, framer: &framer, otherVersion: &otherVersion
+            )
         }
 
         #expect(messages == [.flipperHello])
         #expect(sink.events == ["wire dropped: reason=line too long, over 64 bytes"])
+    }
+
+    @Test func aPeerOfAnotherVersionIsToldOnceAndItsLinesDroppedQuietly() async {
+        var otherVersion: Int?
+        var messages: [Message?] = []
+        let v1Hello = #"{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","fw":"1.5.1"}"#
+        let sink = await capturingLog {
+            messages.append(WireLog.received(Data(v1Hello.utf8), otherVersion: &otherVersion))
+            messages.append(WireLog.received(Data(#"{"t":"scan","v":1}"#.utf8), otherVersion: &otherVersion))
+        }
+
+        #expect(messages == [nil, nil])
+        #expect(otherVersion == 1)
+        #expect(sink.events == ["wire Flipper speaks protocol 1, host speaks 2"])
+        #expect(sink.lines.map(\.level) == [.error])
+    }
+
+    @Test func theVersionIsReadBeforeTheType() async {
+        var otherVersion: Int?
+        let message = WireLog.received(Data(#"{"t":"ping","v":3}"#.utf8), otherVersion: &otherVersion)
+        #expect(message == nil)
+        #expect(otherVersion == 3)
     }
 
     @Test func protocolErrorsReadAsReasons() {

@@ -218,11 +218,24 @@ public final class FlipperLink {
         setState(.disconnected)
     }
 
+    /// "Flipper speaks protocol 1, host speaks 2".
+    public static func versionMismatchText(_ version: Int) -> String {
+        WireLog.versionMismatch(version)
+    }
+
+    /// What to update when the two sides speak different protocol versions.
+    public static func versionMismatchAdvice(_ version: Int) -> String {
+        version < Message.version
+            ? "Install the matching FliBuddy app on the Flipper"
+            : "Update FliBuddy on this device"
+    }
+
     public static func statusText(_ state: LinkState, problem: String?) -> String {
         switch state {
         case .disconnected: "Flipper: \(problem ?? "not connected")"
         case .waitingForHello: "Flipper: waiting for the app"
         case .noAnswer: "Flipper: no answer; open FliBuddy on the Flipper"
+        case .otherVersion(let version): "Flipper: speaks protocol \(version), host speaks \(Message.version)"
         case .connected(let hello): "Flipper: connected" + (hello.fw.map { " (firmware \($0))" } ?? "")
         }
     }
@@ -246,6 +259,7 @@ extension LinkState {
         case .disconnected: "disconnected"
         case .waitingForHello: "waitingForHello"
         case .noAnswer: "noAnswer"
+        case .otherVersion(let version): "otherVersion(\(version))"
         case .connected: "connected"
         }
     }

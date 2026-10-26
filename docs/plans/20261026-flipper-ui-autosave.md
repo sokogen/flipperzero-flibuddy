@@ -237,14 +237,14 @@ Feedback (respecting Feedback / Sound settings):
 - [x] `cd flipper && ufbt` builds without warnings; run `make test-flipper` — must pass before Task 6
 
 ### Task 6: Host session for v2
-- [ ] Swift codecs for v2 (`Message.swift`, `Intent.swift`); read `v` first, log a version mismatch once and show it in the status, then drop the line
-- [ ] lookups use `include_archived=true`; an archived spool is `found` with `spool.archived: true`
-- [ ] create on scan only when `scan.autosave` is true (and the tag has material); the lookup then carries `created: true`; with autosave false the row stays "Not in Bambuddy" offering New / Link, and the host's Save on such a row creates the spool and records the weight
-- [ ] `LookupBuilder` fills `spool` / `tag_info`; results fill `spool`
-- [ ] `IntentHandler`: `full` (restore if archived, then `weight_used` 0 via PATCH), `empty` (`weight_used` = label, then archive), `delete`, `weigh` on an archived spool (restore first), `weigh` on an unknown scan (create, then weigh) going through the same re-lookup by tag as `Session.createSpool`, so a retry after create succeeded and weigh failed never creates a second spool; add the needed `BambuddyClient` / `SpoolInventory` calls (PATCH, archive, restore, by-tag with `include_archived`)
-- [ ] feed rows reflect the new actions (marked new / empty / archived / deleted) and keep newest-first and move-to-top on rescan
-- [ ] write tests for each path above, idempotent repeats, create-then-weigh retry without a duplicate, failures leaving rows retryable
-- [ ] run `make test-host` — must pass before Task 7
+- [x] Swift codecs for v2 (`Message.swift`, `Intent.swift`); read `v` first, log a version mismatch once and show it in the status, then drop the line
+- [x] lookups use `include_archived=true`; an archived spool is `found` with `spool.archived: true`
+- [x] create on scan only when `scan.autosave` is true (and the tag has material); the lookup then carries `created: true`; with autosave false the row stays "Not in Bambuddy" offering New / Link, and the host's Save on such a row creates the spool and records the weight
+- [x] `LookupBuilder` fills `spool` / `tag_info`; results fill `spool`
+- [x] `IntentHandler`: `full` (restore if archived, then `weight_used` 0 via PATCH), `empty` (`weight_used` = label, then archive), `delete`, `weigh` on an archived spool (restore first), `weigh` on an unknown scan (create, then weigh) going through the same re-lookup by tag as `Session.createSpool`, so a retry after create succeeded and weigh failed never creates a second spool; add the needed `BambuddyClient` / `SpoolInventory` calls (PATCH, archive, restore, by-tag with `include_archived`)
+- [x] feed rows reflect the new actions (marked new / empty / archived / deleted) and keep newest-first and move-to-top on rescan
+- [x] write tests for each path above, idempotent repeats, create-then-weigh retry without a duplicate, failures leaving rows retryable
+- [x] run `make test-host` — must pass before Task 7
 
 ### Task 7: Mac UI and Python bridge
 - [ ] Mac feed: a "Not in Bambuddy" Bambu row (autosave off) shows **New** and **Link to existing…** plus an editable weight whose Save creates and weighs; show marked-new / empty (archived) / deleted states; update `docs/design/macos-ui-spec.md` ("Implemented differently" or the row table) accordingly
@@ -252,6 +252,7 @@ Feedback (respecting Feedback / Sound settings):
   (the version bump and `lookup.spool` / `lookup.tag_info` / `result.spool`
   already landed in Task 1; left: `autosave`, `full` / `empty` / `delete`,
   `weigh` on an unknown tag, `include_archived` and `spool.archived`)
+- [ ] ➕ after New / Link on the host for the scan the Flipper shows (`create_on_host`, `link_on_host`), push a fresh `lookup` for that `scan_id` (PROTOCOL.md, Session); today `Session.handle` only replies to Flipper lines, so `FlipperLink` needs a way to send an unsolicited line
 - [ ] write tests (Swift view-model tests, pytest for the bridge)
 - [ ] run `make test` — must pass before Task 8
 
@@ -376,3 +377,24 @@ over USB and Bluetooth:
   follow the vibro rather than overlapping it.
 - Task 5: `flipper/README.md` still describes the old Idle / Transport
   screens; Task 9 rewrites it for the new UI.
+- Task 6: Bambuddy's archive marker is not in this repository's captures,
+  so `Spool` decodes `archived_at` (a date string) and an optional
+  `archived` boolean, and `isArchived` is `archived ?? (archived_at != nil)`.
+  The bodies of `POST …/archive` and `…/restore` are not read: Mark as empty
+  takes its spool from the `PATCH` and sets `archived` itself, Mark as new
+  and a weigh on an archived spool clear it after the restore. Mark as empty
+  on a spool already archived skips the archive call; Delete of a spool
+  already gone (404) counts as deleted.
+- Task 6: the version mismatch reaches the status through
+  `Transport.peerVersion` (the other version of the first such line on the
+  connection; `WireLog` logs "Flipper speaks protocol N, host speaks 2" once
+  at error and drops later lines at debug). At the hello timeout the link
+  goes to `LinkState.otherVersion(N)` instead of `noAnswer`; the status bar
+  shows the same sentence, with what to update as its detail.
+- Task 6: a `weigh` (or host Save) on an unknown tag whose create went
+  through and whose weight failed leaves the row without the spool, showing
+  the error; the retry finds the spool by tag and weighs it. New feed row
+  statuses: `updating` (Mark / Delete in flight), `markedNew`,
+  `markedEmpty`, `deleted`; an archived spool is `spool.isArchived`.
+  `FeedItem` has plain phrases for them until Task 7. The Swift
+  `Scan(autosave:)` defaults to `false`.

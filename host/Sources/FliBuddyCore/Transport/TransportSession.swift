@@ -7,6 +7,8 @@ public enum LinkState: Equatable, Sendable {
     case waitingForHello
     /// The port is open but no Flipper `hello` came within the timeout.
     case noAnswer
+    /// No `hello` came, but the Flipper sends lines of this other protocol version.
+    case otherVersion(Int)
     case connected(Hello)
 }
 
@@ -117,10 +119,17 @@ public actor TransportSession {
         }
     }
 
+    /// A Flipper of another protocol version is silent too, since its lines
+    /// are dropped; the state says which version it speaks.
     private func helloTimedOut() {
         guard state == .waitingForHello else { return }
-        Log.notice(.link, "hello timeout: after=\(helloTimeout.logDescription)")
-        setState(.noAnswer)
+        if let version = transport.peerVersion {
+            Log.notice(.link, "hello timeout: after=\(helloTimeout.logDescription) peer_version=\(version)")
+            setState(.otherVersion(version))
+        } else {
+            Log.notice(.link, "hello timeout: after=\(helloTimeout.logDescription)")
+            setState(.noAnswer)
+        }
     }
 
     private func setState(_ new: LinkState) {

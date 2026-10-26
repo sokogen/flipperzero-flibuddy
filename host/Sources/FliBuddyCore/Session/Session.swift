@@ -322,19 +322,20 @@ public actor Session {
     private static func describe(_ scan: Scan) -> String {
         let tag = TagParser.parse(scan.tag)
         return "scan: id=\(scan.scanId) uid=\(tag.uid) tray=\(tag.trayUuid ?? "none") "
-            + "kind=\(scan.tag.type.rawValue) material=\(tag.material ?? "none")"
+            + "kind=\(scan.tag.type.rawValue) material=\(tag.material ?? "none") autosave=\(scan.autosave)"
     }
 
     /// Adds a row for the scan, newest last. A tag already in the feed (same
     /// tray UUID or UID) moves its row to the end and starts it over, so the
-    /// feed never holds the same tag twice.
+    /// feed never holds the same tag twice. The row keeps the scan's autosave.
     @discardableResult
     public func record(_ scan: Scan) -> FeedRow.ID {
-        var row = FeedRow(scanId: scan.scanId, scannedAt: now(), dump: scan.tag)
+        var row = FeedRow(scanId: scan.scanId, scannedAt: now(), autosave: scan.autosave, dump: scan.tag)
         if let index = rows.lastIndex(where: { Self.sameTag($0.tag, row.tag) }) {
             var known = rows.remove(at: index)
             known.scanId = row.scanId
             known.scannedAt = row.scannedAt
+            known.autosave = row.autosave
             known.dump = row.dump
             known.tag = row.tag
             known.status = .scanned
@@ -415,7 +416,7 @@ public actor Session {
             staleSpools.remove(id)
             if let spool { return (LookupBuilder.found(scanId: row.scanId, spool: spool), .found(spool.id)) }
             if let created = await createOnScan(id, handler, startedUnder: started) {
-                return (LookupBuilder.found(scanId: row.scanId, spool: created), .created(created.id))
+                return (LookupBuilder.found(scanId: row.scanId, spool: created, created: true), .created(created.id))
             }
             return (LookupBuilder.unknown(scanId: row.scanId, tag: row.tag, core: settings.coreWeight), .notFound)
         } catch {
@@ -429,10 +430,10 @@ public actor Session {
         }
     }
 
-    /// A tag with material that no spool carries is created at once with the
-    /// defaults (the New form's values); the row then waits for a weight. A
-    /// failed create marks the row and leaves New as the retry; the Flipper
-    /// gets `unknown` and keeps its own New.
+    /// With the scan's autosave on, a tag with material that no spool carries
+    /// is created at once with the defaults (the New form's values); the row
+    /// then waits for a weight. A failed create marks the row and leaves New
+    /// as the retry; the Flipper gets `unknown` and keeps its own Add.
     private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler, startedUnder started: Int) async -> Spool? {
         guard let newSpool = newSpoolOnScan(id) else { return nil }
         let scanId = scanId(of: id)
@@ -450,10 +451,10 @@ public actor Session {
         }
     }
 
-    /// The spool a scan creates for the row's tag: the New form's defaults,
-    /// or nil for a tag without material.
+    /// The spool a scan creates for the row's tag: the New form's defaults;
+    /// nil when the scan's autosave is off or the tag has no material.
     private func newSpoolOnScan(_ id: FeedRow.ID) -> NewSpool? {
-        guard let row = rows.first(where: { $0.id == id }) else { return nil }
+        guard let row = rows.first(where: { $0.id == id }), row.autosave else { return nil }
         return NewSpool(
             tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
             colorName: row.colorName
@@ -513,7 +514,7 @@ public actor Session {
 
     private func perform(_ intent: Intent, arrived: Date) async -> IntentResult {
         let id = rowID(for: intent)
-        let failed = intent.action == .new ? "Not created" : "Not saved"
+        let failed = IntentHandler.failureLine(intent.action)
         if intent.action == .createOnHost || intent.action == .linkOnHost {
             guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
             return finish(intent, IntentHandler.flag(intent, on: row))
@@ -524,7 +525,11 @@ public actor Session {
             return LookupBuilder.result(id: intent.id, ok: false, lines: [failed] + bambuddy.flipperLines, error: message)
         }
         guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
-        if intent.action == .weigh { updateRow(id) { $0.status = .saving } }
+        switch intent.action {
+        case .weigh: updateRow(id) { $0.status = .saving }
+        case .full, .empty, .delete: updateRow(id) { $0.status = .updating }
+        case .new, .createOnHost, .linkOnHost: break
+        }
         let started = configuration
         let guarded = configured(inventory, under: started)
         do {
@@ -568,7 +573,7 @@ public actor Session {
             ?? rows.last(where: { Self.sameTag($0.tag, tag) }) {
             return row.id
         }
-        return record(Scan(scanId: intent.scanId, tag: intent.tag))
+        return record(Scan(scanId: intent.scanId, autosave: false, tag: intent.tag))
     }
 
     private func remember(_ intent: Intent, _ result: IntentResult) {
@@ -584,8 +589,9 @@ public actor Session {
 
     // MARK: Host actions
 
-    /// Saves a weight typed on the host: the same Bambuddy call a Flipper
-    /// `weigh` makes, marked as saved by the host.
+    /// Saves a weight typed on the host: the same Bambuddy calls a Flipper
+    /// `weigh` makes, marked as saved by the host. On a tag no spool carries
+    /// it creates the spool from the tag first.
     public func saveWeight(row id: FeedRow.ID, grams: Int, mode: Intent.WeightMode) async throws {
         guard (0...LookupBuilder.maxGrams).contains(grams) else { throw SessionError.invalidWeight(grams) }
         try await hostAction(id, status: .saving) { handler, row in
@@ -656,10 +662,11 @@ public actor Session {
         }
     }
 
-    /// Takes a saved row back to weight entry for a re-weigh.
+    /// Takes a saved or marked row back to weight entry for a re-weigh.
     public func reopen(row id: FeedRow.ID) {
+        let reopenable: [FeedRow.Status] = [.saved, .savedAfterTimeout, .markedNew, .markedEmpty]
         updateRow(id) {
-            if $0.status == .saved || $0.status == .savedAfterTimeout, $0.spool != nil { $0.status = .awaitingWeight }
+            if reopenable.contains($0.status), $0.spool != nil { $0.status = .awaitingWeight }
         }
     }
 

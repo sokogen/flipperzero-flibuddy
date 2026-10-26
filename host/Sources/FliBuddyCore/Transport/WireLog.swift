@@ -2,7 +2,9 @@ import Foundation
 
 /// The wire in the log: lines sent and received at `.debug`, cut to
 /// `lineLimit` characters, and lines dropped because they do not decode at
-/// `.error`. The transports call it where lines are encoded and decoded.
+/// `.error`. Lines of another protocol version are told once per connection
+/// (`otherVersion`), then dropped at `.debug`. The transports call it where
+/// lines are encoded and decoded.
 enum WireLog {
     static let lineLimit = 300
     static let droppedLimit = 120
@@ -13,25 +15,46 @@ enum WireLog {
     }
 
     /// Feeds received bytes to `framer`; returns the messages they complete.
-    static func receive(_ bytes: some Sequence<UInt8>, framer: inout NDJSONFramer) -> [Message] {
+    /// `otherVersion`: the connection's peer version other than ours, set by
+    /// the first line in it.
+    static func receive(
+        _ bytes: some Sequence<UInt8>, framer: inout NDJSONFramer, otherVersion: inout Int?
+    ) -> [Message] {
         let dropped = framer.droppedLines
         let lines = framer.push(bytes)
         for _ in dropped..<framer.droppedLines {
             Log.error(.wire, "dropped: reason=line too long, over \(framer.maxLineBytes) bytes")
         }
-        return lines.compactMap(received)
+        return lines.compactMap { received($0, otherVersion: &otherVersion) }
     }
 
     /// The message of one line without its terminator; `nil` when it does
     /// not decode.
-    static func received(_ line: Data) -> Message? {
+    static func received(_ line: Data, otherVersion: inout Int?) -> Message? {
         Log.debug(.wire, "rx: \(excerpt(line, limit: lineLimit))")
         do {
             return try Message.decode(line: line)
+        } catch ProtocolError.unsupportedVersion(let version) {
+            if otherVersion != version {
+                otherVersion = version
+                Log.error(.wire, versionMismatch(version))
+            }
+            Log.debug(.wire, "dropped: reason=unsupported version \(version) line=\(excerpt(line, limit: droppedLimit))")
+            return nil
         } catch {
             Log.error(.wire, "dropped: reason=\(reason(error)) line=\(excerpt(line, limit: droppedLimit))")
             return nil
         }
+    }
+
+    static func received(_ line: Data) -> Message? {
+        var otherVersion: Int?
+        return received(line, otherVersion: &otherVersion)
+    }
+
+    /// "Flipper speaks protocol 1, host speaks 2".
+    static func versionMismatch(_ version: Int) -> String {
+        "Flipper speaks protocol \(version), host speaks \(Message.version)"
     }
 
     /// The line as text without its terminator, cut after `limit`

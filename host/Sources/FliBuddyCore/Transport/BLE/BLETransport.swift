@@ -43,6 +43,10 @@ public final class BLETransport: Transport, @unchecked Sendable {
         lock.withLock { stream }
     }
 
+    public var peerVersion: Int? {
+        lock.withLock { isOpen ? chunker.otherVersion : nil }
+    }
+
     /// The peripheral of the open connection.
     var connectedPeripheral: UUID? {
         lock.withLock { isOpen ? link?.identifier : nil }

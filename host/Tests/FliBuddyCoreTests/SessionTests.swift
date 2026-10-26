@@ -5,7 +5,7 @@ import Testing
 /// The spool `lookup_found.json` describes, carrying the synthetic fixture's UID in
 /// the AMS form.
 func knownSpool(
-    lastScaleWeight: Int? = 734, weightUsed: Double = 516, colorName: String? = "Jade White", subtype: String? = "PLA Basic"
+    lastScaleWeight: Int? = 734, weightUsed: Double = 516, colorName: String? = "Jade White", subtype: String? = "Basic"
 ) -> Spool {
     Spool(
         id: 42, material: "PLA", subtype: subtype, colorName: colorName, rgba: "FFFFFFFF",
@@ -24,6 +24,13 @@ func fixtureMessage(_ name: String) throws -> Message {
 
 func fixtureScan(_ name: String = "scan_mfc") throws -> Scan {
     guard case .scan(let scan) = try fixtureMessage(name) else { fatalError("\(name) is not a scan") }
+    return scan
+}
+
+/// `scan_mfc.json` (or `name`) with the Flipper's Auto-save new on.
+func autosaveScan(_ name: String = "scan_mfc") throws -> Scan {
+    var scan = try fixtureScan(name)
+    scan.autosave = true
     return scan
 }
 
@@ -122,18 +129,89 @@ struct SessionScanTests {
         #expect(await bare.handleScan(try fixtureScan()).lines[0] == "PLA")
     }
 
-    @Test func anUnknownTagWithMaterialIsCreatedOnScan() async throws {
+    @Test func anUnknownTagWithMaterialIsCreatedOnScanWithAutosave() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try autosaveScan())
+
+        #expect(inventory.creates.count == 1)
+        #expect(lookup.status == .found)
+        #expect(lookup.created)
+        #expect(lookup.spool?.id == 100)
+        #expect(lookup.spool?.remaining == 1000)
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .created)
+        #expect(row.savedBy == .host)
+        #expect(row.createdSpoolId == 100)
+    }
+
+    @Test func theCreatedLookupMatchesTheFixture() async throws {
+        let inventory = FakeInventory()
+        inventory.colorMapAnswer = ColorMap(colors: ["ffffff": "Jade White"], byMaterial: [:])
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try autosaveScan("scan_mfc_autosave"))
+
+        var expected = try fixtureLookup("lookup_created")
+        // the fake numbers its spools from 100
+        expected.spoolId = 100
+        expected.spool?.id = 100
+        #expect(lookup == expected)
+    }
+
+    @Test func withoutAutosaveAnUnknownTagStaysUnknownAndNothingIsCreated() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
 
         let lookup = await session.handleScan(try fixtureScan())
 
-        #expect(inventory.creates.count == 1)
-        #expect(lookup.status == .found)
+        #expect(lookup == (try fixtureLookup("lookup_unknown")))
+        #expect(inventory.writes.isEmpty)
         let row = try #require(await session.rows.first)
-        #expect(row.status == .created)
-        #expect(row.savedBy == .host)
-        #expect(row.createdSpoolId == 100)
+        #expect(row.status == .unknown(prefill: true))
+        #expect(row.spool == nil)
+        #expect(row.autosave == false)
+    }
+
+    @Test func autosaveCreatesNothingForATagWithoutMaterial() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try autosaveScan("scan_ntag"))
+
+        #expect(lookup.status == .unknown)
+        #expect(inventory.writes.isEmpty)
+    }
+
+    @Test func aRescanOfATagCreatedOnScanFindsItAndCreatesNothing() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try autosaveScan())
+
+        var again = try autosaveScan()
+        again.scanId = "s-000020"
+        let lookup = await session.handleScan(again)
+
+        #expect(lookup.status == .found)
+        #expect(lookup.created == false)
+        #expect(inventory.creates.count == 1)
+        #expect(await session.rows.count == 1)
+    }
+
+    @Test func aRescanTakesTheNewScansAutosave() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        #expect(inventory.creates.isEmpty)
+
+        var again = try autosaveScan()
+        again.scanId = "s-000020"
+        let lookup = await session.handleScan(again)
+
+        #expect(lookup.created)
+        #expect(await session.rows.first?.autosave == true)
+        #expect(inventory.creates.count == 1)
     }
 
     @Test func aRowBeingCreatedOnScanStaysLookingUpUntilTheCreateReturns() async throws {
@@ -142,7 +220,7 @@ struct SessionScanTests {
         let seen = Recorded<FeedRow.Status?>()
         inventory.onCreate = { await seen.append(session.rows.first?.status) }
 
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.handleScan(try autosaveScan())
 
         // Not "Not in Bambuddy" with New and Link while the create runs.
         #expect(await seen.values == [.scanned])
@@ -154,7 +232,7 @@ struct SessionScanTests {
         inventory.createError = .network("timed out")
         let session = makeSession(inventory)
 
-        let lookup = await session.handleScan(try fixtureScan())
+        let lookup = await session.handleScan(try autosaveScan())
 
         #expect(lookup == (try fixtureLookup("lookup_unknown")))
         #expect(await session.rows.first?.status == .error("Bambuddy unreachable: timed out"))
@@ -174,7 +252,7 @@ struct SessionScanTests {
         var settings = testSettings
         settings.coreWeight = 180
         let session = makeSession(FakeInventory(), settings: settings)
-        let lookup = await session.handleScan(try fixtureScan())
+        let lookup = await session.handleScan(try autosaveScan())
         #expect(lookup.defaults == Lookup.Defaults(gross: 1180, label: 1000, core: 180))
     }
 
@@ -483,7 +561,7 @@ struct SessionColorNameTests {
         inventory.colorMapError = .permissionMissing("inventory:read")
         let session = makeSession(inventory)
 
-        let lookup = await session.handleScan(try fixtureScan())
+        let lookup = await session.handleScan(try autosaveScan())
         #expect(lookup.status == .found)
         #expect(await session.bambuddy == .ready)
         let problem = try #require(await session.snapshot.colorNamesProblem)
@@ -575,7 +653,7 @@ struct SessionColorNameTests {
         let session = makeSession(inventory)
 
         async let first = session.checkBambuddy()
-        async let second = session.handleScan(try fixtureScan())
+        async let second = session.handleScan(try autosaveScan())
         let (state, lookup) = try await (first, second)
 
         #expect(state == .ready)
@@ -669,17 +747,62 @@ struct SessionIntentTests {
         #expect(rows[0].status == .saved)
     }
 
-    @Test func weighForAnUnknownSpoolFailsWithoutAnUpdate() async throws {
+    @Test func weighOnAnUnknownTagCreatesTheSpoolThenWeighsIt() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.record(try fixtureScan())
+        _ = await session.handleScan(try fixtureScan())
 
         let result = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
 
+        #expect(result.ok)
+        #expect(result.lines == ["Saved", "484 g left"])
+        #expect(result.spool?.id == 100)
+        #expect(result.spool?.remaining == 484)
+        let tag = TagParser.parse(try fixtureScan().tag)
+        let expected = try #require(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
+        #expect(inventory.writes == [.create(expected), .update(spoolId: 100, gross: 734)])
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .saved)
+        #expect(row.spool?.id == 100)
+        #expect(row.savedBy == .flipper)
+        #expect(row.createdSpoolId == nil)
+    }
+
+    @Test func weighOnAnUnknownTagWithoutMaterialFailsWithoutAWrite() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        let scan = try fixtureScan("scan_ntag")
+        _ = await session.handleScan(scan)
+        var intent = try weighIntent(grams: 734, mode: .gross, scanId: scan.scanId)
+        intent.tag = scan.tag
+
+        let result = await session.handleIntent(intent)
+
         #expect(!result.ok)
         #expect(result.lines == ["Not saved", "Spool not found"])
-        #expect(result.error == "no spool for tag 5A3C9E21")
-        #expect(inventory.updates.isEmpty)
+        #expect(result.error == "no spool for tag 04112233445566")
+        #expect(inventory.writes.isEmpty)
+    }
+
+    @Test func aRetryAfterTheCreateWentThroughAndTheWeightFailedCreatesNoSecondSpool() async throws {
+        let inventory = FakeInventory()
+        inventory.updateError = .network("timed out")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let intent = try weighIntent(grams: 734, mode: .gross)
+
+        let first = await session.handleIntent(intent)
+        #expect(!first.ok)
+        #expect(first.lines == ["Not saved"])
+        #expect(await session.rows.first?.status == .error("Bambuddy unreachable: timed out"))
+
+        inventory.updateError = nil
+        let second = await session.handleIntent(intent)
+
+        #expect(second.ok)
+        #expect(inventory.creates.count == 1)
+        #expect(inventory.updates == [.update(spoolId: 100, gross: 734), .update(spoolId: 100, gross: 734)])
+        #expect(await session.rows.first?.spool?.id == 100)
     }
 
     @Test func newCreatesWithTheConfiguredCatalogEntryAndLinksTheRow() async throws {
@@ -695,7 +818,10 @@ struct SessionIntentTests {
         #expect(inventory.creates == [.create(expected)])
         #expect(expected.tagUid == "5A3C9E2100000100")
         #expect(expected.subtype == "Basic")
-        #expect(result == IntentResult(id: "i-000004", ok: true, lines: ["Created", "spool #100"]))
+        #expect(result == IntentResult(
+            id: "i-000004", ok: true, lines: ["Created", "spool #100"],
+            spool: SpoolSummary(id: 100, material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", remaining: 1000, label: 1000, core: 250)
+        ))
         let row = try #require(await session.rows.first)
         #expect(row.spool?.id == 100)
         // Only Bambuddy's subtype drops the material word; the feed reads in full.
@@ -732,7 +858,8 @@ struct SessionIntentTests {
 
         inventory.createError = nil
         let second = await session.handleIntent(intent)
-        #expect(second == IntentResult(id: intent.id, ok: true, lines: ["Created", "spool #100"]))
+        #expect(second.ok)
+        #expect(second.lines == ["Created", "spool #100"])
         #expect(inventory.creates.count == 2)
     }
 
@@ -845,7 +972,8 @@ struct SessionIntentTests {
     @Test func definitiveFailuresAreCachedToo() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        let intent = try weighIntent(grams: 734, mode: .gross)
+        var intent = try weighIntent(grams: 734, mode: .gross, scanId: "s-000013")
+        intent.tag = try fixtureScan("scan_ntag").tag
 
         _ = await session.handleIntent(intent)
         let findsAfterFirst = inventory.calls.count
@@ -1008,16 +1136,49 @@ struct SessionHostActionTests {
         #expect(row.spool?.remaining == 300)
     }
 
-    @Test func savingOnTheHostForAnUnknownRowFails() async throws {
+    @Test func savingOnTheHostForAnUnknownRowCreatesTheSpoolThenWeighsIt() async throws {
         let inventory = FakeInventory()
         let session = makeSession(inventory)
-        _ = await session.record(try fixtureScan())
+        _ = await session.handleScan(try fixtureScan())
         let rowID = try #require(await session.rows.first?.id)
 
-        await #expect(throws: SessionError.spoolNotFound("5A3C9E21")) {
+        try await session.saveWeight(row: rowID, grams: 700, mode: .gross)
+
+        #expect(inventory.creates.count == 1)
+        #expect(inventory.updates == [.update(spoolId: 100, gross: 700)])
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .saved)
+        #expect(row.savedBy == .host)
+        #expect(row.spool?.remaining == 450)
+    }
+
+    @Test func savingOnTheHostForAnUnknownRowWithoutMaterialFails() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan("scan_ntag"))
+        let rowID = try #require(await session.rows.first?.id)
+
+        await #expect(throws: SessionError.spoolNotFound("04112233445566")) {
             try await session.saveWeight(row: rowID, grams: 700, mode: .gross)
         }
-        #expect(inventory.updates.isEmpty)
+        #expect(inventory.writes.isEmpty)
+    }
+
+    @Test func aHostSaveRetriedAfterTheWeightFailedCreatesNoSecondSpool() async throws {
+        let inventory = FakeInventory()
+        inventory.updateError = .network("timed out")
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+        let rowID = try #require(await session.rows.first?.id)
+        await #expect(throws: BambuddyError.network("timed out")) {
+            try await session.saveWeight(row: rowID, grams: 700, mode: .gross)
+        }
+
+        inventory.updateError = nil
+        try await session.saveWeight(row: rowID, grams: 700, mode: .gross)
+
+        #expect(inventory.creates.count == 1)
+        #expect(await session.rows.first?.status == .saved)
     }
 
     @Test func savingOnTheHostRejectsOutOfRangeWeights() async throws {
@@ -1191,7 +1352,7 @@ struct SessionNewSettingsTests {
         #expect(await session.rows.first?.spool?.id == 77)
     }
 
-    @Test func aFlipperWeighOfATagTheNewBambuddyLacksSavesNothing() async throws {
+    @Test func aFlipperWeighOfATagTheNewBambuddyLacksCreatesItThereAndLeavesTheStranger() async throws {
         let session = makeSession(FakeInventory(spools: [knownSpool()]))
         _ = await session.handleScan(try fixtureScan())
         let other = FakeInventory(spools: [strangerWithTheOldId()])
@@ -1199,10 +1360,10 @@ struct SessionNewSettingsTests {
 
         let result = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
 
-        #expect(!result.ok)
-        #expect(result.lines == ["Not saved", "Spool not found"])
-        #expect(other.updates.isEmpty)
-        #expect(await session.rows.first?.spool == nil)
+        #expect(result.ok)
+        #expect(other.creates.count == 1)
+        #expect(other.updates == [.update(spoolId: 100, gross: 734)])
+        #expect(await session.rows.first?.spool?.id == 100)
     }
 
     @Test func aSpoolFoundOnTheNewBambuddyIsNotLookedUpAgain() async throws {
@@ -1228,7 +1389,7 @@ struct SessionNewSettingsTests {
         let other = FakeInventory(spools: [stranger, target])
         old.onCreate = { await session.reconfigure(settings: testSettings, inventory: other) }
 
-        let lookup = await session.handleScan(try fixtureScan())
+        let lookup = await session.handleScan(try autosaveScan())
         #expect(lookup.status == .found)
         let row = try #require(await session.rows.first)
         #expect(row.spool?.id == 100)
@@ -1470,7 +1631,7 @@ struct SessionLogTests {
         let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
 
         #expect(sink.events("session") == [
-            "session scan: id=s-000012 uid=5A3C9E21 tray=\(try tray()) kind=mfc material=PLA",
+            "session scan: id=s-000012 uid=5A3C9E21 tray=\(try tray()) kind=mfc material=PLA autosave=false",
             "session bambuddy: ready",
             "session lookup: id=s-000012 status=found spool=42 ms=0",
         ])
@@ -1481,14 +1642,14 @@ struct SessionLogTests {
 
         let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan("scan_ntag")) }
 
-        #expect(sink.events("session scan") == ["session scan: id=s-000013 uid=04112233445566 tray=none kind=ntag material=none"])
+        #expect(sink.events("session scan") == ["session scan: id=s-000013 uid=04112233445566 tray=none kind=ntag material=none autosave=false"])
         #expect(sink.events("session lookup") == ["session lookup: id=s-000013 status=not_found ms=0"])
     }
 
     @Test func aCreateOnScanIsLogged() async throws {
         let session = makeSession(FakeInventory())
 
-        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+        let sink = try await capturingLog { _ = await session.handleScan(try autosaveScan()) }
 
         #expect(sink.events("session create") == ["session create on scan: id=s-000012 spool=100"])
         #expect(sink.events("session lookup") == ["session lookup: id=s-000012 status=created spool=100 ms=0"])
@@ -1499,7 +1660,7 @@ struct SessionLogTests {
         inventory.createError = .network("timed out")
         let session = makeSession(inventory)
 
-        let sink = try await capturingLog { _ = await session.handleScan(try fixtureScan()) }
+        let sink = try await capturingLog { _ = await session.handleScan(try autosaveScan()) }
 
         let failed = sink.lines.filter { $0.message.hasPrefix("create on scan failed:") }
         #expect(failed.map(\.message) == ["create on scan failed: id=s-000012 error=Bambuddy unreachable: timed out"])
@@ -1604,7 +1765,7 @@ struct SessionLogTests {
     @Test func aLinkThatDeletesTheSpoolCreatedOnScanLogsBoth() async throws {
         let inventory = FakeInventory(spools: [Spool(id: 7, material: "PETG", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.handleScan(try autosaveScan())
         let rowID = try #require(await session.rows.first?.id)
         let listing = try await session.listSpools()
 
@@ -1620,7 +1781,7 @@ struct SessionLogTests {
         let inventory = FakeInventory(spools: [Spool(id: 7, material: "PETG", labelWeight: 1000, coreWeight: 250, weightUsed: 0)])
         inventory.deleteError = .http(status: 500, message: "boom")
         let session = makeSession(inventory)
-        _ = await session.handleScan(try fixtureScan())
+        _ = await session.handleScan(try autosaveScan())
         let rowID = try #require(await session.rows.first?.id)
         let listing = try await session.listSpools()
 

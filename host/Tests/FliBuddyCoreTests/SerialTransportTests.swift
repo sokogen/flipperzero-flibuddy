@@ -22,7 +22,7 @@ import Testing
         let received = await Collector.draining(transport.messages)
         let scan = try Message.decode(line: Fixtures.message("scan_mfc"))
 
-        pty.write(#"{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","#)
+        pty.write(#"{"t":"hello","v":2,"app":"flibuddy-fap/0.1.0","#)
         pty.write("\"fw\":\"1.5.1\"}\r\n")
         pty.write(try scan.encodedLine())
 
@@ -36,14 +36,30 @@ import Testing
         let received = await Collector.draining(transport.messages)
 
         pty.write("not json\n")
-        pty.write(#"{"t":"ping","v":1}"# + "\n")
-        pty.write(#"{"t":"hello","v":2,"app":"x","fw":"1"}"# + "\n")
+        pty.write(#"{"t":"ping","v":2}"# + "\n")
+        pty.write(#"{"t":"hello","v":1,"app":"x","fw":"1"}"# + "\n")
         pty.write(String(repeating: "x", count: Message.maxLineBytes) + "\n")
         pty.write(try Message.flipperHello.encodedLine())
 
         #expect(await eventually { await received.items.count == 1 })
         try await Task.sleep(for: .milliseconds(50))
         #expect(await received.items == [.flipperHello])
+    }
+
+    @Test func aFlipperOfAnotherVersionIsRememberedUntilTheNextConnection() async throws {
+        let (pty, transport) = try connected()
+        let received = await Collector.draining(transport.messages)
+        #expect(transport.peerVersion == nil)
+
+        pty.write(#"{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","fw":"1.5.1"}"# + "\n")
+        pty.write(try Message.flipperHello.encodedLine())
+
+        #expect(await eventually { await received.items == [.flipperHello] })
+        #expect(transport.peerVersion == 1)
+        transport.disconnect()
+        try transport.connect()
+        defer { transport.disconnect() }
+        #expect(transport.peerVersion == nil)
     }
 
     @Test func sendWritesOneNewlineTerminatedLine() throws {
@@ -149,7 +165,7 @@ import Testing
             pty.closeSlave()
             let received = await Collector.draining(transport.messages)
             try transport.send(.hostHello)
-            pty.write(#"{"t":"ping","v":1}"# + "\n")
+            pty.write(#"{"t":"ping","v":2}"# + "\n")
             pty.write(hello + "\n")
             #expect(await eventually { await received.items == [.flipperHello] })
             pty.closeMaster()
@@ -160,9 +176,9 @@ import Testing
         #expect(events.count == 6)
         #expect(Array(events.prefix(5)) == [
             "link open: port=\(pty.slavePath)",
-            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":1}"#,
-            #"wire rx: {"t":"ping","v":1}"#,
-            #"wire dropped: reason=unknown type ping line={"t":"ping","v":1}"#,
+            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":2}"#,
+            #"wire rx: {"t":"ping","v":2}"#,
+            #"wire dropped: reason=unknown type ping line={"t":"ping","v":2}"#,
             "wire rx: \(hello)",
         ])
         #expect(events.last?.hasPrefix("link hangup: port=\(pty.slavePath) reason=") == true)

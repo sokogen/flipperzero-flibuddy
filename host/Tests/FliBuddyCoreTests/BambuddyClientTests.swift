@@ -33,7 +33,9 @@ struct BambuddyClientTests {
         let requests = server.requests
         #expect(requests.map(\.path) == Array(repeating: "/api/v1/inventory/spools/by-tag", count: 2))
         #expect(requests.map(\.method) == ["GET", "GET"])
-        #expect(requests.map(\.query) == [["tray_uuid": trayA], ["tag_uid": "04A1B2C3"]])
+        #expect(requests.map(\.query) == [
+            ["tray_uuid": trayA, "include_archived": "true"], ["tag_uid": "04A1B2C3", "include_archived": "true"],
+        ])
     }
 
     @Test func findSpoolStopsAtTheTrayUuidMatch() async throws {
@@ -51,14 +53,16 @@ struct BambuddyClientTests {
         }
         let spool = try #require(try await server.client().findSpool(trayUuid: trayB, uid: "04A1B2C3"))
         #expect(spool.id == 42)
-        #expect(server.requests.map(\.query) == [["tray_uuid": trayB], ["tag_uid": "04A1B2C3"]])
+        #expect(server.requests.map(\.query) == [
+            ["tray_uuid": trayB, "include_archived": "true"], ["tag_uid": "04A1B2C3", "include_archived": "true"],
+        ])
     }
 
     @Test func findSpoolWithoutATrayUuidQueriesTheUID() async throws {
         let server = StubServer { _ in .json(200, spoolJSON()) }
         let spool = try await server.client().findSpool(trayUuid: nil, uid: "04112233445566")
         #expect(spool?.id == 42)
-        #expect(server.requests.map(\.query) == [["tag_uid": "04112233445566"]])
+        #expect(server.requests.map(\.query) == [["tag_uid": "04112233445566", "include_archived": "true"]])
     }
 
     @Test func findSpoolDecodesTheSpool() async throws {
@@ -283,7 +287,8 @@ struct BambuddyClientTests {
         let server = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
         _ = try await server.client().findSpool(trayUuid: tag.trayUuid, uid: tag.bambuddyTagUid)
         #expect(server.requests.map(\.query) == [
-            ["tray_uuid": "F1C8FDF0BC1643C0B37189ADB0687992"], ["tag_uid": "7EF1AB0400000100"],
+            ["tray_uuid": "F1C8FDF0BC1643C0B37189ADB0687992", "include_archived": "true"],
+            ["tag_uid": "7EF1AB0400000100", "include_archived": "true"],
         ])
     }
 
@@ -365,6 +370,63 @@ struct BambuddyClientTests {
         let server = StubServer { _ in .json(403, #"{"detail":"forbidden"}"#) }
         await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
             try await server.client().deleteSpool(id: 100)
+        }
+    }
+
+    // MARK: Mark as new / empty
+
+    @Test func findSpoolDecodesAnArchivedSpool() async throws {
+        let archived = spoolJSON().replacingOccurrences(of: #""note":null"#, with: #""note":null,"archived_at":"2026-10-26T12:00:00""#)
+        let server = StubServer { _ in .json(200, archived) }
+        let spool = try #require(try await server.client().findSpool(trayUuid: nil, uid: "04A1B2C3"))
+        #expect(spool.isArchived)
+        #expect(spool.archivedAt == "2026-10-26T12:00:00")
+    }
+
+    @Test func anActiveSpoolIsNotArchived() async throws {
+        let server = StubServer { _ in .json(200, spoolJSON()) }
+        let spool = try #require(try await server.client().findSpool(trayUuid: nil, uid: "04A1B2C3"))
+        #expect(!spool.isArchived)
+    }
+
+    @Test func setWeightUsedPatchesTheSpool() async throws {
+        let server = StubServer { _ in .json(200, spoolJSON(weightUsed: 0)) }
+        let spool = try await server.client().setWeightUsed(spoolId: 42, grams: 0)
+        let request = try #require(server.requests.first)
+        #expect(request.method == "PATCH")
+        #expect(request.path == "/api/v1/inventory/spools/42")
+        #expect(request.json.count == 1)
+        #expect(request.json["weight_used"] as? Int == 0)
+        #expect(spool.remaining == 1000)
+    }
+
+    @Test func setWeightUsedMaps404And403() async throws {
+        let missing = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
+        await #expect(throws: BambuddyError.spoolNotFound(42)) { try await missing.client().setWeightUsed(spoolId: 42, grams: 0) }
+        let forbidden = StubServer { _ in .json(403, #"{"detail":"Forbidden"}"#) }
+        await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
+            try await forbidden.client().setWeightUsed(spoolId: 42, grams: 0)
+        }
+    }
+
+    @Test func archiveAndRestorePostToTheSpool() async throws {
+        let server = StubServer { _ in .json(200, spoolJSON()) }
+        try await server.client().archiveSpool(id: 42)
+        try await server.client().restoreSpool(id: 42)
+        #expect(server.requests.map(\.method) == ["POST", "POST"])
+        #expect(server.requests.map(\.path) == [
+            "/api/v1/inventory/spools/42/archive", "/api/v1/inventory/spools/42/restore",
+        ])
+    }
+
+    @Test func archiveAndRestoreIgnoreTheBodyAndMapErrors() async throws {
+        let empty = StubServer { _ in .json(204, "") }
+        try await empty.client().archiveSpool(id: 42)
+        let missing = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
+        await #expect(throws: BambuddyError.spoolNotFound(42)) { try await missing.client().restoreSpool(id: 42) }
+        let forbidden = StubServer { _ in .json(403, #"{"detail":"Forbidden"}"#) }
+        await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
+            try await forbidden.client().archiveSpool(id: 42)
         }
     }
 

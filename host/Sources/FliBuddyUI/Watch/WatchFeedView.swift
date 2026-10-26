@@ -84,7 +84,7 @@ struct WatchStatus: View {
         switch link.state {
         case .connected: .green
         case .waitingForHello: .yellow
-        case .noAnswer, .disconnected: .orange
+        case .noAnswer, .otherVersion, .disconnected: .orange
         }
     }
 }
