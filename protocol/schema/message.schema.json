@@ -44,9 +44,8 @@
         "sak": { "type": "integer", "minimum": 0, "maximum": 255 },
         "atqa": { "type": "string", "pattern": "^[0-9A-F]{4}$" },
         "blocks": {
-          "description": "MIFARE Classic data blocks by number (0-63). Sector trailers and blocks of missing sectors are absent.",
+          "description": "MIFARE Classic data blocks by number (0-63). Sector trailers and blocks of missing sectors are absent; empty when no sector was read.",
           "type": "object",
-          "minProperties": 1,
           "propertyNames": { "pattern": "^(?:[0-9]|[1-5][0-9]|6[0-3])$" },
           "additionalProperties": { "$ref": "#/$defs/hexBlock" }
         },

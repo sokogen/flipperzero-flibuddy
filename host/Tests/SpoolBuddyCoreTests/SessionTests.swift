@@ -139,6 +139,18 @@ struct SessionScanTests {
         #expect(await session.rows.first?.status == .unknown(prefill: false))
     }
 
+    @Test func anUnreadableMfcIsLookedUpByUIDWithoutPrefill() async throws {
+        let inventory = FakeInventory()
+        let session = makeSession(inventory)
+
+        let lookup = await session.handleScan(try fixtureScan("scan_mfc_unreadable"))
+
+        #expect(lookup.scanId == "s-000014")
+        #expect(lookup.status == .unknown)
+        #expect(lookup.prefill == nil)
+        #expect(inventory.calls.contains(.find(trays: [], uid: "5A3C9E21")))
+    }
+
     @Test func aFailedLookupAnswersErrorAndMarksTheRow() async throws {
         let inventory = FakeInventory()
         inventory.findError = .network("connection timed out")

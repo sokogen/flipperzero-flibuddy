@@ -269,6 +269,18 @@ def test_scan_mfc_is_the_bambu_dump_with_sector_7_missing():
     assert list(tag["blocks"]) == list(expected)  # ascending block order
 
 
+def test_scan_mfc_unreadable_has_every_sector_missing_and_no_blocks():
+    # A MIFARE Classic whose sectors do not open with the Bambu keys: the
+    # host can still match it by UID.
+    dump = load(TAGS / "bambu_pla_basic_synthetic.json")
+    message = load(MESSAGES / "scan_mfc_unreadable.json")
+    tag = message["tag"]
+    assert tag["uid"] == dump["uid"]
+    assert tag["blocks"] == {}
+    assert tag["missing"] == list(range(16))
+    assert message["scan_id"] == "s-000014"
+
+
 def test_scan_ntag_carries_every_page():
     dump = load(TAGS / "ntag215_blank.json")
     tag = load(MESSAGES / "scan_ntag.json")["tag"]

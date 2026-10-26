@@ -98,6 +98,19 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         #expect(scan.tag.pages.isEmpty)
     }
 
+    @Test func scanMfcWithEverySectorMissingKeepsAnEmptyBlocksObject() throws {
+        guard case .scan(let scan) = try Message.decode(line: Fixtures.message("scan_mfc_unreadable")) else {
+            Issue.record("not a scan"); return
+        }
+        #expect(scan.tag.blocks.isEmpty)
+        #expect(scan.tag.missing == Array(0...15))
+        let object = try JSONSerialization.jsonObject(with: Message.scan(scan).encodedLine()) as! [String: Any]
+        let tag = object["tag"] as! [String: Any]
+        #expect(tag["blocks"] as? [String: String] == [:])
+        #expect(TagParser.parse(scan.tag).trayUuidCandidates.isEmpty)
+        #expect(TagParser.parse(scan.tag).material == nil)
+    }
+
     @Test func scanNtagFields() throws {
         guard case .scan(let scan) = try Message.decode(line: Fixtures.message("scan_ntag")) else {
             Issue.record("not a scan"); return
@@ -204,7 +217,6 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
             }
         }
         #expect(throws: ProtocolError.self) { try patchTag("scan_mfc") { $0["blocks"] = nil } }
-        #expect(throws: ProtocolError.self) { try patchTag("scan_mfc") { $0["blocks"] = [String: String]() } }
         #expect(throws: ProtocolError.self) { try patchTag("scan_mfc") { $0["pages"] = ["0": "00000000"] } }
         #expect(throws: ProtocolError.self) { try patchTag("scan_mfc") { $0["blocks"] = ["64": String(repeating: "0", count: 32)] } }
         #expect(throws: ProtocolError.self) { try patchTag("scan_mfc") { $0["blocks"] = ["1": String(repeating: "0", count: 30)] } }

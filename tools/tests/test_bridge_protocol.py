@@ -154,6 +154,16 @@ def test_scan_of_an_ntag_is_unknown_without_prefill():
     assert reply["lines"] == ["NTAG", "UID 04112233445566"]
 
 
+def test_scan_of_an_unreadable_mfc_is_looked_up_by_uid():
+    fake = FakeBambuddy()
+    scan = load("scan_mfc_unreadable.json")
+    (reply,) = replies(bridge(fake), scan)
+    assert reply["status"] == "unknown"
+    assert reply["scan_id"] == scan["scan_id"]
+    assert "prefill" not in reply
+    assert fake.calls == [("find_by_tag", (), scan["tag"]["uid"])]
+
+
 def test_lookup_failure_yields_an_error_lookup():
     (reply,) = replies(bridge(FakeBambuddy(fail="connection refused")), load("scan_mfc.json"))
     assert reply["status"] == "error"

@@ -295,10 +295,11 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ root `Makefile` gained `lint` (C tests with `-Werror`, `swift build -Xswiftc -warnings-as-errors`, `uv run ruff check`) and `coverage` (`swift test --enable-code-coverage` checked by the new `tools/swift_coverage.py`, `pytest --cov` with `fail_under = 80`); `tools.yml` runs ruff; ruff and pytest-cov are dev deps. Measured: SpoolBuddyCore 94.9 % lines, tools 96 %. The test target also builds cleanly with `-warnings-as-errors`; the only remaining output is `ld` search-path notices from the Command Line Tools
 
 ### Task 19: Update documentation
-- [ ] update `README.md` (install ufbt, build and `ufbt launch` the FAP, run the Mac host, run the Python bridge, where fixtures live, how to capture real dumps with `--dump-dir`)
-- [ ] finalize `protocol/PROTOCOL.md` against the implemented schema
-- [ ] add "Phase 0 checklist" section to `README.md` mirroring Post-Completion below
-- [ ] update the design doc status line and note the tray-UUID candidate approach
+- [x] update `README.md` (install ufbt, build and `ufbt launch` the FAP, run the Mac host, run the Python bridge, where fixtures live, how to capture real dumps with `--dump-dir`)
+- [x] finalize `protocol/PROTOCOL.md` against the implemented schema
+- [x] add "Phase 0 checklist" section to `README.md` mirroring Post-Completion below
+- [x] update the design doc status line and note the tray-UUID candidate approach
+- ➕ ⚠️ finalizing PROTOCOL.md turned up a contract mismatch: for a MIFARE Classic whose sectors all fail (any non-Bambu MFC, or a 7-byte UID) the Flipper sends `"blocks":{}` with every sector in `missing`, so the host can match it by UID, but the schema had `minProperties: 1` on `blocks` and both hosts dropped the scan as malformed. Fixed in one commit: the schema allows an empty `blocks` (still required for `mfc`), new fixture `scan_mfc_unreadable.json` (generated, compared by the C encoder test), Swift `TagDump` accepts and always encodes `blocks` for `mfc`, tests in all three suites (C fixture compare, `scanMfcWithEverySectorMissingKeepsAnEmptyBlocksObject`, `anUnreadableMfcIsLookedUpByUIDWithoutPrefill`, `test_scan_of_an_unreadable_mfc_is_looked_up_by_uid`, `test_scan_mfc_unreadable_has_every_sector_missing_and_no_blocks`). PROTOCOL.md also now documents the late-hello handshake, the lookup wait without timeout, the retry rule for failed intents and the Spoolman refusal
 
 ## Technical Details
 

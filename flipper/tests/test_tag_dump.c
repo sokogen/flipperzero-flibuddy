@@ -92,12 +92,10 @@ static void test_scan_mfc_with_every_sector_missing(void) {
     CHECK(tag_dump_set_uid(&dump, MFC_UID, sizeof(MFC_UID)));
     dump.sak = MFC_SAK;
     memcpy(dump.atqa, MFC_ATQA, sizeof(MFC_ATQA));
-    CHECK(proto_encode_scan(&dump, "s-000001", line, sizeof(line)) > 0);
-    CHECK_STR_EQ(
-        line,
-        "{\"t\":\"scan\",\"v\":1,\"scan_id\":\"s-000001\",\"tag\":{\"type\":\"mfc\","
-        "\"uid\":\"5A3C9E21\",\"sak\":8,\"atqa\":\"0400\",\"blocks\":{},"
-        "\"missing\":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]}}");
+    size_t len = proto_encode_scan(&dump, "s-000014", line, sizeof(line));
+    CHECK(fixture_read_compact("fixtures/messages/scan_mfc_unreadable.json", expected, sizeof(expected)));
+    CHECK_STR_EQ(line, expected);
+    CHECK_EQ_INT(len, strlen(expected));
 }
 
 static void test_scan_ntag_matches_fixture(void) {

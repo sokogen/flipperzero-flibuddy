@@ -13,7 +13,9 @@ from fixtures import PROTOCOL, make_bambu_dump, make_ntag_dump, to_json, write
 
 MFC_SCAN_ID = "s-000012"
 NTAG_SCAN_ID = "s-000013"
+UNREADABLE_SCAN_ID = "s-000014"
 MISSING_SECTORS = [7]  # simulate one sector that failed authentication
+ALL_SECTORS = list(range(16))  # a MIFARE Classic the Bambu keys do not open
 
 
 def load_tag(relative: str) -> dict:
@@ -66,9 +68,11 @@ def intent(intent_id: str, scan_id: str, action: str, tag: dict, **extra) -> dic
 
 def build() -> dict[str, str]:
     mfc = mfc_tag(load_tag(make_bambu_dump.OUTPUT), MISSING_SECTORS)
+    unreadable = mfc_tag(load_tag(make_bambu_dump.OUTPUT), ALL_SECTORS)
     ntag = ntag_tag(load_tag(make_ntag_dump.OUTPUT))
     messages = {
         "scan_mfc": scan(MFC_SCAN_ID, mfc),
+        "scan_mfc_unreadable": scan(UNREADABLE_SCAN_ID, unreadable),
         "scan_ntag": scan(NTAG_SCAN_ID, ntag),
         "intent_weigh": intent(
             "i-000003", MFC_SCAN_ID, "weigh", mfc, grams=734, mode="gross"

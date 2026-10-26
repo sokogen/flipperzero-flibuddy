@@ -2,9 +2,10 @@ import Foundation
 
 /// Raw tag dump as read by the Flipper (the `tag` object of `scan` and `intent`).
 ///
-/// `blocks` / `pages` hold decoded bytes keyed by block or page number; an empty
-/// dictionary means the field is absent on the wire. `missing` is empty when every
-/// sector was read.
+/// `blocks` / `pages` hold decoded bytes keyed by block or page number. An `mfc`
+/// tag always carries `blocks` on the wire, empty when no sector was read; an
+/// `ntag` tag carries non-empty `pages` and no `blocks`. `missing` is empty when
+/// every sector was read.
 public struct TagDump: Equatable, Sendable {
     public enum Kind: String, Codable, Sendable {
         case mfc
@@ -42,7 +43,6 @@ public struct TagDump: Equatable, Sendable {
         try Hex.check(atqa, byteCounts: [2], field: "tag.atqa")
         switch type {
         case .mfc:
-            guard !blocks.isEmpty else { throw ProtocolError.invalid("mfc tag without blocks") }
             guard pages.isEmpty else { throw ProtocolError.invalid("mfc tag with pages") }
         case .ntag:
             guard !pages.isEmpty else { throw ProtocolError.invalid("ntag tag without pages") }
@@ -75,7 +75,8 @@ extension TagDump: Codable {
         pages = try Self.decodeHexMap(container, .pages, bytes: 4)
         missing = try container.decodeIfPresent([Int].self, forKey: .missing) ?? []
         // Presence matters for the schema even when the value is empty.
-        if container.contains(.blocks), blocks.isEmpty { throw ProtocolError.invalid("tag.blocks is empty") }
+        if type == .mfc, !container.contains(.blocks) { throw ProtocolError.invalid("mfc tag without blocks") }
+        if type == .ntag, container.contains(.blocks) { throw ProtocolError.invalid("ntag tag with blocks") }
         if container.contains(.pages), pages.isEmpty { throw ProtocolError.invalid("tag.pages is empty") }
         if type == .ntag, container.contains(.missing) { throw ProtocolError.invalid("ntag tag with missing") }
         try validate()
@@ -88,7 +89,7 @@ extension TagDump: Codable {
         try container.encode(uid, forKey: .uid)
         try container.encode(sak, forKey: .sak)
         try container.encode(atqa, forKey: .atqa)
-        if !blocks.isEmpty { try container.encode(Self.hexMap(blocks), forKey: .blocks) }
+        if type == .mfc { try container.encode(Self.hexMap(blocks), forKey: .blocks) }
         if !missing.isEmpty { try container.encode(missing, forKey: .missing) }
         if !pages.isEmpty { try container.encode(Self.hexMap(pages), forKey: .pages) }
     }

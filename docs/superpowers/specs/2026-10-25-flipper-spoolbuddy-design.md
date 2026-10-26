@@ -1,7 +1,9 @@
 # Flipper SpoolBuddy: design
 
 Date: 2026-10-25
-Status: reviewed, awaiting owner approval
+Status: Phase 0 tooling and Phase 1 (Flipper + macOS over USB) are
+implemented (`docs/plans/20261025-flipper-spoolbuddy-phase0-1.md`); the
+Phase 0 hardware checks are pending (README, "Phase 0 checklist").
 
 ## Intent
 
@@ -118,6 +120,13 @@ review against that tag).
   `tray_uuid` Bambuddy already holds for the same spool. The hypothesis is
   block 9. If the daemon turns out wrong, that is a bug report upstream, not
   a reason to copy it.
+- Until then the tag parsers (Swift `TagParser`, Python `bambu_tag`) emit
+  **tray UUID candidates in lookup order**: block 9 as raw hex, then
+  blocks 4+5 the way the daemon reads them (the first 32 hex characters of
+  their ASCII text, else block 4 as raw hex). All-zero values are skipped
+  and duplicates collapsed. The host tries `by-tag` with each candidate in
+  turn, then with the UID alone, and a new item stores the first candidate
+  as its `tray_uuid`. Phase 0 drops the losing candidate from both parsers.
 - Other block fields used for prefill (per the tag guide, to be confirmed
   on real dumps in Phase 0): block 1 = material variant id + material id
   (ASCII), block 2 = filament type (ASCII, e.g. `PLA`), block 4 = detailed
@@ -315,7 +324,9 @@ line each side sends after connecting is `hello`.
 
 The host owns all wording; the Flipper renders `lines` verbatim. A JSON
 Schema in `protocol/schema/` and sample messages in `protocol/fixtures/`
-are the contract both test suites check. Tag dumps captured in Phase 0 (with
+are the contract both test suites check. `protocol/PROTOCOL.md` is the
+authoritative description as implemented (it adds `atqa` to the tag, the
+`prefill` flag on `lookup`, the handshake timing and the line limit). Tag dumps captured in Phase 0 (with
 UIDs intact; they are not secrets) live in `protocol/fixtures/tags/`.
 
 Line length: a full Bambu dump is 48 data blocks × 32 hex = about 1.6 KB

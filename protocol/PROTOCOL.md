@@ -9,8 +9,10 @@ strings.
 The contract is machine-checked:
 
 - `schema/message.schema.json`: JSON Schema (draft 2020-12) for every message.
-- `fixtures/messages/*.json`: one sample per message type and action. Files
-  named `invalid_*` must fail the schema; every other file must pass.
+- `fixtures/messages/*.json`: at least one sample per message type, status
+  and action, plus `scan_mfc_unreadable` (a MIFARE Classic whose sectors all
+  failed). Files named `invalid_*` must fail the schema; every other file
+  must pass.
 - `fixtures/tags/*.json`: tag dumps (synthetic until Phase 0 captures real
   ones). `scan_*` and `intent_*` samples are generated from them by
   `tools/fixtures/make_message_fixtures.py`.
@@ -48,9 +50,15 @@ may ignore them.
 ## Session
 
 1. After the transport connects, each side sends `hello` as its first line.
-2. The Flipper treats the link as **connected** once it has received a host
-   `hello` within 2 s of sending its own (or of the transport coming up);
-   until then its status line shows `no host` and a scan stays local.
+   On USB the Flipper sends its `hello` when the host opens the port (DTR
+   raised).
+2. The Flipper treats the link as **connected** once it receives a host
+   `hello`. If none arrives within 2 s of its own, the port is probably held
+   by something else (a terminal, qFlipper): the Flipper stays quiet, its
+   status line shows `no host` and a scan stays local. A host `hello` that
+   arrives later still connects. The Flipper answers a host `hello` with its
+   own unless it is the reply to the Flipper's pending one. Closing the port
+   loses the host.
 3. Flipper → host: `scan` after each tag read.
 4. Host → Flipper: `lookup` answering that `scan_id`.
 5. Flipper → host: zero or more `intent`s for that scan (user actions).
@@ -59,15 +67,19 @@ may ignore them.
 The host may also act on a scan by itself (the owner edits the weight in the
 feed); that sends nothing to the Flipper.
 
+The host answers every valid `scan` with a `lookup`, `error` included. The
+Flipper does not time out while it waits for a lookup ("Looking up"): Back
+returns to Idle, and losing the host shows the scan's local facts.
+
 ## Messages
 
 ### `hello` (both directions)
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `app` | string, ≤ 40 | yes | Sender app and version, e.g. `spoolbuddy-fap/0.1.0`, `spoolbuddy-mac/0.1.0`. |
-| `fw` | string, ≤ 40 | Flipper | Flipper firmware version, e.g. `1.5.1`. |
-| `os` | string, ≤ 40 | host | Host OS, e.g. `macOS 26.0`. |
+| `app` | string, 1–40 | yes | Sender app and version: `spoolbuddy-fap/0.1.0` (Flipper), `spoolbuddy-mac/0.1.0` (Mac host), `spoolbuddy-bridge/0.1.0` (Python dev bridge). |
+| `fw` | string, 1–40 | Flipper | Flipper firmware version, e.g. `1.5.1`. |
+| `os` | string, 1–40 | host | Host OS, e.g. `macOS 26.0`. |
 
 Exactly one of `fw` / `os` is present.
 
@@ -91,13 +103,19 @@ Tag object:
 | `uid` | hex, 4, 7 or 10 bytes | yes | Tag UID. |
 | `sak` | integer 0–255 | yes | SAK from anticollision. |
 | `atqa` | hex, 2 bytes | yes | ATQA as received, e.g. `0400`, `0044`. |
-| `blocks` | object | `mfc` only | Block number (`"0"`–`"63"`) → 16 bytes hex. Sector trailers (3, 7, …, 63) are never sent. Blocks of missing sectors are absent. |
-| `missing` | array of integers 0–15 | `mfc` only, optional | Sectors that failed authentication or reading. Omitted when all sectors were read. |
-| `pages` | object | `ntag` only | Page number (`"0"`–`"230"`) → 4 bytes hex, from page 0 to the end of the tag's memory. |
+| `blocks` | object | `mfc` only, always present | Block number (`"0"`–`"63"`, decimal without leading zeros) → 16 bytes hex. Sector trailers (3, 7, …, 63) are never sent. Blocks of missing sectors are absent; `{}` when no sector was read. |
+| `missing` | array of distinct integers 0–15 | `mfc` only, optional | Sectors that failed authentication or reading, ascending. Omitted when all sectors were read. |
+| `pages` | object, non-empty | `ntag` only | Page number (`"0"`–`"230"`) → 4 bytes hex, from page 0 to the end of the tag's memory. |
 
 The Flipper emits `blocks` / `pages` keys in ascending numeric order and tag
 fields in the order of the table; `scan_mfc.json` and `scan_ntag.json` show
 the exact shape.
+
+The Flipper reads a MIFARE Classic with Key A derived from a 4-byte UID (see
+`flipper/src/bambu_keys.h`). A tag those keys do not open (any non-Bambu
+MIFARE Classic, or one with a 7-byte UID) is still sent, with `blocks: {}`
+and all 16 sectors in `missing` (`scan_mfc_unreadable.json`); the host
+matches it by UID only and offers no prefill.
 
 ```json
 {"t":"scan","v":1,"scan_id":"s-000012","tag":{"type":"mfc","uid":"5A3C9E21","sak":8,"atqa":"0400","blocks":{"0":"5A3C9E21D9080400F600848E53F87010","1":"4130302D573100004746413030000000","2":"504C4100000000000000000000000000","…":"…"},"missing":[7]}}
@@ -117,7 +135,13 @@ A full Bambu dump (48 data blocks) is about 2 KB, a full NTAG216 dump
 | `prefill` | boolean | optional | `unknown` only: the tag gave enough data (at least `material`) for the Flipper to offer **New**. Absent means `false`. |
 | `lines` | array of ≤ 4 strings, each ≤ 40 chars | yes | Display text, rendered verbatim. May be empty. |
 | `defaults` | object | optional | Grams for the Enter weight screen: `gross` (last gross weight), `label` (filament weight per label), `core` (empty spool weight); each an integer 0–9999, each optional. |
-| `error` | string, ≤ 200 | when `error` | Technical reason, for logs; `lines` carries what the user sees. |
+| `error` | string, 1–200 | when `error` | Technical reason, for logs; `lines` carries what the user sees. |
+
+The host looks a tag up with `GET /inventory/spools/by-tag`, trying the
+tray UUID candidates in order and then the UID. The candidates are block 9
+as hex, then blocks 4+5 read the way the SpoolBuddy daemon reads them. Until
+Phase 0 settles which block holds the AMS `tray_uuid`, both parsers (Swift
+`TagParser`, Python `bambu_tag`) emit both.
 
 The Flipper pre-fills the weight with `defaults.gross`, falling back to
 `defaults.label + defaults.core`.
@@ -135,8 +159,8 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
 | `id` | id | yes | Unique per intent, `i-NNNNNN`. The host's idempotency key. |
 | `scan_id` | id | yes | The scan the action refers to. |
 | `action` | enum | yes | `weigh`: record a weight. `new`: create a full spool from the tag (offered only when `lookup.prefill` is true). `create_on_host`: flag the feed row so the owner creates the spool on the host. `link_on_host`: flag the row so the owner links the tag to an existing spool on the host. |
-| `grams` | integer 0–9999 | `weigh` | Weight typed on the Flipper. |
-| `mode` | `"net"` \| `"gross"` | `weigh` | `gross`: spool on the scale as is. `net`: filament only; the host adds the spool's core weight. |
+| `grams` | integer 0–9999 | `weigh` | Weight typed on the Flipper. The Flipper sends it only with `weigh`. |
+| `mode` | `"net"` \| `"gross"` | `weigh` | `gross`: spool on the scale as is. `net`: filament only; the host adds the spool's core weight (`gross = net + core_weight`) before `POST /spoolbuddy/scale/update-spool-weight`. The Flipper sends it only with `weigh`. |
 | `tag` | tag object | yes | The same object as in the `scan`, so an intent is self-contained (a future offline queue replays intents without their scans). |
 
 ```json
@@ -151,7 +175,7 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
 | `id` | id | yes | The intent this answers. |
 | `ok` | boolean | yes | Whether the action succeeded. |
 | `lines` | array of ≤ 4 strings, each ≤ 40 chars | yes | Display text for the Done / Error screen. |
-| `error` | string, ≤ 200 | when `ok` is false | Technical reason, for logs. |
+| `error` | string, 1–200 | when `ok` is false | Technical reason, for logs. |
 
 ```json
 {"t":"result","v":1,"id":"i-000003","ok":true,"lines":["Saved","484 g left"]}
@@ -162,7 +186,10 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
 
 - **Idempotency.** The host remembers every intent id it has completed in
   the session and answers a repeated id with the stored `result` without
-  calling Bambuddy again.
+  calling Bambuddy again; a repeat that arrives while the first is still
+  running waits for the same result. Results of failed Bambuddy calls are
+  not stored, so a repeat retries them. The Mac host keeps the last 256
+  results.
 - **Matching.** The Flipper applies a `lookup` only if its `scan_id` is the
   scan on screen, and a `result` only if its `id` is the intent in flight;
   anything else is ignored.
@@ -174,6 +201,10 @@ The Flipper pre-fills the weight with `defaults.gross`, falling back to
   the host keeps `lines` ASCII where it can.
 - **New items.** The Flipper never sends `new` without `prefill: true`, and
   the host refuses to create a spool without `material`.
+- **Inventory mode.** The host checks `GET /settings/spoolman` and refuses
+  to work against a Bambuddy in Spoolman mode: the Mac host answers every
+  `scan` with an `error` lookup and every intent with `ok: false`, both
+  saying why; the Python bridge exits at start-up.
 
 ## Identifiers
 
