@@ -53,6 +53,28 @@ private final class ManualScan {
     }
 }
 
+/// A scanner that answers with `result` and counts its scans.
+@MainActor
+private final class FakeQRScanner: QRScanning {
+    private let result: Result<String, any Error>
+    private(set) var scans = 0
+
+    init(_ result: Result<String, any Error>) {
+        self.result = result
+    }
+
+    func scan() async throws -> String {
+        scans += 1
+        return try result.get()
+    }
+}
+
+private struct CameraFailed: Error, LocalizedError {
+    var errorDescription: String? { "camera unavailable" }
+}
+
+private let bambuddyQR = "bambuddy://config?v=1&url=http%3A%2F%2F192.168.1.10%3A8000&key=bb_from_qr"
+
 @MainActor
 @Suite("SettingsViewModel")
 struct SettingsViewModelTests {
@@ -389,5 +411,69 @@ struct SettingsViewModelTests {
         #expect(model.draft.peripheralName == nil)
         #expect(model.draft.transport == .bluetooth)
         #expect(model.hasChanges)
+    }
+
+    @Test func aQRPayloadFillsTheURLAndKey() async {
+        let model = makeModel()
+        await model.testConnection()
+        #expect(model.connection == .ok("Connected; internal inventory"))
+
+        model.applyQRPayload(bambuddyQR)
+
+        #expect(model.baseURL == "http://192.168.1.10:8000")
+        #expect(model.apiKey == "bb_from_qr")
+        #expect(model.qrStatus == .applied("URL and API key read from the QR code; Save to keep them"))
+        // The last test was for the old server.
+        #expect(model.connection == nil)
+        #expect(model.hasChanges)
+        #expect(model.draft.catalogEntryId == 3)
+        #expect(model.draft.coreWeight == 250)
+    }
+
+    @Test func aWrongQRCodeLeavesTheFieldsAndSaysWhy() {
+        let model = makeModel()
+
+        model.applyQRPayload("bambuddy://config?v=2&url=http%3A%2F%2Fa.lan&key=k")
+
+        #expect(model.baseURL == "http://bambuddy.test:8000")
+        #expect(model.apiKey == "bb_test")
+        #expect(model.qrStatus == .failed(APIKeyQRPayload.ParseError.unsupportedVersion("2").localizedDescription))
+        #expect(!model.hasChanges)
+    }
+
+    @Test func scanningAppliesWhatTheScannerRead() async {
+        let model = makeModel()
+        let scanner = FakeQRScanner(.success(bambuddyQR))
+
+        await model.scanQRCode(with: scanner)
+
+        #expect(scanner.scans == 1)
+        #expect(model.baseURL == "http://192.168.1.10:8000")
+        #expect(model.apiKey == "bb_from_qr")
+        #expect(model.qrStatus == .applied("URL and API key read from the QR code; Save to keep them"))
+    }
+
+    @Test func aFailingScannerLeavesTheFieldsUntouched() async {
+        let model = makeModel()
+
+        await model.scanQRCode(with: FakeQRScanner(.failure(CameraFailed())))
+
+        #expect(model.baseURL == "http://bambuddy.test:8000")
+        #expect(model.apiKey == "bb_test")
+        #expect(model.qrStatus == .failed("camera unavailable"))
+        #expect(!model.hasChanges)
+    }
+
+    @Test func aCancelledScanChangesNothingAndShowsNoError() async {
+        let model = makeModel()
+        model.applyQRPayload("nonsense")
+        #expect(model.qrStatus != nil)
+
+        await model.scanQRCode(with: FakeQRScanner(.failure(CancellationError())))
+
+        #expect(model.baseURL == "http://bambuddy.test:8000")
+        #expect(model.apiKey == "bb_test")
+        #expect(model.qrStatus == nil)
+        #expect(!model.hasChanges)
     }
 }

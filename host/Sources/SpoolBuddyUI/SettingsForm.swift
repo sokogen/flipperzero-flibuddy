@@ -7,6 +7,9 @@ import SwiftUI
 /// USB port (macOS only) or the Bluetooth Flipper.
 public struct SettingsForm: View {
     @Bindable var model: SettingsViewModel
+    #if os(iOS)
+    @ViewState private var qrScanner = CameraQRScanner()
+    #endif
 
     public init(model: SettingsViewModel) {
         self.model = model
@@ -17,6 +20,14 @@ public struct SettingsForm: View {
             Section("Bambuddy") {
                 TextField("URL", text: $model.baseURL, prompt: Text("http://192.168.1.20:8000"))
                 SecureField("API key", text: $model.apiKey, prompt: Text("bb_…"))
+                #if os(iOS)
+                if CameraQRScanner.isAvailable {
+                    Button("Scan QR code", systemImage: "qrcode.viewfinder") {
+                        Task { await model.scanQRCode(with: qrScanner) }
+                    }
+                }
+                #endif
+                qrStatus
                 HStack {
                     Button("Test connection") {
                         Task { await model.testConnection() }
@@ -91,6 +102,11 @@ public struct SettingsForm: View {
         }
         .formStyle(.grouped)
         .onDisappear { model.stopScanning() }
+        #if os(iOS)
+        .sheet(isPresented: $qrScanner.isPresenting, onDismiss: { qrScanner.finish(.failure(CancellationError())) }) {
+            QRScannerSheet(scanner: qrScanner)
+        }
+        #endif
     }
 
     /// The remembered Flipper, Forget, and the scan with its results.
@@ -125,6 +141,14 @@ public struct SettingsForm: View {
         }
         Text("No pairing: the Flipper runs SpoolBuddy with Transport set to Bluetooth.")
             .font(.caption).foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder private var qrStatus: some View {
+        switch model.qrStatus {
+        case nil: EmptyView()
+        case .applied(let message): Label(message, systemImage: "qrcode").font(.caption).foregroundStyle(.green)
+        case .failed(let message): Label(message, systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
+        }
     }
 
     @ViewBuilder private var connectionStatus: some View {

@@ -1,6 +1,13 @@
 import Foundation
 import Observation
 
+/// Reads one QR code, e.g. with the camera; throws `CancellationError` when
+/// the user gives up.
+@MainActor
+public protocol QRScanning {
+    func scan() async throws -> String
+}
+
 /// The Settings screen: an editable copy of the settings, the catalog entry
 /// picker, the transport settings (USB port, Bluetooth Flipper scan) and the
 /// connection test. `save()` hands the draft
@@ -11,6 +18,12 @@ public final class SettingsViewModel {
     public enum Connection: Equatable, Sendable {
         case testing
         case ok(String)
+        case failed(String)
+    }
+
+    /// The outcome of the last Bambuddy QR code.
+    public enum QRStatus: Equatable, Sendable {
+        case applied(String)
         case failed(String)
     }
 
@@ -42,6 +55,7 @@ public final class SettingsViewModel {
     public private(set) var isScanning = false
     public private(set) var connection: Connection?
     public private(set) var saveError: String?
+    public private(set) var qrStatus: QRStatus?
 
     private var saved: Settings
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
@@ -138,6 +152,31 @@ public final class SettingsViewModel {
             catalogError = nil
         } catch {
             catalogError = Session.describe(error)
+        }
+    }
+
+    /// Takes the URL and API key from a scanned Bambuddy QR code; anything
+    /// else leaves the fields as they are and says why.
+    public func applyQRPayload(_ text: String) {
+        do {
+            let payload = try APIKeyQRPayload.parse(text)
+            baseURL = payload.baseURL
+            apiKey = payload.apiKey
+            connection = nil
+            qrStatus = .applied("URL and API key read from the QR code; Save to keep them")
+        } catch {
+            qrStatus = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Scans a QR code and applies it; a cancelled scan changes nothing.
+    public func scanQRCode(with scanner: any QRScanning) async {
+        do {
+            applyQRPayload(try await scanner.scan())
+        } catch is CancellationError {
+            qrStatus = nil
+        } catch {
+            qrStatus = .failed(error.localizedDescription)
         }
     }
 

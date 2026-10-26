@@ -218,11 +218,13 @@ not change. BLE carries the same NDJSON lines.
 - ➕ recorded locally (Xcode 27.1, XcodeGen 2.46): `make apple-project` → "Created project at …/host/Apple/SpoolBuddy.xcodeproj" (the iOS target has an "Embed Watch Content" phase into `$(CONTENTS_FOLDER_PATH)/Watch`); `make apple-build` → "** BUILD SUCCEEDED **" twice; the built `SpoolBuddy.app/Watch/SpoolBuddyWatch.app` carries `cool.bambuddy.spoolbuddy.watchkitapp`, `WKApplication`, `WKCompanionAppBundleIdentifier` `cool.bambuddy.spoolbuddy` and the Bluetooth usage description; `make test` (Swift 413 tests, pytest 315), `make lint` pass; SpoolBuddyCore line coverage 89.6 %
 
 ### Task 9: API key from Bambuddy's QR code
-- [ ] `host/Sources/SpoolBuddyCore/Session/APIKeyQRPayload.swift`: `parse(_ string:) throws -> (baseURL: String, apiKey: String)` for `bambuddy://config?v=1&url=…&key=…`; errors for wrong scheme or host, unsupported `v`, missing or empty fields, invalid percent-encoding; the URL is normalised the way Settings expects (scheme and host, optional port, no trailing slash)
-- [ ] `SettingsViewModel.applyQRPayload(_:)` fills `baseURL` and `apiKey` and sets a status line; a `QRScanning` protocol with a `scan() async throws -> String` entry so the view model is testable
-- [ ] iOS only: "Scan QR code" button in the Settings form presenting a VisionKit `DataScannerViewController` (`.barcode(symbologies: [.qr])`) through a `UIViewControllerRepresentable`; unavailable device → the button is hidden
-- [ ] write tests: valid payload; `bambuddy://config?v=2…` rejected; missing key rejected; percent-decoding of `http%3A%2F%2F192.168.1.10%3A8000`; view model applies and reports; a failing scanner leaves the fields untouched
-- [ ] run all three suites - must pass before task 10
+- [x] `host/Sources/SpoolBuddyCore/Session/APIKeyQRPayload.swift`: `parse(_ string:) throws -> (baseURL: String, apiKey: String)` for `bambuddy://config?v=1&url=…&key=…`; errors for wrong scheme or host, unsupported `v`, missing or empty fields, invalid percent-encoding; the URL is normalised the way Settings expects (scheme and host, optional port, no trailing slash)
+- [x] `SettingsViewModel.applyQRPayload(_:)` fills `baseURL` and `apiKey` and sets a status line; a `QRScanning` protocol with a `scan() async throws -> String` entry so the view model is testable
+- [x] iOS only: "Scan QR code" button in the Settings form presenting a VisionKit `DataScannerViewController` (`.barcode(symbologies: [.qr])`) through a `UIViewControllerRepresentable`; unavailable device → the button is hidden
+- [x] write tests: valid payload; `bambuddy://config?v=2…` rejected; missing key rejected; percent-decoding of `http%3A%2F%2F192.168.1.10%3A8000`; view model applies and reports; a failing scanner leaves the fields untouched
+- [x] run all three suites - must pass before task 10
+- ➕ deviations: `parse` returns an `APIKeyQRPayload` struct (`baseURL`, `apiKey`) instead of a tuple, with `ParseError` cases `notBambuddyConfig` (scheme or host), `unsupportedVersion`, `missingField`, `invalidEncoding`, `invalidBaseURL`; fields are split on `&`/`=` before percent-decoding so escaped `&`, `=`, `+` in the key survive, the first of a repeated field wins, values are trimmed; the URL keeps scheme, host, port and any path prefix (Bambuddy sends the origin) and drops credentials, query, fragment and trailing slashes. `SettingsViewModel.applyQRPayload(_:)` takes the scanned text, sets `qrStatus` (`.applied` / `.failed`) and clears the stale `connection` result; `scanQRCode(with:)` runs a `QRScanning` scanner (a `@MainActor` protocol) and treats `CancellationError` as "nothing happened". The iOS scanner is `host/Sources/SpoolBuddyUI/QRScanner.swift` (`CameraQRScanner` bridging the sheet to `scan()`, `QRScannerView` over `DataScannerViewController`, `QRScannerSheet` with Cancel); the button shows only when `DataScannerViewController.isSupported && isAvailable`, so it never appears in the simulator
+- ➕ recorded locally (Xcode 27.1, XcodeGen 2.46): `make apple-project apple-build` → "** BUILD SUCCEEDED **" twice (no warnings in the changed files); `make test` (C suites 0 failures, Swift 430 tests, pytest 315), `make lint` pass; SpoolBuddyCore line coverage 89.8 %
 
 ### Task 10: CI for the Apple builds
 - [ ] `.github/workflows/host.yml`: add a job on `macos-latest` that installs `xcodegen` with Homebrew and runs `make apple-project apple-build`; path filters include `host/Apple/**`
@@ -288,6 +290,7 @@ host/Sources/SpoolBuddyCore/Transport/BLEChunker.swift
 host/Sources/SpoolBuddyCore/Transport/BLE/{SpoolBuddyGATT,Central,BLETransport,CoreBluetoothCentral}.swift
 host/Sources/SpoolBuddyCore/Session/{SettingsSync,WatchSettingsSync,APIKeyQRPayload}.swift
 host/Sources/SpoolBuddyUI/Watch/            compact watch views
+host/Sources/SpoolBuddyUI/QRScanner.swift   iOS camera QR scanner
 host/Apple/project.yml, host/Apple/iOS/App.swift, host/Apple/Watch/App.swift,
 host/Apple/Signing.example.xcconfig
 flipper/src/app_settings.{c,h}, ble_lines.{c,h}, ble_wire.{c,h}, ble_spoolbuddy_svc.{c,h},
