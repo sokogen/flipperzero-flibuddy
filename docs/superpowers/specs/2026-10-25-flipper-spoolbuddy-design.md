@@ -1,6 +1,10 @@
-# Flipper SpoolBuddy: design
+# FliBuddy: design
 
 Date: 2026-10-25
+Renamed: 2026-10-26, from "Flipper SpoolBuddy" to FliBuddy (plan
+`20261026-flibuddy-rename.md`). SpoolBuddy is Bambuddy's own kiosk
+device; references to it below are unchanged. This file keeps its old
+name because completed plans link to it.
 Status: Phase 0 tooling and Phase 1 (Flipper + macOS over USB) are
 implemented (`docs/plans/20261025-flipper-spoolbuddy-phase0-1.md`); the
 Phase 0 hardware checks ran on 2026-10-26 (see "Phase 0 findings"), the
@@ -183,7 +187,7 @@ SpoolBuddy daemon).
 Three parts in one repository:
 
 ```
-flipper-spoolbuddy/
+flipper-flibuddy/
   AGENTS.md
   README.md
   docs/superpowers/specs/      design docs
@@ -391,13 +395,13 @@ forums and the deployed Bambuddy; they bind Phase 2:
   central types it) and every characteristic requires authentication.
   macOS and iOS show the passkey prompt; watchOS does not, so a watch can
   never finish pairing. The project therefore publishes its own profile.
-- **SpoolBuddy BLE profile (FAP‑defined).** A `FuriHalBleProfileTemplate`
+- **FliBuddy BLE profile (FAP‑defined).** A `FuriHalBleProfileTemplate`
   whose `get_gap_config` sets `bonding_mode = false`,
   `pairing_method = GapPairingNone`, the Flipper's BLE MAC and name
   (`furi_hal_version_get_ble_mac`, `…_get_ble_local_device_name_ptr`)
   and advertises the service UUID; `start` adds the service with
   `ble_gatt_service_add` / `ble_gatt_characteristic_init`, `stop` deletes
-  it. Started with `bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)`
+  it. Started with `bt_profile_start(bt, &flibuddy_ble_profile, NULL)`
   (restarts the second core), ended with `bt_profile_restore_default`.
   `bt_set_status_changed_callback` reports `Advertising` / `Connected`.
   Events reach the FAP through
@@ -416,11 +420,11 @@ forums and the deployed Bambuddy; they bind Phase 2:
   and grams; the API key never crosses it.
 - **Transport is a setting on both sides.** Flipper: USB or Bluetooth,
   chosen from the Idle screen and persisted under
-  `/ext/apps_data/spoolbuddy/`; the app starts the chosen backend only.
+  `/ext/apps_data/flibuddy/`; the app starts the chosen backend only.
   Host: USB (macOS only) or Bluetooth (macOS, iOS, watchOS), plus the
   remembered peripheral; no pairing step anywhere.
 - **One SwiftUI code base.** Views live in a platform‑neutral
-  `SpoolBuddyUI` target used by the macOS app and the iOS app; macOS‑only
+  `FliBuddyUI` target used by the macOS app and the iOS app; macOS‑only
   pieces (serial port picker) are conditional. The watch has its own
   compact views over the same `HostModel`.
 - **Apple Watch app.** A watchOS target in the same project, companion of
@@ -518,7 +522,7 @@ Phase 2, decided by the builder (2026-10-26; the plan is
 
 - Minimum OS versions: macOS 14 stays; iOS, iPadOS and watchOS 26.
 - No pairing and no encryption on the BLE link by default. One macro,
-  `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` (default 0), makes the
+  `FLIBUDDY_BLE_REQUIRE_ENCRYPTION` (default 0), makes the
   characteristics require encryption so "just works" pairing can be tried
   on real devices; if the Mac, the iPhone and the watch all pair without a
   prompt, it may become the default.
@@ -549,7 +553,7 @@ Phase 2, decided by the builder (2026-10-26; the plan is
   iPhone/iPad app and the watch app embedded as its companion; generated
   Info.plists; signing from a git‑ignored `Signing.xcconfig` included by
   the tracked `Base.xcconfig`; placeholder bundle id
-  `cool.bambuddy.spoolbuddy`. iPad gets a split view, iPhone a tab view.
+  `com.sokolachko.flibuddy`. iPad gets a split view, iPhone a tab view.
 - Watch sync: the application context (`v: 1`) carries the Bambuddy URL,
   API key, core weight, catalog entry and default mode, sent after every
   save and once at launch; the watch keeps its own transport and Flipper.

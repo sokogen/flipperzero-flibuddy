@@ -78,3 +78,6 @@ make apple-project apple-build  # iOS and watch apps for the simulators
 - `make apple-project apple-build` needs XcodeGen and a licensed Xcode with
   the iOS and watchOS 26 SDKs; the Command Line Tools workaround above does
   not apply to them.
+- Host tests give `SettingsStore` an `InMemoryKeyValueStore`, never
+  `UserDefaults(suiteName:)`: `cfprefsd` rewrites a deleted suite's plist,
+  so every test would leave one in `~/Library/Preferences`.

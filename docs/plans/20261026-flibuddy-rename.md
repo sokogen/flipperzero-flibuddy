@@ -331,27 +331,33 @@
       tools 96.51 %)
 
 ### Task 7: Update documentation
-- [ ] `README.md`: title `# flipper-flibuddy`, first paragraph introduces
+- [x] `README.md`: title `# flipper-flibuddy`, first paragraph introduces
       FliBuddy and keeps the sentence that it replaces Bambuddy's SpoolBuddy
       hardware; add one sentence on the name ("FliBuddy, not SpoolBuddy:
       SpoolBuddy is Bambuddy's own kiosk device"); commands and paths
-- [ ] `docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`:
+- [x] `docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`:
       add a dated note at the top that the project was renamed FliBuddy on
       2026-10-26, and change the references to *our* app (file names,
       targets, hello ids, FAP name, Keychain service); leave the Bambuddy
       kiosk references untouched; keep the file name (it is linked from
       history)
-- [ ] `AGENTS.md`, `flipper/README.md`, `host/README.md`,
+- [x] `AGENTS.md`, `flipper/README.md`, `host/README.md`,
       `.github/workflows/README.md`, `tools/README.md`: final pass for
-      leftovers
-- [ ] update project knowledge docs if new patterns discovered
-- [ ] ➕ re-run `git grep -n -i spoolbuddy -- ':!docs/plans' ':!.ralphex'`
+      leftovers (none found)
+- [x] update project knowledge docs if new patterns discovered (AGENTS.md:
+      host tests use `InMemoryKeyValueStore`, never `UserDefaults(suiteName:)`)
+- [x] ➕ re-run `git grep -n -i spoolbuddy -- ':!docs/plans' ':!.ralphex'`
       and `git grep -n -i -E 'cool\.bambuddy' -- ':!docs/plans'` after the
       doc edits: only the "must stay" hits listed in Task 6 remain (README:
       `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` becomes
       `FLIBUDDY_BLE_REQUIRE_ENCRYPTION`, the bundle ids become
       `com.sokolachko.flibuddy`; spec: the tree root, the BLE profile symbol,
       the settings dir, the UI target, the macro, the bundle id)
+      (`cool.bambuddy` finds nothing; the spoolbuddy hits are the Task 6
+      "must stay" list plus the new name notes: `README.md:13` and the
+      spec's rename note, lines 4-5; `README.md:11` and spec line 9 are
+      file names, kept. `make test` (Swift 443, C 0 failures, pytest 321)
+      and `make lint` pass)
 
 ## Technical Details
 - Name scheme: `FliBuddy` in prose, titles and Swift type/target names;
