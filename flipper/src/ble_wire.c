@@ -10,7 +10,6 @@
 
 #define ACI_GATT_ATTRIBUTE_MODIFIED_VSEVT_CODE 0x0C01
 #define ACI_ATT_EXCHANGE_MTU_RESP_VSEVT_CODE   0x0C03
-#define ACI_GATT_TX_POOL_AVAILABLE_VSEVT_CODE  0x0C16
 
 #define CCCD_NOTIFY 0x01
 
@@ -72,9 +71,6 @@ static BleWireEvent vendor_event(const uint8_t* params, size_t len, const BleWir
             e.type = BleWireEventMtu;
             e.mtu = le16(params + 2);
         }
-        return e;
-    case ACI_GATT_TX_POOL_AVAILABLE_VSEVT_CODE:
-        e.type = BleWireEventTxPool;
         return e;
     default:
         return e;

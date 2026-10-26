@@ -116,7 +116,9 @@ static void free_transport(SpoolBuddyApp* app) {
 
 /* A backend that does not open (Bluetooth off or unavailable) gives way to
  * the null transport: no host connects, and with Bluetooth the USB port
- * stays with the CLI. */
+ * stays with the CLI. Choosing the same kind again in the menu retries it.
+ * The state is changed directly: no screen depends on it, and this also
+ * runs before the first scene. */
 static void start_transport(SpoolBuddyApp* app) {
     app->transport_kind = app->state.transport;
     app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
@@ -125,6 +127,7 @@ static void start_transport(SpoolBuddyApp* app) {
     if(!transport_open(app->transport)) {
         FURI_LOG_E("SpoolBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
         free_transport(app);
+        app_reduce(&app->state, &(AppEvent){.type = AppEventTransportFailed, .now_ms = now_ms()});
     }
 }
 

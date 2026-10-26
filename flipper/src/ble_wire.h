@@ -50,7 +50,6 @@ typedef enum {
     BleWireEventRx, /* the host wrote `data` to RX */
     BleWireEventSubscribe, /* the host wrote TX's CCCD: `subscribed` */
     BleWireEventMtu, /* the ATT MTU exchange agreed on `mtu` */
-    BleWireEventTxPool, /* the stack has room for notifications again */
     BleWireEventDisconnected, /* the link is gone */
 } BleWireEventType;
 

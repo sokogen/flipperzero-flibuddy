@@ -159,8 +159,9 @@ static AppEffect reduce_transport(AppState* s, const AppEvent* e) {
             return AppEffectNone;
         }
         go_idle(s);
-        if(e->transport == s->transport) return AppEffectNone;
+        if(e->transport == s->transport && !s->transport_failed) return AppEffectNone;
         s->transport = e->transport;
+        s->transport_failed = false;
         s->ble = AppBleOff;
         return AppEffectSwitchTransport;
     }
@@ -256,6 +257,10 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
     }
     if(e->type == AppEventBleStatus) {
         s->ble = e->ble;
+        return AppEffectNone;
+    }
+    if(e->type == AppEventTransportFailed) {
+        s->transport_failed = true;
         return AppEffectNone;
     }
     switch(s->screen) {

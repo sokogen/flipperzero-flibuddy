@@ -13,6 +13,7 @@ private func makeModel(
     ports: [String] = ["/dev/cu.usbmodemflip_Anmaa1"],
     scan: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { AsyncStream { $0.finish() } },
     scanDuration: Duration = .seconds(15),
+    power: @escaping @MainActor () async -> BLEPowerState = { .poweredOn },
     apply: @escaping @MainActor (Settings) async throws -> Void = { _ in }
 ) -> SettingsViewModel {
     SettingsViewModel(
@@ -23,6 +24,7 @@ private func makeModel(
         },
         discoverPorts: { ports },
         discoverFlippers: scan,
+        bluetoothPower: power,
         scanDuration: scanDuration,
         apply: apply
     )
@@ -385,6 +387,40 @@ struct SettingsViewModelTests {
 
         #expect(await eventually { !model.isScanning })
         #expect(model.discovered == [flipperA])
+    }
+
+    @Test(arguments: [
+        (BLEPowerState.poweredOff, "Bluetooth is off"),
+        (.unauthorized, "SpoolBuddy is not allowed to use Bluetooth"),
+        (.unsupported, "This device has no Bluetooth LE"),
+    ])
+    func aScanWithoutTheRadioSaysWhyAndStops(power: BLEPowerState, problem: String) async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start, power: { power })
+
+        model.scanForFlippers()
+
+        #expect(await eventually { model.scanProblem == problem })
+        #expect(!model.isScanning)
+        #expect(await eventually { scan.stopped.value })
+    }
+
+    @Test func aScanWithTheRadioOnHasNoProblem() async {
+        let scan = ManualScan()
+        var power = BLEPowerState.poweredOff
+        let model = makeModel(scan: scan.start, power: { power })
+        model.scanForFlippers()
+        #expect(await eventually { model.scanProblem != nil })
+        power = .poweredOn
+
+        model.scanForFlippers()
+
+        #expect(model.scanProblem == nil)
+        scan.continuation?.yield(flipperA)
+        #expect(await eventually { model.discovered == [flipperA] })
+        #expect(model.isScanning)
+        #expect(model.scanProblem == nil)
+        model.stopScanning()
     }
 
     @Test func choosingAFlipperStoresItsIdAndNameAndStopsTheScan() async {

@@ -228,6 +228,15 @@ struct FlipperLinkTests {
         #expect(found == [flipper])
     }
 
+    @Test func theBluetoothPowerStateComesFromTheCentral() async {
+        let link = FlipperLink(
+            session: Session(settings: testSettings, inventory: nil), hello: hostHello,
+            bluetoothPower: { .unauthorized }
+        )
+
+        #expect(await link.bluetoothPowerState() == .unauthorized)
+    }
+
     @Test func theDefaultUSBTransportOpensTheChosenPort() {
         // The Bluetooth default is left out: creating the CoreBluetooth
         // central would ask the test runner for Bluetooth permission.

@@ -282,7 +282,27 @@ struct BLETransportTests {
         await #expect(throws: TransportError.notConnected) { try await transport.connect() }
 
         #expect(transport.state == .closed)
-        #expect(central.cancelled == [flipperA])
+        // The connection is gone already: nothing to cancel.
+        #expect(central.cancelled.isEmpty)
+    }
+
+    @Test func disconnectingNamesTheConnectionItDrops() async throws {
+        // CoreBluetooth reuses the peripheral's identifier for every
+        // connection; a late disconnect of an old one must not hit the new one.
+        let central = FakeCentral()
+        central.known = [flipperA]
+        let old = central.peripheral(flipperA)
+        let transport = makeTransport(central, peripheral: flipperA)
+        try await transport.connect()
+        transport.disconnect()
+        let current = central.replacePeripheral(flipperA)
+        try await transport.connect()
+
+        transport.disconnect()
+
+        #expect(central.disconnectedLinks.count == 2)
+        #expect(central.disconnectedLinks.first === old)
+        #expect(central.disconnectedLinks.last === current)
     }
 
     @Test func connectingWhileOpenDoesNothing() async throws {
@@ -334,6 +354,19 @@ struct BLEPromiseTests {
             promise.resolve(.success(2))
         }
         #expect(try await promise.value() == 1)
+    }
+
+    @Test func resolvingSaysWhetherItCounted() async {
+        let promise = BLEPromise<Int>()
+        #expect(promise.resolve(.success(1)))
+        #expect(!promise.resolve(.success(2)))
+
+        let cancelled = BLEPromise<Int>()
+        let waiter = Task { try await cancelled.value() }
+        try? await Task.sleep(for: .milliseconds(20))
+        waiter.cancel()
+        _ = try? await waiter.value
+        #expect(!cancelled.resolve(.success(3)))
     }
 
     @Test func aFailureIsThrown() async {

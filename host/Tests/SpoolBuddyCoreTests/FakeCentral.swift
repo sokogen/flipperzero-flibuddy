@@ -12,6 +12,7 @@ final class FakeCentral: BLECentral, @unchecked Sendable {
     private var _scanCount = 0
     private var _connected: [UUID] = []
     private var _cancelled: [UUID] = []
+    private var _disconnectedLinks: [FakePeripheral] = []
     private var scanners: [UUID: AsyncStream<DiscoveredPeripheral>.Continuation] = [:]
     /// `connect` waits until it is cancelled.
     var connectHangs = false
@@ -32,7 +33,10 @@ final class FakeCentral: BLECentral, @unchecked Sendable {
 
     var scanCount: Int { lock.withLock { _scanCount } }
     var connected: [UUID] { lock.withLock { _connected } }
+    /// Abandoned connection attempts and dropped connections, in order.
     var cancelled: [UUID] { lock.withLock { _cancelled } }
+    /// The connections `disconnect` was asked to drop.
+    var disconnectedLinks: [FakePeripheral] { lock.withLock { _disconnectedLinks } }
     var activeScans: Int { lock.withLock { scanners.count } }
 
     func peripheral(_ id: UUID) -> FakePeripheral {
@@ -92,19 +96,27 @@ final class FakeCentral: BLECentral, @unchecked Sendable {
     }
 
     func connect(_ id: UUID) async throws -> any BLEPeripheralLink {
-        if connectHangs { try await Task.sleep(for: .seconds(3600)) }
+        if connectHangs {
+            do {
+                try await Task.sleep(for: .seconds(3600))
+            } catch {
+                lock.withLock { _cancelled.append(id) }
+                throw error
+            }
+        }
         lock.withLock { _connected.append(id) }
         let link = peripheral(id)
         link.isConnected = true
         return link
     }
 
-    func cancelConnection(_ id: UUID) {
-        let link = lock.withLock {
-            _cancelled.append(id)
-            return _peripherals[id]
+    func disconnect(_ link: any BLEPeripheralLink) {
+        let fake = link as? FakePeripheral
+        lock.withLock {
+            _cancelled.append(link.identifier)
+            if let fake { _disconnectedLinks.append(fake) }
         }
-        link?.drop()
+        fake?.drop()
     }
 }
 

@@ -123,6 +123,9 @@ public struct SettingsForm: View {
                 ProgressView().controlSize(.small)
             }
         }
+        if let problem = model.scanProblem {
+            Text(problem).foregroundStyle(.red)
+        }
         ForEach(model.discovered) { peripheral in
             Button {
                 model.choosePeripheral(peripheral)

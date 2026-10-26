@@ -50,12 +50,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
 
     public func connect() async throws {
         guard state == .closed else { return }
-        switch await central.powerState() {
-        case .poweredOn: break
-        case .poweredOff: throw TransportError.bluetoothOff
-        case .unauthorized: throw TransportError.bluetoothUnauthorized
-        case .unsupported: throw TransportError.bluetoothUnsupported
-        }
+        if let problem = await central.powerState().problem { throw problem }
         let id = try await findPeripheral()
         do {
             try await Self.withDeadline(connectTimeout, else: .peripheralNotFound) { [self] in
@@ -63,8 +58,9 @@ public final class BLETransport: Transport, @unchecked Sendable {
             }
             try Task.checkCancellation()
         } catch {
-            drop(where: { $0.identifier == id })
-            central.cancelConnection(id)
+            // An attempt that never connected was abandoned by the cancelled
+            // `central.connect`; a connection that did not open is dropped here.
+            if let link = drop(where: { $0.identifier == id }) { central.disconnect(link) }
             throw error
         }
     }
@@ -79,9 +75,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
     }
 
     public func disconnect() {
-        guard let id = lock.withLock({ link?.identifier }) else { return }
-        drop(where: { $0.identifier == id })
-        central.cancelConnection(id)
+        if let link = drop(where: { _ in true }) { central.disconnect(link) }
     }
 
     private func findPeripheral() async throws -> UUID {
@@ -134,24 +128,24 @@ public final class BLETransport: Transport, @unchecked Sendable {
         case .writeFailed:
             // The line is broken mid-way; the Flipper discards the partial
             // line when the link drops.
-            guard drop(where: { $0 === source }) else { return }
-            central.cancelConnection(source.identifier)
+            guard drop(where: { $0 === source }) != nil else { return }
+            central.disconnect(source)
         case .disconnected:
             drop(where: { $0 === source })
         }
     }
 
     /// Forgets the current connection if `matches` it and finishes its
-    /// message stream; returns whether it did.
+    /// message stream; returns the connection it forgot.
     @discardableResult
-    private func drop(where matches: (any BLEPeripheralLink) -> Bool) -> Bool {
-        let (dropped, finished): (Bool, AsyncStream<Message>.Continuation?) = lock.withLock {
-            guard let link, matches(link) else { return (false, nil) }
+    private func drop(where matches: (any BLEPeripheralLink) -> Bool) -> (any BLEPeripheralLink)? {
+        let (dropped, finished): ((any BLEPeripheralLink)?, AsyncStream<Message>.Continuation?) = lock.withLock {
+            guard let link, matches(link) else { return (nil, nil) }
             self.link = nil
             isOpen = false
             chunker.reset()
             defer { continuation = nil }
-            return (true, continuation)
+            return (link, continuation)
         }
         finished?.finish()
         return dropped

@@ -25,7 +25,6 @@ typedef struct {
     void (*on_rx)(const uint8_t* data, size_t len, void* ctx); /* written to RX */
     void (*on_subscribe)(bool subscribed, void* ctx); /* TX notifications on or off */
     void (*on_mtu)(uint16_t mtu, void* ctx); /* the ATT MTU exchange finished */
-    void (*on_tx_pool)(void* ctx); /* the stack has room for notifications */
     void (*on_disconnect)(void* ctx);
     void* ctx;
 } SpoolBuddyBleCallbacks;

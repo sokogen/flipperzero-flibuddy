@@ -35,6 +35,7 @@ public final class FlipperLink {
     private let makeTransport: @Sendable (TransportChoice) -> any Transport
     private let discoverPorts: @Sendable () -> [String]
     private let scanPeripherals: @Sendable () -> AsyncStream<DiscoveredPeripheral>
+    private let bluetoothPower: @Sendable () async -> BLEPowerState
     private let retryDelay: Duration
     private var loop: Task<Void, Never>?
     private var transport: (any Transport)?
@@ -46,6 +47,7 @@ public final class FlipperLink {
         makeTransport: @escaping @Sendable (TransportChoice) -> any Transport = FlipperLink.defaultTransport,
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
         scanPeripherals: @escaping @Sendable () -> AsyncStream<DiscoveredPeripheral> = FlipperLink.defaultScan,
+        bluetoothPower: @escaping @Sendable () async -> BLEPowerState = FlipperLink.defaultPowerState,
         retryDelay: Duration = .seconds(2)
     ) {
         self.session = session
@@ -53,6 +55,7 @@ public final class FlipperLink {
         self.makeTransport = makeTransport
         self.discoverPorts = discoverPorts
         self.scanPeripherals = scanPeripherals
+        self.bluetoothPower = bluetoothPower
         self.retryDelay = retryDelay
     }
 
@@ -80,6 +83,15 @@ public final class FlipperLink {
         #endif
     }
 
+    /// The radio state of the shared central.
+    public nonisolated static func defaultPowerState() async -> BLEPowerState {
+        #if canImport(CoreBluetooth)
+        await CoreBluetoothCentral.shared.powerState()
+        #else
+        .unsupported
+        #endif
+    }
+
     /// (Re)starts the link with `choice`.
     public func connect(_ choice: TransportChoice) {
         disconnect()
@@ -93,6 +105,12 @@ public final class FlipperLink {
     /// settings picker; scanning stops when the consumer stops iterating.
     public func discoverFlippers() -> AsyncStream<DiscoveredPeripheral> {
         scanPeripherals()
+    }
+
+    /// The Bluetooth radio state, for telling an empty scan from a radio that
+    /// is off or not allowed.
+    public func bluetoothPowerState() async -> BLEPowerState {
+        await bluetoothPower()
     }
 
     public func disconnect() {

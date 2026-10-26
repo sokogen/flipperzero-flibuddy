@@ -106,9 +106,6 @@ static BleEventAckStatus on_event(void* event, void* context) {
     case BleWireEventMtu:
         cb->on_mtu(e.mtu, cb->ctx);
         break;
-    case BleWireEventTxPool:
-        cb->on_tx_pool(cb->ctx);
-        break;
     case BleWireEventDisconnected:
         cb->on_disconnect(cb->ctx);
         break;

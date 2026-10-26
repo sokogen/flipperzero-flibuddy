@@ -194,10 +194,11 @@ static void test_short_mtu_event_is_ignored(void) {
     CHECK_EQ_INT(e.type, BleWireEventOther);
 }
 
-static void test_tx_pool_available_frees_the_sender(void) {
+static void test_tx_pool_available_is_passed_on(void) {
+    /* the sender does not wait for room: the SDK's update already does */
     const uint8_t params[] = {0x01, 0x08, 0x04, 0x00};
     BleWireEvent e = ble_wire_decode(vendor_event(0x0C16, params, sizeof(params)), &handles);
-    CHECK_EQ_INT(e.type, BleWireEventTxPool);
+    CHECK_EQ_INT(e.type, BleWireEventOther);
 }
 
 static void test_disconnection_complete_ends_the_link(void) {
@@ -256,7 +257,7 @@ int main(void) {
     RUN_TEST(test_mtu_exchange_gives_the_mtu);
     RUN_TEST(test_mtu_above_255_is_read_little_endian);
     RUN_TEST(test_short_mtu_event_is_ignored);
-    RUN_TEST(test_tx_pool_available_frees_the_sender);
+    RUN_TEST(test_tx_pool_available_is_passed_on);
     RUN_TEST(test_disconnection_complete_ends_the_link);
     RUN_TEST(test_failed_disconnection_keeps_the_link);
     RUN_TEST(test_short_attribute_modified_is_ignored);

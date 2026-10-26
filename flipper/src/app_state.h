@@ -29,7 +29,8 @@
  * The transport menu opens from Idle. Choosing another kind than the one
  * in use answers AppEffectSwitchTransport: the caller saves the setting
  * and restarts the transport; the host is lost through host_link as the old
- * port closes. The BLE status is only recorded, for the status line
+ * port closes. The caller reports a transport that did not open with
+ * AppEventTransportFailed; choosing that same kind again then retries it. The BLE status is only recorded, for the status line
  * (screen_status_text); it never changes the screen or `connected`. The
  * caller sets `transport` from the saved settings after app_state_init().
  */
@@ -101,6 +102,7 @@ typedef enum {
     AppEventMenuTransport, /* OK on Idle */
     AppEventTransportChosen, /* .transport */
     AppEventBleStatus, /* .ble */
+    AppEventTransportFailed, /* the transport in use did not open */
 } AppEventType;
 
 typedef struct {
@@ -129,6 +131,7 @@ typedef struct {
     AppError error; /* on Error */
     bool connected;
     TransportKind transport; /* in use */
+    bool transport_failed; /* it did not open; choosing it again retries */
     AppBleStatus ble;
     WeightMode mode; /* kept for the whole session */
     uint16_t weight_default; /* pre-fill of EnterWeight, follows mode */

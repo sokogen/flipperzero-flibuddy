@@ -53,6 +53,8 @@ public final class SettingsViewModel {
     /// Flippers found by the running or last scan, each once.
     public private(set) var discovered: [DiscoveredPeripheral] = []
     public private(set) var isScanning = false
+    /// Why the last scan could not run (Bluetooth off or not allowed).
+    public private(set) var scanProblem: String?
     public private(set) var connection: Connection?
     public private(set) var saveError: String?
     public private(set) var qrStatus: QRStatus?
@@ -61,6 +63,7 @@ public final class SettingsViewModel {
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
     private let discoverFlippers: @MainActor () -> AsyncStream<DiscoveredPeripheral>
+    private let bluetoothPower: @MainActor () async -> BLEPowerState
     private let scanDuration: Duration
     private let apply: @MainActor (Settings) async throws -> Void
     private var scanTask: Task<Void, Never>?
@@ -69,12 +72,14 @@ public final class SettingsViewModel {
     private var scanGeneration = 0
 
     /// `discoverFlippers` streams Flippers advertising over Bluetooth; a scan
-    /// stops by itself after `scanDuration`.
+    /// stops by itself after `scanDuration`, or at once when `bluetoothPower`
+    /// says the radio cannot be used.
     public init(
         settings: Settings,
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
         discoverFlippers: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { FlipperLink.defaultScan() },
+        bluetoothPower: @escaping @MainActor () async -> BLEPowerState = { await FlipperLink.defaultPowerState() },
         scanDuration: Duration = .seconds(15),
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
@@ -91,6 +96,7 @@ public final class SettingsViewModel {
         self.makeInventory = makeInventory
         self.discoverPorts = discoverPorts
         self.discoverFlippers = discoverFlippers
+        self.bluetoothPower = bluetoothPower
         self.scanDuration = scanDuration
         self.apply = apply
     }
@@ -197,9 +203,17 @@ public final class SettingsViewModel {
     public func scanForFlippers() {
         stopScanning()
         discovered = []
+        scanProblem = nil
         isScanning = true
         let current = scanGeneration
         let stream = discoverFlippers()
+        let power = bluetoothPower
+        // A scan with the radio off finds nothing; say why instead.
+        Task { [weak self] in
+            guard let problem = await power().problem, let self, current == self.scanGeneration else { return }
+            self.stopScanning()
+            self.scanProblem = problem.localizedDescription
+        }
         scanTask = Task { [weak self] in
             for await peripheral in stream {
                 guard let self, current == self.scanGeneration else { return }

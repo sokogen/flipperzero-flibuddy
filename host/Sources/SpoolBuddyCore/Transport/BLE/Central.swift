@@ -6,6 +6,16 @@ public enum BLEPowerState: Equatable, Sendable {
     case poweredOff
     case unauthorized
     case unsupported
+
+    /// Why Bluetooth cannot be used; `nil` when it can.
+    public var problem: TransportError? {
+        switch self {
+        case .poweredOn: nil
+        case .poweredOff: .bluetoothOff
+        case .unauthorized: .bluetoothUnauthorized
+        case .unsupported: .bluetoothUnsupported
+        }
+    }
 }
 
 /// A Flipper found by a scan, for the settings picker.
@@ -45,11 +55,13 @@ public protocol BLECentral: AnyObject, Sendable {
     /// Peripherals advertising `service`, as they are found. Scanning stops
     /// when the consumer stops iterating.
     func scan(service: UUID) -> AsyncStream<DiscoveredPeripheral>
-    /// Connects a known or scanned peripheral. Throws `CancellationError` when
-    /// the calling task is cancelled.
+    /// Connects a known or scanned peripheral. Cancelling the calling task
+    /// abandons the attempt and throws `CancellationError`.
     func connect(_ id: UUID) async throws -> any BLEPeripheralLink
-    /// Drops the connection to `id`, or the attempt to make it.
-    func cancelConnection(_ id: UUID)
+    /// Drops `link` if it is still its peripheral's connection. The identifier
+    /// is the same for every connection to a peripheral, so the link names
+    /// which one: a late call for an old connection leaves a newer one alone.
+    func disconnect(_ link: any BLEPeripheralLink)
 }
 
 /// One connected peripheral.
@@ -79,14 +91,17 @@ final class BLEPromise<Value: Sendable>: @unchecked Sendable {
 
     var isResolved: Bool { lock.withLock { result != nil } }
 
-    func resolve(_ result: Result<Value, Error>) {
-        let waiting: CheckedContinuation<Value, Error>? = lock.withLock {
-            guard self.result == nil else { return nil }
+    /// Returns whether this was the first `resolve`, i.e. whether it counted.
+    @discardableResult
+    func resolve(_ result: Result<Value, Error>) -> Bool {
+        let (counted, waiting): (Bool, CheckedContinuation<Value, Error>?) = lock.withLock {
+            guard self.result == nil else { return (false, nil) }
             self.result = result
             defer { continuation = nil }
-            return continuation
+            return (true, continuation)
         }
         waiting?.resume(with: result)
+        return counted
     }
 
     func value() async throws -> Value {

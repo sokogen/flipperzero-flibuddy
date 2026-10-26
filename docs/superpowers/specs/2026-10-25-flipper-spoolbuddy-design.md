@@ -411,7 +411,7 @@ forums and the deployed Bambuddy; they bind Phase 2:
   `ATTR_PERMISSION_NONE`. Chunks never exceed ATT MTU − 3 (20 bytes until
   the MTU exchange says more). Flow control: the host sends one write at
   a time and waits for the response; the Flipper sends one notification
-  at a time and retries when the stack reports busy. Lines stay ≤ 8192
+  at a time; a stack still busy after the SDK's own wait ends the line. Lines stay ≤ 8192
   bytes as in PROTOCOL.md. No encryption on the link: it carries tag dumps
   and grams; the API key never crosses it.
 - **Transport is a setting on both sides.** Flipper: USB or Bluetooth,
@@ -529,8 +529,10 @@ Phase 2, decided by the builder (2026-10-26; the plan is
   bonds and cached GATT table.
 - Flow control: the host sends one write with response at a time, chunks
   of `maximumWriteValueLength` up to 243 bytes; the Flipper sends one
-  notification at a time in chunks of ATT MTU − 3, retrying a busy stack
-  up to 3 times. The Flipper's `hello` goes out when the host subscribes
+  notification at a time in chunks of ATT MTU − 3; a stack still busy
+  after the SDK's own wait (about a second) ends the line, and so does a
+  line that took longer than 2 s in all (the SDK waits for every chunk),
+  so a slow link holds the Flipper's GUI thread for about 3 s at most. The Flipper's `hello` goes out when the host subscribes
   to TX, as on USB DTR.
 - The Flipper's transport menu opens with OK on the Idle screen; the
   status line reads `USB`, `BLE adv`, `BLE` or `no host` and sits under

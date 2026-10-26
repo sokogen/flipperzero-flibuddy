@@ -15,8 +15,13 @@ static int offers; /* handed to the stack, accepted or not */
 static char offered[MAX_NOTES][32]; /* the first bytes of each offer */
 static BleNotifyResult answers[MAX_NOTES];
 static int answer_count;
-static int waits;
-static bool wait_result;
+static uint32_t now; /* ms on the fake clock */
+static uint32_t offer_ms; /* how long the stack takes over each offer */
+
+static uint32_t clock_ms(void* ctx) {
+    (void)ctx;
+    return now;
+}
 
 static BleNotifyResult notify(const uint8_t* data, size_t len, void* ctx) {
     (void)ctx;
@@ -27,6 +32,7 @@ static BleNotifyResult notify(const uint8_t* data, size_t len, void* ctx) {
     }
     BleNotifyResult answer = offers < answer_count ? answers[offers] : BleNotifyOk;
     offers++;
+    now += offer_ms;
     if(answer != BleNotifyOk) return answer;
     memcpy(wire + wire_len, data, len);
     wire_len += len;
@@ -34,12 +40,6 @@ static BleNotifyResult notify(const uint8_t* data, size_t len, void* ctx) {
     if(notes < MAX_NOTES) note_len[notes] = len;
     notes++;
     return BleNotifyOk;
-}
-
-static bool wait(void* ctx) {
-    (void)ctx;
-    waits++;
-    return wait_result;
 }
 
 static char lines_seen[4][64];
@@ -62,10 +62,11 @@ static void setup(void) {
     notes = 0;
     offers = 0;
     answer_count = 0;
-    waits = 0;
-    wait_result = true;
     line_count = 0;
-    ble_lines_init(&bl, storage, sizeof(storage), on_line, NULL, notify, wait, NULL);
+    now = 0xFFFFF000u; /* the tick wraps during the tests */
+    offer_ms = 0;
+    ble_lines_init(&bl, storage, sizeof(storage), on_line, NULL, notify, clock_ms, NULL);
+    ble_lines_begin_line(&bl);
 }
 
 static void answer(int count, BleNotifyResult result) {
@@ -149,28 +150,14 @@ static void test_zero_length_packet_sends_nothing(void) {
     CHECK_EQ_INT(offers, 0);
 }
 
-static void test_busy_stack_gets_the_same_chunk_again(void) {
-    setup();
-    answer(1, BleNotifyOk);
-    answer(2, BleNotifyBusy);
-    CHECK_EQ_INT(send_bytes(45), LinePacketSent);
-    /* the second chunk is offered until taken; the third waits for it */
-    CHECK_EQ_INT(offers, 5);
-    CHECK_STR_EQ(offered[1], offered[2]);
-    CHECK_STR_EQ(offered[2], offered[3]);
-    CHECK(strcmp(offered[3], offered[4]) != 0);
-    CHECK_EQ_INT(waits, 2);
-    CHECK_EQ_INT(ble_lines_busy(&bl), 2);
-    CHECK_EQ_INT(wire_len, 45);
-    CHECK_STR_EQ(wire, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrs");
-}
-
-static void test_stack_busy_for_too_long_sends_nothing(void) {
+static void test_busy_stack_sends_nothing_more(void) {
+    /* the stack already waited for room (about a second in the SDK): the
+     * chunk is not offered again, so the sender is not held any longer */
     setup();
     answer(MAX_NOTES, BleNotifyBusy);
     CHECK_EQ_INT(send_bytes(45), LinePacketNotSent);
-    CHECK_EQ_INT(offers, 1 + BLE_LINES_BUSY_RETRIES);
-    CHECK_EQ_INT(waits, BLE_LINES_BUSY_RETRIES);
+    CHECK_EQ_INT(offers, 1);
+    CHECK_EQ_INT(ble_lines_busy(&bl), 1);
     CHECK_EQ_INT(wire_len, 0);
 }
 
@@ -179,7 +166,17 @@ static void test_stack_busy_after_the_first_chunk_may_have_sent(void) {
     answer(1, BleNotifyOk);
     answer(MAX_NOTES - 1, BleNotifyBusy);
     CHECK_EQ_INT(send_bytes(45), LinePacketMaybeSent);
+    CHECK_EQ_INT(offers, 2);
     CHECK_EQ_INT(wire_len, 20);
+}
+
+static void test_next_packet_goes_out_after_a_busy_one(void) {
+    setup();
+    answer(1, BleNotifyBusy);
+    CHECK_EQ_INT(send_bytes(45), LinePacketNotSent);
+    CHECK_EQ_INT(send_bytes(45), LinePacketSent);
+    CHECK_EQ_INT(wire_len, 45);
+    CHECK_STR_EQ(wire, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrs");
 }
 
 static void test_lost_link_stops_at_once(void) {
@@ -187,16 +184,49 @@ static void test_lost_link_stops_at_once(void) {
     answer(1, BleNotifyLost);
     CHECK_EQ_INT(send_bytes(45), LinePacketNotSent);
     CHECK_EQ_INT(offers, 1);
-    CHECK_EQ_INT(waits, 0);
+    CHECK_EQ_INT(ble_lines_busy(&bl), 0);
 }
 
-static void test_link_lost_while_waiting_stops(void) {
+static void test_slow_stack_ends_the_line_at_its_time_budget(void) {
+    /* a stack that takes each chunk only after a long wait never answers
+     * busy: the line, not the chunk, bounds the time */
     setup();
-    answer(1, BleNotifyBusy);
-    wait_result = false;
-    CHECK_EQ_INT(send_bytes(45), LinePacketNotSent);
-    CHECK_EQ_INT(offers, 1);
-    CHECK_EQ_INT(waits, 1);
+    offer_ms = 900;
+    CHECK_EQ_INT(send_bytes(100), LinePacketMaybeSent);
+    CHECK_EQ_INT(offers, 3); /* at 0, 900 and 1800 ms; none at 2700 */
+    CHECK_EQ_INT(wire_len, 60);
+    CHECK_EQ_INT(ble_lines_busy(&bl), 1);
+}
+
+static void test_time_budget_spans_the_packets_of_a_line(void) {
+    setup();
+    offer_ms = 700;
+    CHECK_EQ_INT(send_bytes(40), LinePacketSent); /* 0 and 700 ms */
+    CHECK_EQ_INT(send_bytes(40), LinePacketMaybeSent); /* 1400 ms only */
+    CHECK_EQ_INT(send_bytes(40), LinePacketNotSent);
+    CHECK_EQ_INT(offers, 3);
+}
+
+static void test_each_line_gets_its_own_time_budget(void) {
+    setup();
+    offer_ms = 1000;
+    CHECK_EQ_INT(send_bytes(60), LinePacketMaybeSent);
+    ble_lines_begin_line(&bl);
+    CHECK_EQ_INT(send_bytes(40), LinePacketSent);
+    CHECK_EQ_INT(offers, 4);
+}
+
+static void test_slow_line_holds_the_sender_for_its_budget(void) {
+    setup();
+    offer_ms = 300;
+    LineSender ls;
+    line_sender_init(&ls, ble_lines_chunk(&bl), ble_lines_send, &bl);
+    char line[400];
+    memset(line, 'x', sizeof(line));
+    uint32_t start = now;
+    CHECK_EQ_INT(line_sender_send(&ls, line, sizeof(line)), TransportNotSent);
+    CHECK(now - start <= BLE_LINES_LINE_BUDGET_MS + offer_ms);
+    CHECK(wire_len < sizeof(line));
 }
 
 static void test_lines_go_out_through_the_line_sender(void) {
@@ -258,11 +288,14 @@ int main(void) {
     RUN_TEST(test_bytes_go_out_in_chunks_of_182);
     RUN_TEST(test_exact_chunk_is_one_notification);
     RUN_TEST(test_zero_length_packet_sends_nothing);
-    RUN_TEST(test_busy_stack_gets_the_same_chunk_again);
-    RUN_TEST(test_stack_busy_for_too_long_sends_nothing);
+    RUN_TEST(test_busy_stack_sends_nothing_more);
     RUN_TEST(test_stack_busy_after_the_first_chunk_may_have_sent);
+    RUN_TEST(test_next_packet_goes_out_after_a_busy_one);
     RUN_TEST(test_lost_link_stops_at_once);
-    RUN_TEST(test_link_lost_while_waiting_stops);
+    RUN_TEST(test_slow_stack_ends_the_line_at_its_time_budget);
+    RUN_TEST(test_time_budget_spans_the_packets_of_a_line);
+    RUN_TEST(test_each_line_gets_its_own_time_budget);
+    RUN_TEST(test_slow_line_holds_the_sender_for_its_budget);
     RUN_TEST(test_lines_go_out_through_the_line_sender);
     RUN_TEST(test_line_ending_on_a_chunk_boundary_sends_no_empty_notification);
     RUN_TEST(test_received_bytes_become_lines);

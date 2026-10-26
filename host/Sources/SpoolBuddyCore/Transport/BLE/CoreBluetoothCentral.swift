@@ -18,6 +18,12 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
     private var peripherals: [UUID: CBPeripheral] = [:]
     private var pendingConnects: [UUID: BLEPromise<any BLEPeripheralLink>] = [:]
     private var links: [UUID: CoreBluetoothPeripheralLink] = [:]
+    /// Connections and attempts we cancelled whose `didDisconnect` is still to
+    /// come (CoreBluetooth sends it for a cancelled pending attempt too).
+    /// Every connection to a peripheral has its identifier, so a connect
+    /// asked for meanwhile waits for that callback instead of being hit by it
+    /// or by a late `didConnect` of the cancelled attempt.
+    private var closing: Set<UUID> = []
 
     override public init() {
         super.init()
@@ -66,22 +72,54 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
     public func connect(_ id: UUID) async throws -> any BLEPeripheralLink {
         let promise = BLEPromise<any BLEPeripheralLink>()
         queue.async { [self] in
-            guard manager.state == .poweredOn else { return promise.resolve(.failure(TransportError.bluetoothOff)) }
+            guard manager.state == .poweredOn else {
+                promise.resolve(.failure(TransportError.bluetoothOff))
+                return
+            }
             guard let peripheral = peripherals[id] else {
-                return promise.resolve(.failure(TransportError.peripheralNotFound))
+                promise.resolve(.failure(TransportError.peripheralNotFound))
+                return
             }
             pendingConnects[id]?.resolve(.failure(CancellationError()))
             pendingConnects[id] = promise
-            manager.connect(peripheral)
+            if !closing.contains(id) { manager.connect(peripheral) }
         }
-        return try await promise.value()
+        return try await withTaskCancellationHandler {
+            try await promise.value()
+        } onCancel: {
+            queue.async { [self] in abandon(promise, id) }
+        }
     }
 
-    public func cancelConnection(_ id: UUID) {
+    public func disconnect(_ link: any BLEPeripheralLink) {
         queue.async { [self] in
-            pendingConnects.removeValue(forKey: id)?.resolve(.failure(CancellationError()))
-            if let peripheral = peripherals[id] { manager.cancelPeripheralConnection(peripheral) }
+            guard let current = links[link.identifier], current === link else { return }
+            close(current.peripheral)
         }
+    }
+
+    /// Gives up a connection attempt nobody waits for any more, unless a
+    /// newer attempt took its place.
+    private func abandon(_ promise: BLEPromise<any BLEPeripheralLink>, _ id: UUID) {
+        guard pendingConnects[id] === promise else { return }
+        pendingConnects[id] = nil
+        // While closing, the connect was not started yet.
+        guard !closing.contains(id), let peripheral = peripherals[id] else { return }
+        close(peripheral)
+    }
+
+    /// Cancels a connection or a pending attempt; `didDisconnect` follows.
+    private func close(_ peripheral: CBPeripheral) {
+        closing.insert(peripheral.identifier)
+        manager.cancelPeripheralConnection(peripheral)
+    }
+
+    /// Whether `peripheral` was closing: then what we cancelled is gone, and
+    /// a connect asked for since goes ahead.
+    private func closed(_ peripheral: CBPeripheral) -> Bool {
+        guard closing.remove(peripheral.identifier) != nil else { return false }
+        if pendingConnects[peripheral.identifier] != nil { manager.connect(peripheral) }
+        return true
     }
 
     private func updateScan() {
@@ -121,6 +159,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
         pendingConnects.removeAll()
         for link in links.values { link.connectionLost() }
         links.removeAll()
+        closing.removeAll()
     }
 
     public func centralManager(
@@ -139,25 +178,33 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        // An attempt cancelled after it connected: its `didDisconnect` follows
+        // and starts the attempt that waits, which this one must not answer.
+        guard !closing.contains(peripheral.identifier) else { return }
         let link = CoreBluetoothPeripheralLink(peripheral: peripheral, queue: queue)
         links[peripheral.identifier] = link
-        guard let promise = pendingConnects.removeValue(forKey: peripheral.identifier) else {
+        // A waiter cancelled just now may still be pending here.
+        guard let promise = pendingConnects.removeValue(forKey: peripheral.identifier),
+            promise.resolve(.success(link))
+        else {
             // Nobody waits any more (cancelled): let it go.
-            central.cancelPeripheralConnection(peripheral)
+            close(peripheral)
             return
         }
-        promise.resolve(.success(link))
     }
 
     public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        // A cancelled attempt may end this way instead.
+        guard !closed(peripheral) else { return }
         pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
     }
 
     public func centralManager(
         _ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?
     ) {
-        pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
         links.removeValue(forKey: peripheral.identifier)?.connectionLost()
+        guard !closed(peripheral) else { return }
+        pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
     }
 }
 
@@ -190,7 +237,8 @@ final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked
         queue.async { [self] in
             // The link may drop between `didConnect` and this block.
             guard !lost, peripheral.state == .connected else {
-                return promise.resolve(.failure(TransportError.notConnected))
+                promise.resolve(.failure(TransportError.notConnected))
+                return
             }
             self.events = events
             opening = promise

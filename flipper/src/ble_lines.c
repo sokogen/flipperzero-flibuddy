@@ -9,13 +9,14 @@ void ble_lines_init(
     LineBufferCallback on_line,
     void* line_ctx,
     BleLinesNotifyFn notify,
-    BleLinesWaitFn wait,
+    BleLinesClockFn clock,
     void* ctx) {
     bl->chunk = BLE_LINES_CHUNK_MIN;
     bl->busy = 0;
     bl->notify = notify;
-    bl->wait = wait;
+    bl->clock = clock;
     bl->ctx = ctx;
+    bl->line_start = clock(ctx);
     line_buffer_init(&bl->lines, storage, cap, on_line, line_ctx);
 }
 
@@ -34,15 +35,19 @@ size_t ble_lines_chunk(const BleLines* bl) {
     return bl->chunk;
 }
 
-/* Hands one chunk to the stack, waiting while it is busy. */
+void ble_lines_begin_line(BleLines* bl) {
+    bl->line_start = bl->clock(bl->ctx);
+}
+
+/* Hands one chunk to the stack, unless the line's time is up. */
 static bool send_chunk(BleLines* bl, const uint8_t* data, size_t len) {
-    for(int retries = 0;; retries++) {
-        BleNotifyResult result = bl->notify(data, len, bl->ctx);
-        if(result == BleNotifyOk) return true;
-        if(result == BleNotifyLost) return false;
+    if((uint32_t)(bl->clock(bl->ctx) - bl->line_start) >= BLE_LINES_LINE_BUDGET_MS) {
         bl->busy++;
-        if(retries == BLE_LINES_BUSY_RETRIES || !bl->wait(bl->ctx)) return false;
+        return false;
     }
+    BleNotifyResult result = bl->notify(data, len, bl->ctx);
+    if(result == BleNotifyBusy) bl->busy++;
+    return result == BleNotifyOk;
 }
 
 LinePacketResult ble_lines_send(const uint8_t* data, size_t len, void* ctx) {

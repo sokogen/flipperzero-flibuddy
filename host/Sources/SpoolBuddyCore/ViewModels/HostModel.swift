@@ -79,6 +79,7 @@ public final class HostModel {
         SettingsViewModel(
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
+            bluetoothPower: { [link] in await link.bluetoothPowerState() },
             apply: { [weak self] in try await self?.apply($0) }
         )
     }

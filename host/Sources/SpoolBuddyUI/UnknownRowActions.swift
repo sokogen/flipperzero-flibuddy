@@ -73,7 +73,10 @@ struct NewSpoolSheet: View {
             }
             .padding()
         }
+        #if os(macOS)
+        // A sheet on macOS sizes to its content; on iOS it fills the screen.
         .frame(minWidth: 420)
+        #endif
     }
 }
 
@@ -117,7 +120,9 @@ struct LinkSpoolSheet: View {
             }
         }
         .padding()
+        #if os(macOS)
         .frame(minWidth: 520, minHeight: 420)
+        #endif
         .task { await feed.loadLinkCandidates() }
     }
 }

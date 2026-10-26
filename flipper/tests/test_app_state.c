@@ -682,6 +682,39 @@ static void test_choosing_the_same_transport_changes_nothing(void) {
     CHECK(app.connected);
 }
 
+static void test_choosing_the_transport_that_did_not_open_retries_it(void) {
+    setup();
+    app.transport = TransportKindBluetooth;
+    CHECK(send(AppEventTransportFailed) == AppEffectNone);
+    CHECK(app.transport_failed);
+    CHECK(app.screen == AppScreenIdle);
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectSwitchTransport);
+    CHECK(app.transport == TransportKindBluetooth);
+    CHECK(!app.transport_failed);
+    CHECK(app.screen == AppScreenIdle);
+    /* it opened this time: choosing it again changes nothing */
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectNone);
+}
+
+static void test_switching_away_from_a_failed_transport_clears_the_failure(void) {
+    setup();
+    app.transport = TransportKindBluetooth;
+    send(AppEventTransportFailed);
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindUsb) == AppEffectSwitchTransport);
+    CHECK(!app.transport_failed);
+}
+
+static void test_transport_failure_is_recorded_on_every_screen(void) {
+    setup();
+    scan_mfc();
+    CHECK(send(AppEventTransportFailed) == AppEffectNone);
+    CHECK(app.transport_failed);
+    CHECK(app.screen == AppScreenWaitingLookup);
+}
+
 static void test_unknown_transport_kind_is_ignored(void) {
     setup();
     send(AppEventMenuTransport);
@@ -779,6 +812,9 @@ int main(void) {
     RUN_TEST(test_transport_menu_stays_open_across_host_and_timeout_events);
     RUN_TEST(test_choosing_another_transport_switches_it);
     RUN_TEST(test_choosing_the_same_transport_changes_nothing);
+    RUN_TEST(test_choosing_the_transport_that_did_not_open_retries_it);
+    RUN_TEST(test_switching_away_from_a_failed_transport_clears_the_failure);
+    RUN_TEST(test_transport_failure_is_recorded_on_every_screen);
     RUN_TEST(test_unknown_transport_kind_is_ignored);
     RUN_TEST(test_switching_transport_resets_the_ble_status);
     RUN_TEST(test_ble_status_is_recorded_on_every_screen);

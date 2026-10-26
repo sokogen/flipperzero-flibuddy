@@ -42,6 +42,9 @@ public struct WatchSettingsView: View {
                     } else {
                         Button("Scan for Flipper") { scanner.scanForFlippers() }
                     }
+                    if let problem = scanner.scanProblem {
+                        Text(problem).foregroundStyle(.red)
+                    }
                     ForEach(scanner.discovered) { peripheral in
                         Button {
                             choose(peripheral)
