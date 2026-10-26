@@ -6,6 +6,7 @@ See protocol/PROTOCOL.md. The Swift `Session` follows the same rules.
 
 import json
 import platform
+import re
 import time
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
@@ -23,10 +24,13 @@ from bridge.bambuddy import (
     used_after_weighing,
 )
 
+VERSION = 2  # protocol version; lines with any other `v` are ignored
 MAX_LINE_BYTES = 8192  # including the terminating "\n"
 HELLO_TIMEOUT = 2.0  # seconds; a Flipper hello within this of ours answers it
 MAX_GRAMS = 9999
 MAX_ERROR = 200
+MAX_NAME = 40  # material, subtype and colour name in `spool` / `tag_info`
+RGBA = re.compile(r"^[0-9A-F]{8}$")
 DEFAULT_LABEL = 1000
 DEFAULT_CORE = 325  # g: Bambu reusable spool 293 + refill core 32
 BRAND = "Bambu Lab"
@@ -71,6 +75,51 @@ def _grams(value) -> int:
 
 def _lines(*lines: str | None) -> list[str]:
     return [line[: bambu_tag.MAX_LINE_LEN] for line in lines if line][: bambu_tag.MAX_LINES]
+
+
+def _fields(**fields) -> dict:
+    """The given fields without empty ones; names cut to the schema's length,
+    a colour that is not RRGGBBAA hex left out."""
+    out = {}
+    for key, value in fields.items():
+        if value is None or value == "":
+            continue
+        if key == "rgba":
+            value = str(value).upper()
+            if not RGBA.match(value):
+                continue
+        elif isinstance(value, str):
+            value = value[:MAX_NAME]
+        out[key] = value
+    return out
+
+
+def spool_fields(spool: dict) -> dict | None:
+    """The `spool` object of a `lookup` or `result` for a Bambuddy spool, or
+    None when the spool has no material to show."""
+    if not spool.get("material"):
+        return None
+    label = spool.get("label_weight") or DEFAULT_LABEL
+    return _fields(
+        id=spool["id"],
+        material=spool["material"],
+        subtype=spool.get("subtype"),
+        color_name=spool.get("color_name"),
+        rgba=spool.get("rgba"),
+        remaining=_grams(remaining({**spool, "label_weight": label})),
+        label=_grams(label),
+        core=_grams(spool.get("core_weight") or 0),
+    )
+
+
+def tag_info(parsed: bambu_tag.ParsedTag) -> dict:
+    """The `tag_info` object of an `unknown` lookup: what the tag carries."""
+    return _fields(
+        material=parsed.material,
+        subtype=parsed.bambuddy_subtype,
+        rgba=parsed.rgba,
+        label=_grams(parsed.label_weight) if parsed.label_weight is not None else None,
+    )
 
 
 class LineFramer:
@@ -172,7 +221,7 @@ class Bridge:
                  f"{len(self.color_map['by_material'])} by material")
 
     def hello(self) -> dict:
-        return {"t": "hello", "v": 1, "app": APP, "os": host_os()}
+        return {"t": "hello", "v": VERSION, "app": APP, "os": host_os()}
 
     def greet(self) -> str:
         """Our hello line, sent when the port opens."""
@@ -185,7 +234,7 @@ class Bridge:
         except ValueError:
             self.log(f"dropped non-JSON line: {line[:80]!r}")
             return []
-        if not isinstance(message, dict) or message.get("v") != 1:
+        if not isinstance(message, dict) or message.get("v") != VERSION:
             return []
         if message.get("t") not in ("hello", "scan", "intent"):
             return []
@@ -229,7 +278,7 @@ class Bridge:
         return lookup
 
     def _lookup(self, scan_id: str, parsed: bambu_tag.ParsedTag) -> dict:
-        base = {"t": "lookup", "v": 1, "scan_id": scan_id}
+        base = {"t": "lookup", "v": VERSION, "scan_id": scan_id}
         if self.client is None:
             return {**base, "status": "error", "lines": ["No Bambuddy configured"],
                     "error": "bridge started without --bambuddy"}
@@ -242,6 +291,9 @@ class Bridge:
             lookup = {**base, "status": "unknown"}
             if parsed.has_prefill:
                 lookup["prefill"] = True
+            info = tag_info(parsed)
+            if info:
+                lookup["tag_info"] = info
             lookup["lines"] = parsed.display_lines()
             lookup["defaults"] = {
                 "label": _grams(parsed.label_weight or DEFAULT_LABEL),
@@ -257,10 +309,12 @@ class Bridge:
             gross = remaining({**spool, "label_weight": label}) + core
         defaults = {"gross": _grams(gross), "label": _grams(label), "core": _grams(core)}
         color = spool.get("color_name") or (f"#{spool['rgba']}" if spool.get("rgba") else None)
+        found = {**base, "status": "found", "spool_id": spool["id"]}
+        fields = spool_fields(spool)
+        if fields:
+            found["spool"] = fields
         return {
-            **base,
-            "status": "found",
-            "spool_id": spool["id"],
+            **found,
             "lines": _lines(
                 title(spool.get("material"), spool.get("subtype")),
                 color,
@@ -291,8 +345,18 @@ class Bridge:
         self.log(f"result {intent_id}: {compact(result)}")
         return result
 
-    def _result(self, intent_id: str, ok: bool, lines: list[str], error: str | None = None) -> dict:
-        result = {"t": "result", "v": 1, "id": intent_id, "ok": ok, "lines": _lines(*lines)}
+    def _result(
+        self,
+        intent_id: str,
+        ok: bool,
+        lines: list[str],
+        error: str | None = None,
+        spool: dict | None = None,
+    ) -> dict:
+        result = {"t": "result", "v": VERSION, "id": intent_id, "ok": ok, "lines": _lines(*lines)}
+        fields = spool_fields(spool) if ok and spool else None
+        if fields:
+            result["spool"] = fields
         if not ok:
             result["error"] = (error or "failed")[:MAX_ERROR]
         return result
@@ -321,15 +385,16 @@ class Bridge:
             used = response.get("weight_used")
             if used is None:
                 used = used_after_weighing(spool, gross)
-            left = remaining({**spool, "weight_used": used})
-            return self._result(intent_id, True, ["Saved", f"{left} g left"])
+            weighed = {**spool, "weight_used": used}
+            return self._result(intent_id, True, ["Saved", f"{remaining(weighed)} g left"],
+                                spool=weighed)
 
         # action == "new"
         if spool is not None:
             return self._result(intent_id, False, ["Already in Bambuddy", f"spool #{spool['id']}"],
                                 f"tag already linked to spool {spool['id']}")
         created = self.client.create_spool(self._new_spool(parsed))
-        return self._result(intent_id, True, ["Created", f"spool #{created['id']}"])
+        return self._result(intent_id, True, ["Created", f"spool #{created['id']}"], spool=created)
 
     def _new_spool(self, parsed: bambu_tag.ParsedTag) -> dict:
         body = {

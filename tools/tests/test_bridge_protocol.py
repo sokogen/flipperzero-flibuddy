@@ -21,7 +21,7 @@ VALIDATOR = Draft202012Validator(SCHEMA)
 SPOOL_42 = {
     "id": 42,
     "material": "PLA",
-    "subtype": "PLA Basic",
+    "subtype": "Basic",
     "color_name": "Jade White",
     "rgba": "FFFFFFFF",
     "label_weight": 1000,
@@ -42,8 +42,9 @@ def line(message: dict) -> str:
 class FakeBambuddy:
     """Stands in for BambuddyClient; records calls."""
 
-    def __init__(self, spools=None, fail=None, color_map=None, color_map_error=None):
+    def __init__(self, spools=None, fail=None, color_map=None, color_map_error=None, next_id=None):
         self.spools = {s["id"]: dict(s) for s in (spools or [])}
+        self.next_id = next_id
         self.fail = fail
         self.colors = color_map if color_map is not None else {"colors": {}, "by_material": {}}
         self.color_map_error = color_map_error
@@ -82,7 +83,7 @@ class FakeBambuddy:
     def create_spool(self, body):
         self.calls.append(("create_spool", body))
         self._maybe_fail()
-        spool = {**body, "id": 100 + len(self.spools)}
+        spool = {**body, "id": self.next_id or 100 + len(self.spools)}
         self.spools[spool["id"]] = spool
         return spool
 
@@ -110,6 +111,7 @@ def replies(b: session.Bridge, message: dict) -> list[dict]:
 def test_hello_is_valid():
     hello = bridge().hello()
     assert not list(VALIDATOR.iter_errors(hello))
+    assert hello["v"] == 2
     assert hello["app"].startswith("flibuddy-bridge/")
     assert "os" in hello and "fw" not in hello
 
@@ -175,6 +177,17 @@ def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
 def test_scan_of_a_known_spool_yields_the_found_lookup():
     (reply,) = replies(bridge(FakeBambuddy([spool_42_on_tag()])), load("scan_mfc.json"))
     assert reply == load("lookup_found.json")
+
+
+def test_found_lookup_carries_the_spool_fields():
+    fake = FakeBambuddy([spool_42_on_tag(color_name=None, rgba=None, subtype=None, weight_used=1200)])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply["spool"] == {"id": 42, "material": "PLA", "remaining": 0, "label": 1000, "core": 250}
+
+
+def test_scan_of_a_blank_ntag_yields_the_blank_lookup():
+    (reply,) = replies(bridge(FakeBambuddy(), core_weight=250), load("scan_ntag.json"))
+    assert reply == load("lookup_unknown_blank.json")
 
 
 def test_found_lookup_without_a_scale_weight_suggests_remaining_plus_core():
@@ -388,6 +401,14 @@ def test_new_creates_a_full_spool_from_the_tag():
 COLOR_MAP = {"colors": {"ffffff": "White"}, "by_material": {"pla basic|ffffff": "Jade White"}}
 
 
+def test_new_matches_the_result_fixture():
+    fake = FakeBambuddy(color_map=COLOR_MAP, next_id=31)
+    b = bridge(fake, core_weight=250)
+    b.load_color_map()
+    (reply,) = replies(b, load("intent_new.json"))
+    assert reply == load("result_new.json")
+
+
 def test_new_sends_the_name_from_the_colour_map():
     fake = FakeBambuddy(color_map=COLOR_MAP)
     b = bridge(fake)
@@ -513,7 +534,8 @@ def test_intent_without_bambuddy_fails():
         "[1,2]",
         line(load("invalid_missing_t.json")),
         line(load("invalid_bad_action.json")),
-        line({**load("scan_mfc.json"), "v": 2}),
+        line({**load("scan_mfc.json"), "v": 1}),
+        line({**load("hello_flipper.json"), "v": 1}),
         line({"t": "telemetry", "v": 1}),
         line(load("lookup_found.json")),  # host-bound message from the wrong side
         "",

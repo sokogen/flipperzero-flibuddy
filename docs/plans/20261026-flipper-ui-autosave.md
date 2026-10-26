@@ -201,11 +201,11 @@ Feedback (respecting Feedback / Sound settings):
 ## Implementation Steps
 
 ### Task 1: Protocol v2 in docs, schema and fixtures
-- [ ] update `protocol/PROTOCOL.md`: version 2, `scan.autosave`, `lookup.spool`, `lookup.tag_info`, `lookup.created`, new actions `full` / `empty` / `delete`, `spool.archived`, `weigh` on an unknown scan, `result.spool`; remove the "host creates every unknown tag on scan" wording
-- [ ] update `protocol/schema/message.schema.json` to match (strict, conditional requirements per action / status)
-- [ ] regenerate fixtures via `tools/fixtures/*` with samples for every new field and action, plus invalid samples (`scan` without `autosave`, `weigh` without `grams`, unknown action)
-- [ ] update `tools/tests` (fixtures, PROTOCOL.md examples) — tests first
-- [ ] run `make test-tools` — must pass before Task 2
+- [x] update `protocol/PROTOCOL.md`: version 2, `scan.autosave`, `lookup.spool`, `lookup.tag_info`, `lookup.created`, new actions `full` / `empty` / `delete`, `spool.archived`, `weigh` on an unknown scan, `result.spool`; remove the "host creates every unknown tag on scan" wording
+- [x] update `protocol/schema/message.schema.json` to match (strict, conditional requirements per action / status)
+- [x] regenerate fixtures via `tools/fixtures/*` with samples for every new field and action, plus invalid samples (`scan` without `autosave`, `weigh` without `grams`, unknown action)
+- [x] update `tools/tests` (fixtures, PROTOCOL.md examples) — tests first
+- [x] run `make test-tools` — must pass before Task 2
 
 ### Task 2: Flipper protocol codecs for v2
 - [ ] `proto_encode.c`: `v:2`, `scan.autosave`, new intent actions
@@ -247,6 +247,9 @@ Feedback (respecting Feedback / Sound settings):
 ### Task 7: Mac UI and Python bridge
 - [ ] Mac feed: a "Not in Bambuddy" Bambu row (autosave off) shows **New** and **Link to existing…** plus an editable weight whose Save creates and weighs; show marked-new / empty (archived) / deleted states; update `docs/design/macos-ui-spec.md` ("Implemented differently" or the row table) accordingly
 - [ ] `tools/bridge`: speak v2, honour `autosave`, implement the new actions
+  (the version bump and `lookup.spool` / `lookup.tag_info` / `result.spool`
+  already landed in Task 1; left: `autosave`, `full` / `empty` / `delete`,
+  `weigh` on an unknown tag, `include_archived` and `spool.archived`)
 - [ ] write tests (Swift view-model tests, pytest for the bridge)
 - [ ] run `make test` — must pass before Task 8
 
@@ -271,3 +274,18 @@ over USB and Bluetooth:
 - LED / vibro / sound per Feedback and Sound settings.
 - Install with `ufbt launch`; restart the Mac app after the FAP (the USB node
   is re-created when the FAP starts).
+
+## Implemented differently
+- Task 1: the Python bridge's switch to protocol v2 (version 2 on every
+  line, `lookup.spool`, `lookup.tag_info`, `result.spool` for `weigh` and
+  `new`) landed with the fixtures, because the bridge tests compare its
+  replies with the fixtures byte for byte and `make test-tools` gates Task 1.
+  Until Tasks 2 and 6, `make test-flipper` and `make test-host` fail against
+  the v2 fixtures, as the per-task gates allow.
+- Task 1: `lookup` keeps `spool_id` (equal to `spool.id`) and `prefill`
+  (equivalent to `tag_info.material`); `spool.subtype` is Bambuddy's stored
+  subtype ("Basic"), and the Flipper titles a spool `material subtype`, or
+  `subtype` alone when it already starts with the material. The Flipper's
+  pre-fill comes from `spool.remaining + spool.core` (net: `remaining`), with
+  `defaults` as the fallback. The `scan` key order is `t, v, scan_id,
+  autosave, tag`.

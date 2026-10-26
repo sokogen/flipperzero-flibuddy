@@ -1,0 +1,8 @@
+{
+  "t": "lookup",
+  "v": 2,
+  "scan_id": "s-000013",
+  "status": "unknown",
+  "lines": ["NTAG", "UID 04112233445566"],
+  "defaults": { "label": 1000, "core": 250 }
+}

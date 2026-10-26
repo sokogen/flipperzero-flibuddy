@@ -69,13 +69,53 @@ def test_every_message_type_has_a_valid_example():
     assert kinds == {"hello", "scan", "lookup", "intent", "result"}
 
 
+ACTIONS = {"weigh", "new", "full", "empty", "delete", "create_on_host", "link_on_host"}
+
+
 def test_every_intent_action_has_an_example():
     actions = {
         load(p)["action"]
         for p in message_files()
         if p.name.startswith("intent_")
     }
-    assert actions == {"weigh", "new", "create_on_host", "link_on_host"}
+    assert actions == ACTIONS
+
+
+def test_every_message_speaks_version_2():
+    for path in message_files():
+        assert load(path)["v"] == 2, path.name
+
+
+def valid_messages(prefix: str) -> list[dict]:
+    return [load(p) for p in message_files() if p.name.startswith(prefix)]
+
+
+def test_scans_show_both_autosave_settings():
+    assert {m["autosave"] for m in valid_messages("scan_")} == {False, True}
+
+
+def test_lookups_show_every_v2_field():
+    lookups = valid_messages("lookup_")
+    found = [m for m in lookups if m["status"] == "found"]
+    assert all("spool" in m for m in found)
+    assert all(m["spool"]["id"] == m["spool_id"] for m in found)
+    assert any(m.get("created") is True for m in found)
+    assert any(m["spool"].get("archived") is True for m in found)
+    assert any("tag_info" in m for m in lookups if m["status"] == "unknown")
+    assert any("tag_info" not in m for m in lookups if m["status"] == "unknown")
+
+
+def test_results_show_the_spool_after_the_action():
+    spools = [m["spool"] for m in valid_messages("result_") if "spool" in m]
+    assert any(s["remaining"] == s["label"] for s in spools)  # full
+    assert any(s["remaining"] == 0 and s.get("archived") for s in spools)  # empty
+
+
+def test_created_lookup_answers_the_autosave_scan():
+    scans = {m["scan_id"]: m for m in valid_messages("scan_")}
+    for lookup in valid_messages("lookup_"):
+        if lookup.get("created"):
+            assert scans[lookup["scan_id"]]["autosave"] is True
 
 
 @pytest.mark.parametrize("path", message_files(), ids=lambda p: p.name)
@@ -101,8 +141,20 @@ def test_invalid_missing_t_fails_only_for_the_missing_t(validator):
 
 def test_invalid_bad_action_fails_only_for_the_action(validator):
     message = load(MESSAGES / "invalid_bad_action.json")
-    assert message["action"] not in {"weigh", "new", "create_on_host", "link_on_host"}
+    assert message["action"] not in ACTIONS
     assert validator.is_valid({**message, "action": "create_on_host"})
+
+
+def test_invalid_scan_no_autosave_fails_only_for_the_flag(validator):
+    message = load(MESSAGES / "invalid_scan_no_autosave.json")
+    assert message["t"] == "scan" and "autosave" not in message
+    assert validator.is_valid({**message, "autosave": False})
+
+
+def test_invalid_weigh_no_grams_fails_only_for_the_grams(validator):
+    message = load(MESSAGES / "invalid_weigh_no_grams.json")
+    assert message["action"] == "weigh" and "grams" not in message
+    assert validator.is_valid({**message, "grams": 590})
 
 
 def scan_mfc():
@@ -112,7 +164,10 @@ def scan_mfc():
 @pytest.mark.parametrize(
     "mutate",
     [
-        pytest.param(lambda m: m.update(v=2), id="wrong-version"),
+        pytest.param(lambda m: m.update(v=1), id="version-1"),
+        pytest.param(lambda m: m.update(v=3), id="version-3"),
+        pytest.param(lambda m: m.pop("autosave"), id="no-autosave"),
+        pytest.param(lambda m: m.update(autosave=1), id="autosave-not-boolean"),
         pytest.param(lambda m: m.update(extra=1), id="unknown-field"),
         pytest.param(lambda m: m["tag"].update(type="iso15693"), id="bad-tag-type"),
         pytest.param(lambda m: m["tag"].update(uid="04a1b2c3"), id="lower-case-uid"),
@@ -151,6 +206,38 @@ def test_schema_rejects_ntag_with_blocks(validator):
         ("result_error.json", lambda m: m.pop("error")),
         ("result_ok.json", lambda m: m.update(ok="yes")),
         ("hello_flipper.json", lambda m: m.pop("fw")),
+        ("hello_host.json", lambda m: m.update(v=1)),
+        # intents: grams and mode belong to weigh only
+        ("intent_full.json", lambda m: m.update(grams=590)),
+        ("intent_empty.json", lambda m: m.update(mode="net")),
+        ("intent_delete.json", lambda m: m.update(action="undo")),
+        # lookup: spool, created on found only; tag_info, prefill on unknown only
+        ("lookup_unknown.json", lambda m: m.update(spool=load(MESSAGES / "lookup_found.json")["spool"])),
+        ("lookup_unknown.json", lambda m: m.update(created=True)),
+        ("lookup_found.json", lambda m: m.update(tag_info={"material": "PLA"})),
+        ("lookup_found.json", lambda m: m.update(prefill=True)),
+        ("lookup_error.json", lambda m: m.update(tag_info={"material": "PLA"})),
+        ("lookup_error.json", lambda m: m.update(spool=load(MESSAGES / "lookup_found.json")["spool"])),
+        ("lookup_created.json", lambda m: m.update(created="yes")),
+        # spool objects are strict
+        ("lookup_found.json", lambda m: m["spool"].pop("id")),
+        ("lookup_found.json", lambda m: m["spool"].pop("material")),
+        ("lookup_found.json", lambda m: m["spool"].pop("remaining")),
+        ("lookup_found.json", lambda m: m["spool"].pop("label")),
+        ("lookup_found.json", lambda m: m["spool"].pop("core")),
+        ("lookup_found.json", lambda m: m["spool"].update(id=0)),
+        ("lookup_found.json", lambda m: m["spool"].update(material="")),
+        ("lookup_found.json", lambda m: m["spool"].update(color_name="x" * 41)),
+        ("lookup_found.json", lambda m: m["spool"].update(rgba="ffffffff")),
+        ("lookup_found.json", lambda m: m["spool"].update(remaining=10000)),
+        ("lookup_found.json", lambda m: m["spool"].update(archived="no")),
+        ("lookup_found.json", lambda m: m["spool"].update(extra=1)),
+        ("lookup_unknown.json", lambda m: m["tag_info"].update(label=-1)),
+        ("lookup_unknown.json", lambda m: m["tag_info"].update(rgba="FFF")),
+        ("lookup_unknown.json", lambda m: m["tag_info"].update(extra=1)),
+        # result: spool on success only
+        ("result_ok.json", lambda m: m["spool"].pop("id")),
+        ("result_error.json", lambda m: m.update(spool=load(MESSAGES / "result_ok.json")["spool"])),
     ],
 )
 def test_schema_rejects_broken_messages(name, mutate, validator):

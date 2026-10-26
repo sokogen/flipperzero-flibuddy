@@ -1,6 +1,6 @@
 {
   "t": "intent",
-  "v": 1,
+  "v": 2,
   "id": "i-000005",
   "scan_id": "s-000013",
   "action": "create_on_host",
