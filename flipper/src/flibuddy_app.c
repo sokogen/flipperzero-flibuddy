@@ -154,12 +154,16 @@ void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event) {
     switch(app_reduce(&app->state, &stamped)) {
     case AppEffectSendScan:
         /* a scan that may not have arrived gets no lookup to wait for: the
-         * Flipper has no lookup timeout */
+         * Flipper has no lookup timeout. Until Auto-save new is a setting
+         * the host never creates a spool on scan. */
         failed = send_text(
                      app,
                      proto_encode_scan(
-                         &app->state.scan.tag, app->state.scan.id, app->tx_buf, PROTO_LINE_MAX)) !=
-                 TransportSent;
+                         &app->state.scan.tag,
+                         app->state.scan.id,
+                         false,
+                         app->tx_buf,
+                         PROTO_LINE_MAX)) != TransportSent;
         break;
     case AppEffectSendIntent:
         /* an intent that may have arrived may be performed: wait for its

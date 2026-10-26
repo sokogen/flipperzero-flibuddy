@@ -69,16 +69,25 @@ static void test_pages_fill_up_to_capacity(void) {
 
 static void test_scan_mfc_matches_fixture(void) {
     load_mfc(&dump);
-    size_t len = proto_encode_scan(&dump, MFC_SCAN_ID, line, sizeof(line));
+    size_t len = proto_encode_scan(&dump, MFC_SCAN_ID, false, line, sizeof(line));
     CHECK(fixture_read_compact("fixtures/messages/scan_mfc.json", expected, sizeof(expected)));
     CHECK_STR_EQ(line, expected);
     CHECK_EQ_INT(len, strlen(expected));
 }
 
+static void test_scan_mfc_autosave_matches_fixture(void) {
+    load_mfc(&dump);
+    size_t len = proto_encode_scan(&dump, "s-000015", true, line, sizeof(line));
+    CHECK(fixture_read_compact("fixtures/messages/scan_mfc_autosave.json", expected, sizeof(expected)));
+    CHECK_STR_EQ(line, expected);
+    CHECK_EQ_INT(len, strlen(expected));
+    CHECK(strncmp(line, "{\"t\":\"scan\",\"v\":2,\"scan_id\":\"s-000015\",\"autosave\":true,", 55) == 0);
+}
+
 static void test_scan_mfc_without_missing_sectors_omits_missing(void) {
     load_mfc(&dump);
     for(uint8_t b = 0; b < TAG_DUMP_MFC_BLOCKS; b++) CHECK(tag_dump_set_block(&dump, b, MFC_BLOCKS[b]));
-    CHECK(proto_encode_scan(&dump, MFC_SCAN_ID, line, sizeof(line)) > 0);
+    CHECK(proto_encode_scan(&dump, MFC_SCAN_ID, false, line, sizeof(line)) > 0);
     CHECK(strstr(line, "\"missing\"") == NULL);
     CHECK(strstr(line, "\"28\":") != NULL);
     CHECK(strstr(line, "\"3\":") == NULL); /* trailers are never sent */
@@ -92,7 +101,7 @@ static void test_scan_mfc_with_every_sector_missing(void) {
     CHECK(tag_dump_set_uid(&dump, MFC_UID, sizeof(MFC_UID)));
     dump.sak = MFC_SAK;
     memcpy(dump.atqa, MFC_ATQA, sizeof(MFC_ATQA));
-    size_t len = proto_encode_scan(&dump, "s-000014", line, sizeof(line));
+    size_t len = proto_encode_scan(&dump, "s-000014", false, line, sizeof(line));
     CHECK(fixture_read_compact("fixtures/messages/scan_mfc_unreadable.json", expected, sizeof(expected)));
     CHECK_STR_EQ(line, expected);
     CHECK_EQ_INT(len, strlen(expected));
@@ -102,7 +111,7 @@ static void test_scan_mfc_real_dump(void) {
     /* the real PLA Pure dump: data blocks of sectors 0-2 without trailers,
      * block 9 raw, sectors 3-15 listed as missing */
     static const char want[] =
-        "{\"t\":\"scan\",\"v\":1,\"scan_id\":\"s-000099\",\"tag\":{\"type\":\"mfc\","
+        "{\"t\":\"scan\",\"v\":2,\"scan_id\":\"s-000099\",\"autosave\":false,\"tag\":{\"type\":\"mfc\","
         "\"uid\":\"7EF1AB04\",\"sak\":8,\"atqa\":\"0400\",\"blocks\":{"
         "\"0\":\"7EF1AB042008040005AAC8D5839ED190\","
         "\"1\":\"4131392D423030004746413139000000\","
@@ -115,14 +124,14 @@ static void test_scan_mfc_real_dump(void) {
         "\"10\":\"010000009A0200000000000000000000\"},"
         "\"missing\":[3,4,5,6,7,8,9,10,11,12,13,14,15]}}";
     load_mfc_real(&dump);
-    size_t len = proto_encode_scan(&dump, "s-000099", line, sizeof(line));
+    size_t len = proto_encode_scan(&dump, "s-000099", false, line, sizeof(line));
     CHECK_STR_EQ(line, want);
     CHECK_EQ_INT(len, strlen(want));
 }
 
 static void test_scan_ntag_matches_fixture(void) {
     load_ntag(&dump);
-    size_t len = proto_encode_scan(&dump, NTAG_SCAN_ID, line, sizeof(line));
+    size_t len = proto_encode_scan(&dump, NTAG_SCAN_ID, false, line, sizeof(line));
     CHECK(fixture_read_compact("fixtures/messages/scan_ntag.json", expected, sizeof(expected)));
     CHECK_STR_EQ(line, expected);
     CHECK_EQ_INT(len, strlen(expected));
@@ -135,7 +144,7 @@ static void test_largest_ntag_fits_in_a_line(void) {
     CHECK(tag_dump_set_uid(&dump, uid, sizeof(uid)));
     dump.sak = 255;
     for(int i = 0; i < TAG_DUMP_MAX_PAGES; i++) CHECK(tag_dump_append_page(&dump, page));
-    size_t len = proto_encode_scan(&dump, "s-999999", line, sizeof(line));
+    size_t len = proto_encode_scan(&dump, "s-999999", false, line, sizeof(line));
     CHECK(len > 0);
     CHECK(len + 1 <= PROTO_LINE_MAX); /* room for the '\n' */
     CHECK(strstr(line, "\"230\":\"FFFFFFFF\"}}}") != NULL);
@@ -143,33 +152,33 @@ static void test_largest_ntag_fits_in_a_line(void) {
 
 static void test_scan_too_large_for_buffer_fails(void) {
     load_mfc(&dump);
-    size_t full = proto_encode_scan(&dump, MFC_SCAN_ID, line, sizeof(line));
+    size_t full = proto_encode_scan(&dump, MFC_SCAN_ID, false, line, sizeof(line));
     CHECK(full > 0);
     static char small[1024];
-    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, small, sizeof(small)), 0);
-    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, line, full), 0);
-    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, line, full + 1), full);
-    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, line, 0), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, false, small, sizeof(small)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, false, line, full), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, false, line, full + 1), full);
+    CHECK_EQ_INT(proto_encode_scan(&dump, MFC_SCAN_ID, false, line, 0), 0);
 }
 
 static void test_scan_rejects_invalid_input(void) {
     load_ntag(&dump);
-    CHECK_EQ_INT(proto_encode_scan(&dump, "", line, sizeof(line)), 0);
-    CHECK_EQ_INT(proto_encode_scan(&dump, "s 1", line, sizeof(line)), 0);
-    CHECK_EQ_INT(proto_encode_scan(&dump, "s\"1", line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, "", false, line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, "s 1", false, line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, "s\"1", false, line, sizeof(line)), 0);
     CHECK_EQ_INT(
-        proto_encode_scan(&dump, "s-0123456789012345678901234567890", line, sizeof(line)), 0);
-    CHECK(proto_encode_scan(&dump, "s-012345678901234567890123456789", line, sizeof(line)) > 0);
-    CHECK(proto_encode_scan(&dump, "Az09_.:-", line, sizeof(line)) > 0);
+        proto_encode_scan(&dump, "s-0123456789012345678901234567890", false, line, sizeof(line)), 0);
+    CHECK(proto_encode_scan(&dump, "s-012345678901234567890123456789", false, line, sizeof(line)) > 0);
+    CHECK(proto_encode_scan(&dump, "Az09_.:-", false, line, sizeof(line)) > 0);
 
     dump.uid_len = 0;
-    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, false, line, sizeof(line)), 0);
     load_ntag(&dump);
     dump.page_count = TAG_DUMP_MAX_PAGES + 1;
-    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, false, line, sizeof(line)), 0);
     load_ntag(&dump);
     dump.type = (TagType)7;
-    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, line, sizeof(line)), 0);
+    CHECK_EQ_INT(proto_encode_scan(&dump, NTAG_SCAN_ID, false, line, sizeof(line)), 0);
 }
 
 static void test_hello_matches_fixture(void) {
@@ -202,6 +211,7 @@ int main(void) {
     RUN_TEST(test_blocks_and_missing_sectors);
     RUN_TEST(test_pages_fill_up_to_capacity);
     RUN_TEST(test_scan_mfc_matches_fixture);
+    RUN_TEST(test_scan_mfc_autosave_matches_fixture);
     RUN_TEST(test_scan_mfc_without_missing_sectors_omits_missing);
     RUN_TEST(test_scan_mfc_with_every_sector_missing);
     RUN_TEST(test_scan_mfc_real_dump);

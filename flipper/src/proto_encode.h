@@ -13,7 +13,7 @@
 #include "json_writer.h"
 #include "tag_dump.h"
 
-#define PROTO_VERSION 1
+#define PROTO_VERSION 2
 #define PROTO_LINE_MAX 8192 /* bytes per line including the '\n' */
 #define PROTO_ID_MAX 32
 #define PROTO_GRAMS_MAX 9999 /* grams in intent.grams and lookup.defaults */
@@ -25,7 +25,7 @@ bool proto_id_valid(const char* id);
  * bytes, so that no line exceeds PROTO_LINE_MAX - 1 bytes. */
 size_t proto_line_cap(size_t cap);
 
-/* Writes `"t":<type>,"v":1` into an open object. */
+/* Writes `"t":<type>,"v":<PROTO_VERSION>` into an open object. */
 bool proto_write_header(JsonWriter* w, const char* type);
 
 /* Writes the tag object (as a value) in the order of PROTOCOL.md; false when
@@ -34,4 +34,11 @@ bool proto_write_tag(JsonWriter* w, const TagDump* dump);
 
 size_t proto_encode_hello(const char* app, const char* fw, char* buf, size_t cap);
 
-size_t proto_encode_scan(const TagDump* dump, const char* scan_id, char* buf, size_t cap);
+/* `autosave` is the Flipper's Auto-save new setting: true lets the host
+ * create an unknown spool from the tag at once. */
+size_t proto_encode_scan(
+    const TagDump* dump,
+    const char* scan_id,
+    bool autosave,
+    char* buf,
+    size_t cap);

@@ -48,6 +48,9 @@ typedef enum {
     IntentActionNew,
     IntentActionCreateOnHost,
     IntentActionLinkOnHost,
+    IntentActionFull, /* Mark as new */
+    IntentActionEmpty, /* Mark as empty (and archive) */
+    IntentActionDelete,
 } IntentAction;
 
 typedef enum {
@@ -68,8 +71,9 @@ typedef struct {
  * PROTO_GRAMS_MAX, the mode is unknown or the scan id is invalid. */
 bool intent_new_weigh(Intent* out, IdSeq* ids, const Scan* scan, uint16_t grams, WeightMode mode);
 
-/* A `new`, `create_on_host` or `link_on_host` intent; false (no id consumed)
- * for IntentActionWeigh, an unknown action or an invalid scan id. */
+/* A `new`, `full`, `empty`, `delete`, `create_on_host` or `link_on_host`
+ * intent; false (no id consumed) for IntentActionWeigh, an unknown action
+ * or an invalid scan id. */
 bool intent_new_action(Intent* out, IdSeq* ids, const Scan* scan, IntentAction action);
 
 /* Encodes the intent as one compact JSON line without the '\n' (see

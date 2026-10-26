@@ -208,11 +208,11 @@ Feedback (respecting Feedback / Sound settings):
 - [x] run `make test-tools` — must pass before Task 2
 
 ### Task 2: Flipper protocol codecs for v2
-- [ ] `proto_encode.c`: `v:2`, `scan.autosave`, new intent actions
-- [ ] `proto_decode.c`: parse `lookup.spool`, `lookup.tag_info`, `lookup.created`, `result.spool` into fixed-size structs (ASCII-sanitised strings, bounded lengths)
-- [ ] `intents.c`: store the new actions, keep idempotent ids and retry semantics
-- [ ] write C tests against the regenerated fixtures (encode matches fixtures byte for byte modulo whitespace; decode of every fixture; malformed inputs dropped)
-- [ ] run `make test-flipper` — must pass before Task 3
+- [x] `proto_encode.c`: `v:2`, `scan.autosave`, new intent actions
+- [x] `proto_decode.c`: parse `lookup.spool`, `lookup.tag_info`, `lookup.created`, `result.spool` into fixed-size structs (ASCII-sanitised strings, bounded lengths)
+- [x] `intents.c`: store the new actions, keep idempotent ids and retry semantics
+- [x] write C tests against the regenerated fixtures (encode matches fixtures byte for byte modulo whitespace; decode of every fixture; malformed inputs dropped)
+- [x] run `make test-flipper` — must pass before Task 3
 
 ### Task 3: Flipper settings v2
 - [ ] extend `AppSettings` with `autosave` (default off), `feedback` (vibro+led / led / off), `sound` (off / on); bump `APP_SETTINGS_VERSION`; migrate a v1 file (keep the transport, defaults for the rest)
@@ -289,3 +289,10 @@ over USB and Bluetooth:
   pre-fill comes from `spool.remaining + spool.core` (net: `remaining`), with
   `defaults` as the fallback. The `scan` key order is `t, v, scan_id,
   autosave, tag`.
+- Task 2: the decoder is as strict as the schema about where the v2 fields
+  may appear: `spool` or `created` outside `found`, `tag_info` outside
+  `unknown`, `result.spool` with `ok: false`, or a `lookup.spool.id` other
+  than `spool_id` drop the line as malformed. Unknown keys inside `spool`
+  and `tag_info` are skipped, as everywhere else. `proto_encode_scan` takes
+  the autosave flag; the app passes `false` until Tasks 3 and 4 wire the
+  setting through the reducer.

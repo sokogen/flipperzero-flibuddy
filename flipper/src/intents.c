@@ -41,9 +41,17 @@ bool intent_new_weigh(Intent* out, IdSeq* ids, const Scan* scan, uint16_t grams,
 }
 
 bool intent_new_action(Intent* out, IdSeq* ids, const Scan* scan, IntentAction action) {
-    if(action != IntentActionNew && action != IntentActionCreateOnHost &&
-       action != IntentActionLinkOnHost)
+    switch(action) {
+    case IntentActionNew:
+    case IntentActionFull:
+    case IntentActionEmpty:
+    case IntentActionDelete:
+    case IntentActionCreateOnHost:
+    case IntentActionLinkOnHost:
+        break;
+    default:
         return false;
+    }
     return intent_fill(out, ids, scan, action);
 }
 
@@ -57,6 +65,12 @@ static const char* intent_action_name(IntentAction action) {
         return "create_on_host";
     case IntentActionLinkOnHost:
         return "link_on_host";
+    case IntentActionFull:
+        return "full";
+    case IntentActionEmpty:
+        return "empty";
+    case IntentActionDelete:
+        return "delete";
     }
     return NULL;
 }

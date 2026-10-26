@@ -79,6 +79,49 @@ static void test_other_actions_match_fixtures(void) {
     check_matches_fixture(&intent, "intent_link_on_host.json");
 }
 
+static void test_spool_actions_match_fixtures(void) {
+    IdSeq ids;
+    load_scans();
+    id_seq_init(&ids, 'i', 8);
+    CHECK(intent_new_action(&intent, &ids, &mfc_scan, IntentActionFull));
+    CHECK(intent.action == IntentActionFull);
+    check_matches_fixture(&intent, "intent_full.json");
+    CHECK(intent_new_action(&intent, &ids, &mfc_scan, IntentActionEmpty));
+    CHECK(intent.action == IntentActionEmpty);
+    check_matches_fixture(&intent, "intent_empty.json");
+    CHECK(intent_new_action(&intent, &ids, &mfc_scan, IntentActionDelete));
+    CHECK(intent.action == IntentActionDelete);
+    check_matches_fixture(&intent, "intent_delete.json");
+    /* only weigh carries grams and mode */
+    CHECK(strstr(line, "\"grams\"") == NULL);
+    CHECK(strstr(line, "\"mode\"") == NULL);
+}
+
+static void test_retry_resends_the_same_line(void) {
+    /* A retry re-encodes the intent in the store: same id, same bytes, so
+     * the host performs it at most once. */
+    static char first[PROTO_LINE_MAX];
+    static const IntentAction actions[] = {
+        IntentActionFull, IntentActionEmpty, IntentActionDelete, IntentActionNew};
+    IdSeq ids;
+    load_scans();
+    id_seq_init(&ids, 'i', 20);
+    single_slot_intent_store_init(&slot);
+    for(size_t a = 0; a < sizeof(actions) / sizeof(actions[0]); a++) {
+        CHECK(intent_new_action(&intent, &ids, &mfc_scan, actions[a]));
+        CHECK(intent_store_put(&slot.base, &intent));
+        const Intent* current = intent_store_current(&slot.base);
+        CHECK(current != NULL);
+        if(!current) continue;
+        size_t len = intent_encode(current, first, sizeof(first));
+        CHECK(len > 0);
+        CHECK_EQ_INT(intent_encode(current, line, sizeof(line)), len);
+        CHECK_STR_EQ(line, first);
+        CHECK_STR_EQ(current->id, intent.id);
+    }
+    CHECK_STR_EQ(intent.id, "i-000023");
+}
+
 static void test_net_mode_is_encoded(void) {
     IdSeq ids;
     load_scans();
@@ -107,7 +150,9 @@ static void test_rejects_invalid_input(void) {
     CHECK(!intent_new_weigh(&intent, &ids, &mfc_scan, PROTO_GRAMS_MAX + 1, WeightModeGross));
     CHECK(!intent_new_weigh(&intent, &ids, &mfc_scan, 10, (WeightMode)5));
     CHECK(!intent_new_action(&intent, &ids, &mfc_scan, IntentActionWeigh));
-    CHECK(!intent_new_action(&intent, &ids, &mfc_scan, (IntentAction)9));
+    CHECK(!intent_new_action(&intent, &ids, &mfc_scan, (IntentAction)99));
+    intent.action = (IntentAction)99;
+    CHECK_EQ_INT(intent_encode(&intent, line, sizeof(line)), 0);
     strcpy(mfc_scan.id, "bad id");
     CHECK(!intent_new_action(&intent, &ids, &mfc_scan, IntentActionNew));
     /* A rejected intent does not consume an id. */
@@ -206,6 +251,8 @@ int main(void) {
     RUN_TEST(test_id_seq_formats_zero_padded_counter);
     RUN_TEST(test_weigh_matches_fixture);
     RUN_TEST(test_other_actions_match_fixtures);
+    RUN_TEST(test_spool_actions_match_fixtures);
+    RUN_TEST(test_retry_resends_the_same_line);
     RUN_TEST(test_net_mode_is_encoded);
     RUN_TEST(test_ids_are_unique_per_call);
     RUN_TEST(test_rejects_invalid_input);

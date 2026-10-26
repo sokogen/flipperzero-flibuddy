@@ -111,6 +111,15 @@ size_t screen_intent_text(const Intent* intent, char* out, size_t cap) {
     case IntentActionLinkOnHost:
         put_str(&t, "Link on host");
         break;
+    case IntentActionFull:
+        put_str(&t, "Mark as new");
+        break;
+    case IntentActionEmpty:
+        put_str(&t, "Mark as empty");
+        break;
+    case IntentActionDelete:
+        put_str(&t, "Delete spool");
+        break;
     }
     return t.len;
 }

@@ -132,6 +132,15 @@ static void test_intent_texts(void) {
     CHECK(intent_new_action(&intent, &ids, &scan, IntentActionLinkOnHost));
     screen_intent_text(&intent, text, sizeof(text));
     CHECK_STR_EQ(text, "Link on host");
+    CHECK(intent_new_action(&intent, &ids, &scan, IntentActionFull));
+    screen_intent_text(&intent, text, sizeof(text));
+    CHECK_STR_EQ(text, "Mark as new");
+    CHECK(intent_new_action(&intent, &ids, &scan, IntentActionEmpty));
+    screen_intent_text(&intent, text, sizeof(text));
+    CHECK_STR_EQ(text, "Mark as empty");
+    CHECK(intent_new_action(&intent, &ids, &scan, IntentActionDelete));
+    screen_intent_text(&intent, text, sizeof(text));
+    CHECK_STR_EQ(text, "Delete spool");
 
     CHECK_EQ_INT(screen_intent_text(NULL, text, sizeof(text)), 0);
     CHECK_STR_EQ(text, "");

@@ -12,7 +12,7 @@
  * unknown tag with prefill, and no action at all without a host.
  *
  * On AppEffectSendScan the caller sends proto_encode_scan(&s->scan.tag,
- * s->scan.id); on AppEffectSendIntent it sends
+ * s->scan.id, autosave); on AppEffectSendIntent it sends
  * intent_encode(intent_store_current(s->intents)). The caller stamps every
  * event with its clock (now_ms) and sends AppEventTimeout once
  * app_result_timed_out() says the `result` is overdue. When the host cannot
