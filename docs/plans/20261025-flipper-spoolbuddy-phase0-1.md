@@ -278,11 +278,12 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ ⚠️ the macOS 27 SDK declares `@State` as a macro whose `SwiftUIMacros` plugin ships only with Xcode, so with the Command Line Tools `SpoolBuddyMac` uses `@ViewState` (a typealias of the `State` property wrapper struct); documented in `host/README.md`
 
 ### Task 17: CI workflows
-- [ ] `.github/workflows/flipper.yml` (paths `flipper/**`, `protocol/**`): ubuntu, `pip install ufbt`, `ufbt update --branch=1.5.1`, `cd flipper && ufbt`, `make -C flipper/tests test`, upload `dist/*.fap` artifact
-- [ ] `.github/workflows/host.yml` (paths `host/**`, `protocol/**`): macos-latest, `swift test`
-- [ ] `.github/workflows/tools.yml` (paths `tools/**`, `protocol/**`): ubuntu, `uv sync`, `uv run pytest`
-- [ ] add a `Makefile` at the repo root with `test` running all three suites locally
-- [ ] run `make test` - must pass before next task
+- [x] `.github/workflows/flipper.yml` (paths `flipper/**`, `protocol/**`): ubuntu, `pip install ufbt`, `ufbt update --branch=1.5.1`, `cd flipper && ufbt`, `make -C flipper/tests test`, upload `dist/*.fap` artifact
+- [x] `.github/workflows/host.yml` (paths `host/**`, `protocol/**`): macos-latest, `swift test`
+- [x] `.github/workflows/tools.yml` (paths `tools/**`, `protocol/**`): ubuntu, `uv sync`, `uv run pytest`
+- [x] add a `Makefile` at the repo root with `test` running all three suites locally
+- [x] run `make test` - must pass before next task
+- [x] ➕ `tools/tests/test_ci.py` (pyyaml dev dep) checks the workflow triggers, commands and the root `Makefile`; `tools.yml` also watches `flipper/tests/vectors/**`, which the tools tests compare against their generators; workflows pass `actionlint`, and the flipper job was reproduced in Linux containers (gcc C tests, `ufbt` 1.5.1 build). `host.yml` (macos-latest) is not run locally
 
 ### Task 18: Verify acceptance criteria
 - [ ] verify all requirements from Overview are implemented (scan → lookup → weigh/new/link from Flipper; feed with editable weights on the host; dedupe via tray UUID candidates then UID; Spoolman refused)

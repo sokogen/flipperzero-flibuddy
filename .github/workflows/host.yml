@@ -1,0 +1,27 @@
+name: host
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "host/**"
+      - "protocol/**"
+      - ".github/workflows/host.yml"
+  pull_request:
+    paths:
+      - "host/**"
+      - "protocol/**"
+      - ".github/workflows/host.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: host
+        run: swift build
+      - name: Swift tests
+        working-directory: host
+        run: swift test

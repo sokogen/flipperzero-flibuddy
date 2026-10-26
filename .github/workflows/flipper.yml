@@ -1,0 +1,40 @@
+name: flipper
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "flipper/**"
+      - "protocol/**"
+      - ".github/workflows/flipper.yml"
+  pull_request:
+    paths:
+      - "flipper/**"
+      - "protocol/**"
+      - ".github/workflows/flipper.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install ufbt
+        run: pip install ufbt
+      # flipper/.env keeps the SDK in flipper/.ufbt (dotenv mode).
+      - name: Fetch the 1.5.1 SDK
+        working-directory: flipper
+        run: ufbt update --branch=1.5.1
+      - name: Build the FAP
+        working-directory: flipper
+        run: ufbt
+      - name: C unit tests
+        run: make -C flipper/tests test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spoolbuddy-fap
+          path: flipper/dist/*.fap
+          if-no-files-found: error

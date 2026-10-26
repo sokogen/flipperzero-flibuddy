@@ -28,6 +28,7 @@ tools/                    Python dev bridge (Phase 0 spike, kept as a
 ## Tests
 
 ```
+make test                    # all three below; CI runs each per part
 make -C flipper/tests test   # C unit tests, host-compiled, no Flipper needed
 cd host && swift test        # Swift
 cd tools && uv run pytest    # Python
