@@ -18,6 +18,12 @@ def test_the_plist_describes_bluetooth_use():
     info = plistlib.loads(PLIST.read_bytes())
     assert info["NSBluetoothAlwaysUsageDescription"].strip()
 
+def test_the_plist_allows_plain_http_to_bambuddy():
+    # Bambuddy is self-hosted and usually served over plain HTTP.
+    info = plistlib.loads(PLIST.read_bytes())
+    assert info["NSAppTransportSecurity"] == {"NSAllowsArbitraryLoads": True}
+
+
 def test_the_plist_has_no_bundle_identifier():
     # A bundle identifier would move UserDefaults.standard from the
     # `SpoolBuddyMac` domain (the process name) and lose the saved settings.

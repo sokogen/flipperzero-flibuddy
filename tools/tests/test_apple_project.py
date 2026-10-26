@@ -6,6 +6,7 @@ watch apps for the simulators without signing. These tests guard the spec, the s
 files and the Makefile targets, which no other suite exercises.
 """
 
+import plistlib
 from pathlib import Path
 
 import yaml
@@ -81,6 +82,24 @@ def test_the_ios_target_has_the_usage_descriptions_and_bundle_id():
     assert settings["GENERATE_INFOPLIST_FILE"] is True
     assert settings["INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription"].strip()
     assert settings["INFOPLIST_KEY_NSCameraUsageDescription"].strip()
+
+
+def test_the_ios_app_asks_for_local_network_access():
+    # Bambuddy runs on the local network; iOS asks before the first request.
+    assert ios_settings()["INFOPLIST_KEY_NSLocalNetworkUsageDescription"].strip()
+
+
+def test_both_apps_allow_plain_http_to_bambuddy():
+    # Bambuddy is self-hosted and usually served over plain HTTP at a URL the
+    # user types in (an IP, a .local or a .lan name). App Transport Security
+    # blocks such loads unless the Info.plist allows them. Xcode merges this
+    # file with the INFOPLIST_KEY_* settings it generates.
+    for name, folder in (("SpoolBuddyiOS", "iOS"), ("SpoolBuddyWatch", "Watch")):
+        settings = spec()["targets"][name]["settings"]["base"]
+        assert settings["GENERATE_INFOPLIST_FILE"] is True
+        assert settings["INFOPLIST_FILE"] == f"{folder}/Info.plist"
+        info = plistlib.loads((APPLE / folder / "Info.plist").read_bytes())
+        assert info["NSAppTransportSecurity"] == {"NSAllowsArbitraryLoads": True}
 
 
 def test_the_app_sources_exist():
