@@ -161,11 +161,15 @@
       `HostModel`, whose settings load already logs
 
 ### Task 5: Verify acceptance criteria
-- [ ] every seam listed in Context emits its events (grep the sources for
+- [x] every seam listed in Context emits its events (grep the sources for
       `Log.` and compare with the lists in Tasks 2–3)
-- [ ] `git grep -n 'apiKey' host/Sources | grep -i log` shows no key reaching
+- [x] `git grep -n 'apiKey' host/Sources | grep -i log` shows no key reaching
       a log call; a test proves redaction of a `bb_` key
-- [ ] run the full test suite, lint and coverage
+- [x] run the full test suite, lint and coverage
+- [x] ➕ the grep's hits are false positives (the `Logging/` path, "catalog"
+      contains "log"); settings lines log `key=present|absent`; redaction is
+      proven by `LogTests` and by `BambuddyClientTests`, `SettingsTests` and
+      `WatchSettingsSyncTests` asserting the key never reaches a sink
 
 ### Task 6: Documentation
 - [ ] `host/README.md`: a "Debugging" section: the log file paths, the
