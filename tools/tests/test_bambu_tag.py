@@ -52,6 +52,35 @@ def test_parses_the_synthetic_bambu_fixture():
     assert parsed.tray_uuid_candidates == [dump["blocks"][9], dump["blocks"][4]]
 
 
+def test_parses_the_real_bambu_dump():
+    """The PLA Pure spool captured by the bridge in Phase 0 (sectors 3-15 missing)."""
+    dump = load(TAGS / "bambu_pla_pure_real.json")
+    assert dump["synthetic"] is False
+    assert dump["missing"] == list(range(3, 16))
+    parsed = bambu_tag.parse_tag(dump)
+
+    assert parsed.kind == "bambu"
+    assert parsed.uid == "7EF1AB04"
+    assert parsed.tray_uuid_candidates[0] == "F1C8FDF0BC1643C0B37189ADB0687992"
+    assert parsed.material == "PLA"
+    assert parsed.detailed_type == "PLA Pure"
+    assert parsed.variant_id == "A19-B00"
+    assert parsed.material_id == "GFA19"
+    assert parsed.rgba == "A4DBE8FF"
+    assert parsed.label_weight == 1000
+    assert parsed.diameter == pytest.approx(1.75)
+    assert parsed.drying_temp == 55
+    assert parsed.drying_hours == 8
+    assert parsed.nozzle_max == 230
+    assert parsed.nozzle_min == 190
+    assert parsed.has_prefill is True
+    assert parsed.display_lines() == ["PLA Pure", "#A4DBE8FF", "label 1000 g"]
+
+    # the Flipper's `scan` (trailers dropped) parses the same
+    scan = make_message_fixtures.mfc_tag(dump, dump["missing"])
+    assert bambu_tag.parse_tag(scan) == parsed
+
+
 def test_parses_the_scan_fixture_with_a_missing_sector():
     tag = load(MESSAGES / "scan_mfc.json")["tag"]
     parsed = bambu_tag.parse_tag(tag)

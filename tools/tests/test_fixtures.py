@@ -3,7 +3,9 @@
 Every file in protocol/fixtures/messages validates against the schema unless
 its name starts with `invalid_`, in which case it must fail. Every tag dump
 in protocol/fixtures/tags has a UID, a type, and 64 blocks or a page list.
-Generated fixtures must match what their generator produces today.
+Synthetic fixtures (`"synthetic": true`) must match what their generator
+produces today; real dumps captured by the bridge have no generator and are
+checked for shape only.
 """
 
 import json
@@ -39,6 +41,13 @@ def tag_files():
     return sorted(TAGS.glob("*.json"))
 
 
+def real_tag_files():
+    return [p for p in tag_files() if load(p)["synthetic"] is False]
+
+
+TAG_GENERATORS = [make_bambu_dump, make_ntag_dump]
+
+
 @pytest.fixture(scope="module")
 def validator():
     schema = load(SCHEMA_PATH)
@@ -51,7 +60,8 @@ def validator():
 
 def test_fixture_directories_are_populated():
     assert len(message_files()) >= 12
-    assert len(tag_files()) >= 2
+    assert len(tag_files()) >= 3
+    assert real_tag_files()
 
 
 def test_every_message_type_has_a_valid_example():
@@ -177,6 +187,46 @@ def test_tag_dump_shape(path):
         assert "blocks" not in tag
 
 
+@pytest.mark.parametrize("path", tag_files(), ids=lambda p: p.name)
+def test_tag_dump_is_synthetic_exactly_when_generated(path):
+    generated = {
+        PROTOCOL / relative for generator in TAG_GENERATORS for relative in generator.build()
+    }
+    assert load(path)["synthetic"] is (path in generated)
+
+
+@pytest.mark.parametrize("path", real_tag_files(), ids=lambda p: p.name)
+def test_real_mfc_dump_shape(path):
+    """A dump written by the bridge: block 0 agrees with UID, SAK and ATQA,
+    missing sectors are zero-filled, read sector trailers carry the Key A."""
+    tag = load(path)
+    assert tag["type"] == "mfc"
+    assert tag["description"].startswith("Captured by the bridge")
+    uid = bytes.fromhex(tag["uid"])
+    assert len(uid) == 4
+    blocks = [bytes.fromhex(b) for b in tag["blocks"]]
+    assert len(blocks) == 64
+
+    missing = tag.get("missing", [])
+    assert missing == sorted(set(missing))
+    assert all(0 <= s < 16 for s in missing)
+    assert len(missing) < 16, "an all-missing dump carries nothing to test against"
+    assert 0 not in missing
+
+    assert blocks[0][:4] == uid
+    assert blocks[0][4] == uid[0] ^ uid[1] ^ uid[2] ^ uid[3]
+    assert blocks[0][5] == tag["sak"] == 0x08
+    assert blocks[0][6:8].hex().upper() == tag["atqa"] == "0400"
+
+    keys = bambu_keys.derive_keys(uid)
+    for sector in range(16):
+        sector_blocks = blocks[sector * 4 : sector * 4 + 4]
+        if sector in missing:
+            assert sector_blocks == [bytes(16)] * 4, f"sector {sector}"
+        else:
+            assert sector_blocks[3][:6] == keys[sector], f"sector {sector}"
+
+
 def test_bambu_fixture_layout():
     tag = load(TAGS / "bambu_pla_basic_synthetic.json")
     assert tag["synthetic"] is True
@@ -241,7 +291,7 @@ def test_bambu_keys_shape():
 
 @pytest.mark.parametrize(
     "generator",
-    [make_bambu_dump, make_ntag_dump, make_message_fixtures],
+    [*TAG_GENERATORS, make_message_fixtures],
     ids=lambda g: g.__name__.rsplit(".", 1)[-1],
 )
 def test_generated_fixtures_are_current(generator):

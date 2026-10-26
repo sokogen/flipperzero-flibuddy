@@ -11,6 +11,7 @@ enum TagFixtures {
         var atqa: String
         var blocks: [String]?
         var pages: [String]?
+        var missing: [Int]?
     }
 
     private static func file(_ name: String) throws -> File {
@@ -30,7 +31,17 @@ enum TagFixtures {
     /// The synthetic Bambu fixture the way the Flipper sends it: trailers dropped,
     /// blocks of `missing` sectors absent.
     static func bambu(missing: [Int] = []) throws -> TagDump {
-        let fixture = try file("bambu_pla_basic_synthetic")
+        try mfc(try file("bambu_pla_basic_synthetic"), missing: missing)
+    }
+
+    /// The real Bambu dump (PLA Pure, captured by the bridge in Phase 0) the way
+    /// the Flipper sent it, with the sectors it was captured without.
+    static func bambuReal() throws -> TagDump {
+        let fixture = try file("bambu_pla_pure_real")
+        return try mfc(fixture, missing: fixture.missing ?? [])
+    }
+
+    private static func mfc(_ fixture: File, missing: [Int]) throws -> TagDump {
         var blocks: [Int: [UInt8]] = [:]
         for (number, hex) in fixture.blocks!.enumerated() where number % 4 != 3 && !missing.contains(number / 4) {
             blocks[number] = try bytes(hex)
@@ -80,6 +91,29 @@ enum TagFixtures {
         // Block 9 raw hex first, then blocks 4+5 the daemon's way ("PLA Basic" has
         // too few hex characters, so block 4 as raw hex).
         #expect(parsed.trayUuidCandidates == [try TagFixtures.bambuBlockHex(9), try TagFixtures.bambuBlockHex(4)])
+    }
+
+    @Test func parsesTheRealBambuDump() throws {
+        let dump = try TagFixtures.bambuReal()
+        #expect(dump.missing == Array(3...15))
+        let parsed = TagParser.parse(dump)
+
+        #expect(parsed.kind == .bambu)
+        #expect(parsed.uid == "7EF1AB04")
+        #expect(parsed.trayUuidCandidates.first == "F1C8FDF0BC1643C0B37189ADB0687992")
+        #expect(parsed.material == "PLA")
+        #expect(parsed.detailedType == "PLA Pure")
+        #expect(parsed.variantId == "A19-B00")
+        #expect(parsed.materialId == "GFA19")
+        #expect(parsed.rgba == "A4DBE8FF")
+        #expect(parsed.labelWeight == 1000)
+        #expect(parsed.diameter == 1.75)
+        #expect(parsed.dryingTemp == 55)
+        #expect(parsed.dryingHours == 8)
+        #expect(parsed.nozzleMax == 230)
+        #expect(parsed.nozzleMin == 190)
+        #expect(parsed.hasPrefill)
+        #expect(parsed.displayLines == ["PLA Pure", "#A4DBE8FF", "label 1000 g"])
     }
 
     @Test func parsedTagEqualsTheExpectedValue() throws {

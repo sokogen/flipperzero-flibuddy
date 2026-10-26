@@ -64,3 +64,15 @@ def test_ntag_vectors_match_the_ntag_fixture():
     assert c_array(content, "NTAG_ATQA") == [dump["atqa"]]
     assert f"#define NTAG_SAK {dump['sak']}\n" in content
     assert f'#define NTAG_SCAN_ID "{make_message_fixtures.NTAG_SCAN_ID}"' in content
+
+
+def test_real_vectors_match_the_real_fixture():
+    dump = json.loads((REPO / "protocol" / make_tag_vectors.REAL_DUMP).read_text())
+    assert dump["synthetic"] is False
+    content = header()
+    assert c_array(content, "REAL_BLOCKS") == dump["blocks"]
+    assert c_array(content, "REAL_UID") == [dump["uid"]]
+    assert c_array(content, "REAL_ATQA") == [dump["atqa"]]
+    assert f"#define REAL_SAK {dump['sak']}\n" in content
+    missing = ", ".join(str(s) for s in dump["missing"])
+    assert f"REAL_MISSING_SECTORS[{len(dump['missing'])}] = {{{missing}}};" in content

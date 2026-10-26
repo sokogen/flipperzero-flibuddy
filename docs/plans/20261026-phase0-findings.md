@@ -96,12 +96,18 @@ mentions tray UUID candidates.
 ## Implementation Steps
 
 ### Task 1: Wire the real tag dump into the fixture suites
-- [ ] in `tools/tests/test_fixtures.py`, make the "committed file equals generator output" check apply only to fixtures with `"synthetic": true`; real dumps (`"synthetic": false`) are checked for shape only (64 blocks, UID, SAK, ATQA, no `missing`)
-- [ ] extend `tools/fixtures/make_tag_vectors.py` so `flipper/tests/vectors/tag_dumps.h` also carries the real dump, regenerate the header, and keep `tools/tests/test_tag_vectors.py` failing when the header is stale
-- [ ] add a C test in `flipper/tests/test_nfc_classify.c` (and `test_tag_dump.c` where the loader is exercised) that classifies the real dump: Bambu, UID `7EF1AB04`, 16/16 sectors, tray line from block 9 starting `F1C8FDF0`
-- [ ] add Swift and Python parser tests over the real dump: UID `7EF1AB04`, tray UUID `F1C8FDF0BC1643C0B37189ADB0687992`, material `PLA`, detailed type `PLA Pure`, variant `A19-B00`, material id `GFA19`, RGBA `A4DBE8FF`, label 1000, nozzle 190–230, has prefill
-- [ ] describe the real fixture in `protocol/README.md` and the root `README.md` ("Fixtures"), keeping the synthetic one for the key vectors
-- [ ] run all three suites - must pass before task 2
+- [x] in `tools/tests/test_fixtures.py`, make the "committed file equals generator output" check apply only to fixtures with `"synthetic": true`; real dumps (`"synthetic": false`) are checked for shape only (64 blocks, UID, SAK, ATQA, no `missing`)
+- [x] extend `tools/fixtures/make_tag_vectors.py` so `flipper/tests/vectors/tag_dumps.h` also carries the real dump, regenerate the header, and keep `tools/tests/test_tag_vectors.py` failing when the header is stale
+- [x] add a C test in `flipper/tests/test_nfc_classify.c` (and `test_tag_dump.c` where the loader is exercised) that classifies the real dump: Bambu, UID `7EF1AB04`, 16/16 sectors, tray line from block 9 starting `F1C8FDF0`
+- [x] add Swift and Python parser tests over the real dump: UID `7EF1AB04`, tray UUID `F1C8FDF0BC1643C0B37189ADB0687992`, material `PLA`, detailed type `PLA Pure`, variant `A19-B00`, material id `GFA19`, RGBA `A4DBE8FF`, label 1000, nozzle 190–230, has prefill
+- [x] describe the real fixture in `protocol/README.md` and the root `README.md` ("Fixtures"), keeping the synthetic one for the key vectors
+- [x] run all three suites - must pass before task 2
+- ⚠️ the real dump was captured with sectors 3-15 missing (`"missing": [3..15]`),
+  not 16/16 as assumed above: the real-dump shape check allows `missing`
+  (sorted, sector 0 present, missing sectors zero-filled, read trailers carry
+  Key A) and the C classifier test expects "Sectors read 3/16". Blocks 1-10
+  are present, so every parser field above is covered. A full-sector real
+  dump can replace it after a re-capture.
 
 ### Task 2: Single tray UUID from block 9
 - [ ] Swift: replace `trayUuidCandidates: [String]` with `trayUuid: String?` in `ParsedTag`; `TagParser` reads block 9 only, `nil` when the block is missing or all zero; delete `daemonTrayUuid`; update `LookupBuilder`, `NewSpoolForm`, `IntentHandler`, `FeedItem` and any display text that listed candidates
@@ -185,7 +191,7 @@ Lookup order: `by_material["<detailed_type.lower()>|<hex6.lower()>"]`, then
 ### Real fixture
 `protocol/fixtures/tags/bambu_pla_pure_real.json`: UID `7EF1AB04`, SAK 8,
 ATQA 0400, 64 blocks, sector trailers rebuilt from the derived Key A by the
-bridge, `"synthetic": false`. Expected parse: PLA / "PLA Pure" / A19-B00 /
+bridge, `"synthetic": false`, sectors 3-15 missing (zero-filled). Expected parse: PLA / "PLA Pure" / A19-B00 /
 GFA19 / A4DBE8FF / 1000 g / 1.75 mm / 190–230 °C / drying 55 °C 8 h / tray
 UUID `F1C8FDF0BC1643C0B37189ADB0687992`.
 

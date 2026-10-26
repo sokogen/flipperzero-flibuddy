@@ -48,6 +48,22 @@ static void test_summary_bambu(void) {
         "Sectors read 15/16");
 }
 
+static void test_summary_bambu_real(void) {
+    /* the real PLA Pure dump: tray line from block 9, sectors 3-15 were not
+     * captured */
+    load_mfc_real(&mfc);
+    tag_summary_text(&mfc, text, sizeof(text));
+    CHECK_STR_EQ(
+        text,
+        "MIFARE Classic\n"
+        "UID 7EF1AB04\n"
+        "PLA\n"
+        "PLA Pure\n"
+        "Tray F1C8FDF0BC1643C0\n"
+        "     B37189ADB0687992\n"
+        "Sectors read 3/16");
+}
+
 static void test_summary_bambu_missing_blocks(void) {
     /* sectors 1 and 2 locked: no material, no detailed type, no block 9 */
     load_mfc(&mfc);
@@ -134,6 +150,7 @@ int main(void) {
     RUN_TEST(test_sak_ntag);
     RUN_TEST(test_sak_unsupported);
     RUN_TEST(test_summary_bambu);
+    RUN_TEST(test_summary_bambu_real);
     RUN_TEST(test_summary_bambu_missing_blocks);
     RUN_TEST(test_summary_mfc_nothing_read);
     RUN_TEST(test_summary_ascii_is_sanitized);

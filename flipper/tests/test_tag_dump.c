@@ -98,6 +98,28 @@ static void test_scan_mfc_with_every_sector_missing(void) {
     CHECK_EQ_INT(len, strlen(expected));
 }
 
+static void test_scan_mfc_real_dump(void) {
+    /* the real PLA Pure dump: data blocks of sectors 0-2 without trailers,
+     * block 9 raw, sectors 3-15 listed as missing */
+    static const char want[] =
+        "{\"t\":\"scan\",\"v\":1,\"scan_id\":\"s-000099\",\"tag\":{\"type\":\"mfc\","
+        "\"uid\":\"7EF1AB04\",\"sak\":8,\"atqa\":\"0400\",\"blocks\":{"
+        "\"0\":\"7EF1AB042008040005AAC8D5839ED190\","
+        "\"1\":\"4131392D423030004746413139000000\","
+        "\"2\":\"504C4100000000000000000000000000\","
+        "\"4\":\"504C4120507572650000000000000000\","
+        "\"5\":\"A4DBE8FFE80300000000E03F00000000\","
+        "\"6\":\"3700080000000000E600BE0000000000\","
+        "\"8\":\"00000000000000000000000000000000\","
+        "\"9\":\"F1C8FDF0BC1643C0B37189ADB0687992\","
+        "\"10\":\"010000009A0200000000000000000000\"},"
+        "\"missing\":[3,4,5,6,7,8,9,10,11,12,13,14,15]}}";
+    load_mfc_real(&dump);
+    size_t len = proto_encode_scan(&dump, "s-000099", line, sizeof(line));
+    CHECK_STR_EQ(line, want);
+    CHECK_EQ_INT(len, strlen(want));
+}
+
 static void test_scan_ntag_matches_fixture(void) {
     load_ntag(&dump);
     size_t len = proto_encode_scan(&dump, NTAG_SCAN_ID, line, sizeof(line));
@@ -182,6 +204,7 @@ int main(void) {
     RUN_TEST(test_scan_mfc_matches_fixture);
     RUN_TEST(test_scan_mfc_without_missing_sectors_omits_missing);
     RUN_TEST(test_scan_mfc_with_every_sector_missing);
+    RUN_TEST(test_scan_mfc_real_dump);
     RUN_TEST(test_scan_ntag_matches_fixture);
     RUN_TEST(test_largest_ntag_fits_in_a_line);
     RUN_TEST(test_scan_too_large_for_buffer_fails);
