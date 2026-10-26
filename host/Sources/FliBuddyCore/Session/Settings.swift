@@ -131,7 +131,11 @@ public struct SettingsStore: Sendable {
     public func load() -> Settings {
         var settings = Settings()
         settings.baseURL = defaults.string(forKey: Key.baseURL) ?? settings.baseURL
-        settings.apiKey = ((try? secrets.secret(for: Self.apiKeyAccount)) ?? nil) ?? ""
+        do {
+            settings.apiKey = try secrets.secret(for: Self.apiKeyAccount) ?? ""
+        } catch {
+            Log.error(.settings, "keychain read failed: \(SecretStoreError.logDescription(error))")
+        }
         settings.catalogEntryId = defaults.object(forKey: Key.catalogEntryId) as? Int
         settings.coreWeight = defaults.object(forKey: Key.coreWeight) as? Int ?? settings.coreWeight
         settings.defaultMode = defaults.string(forKey: Key.defaultMode)
@@ -141,13 +145,19 @@ public struct SettingsStore: Sendable {
         settings.port = defaults.string(forKey: Key.port)
         settings.peripheralId = defaults.string(forKey: Key.peripheralId).flatMap(UUID.init(uuidString:))
         settings.peripheralName = defaults.string(forKey: Key.peripheralName)
+        Log.info(.settings, "load: \(Self.summary(settings))")
         return settings
     }
 
     /// Saves everything; an empty API key removes the Keychain item.
     public func save(_ settings: Settings) throws {
         let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        try secrets.setSecret(key.isEmpty ? nil : key, for: Self.apiKeyAccount)
+        do {
+            try secrets.setSecret(key.isEmpty ? nil : key, for: Self.apiKeyAccount)
+        } catch {
+            Log.error(.settings, "keychain write failed: \(SecretStoreError.logDescription(error))")
+            throw error
+        }
         defaults.set(settings.baseURL, forKey: Key.baseURL)
         if let id = settings.catalogEntryId {
             defaults.set(id, forKey: Key.catalogEntryId)
@@ -160,6 +170,14 @@ public struct SettingsStore: Sendable {
         set(settings.port, Key.port)
         set(settings.peripheralId?.uuidString, Key.peripheralId)
         set(settings.peripheralName, Key.peripheralName)
+        Log.info(.settings, "save: \(Self.summary(settings))")
+    }
+
+    /// The settings for the log: whether there is an API key, never the key.
+    static func summary(_ settings: Settings) -> String {
+        let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "absent" : "present"
+        return "url=\(settings.baseURL) key=\(key) catalog=\(settings.catalogEntryId.map(String.init) ?? "none") "
+            + "core=\(settings.coreWeight) mode=\(settings.defaultMode.rawValue) transport=\(settings.transport.rawValue)"
     }
 
     /// Stores `value`, or removes the key for `nil`.
@@ -225,6 +243,14 @@ public protocol SecretStore: Sendable {
 public enum SecretStoreError: Error, Equatable, Sendable {
     /// A Security framework `OSStatus`.
     case status(Int32)
+
+    /// `status=-25300 (The specified item could not be found in the keychain.)`
+    /// for a Keychain error, the error's description otherwise.
+    static func logDescription(_ error: any Error) -> String {
+        guard case SecretStoreError.status(let status) = error else { return Session.describe(error) }
+        let message = SecCopyErrorMessageString(status, nil) as String? ?? "no description"
+        return "status=\(status) (\(message))"
+    }
 }
 
 /// Generic-password items in the login Keychain.

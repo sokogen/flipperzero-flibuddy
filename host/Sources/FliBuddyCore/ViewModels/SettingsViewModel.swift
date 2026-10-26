@@ -172,38 +172,53 @@ public final class SettingsViewModel {
     /// and keeps the catalog.
     public func testConnection() async {
         connection = .testing
+        Log.info(.settings, "test connection: url=\(baseURL)")
         let tested = endpointGeneration
         let inventory: any SpoolInventory
         do {
             inventory = try makeInventory(draft)
         } catch {
-            connection = .failed(Session.describe(error))
+            endTest(.failed(Session.describe(error)))
             return
         }
         let state: BambuddyState
         do {
             state = try await Session.state(spoolmanEnabled: inventory.spoolmanEnabled())
         } catch BambuddyError.network(let reason) {
-            if tested == endpointGeneration { connection = .unreachable(reason) }
+            if tested == endpointGeneration { endTest(.unreachable(reason)) } else { testDropped() }
             return
         } catch {
             state = Session.state(after: error)
         }
-        guard tested == endpointGeneration else { return }
+        guard tested == endpointGeneration else { return testDropped() }
         guard state.isReady else {
-            connection = .failed(state.message ?? "Bambuddy not ready")
+            endTest(.failed(state.message ?? "Bambuddy not ready"))
             return
         }
         do {
             try await fetchCatalog(from: inventory, editedSince: tested)
-            connection = .ready
+            endTest(.ready)
         } catch is CancellationError {
-            return
+            testDropped()
         } catch BambuddyError.network(let reason) {
-            connection = .unreachable(reason)
+            endTest(.unreachable(reason))
         } catch {
-            connection = .failed(Session.state(after: error).message ?? Session.describe(error))
+            endTest(.failed(Session.state(after: error).message ?? Session.describe(error)))
         }
+    }
+
+    private func endTest(_ result: Connection) {
+        connection = result
+        switch result {
+        case .testing: break
+        case .ready: Log.info(.settings, "test connection: ready")
+        case .unreachable(let reason): Log.error(.settings, "test connection: unreachable reason=\(reason)")
+        case .failed(let message): Log.error(.settings, "test connection: failed message=\(message)")
+        }
+    }
+
+    private func testDropped() {
+        Log.debug(.settings, "test connection: dropped, the URL or API key was edited")
     }
 
     private func endpointEdited() {
@@ -235,6 +250,7 @@ public final class SettingsViewModel {
         } catch {
             catalogLoads += 1
             catalogError = Session.describe(error)
+            Log.error(.settings, "catalog failed: error=\(Session.describe(error))")
             return
         }
         try? await fetchCatalog(from: inventory, editedSince: endpointGeneration)
@@ -254,6 +270,10 @@ public final class SettingsViewModel {
             loaded = .success(try await inventory.catalog())
         } catch {
             loaded = .failure(error)
+        }
+        switch loaded {
+        case .success(let entries): Log.info(.settings, "catalog: entries=\(entries.count)")
+        case .failure(let error): Log.error(.settings, "catalog failed: error=\(Session.describe(error))")
         }
         guard generation == endpointGeneration else { throw CancellationError() }
         let latest = load == catalogLoads

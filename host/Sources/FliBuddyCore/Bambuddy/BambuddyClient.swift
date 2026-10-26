@@ -158,21 +158,37 @@ public struct BambuddyClient: Sendable {
             request.httpBody = try encoder.encode(body)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
+        let clock = ContinuousClock()
+        let started = clock.now
+        let elapsed = { "in \(Int(((clock.now - started) / .milliseconds(1)).rounded())) ms" }
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
-        } catch let error as CancellationError {
-            throw error
-        } catch let error as URLError where error.code == .timedOut {
-            throw BambuddyError.network("no answer within \(Int(Self.timeout)) s")
+            guard response is HTTPURLResponse else { throw BambuddyError.network("not an HTTP response") }
         } catch {
-            throw BambuddyError.network(error.localizedDescription)
+            let failure: any Error = switch error {
+            case is CancellationError, is BambuddyError: error
+            case let error as URLError where error.code == .timedOut:
+                BambuddyError.network("no answer within \(Int(Self.timeout)) s")
+            default: BambuddyError.network(error.localizedDescription)
+            }
+            if case BambuddyError.network(let reason) = failure {
+                Log.error(.bambuddy, "\(method) \(path) failed \(elapsed()): \(reason)")
+            } else {
+                Log.debug(.bambuddy, "\(method) \(path) cancelled \(elapsed())")
+            }
+            throw failure
         }
-        guard let http = response as? HTTPURLResponse else {
-            throw BambuddyError.network("not an HTTP response")
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        // 404 answers a lookup or names a missing spool; the callers say which.
+        if status < 400 || status == 404 {
+            Log.info(.bambuddy, "\(method) \(path) -> \(status) \(elapsed())")
+        } else {
+            Log.error(.bambuddy, "\(method) \(path) -> \(status) \(elapsed()): \(Self.detail(data))")
         }
-        return (data, http.statusCode)
+        Log.debug(.bambuddy, "response: \(WireLog.excerpt(data, limit: Self.maxMessage))")
+        return (data, status)
     }
 
     private func url(_ path: String, query: [URLQueryItem]) -> URL {

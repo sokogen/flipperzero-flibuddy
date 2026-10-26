@@ -541,3 +541,73 @@ final class RefusingURLProtocol: URLProtocol, @unchecked Sendable {
     override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost)) }
     override func stopLoading() {}
 }
+
+@Suite("BambuddyClient: log")
+struct BambuddyClientLogTests {
+    /// The events with the elapsed time replaced by `N`.
+    private func timed(_ sink: MemorySink) -> [String] {
+        sink.events("bambuddy").map { $0.replacingOccurrences(of: #"in \d+ ms"#, with: "in N ms", options: .regularExpression) }
+    }
+
+    @Test func eachRequestIsLoggedWithItsStatusAndDuration() async throws {
+        let server = StubServer { request in
+            request.query["tray_uuid"] != nil ? .json(404, #"{"detail":"Spool not found"}"#) : .json(200, spoolJSON())
+        }
+        let client = try server.client()
+
+        let sink = try await capturingLog { _ = try await client.findSpool(trayUuid: trayA, uid: "04A1B2C3") }
+
+        #expect(timed(sink) == [
+            "bambuddy GET /inventory/spools/by-tag -> 404 in N ms",
+            "bambuddy GET /inventory/spools/by-tag -> 200 in N ms",
+        ])
+        #expect(sink.lines.map(\.level) == [.info, .info])
+    }
+
+    @Test func theResponseBodyGoesToDebugCutTo200Characters() async throws {
+        let server = StubServer { _ in .json(200, "[" + String(repeating: " ", count: 300) + "]") }
+        let client = try server.client()
+
+        let sink = try await capturingLog(level: .debug) { _ = try await client.listSpools() }
+
+        let bodies = sink.lines.filter { $0.message.hasPrefix("response:") }
+        #expect(bodies.map(\.message) == ["response: [" + String(repeating: " ", count: 199) + "… (+102 bytes)"])
+        #expect(bodies.map(\.level) == [.debug])
+    }
+
+    @Test func aFailedStatusIsAnErrorWithTheBambuddyMessage() async throws {
+        let server = StubServer { _ in .json(500, #"{"detail":"boom"}"#) }
+        let client = try server.client()
+
+        let sink = await capturingLog { _ = try? await client.listSpools() }
+
+        #expect(timed(sink) == ["bambuddy GET /inventory/spools -> 500 in N ms: boom"])
+        #expect(sink.lines.map(\.level) == [.error])
+    }
+
+    @Test func aNetworkFailureIsAnError() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FailingURLProtocol.self]
+        let client = try BambuddyClient(
+            baseURL: URL(string: "http://unreachable.test:8000")!, apiKey: "bb_test",
+            session: URLSession(configuration: configuration)
+        )
+
+        let sink = await capturingLog { _ = try? await client.spoolmanEnabled() }
+
+        #expect(timed(sink) == ["bambuddy GET /settings/spoolman failed in N ms: no answer within 5 s"])
+        #expect(sink.lines.map(\.level) == [.error])
+    }
+
+    @Test func theAPIKeyNeverReachesTheLog() async throws {
+        let key = "secret-key-123"
+        let server = StubServer { _ in .json(200, #"{"spoolman_enabled":"false"}"#) }
+        let client = try server.client(apiKey: key)
+
+        let sink = try await capturingLog(level: .debug) { _ = try await client.spoolmanEnabled() }
+
+        #expect(server.requests.first?.headers["X-API-Key"] == key)
+        #expect(!sink.lines.isEmpty)
+        #expect(!sink.lines.contains { $0.message.contains(key) || $0.message.contains("«redacted»") })
+    }
+}

@@ -857,3 +857,83 @@ struct SettingsViewModelTests {
         #expect(!makeModel().canForget)
     }
 }
+
+@MainActor
+@Suite("SettingsViewModel: log")
+struct SettingsViewModelLogTests {
+    @Test func aGoodTestIsLoggedFromStartToResultWithoutTheKey() async {
+        var settings = testSettings
+        settings.apiKey = "secret-key-123"
+        let model = makeModel(settings: settings)
+
+        let sink = await capturingLog { await model.testConnection() }
+
+        #expect(sink.events == [
+            "settings test connection: url=http://bambuddy.test:8000",
+            "settings catalog: entries=1",
+            "settings test connection: ready",
+        ])
+        #expect(!sink.lines.contains { $0.message.contains("secret-key-123") })
+    }
+
+    @Test func anUnreachableBambuddyIsLoggedAsAnError() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .network("no answer within 5 s")
+        let model = makeModel(inventory)
+
+        let sink = await capturingLog { await model.testConnection() }
+
+        let results = sink.lines.filter { $0.message.hasPrefix("test connection: unreachable") }
+        #expect(results.map(\.message) == ["test connection: unreachable reason=no answer within 5 s"])
+        #expect(results.map(\.level) == [.error])
+    }
+
+    @Test func aRefusingBambuddyOrMissingClientIsLoggedAsFailed() async {
+        let inventory = FakeInventory()
+        inventory.spoolman = true
+        let refusing = makeModel(inventory)
+        let clientless = makeModel(nil)
+
+        let sink = await capturingLog {
+            await refusing.testConnection()
+            await clientless.testConnection()
+        }
+
+        #expect(sink.events("settings test connection: failed") == [
+            "settings test connection: failed message=Bambuddy is in Spoolman mode; FliBuddy supports internal inventory only",
+            "settings test connection: failed message=no client",
+        ])
+    }
+
+    @Test func aTestOfEditedSettingsIsDroppedAtDebug() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onSpoolman = { @MainActor in model.baseURL = "http://10.0.0.5:8000" }
+
+        let sink = await capturingLog(level: .debug) { await model.testConnection() }
+
+        #expect(sink.events("settings test connection") == [
+            "settings test connection: url=http://bambuddy.test:8000",
+            "settings test connection: dropped, the URL or API key was edited",
+        ])
+    }
+
+    @Test func catalogLoadsAreLoggedWithTheirOutcome() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+
+        let sink = await capturingLog {
+            await model.loadCatalog()
+            inventory.catalogError = .http(status: 500, message: "boom")
+            await model.loadCatalog()
+            await makeModel(nil).loadCatalog()
+        }
+
+        #expect(sink.events == [
+            "settings catalog: entries=1",
+            "settings catalog failed: error=Bambuddy HTTP 500: boom",
+            "settings catalog failed: error=no client",
+        ])
+        #expect(sink.lines.map(\.level) == [.info, .error, .error])
+    }
+}

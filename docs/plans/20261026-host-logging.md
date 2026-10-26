@@ -116,25 +116,32 @@
 - [x] run tests - must pass before task 3
 
 ### Task 3: Session, Bambuddy and settings events
-- [ ] tests first (`SessionTests`, `BambuddyClientTests`, `SettingsTests`,
+- [x] tests first (`SessionTests`, `BambuddyClientTests`, `SettingsTests`,
       `SettingsViewModelTests`, `WatchSettingsSyncTests`)
-- [ ] `Session`: `session bambuddy: <state>` on every change with the
+- [x] `Session`: `session bambuddy: <state>` on every change with the
       message; `session scan: id=… uid=… tray=… kind=mfc|ntag material=…`;
       `session lookup: id=… status=found spool=… | not_found | created
       spool=… | error=…` with the elapsed ms; `session intent: id=… action=…
       spool=… grams=… mode=…` and `session result: id=… ok|error=…`;
       create on scan, link, delete and their failures
-- [ ] `BambuddyClient.send`: `bambuddy GET /inventory/spools/by-tag -> 200
+- [x] `BambuddyClient.send`: `bambuddy GET /inventory/spools/by-tag -> 200
       in 43 ms` at `.info`, the response body's first 200 characters at
       `.debug`, errors at `.error` with the Bambuddy message; the
       `X-API-Key` value never appears (assert in a test)
-- [ ] `SettingsStore`: `settings load: url=… key=present|absent catalog=…
+- [x] `SettingsStore`: `settings load: url=… key=present|absent catalog=…
       core=… mode=… transport=…`, `settings save: …`, Keychain failures
       with the `OSStatus` and `SecCopyErrorMessageString`
-- [ ] `SettingsViewModel`: test connection start/result, catalog load
+- [x] `SettingsViewModel`: test connection start/result, catalog load
       result; `WatchSettingsSync`: payload sent/received (version only, no
       key)
-- [ ] run tests - must pass before task 4
+- [x] ➕ the lookup line reads `lookup: id=… status=found|created spool=… ms=…`,
+      `status=not_found ms=…` or `status=error ms=… error=…`, timed with the
+      session's clock; host creates (`create` / `create failed`) and a failed
+      colour map load are logged too. `BambuddyClient` logs 2xx and 404 (a
+      lookup miss the callers interpret) at `.info`, other statuses at
+      `.error` with Bambuddy's `detail`, network failures at `.error`. The
+      watch sync logs held sends at `.debug`
+- [x] run tests - must pass before task 4
 
 ### Task 4: Apps: start-up line, level, Show Log File
 - [ ] `FliBuddyMac/App.swift`, `iOS/App.swift`, `Watch/App.swift`: on launch

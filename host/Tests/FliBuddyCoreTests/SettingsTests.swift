@@ -268,3 +268,56 @@ struct FailingSecretStore: SecretStore {
     func secret(for account: String) throws -> String? { throw SecretStoreError.status(-25300) }
     func setSecret(_ value: String?, for account: String) throws { throw SecretStoreError.status(-25300) }
 }
+
+@Suite("SettingsStore: log")
+struct SettingsStoreLogTests {
+    private var secretSettings: Settings {
+        var settings = testSettings
+        settings.apiKey = "secret-key-123"
+        settings.transport = .bluetooth
+        return settings
+    }
+
+    @Test func aSaveAndALoadAreLoggedWithoutTheKey() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+
+        let sink = try await capturingLog {
+            try store.save(secretSettings)
+            _ = store.load()
+        }
+
+        #expect(sink.events == [
+            "settings save: url=http://bambuddy.test:8000 key=present catalog=3 core=250 mode=gross transport=bluetooth",
+            "settings load: url=http://bambuddy.test:8000 key=present catalog=3 core=250 mode=gross transport=bluetooth",
+        ])
+        #expect(!sink.lines.contains { $0.message.contains("secret-key-123") })
+    }
+
+    @Test func nothingSavedLoadsAsDefaults() async {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+
+        let sink = await capturingLog { _ = store.load() }
+
+        let transport = TransportKind.platformDefault.rawValue
+        #expect(sink.events == ["settings load: url= key=absent catalog=none core=325 mode=gross transport=\(transport)"])
+    }
+
+    @Test func keychainFailuresAreLoggedWithTheStatus() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: FailingSecretStore())
+
+        let sink = await capturingLog {
+            _ = store.load()
+            _ = try? store.save(secretSettings)
+        }
+
+        let failures = sink.lines.filter { $0.message.hasPrefix("keychain") }
+        #expect(failures.map(\.level) == [.error, .error])
+        #expect(failures.map { $0.message.prefix(while: { $0 != "(" }) } == [
+            "keychain read failed: status=-25300 ", "keychain write failed: status=-25300 ",
+        ])
+        // The Security framework's own words follow the status.
+        #expect(failures.allSatisfy { $0.message.hasSuffix(")") && $0.message.count > "keychain write failed: status=-25300 ()".count })
+        #expect(sink.events("settings save").isEmpty)
+        #expect(sink.events("settings load").first?.contains("key=absent") == true)
+    }
+}
