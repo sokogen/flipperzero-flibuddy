@@ -375,10 +375,47 @@ paid Apple Developer account once the app is ready, and TestFlight takes
 over then. Minimum OS versions: the current major release minus one, set
 by the builder at project creation.
 
-Settings on iPad and iPhone also take the Bambuddy API key from the QR
-code Bambuddy shows when a key is created (camera scan), with typing as
-the fallback. The builder checks what the QR encodes (the bare key or a
-URL carrying it) before designing the parser.
+Facts verified on 2026-10-26 against firmware 1.5.1 and the deployed
+Bambuddy; they bind Phase 2:
+
+- **Flipper BLE serial.** `bt_profile_start(bt, ble_profile_serial, NULL)`
+  switches the radio to the serial profile (restarts the second core; the
+  official mobile app cannot connect meanwhile), `bt_profile_restore_default`
+  on exit. Data arrives through `ble_profile_serial_set_event_callback`
+  (events `DataReceived`, `DataSent`, `BleResetRequest`), leaves through
+  `ble_profile_serial_tx` in packets of at most
+  `BLE_PROFILE_SERIAL_PACKET_SIZE_MAX` (486) bytes, one in flight until
+  `DataSent`. The service credits the central with a receive buffer: the
+  FAP names the size when it sets the callback and must call
+  `ble_profile_serial_notify_buffer_is_empty` once it has consumed what it
+  received; the central gets fresh credit only when the counter reaches
+  zero. `bt_set_status_changed_callback` reports `Advertising` /
+  `Connected`; pairing (passkey shown on the Flipper, typed on the phone)
+  is handled by the Bt service, not by the FAP.
+- **GATT.** Service `8FE5B3D5-2E7F-4A98-2A48-7ACC60FE0000`; characteristics
+  TX (notify, Flipper → host) `19ED82AE-ED21-4C9D-4145-228E61FE0000`, RX
+  (write, host → Flipper) `…62FE0000`, flow control (read/notify, uint32
+  big‑endian credit) `…63FE0000`, RPC status `…64FE0000` (left at 0). A
+  single write is at most 243 bytes; the host chunks lines to the
+  negotiated MTU and never exceeds the credit.
+- **Transport is a setting on both sides.** Flipper: USB or Bluetooth,
+  chosen from the Idle screen and persisted under
+  `/ext/apps_data/spoolbuddy/`; the app starts the chosen backend only.
+  Host: USB (macOS only) or Bluetooth (macOS and iOS), plus the remembered
+  peripheral; CoreBluetooth is available on macOS, so the Mac gains BLE
+  for free.
+- **One SwiftUI code base.** Views move from the macOS executable into a
+  platform‑neutral `SpoolBuddyUI` target used by the macOS app and the
+  iOS app; macOS‑only pieces (serial port picker, keyboard shortcuts) are
+  conditional.
+- **iOS project.** No hand‑maintained `.xcodeproj`: an XcodeGen
+  `project.yml` is committed, the project is generated locally and in CI
+  (`brew install xcodegen`). Signing comes from an untracked xcconfig with
+  the owner's team id; CI builds for the simulator with signing disabled.
+- **API key by QR.** Bambuddy's QR encodes
+  `bambuddy://config?v=1&url=<base URL>&key=<API key>` (percent‑encoded).
+  iOS Settings scan it with the camera and fill both fields; typing stays
+  as the fallback. Unknown versions or schemes are rejected with a message.
 
 ### Later (not designed here)
 
