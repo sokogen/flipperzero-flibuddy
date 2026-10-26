@@ -40,8 +40,8 @@ DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run SpoolBuddyMac
 `swift run` starts a plain executable, not an `.app` bundle; the app makes
 itself a regular app (Dock icon, menu bar) at launch. Settings (⌘,) hold the
 Bambuddy URL and API key (stored in the login Keychain, service
-`SpoolBuddy`), the empty-spool catalog entry and the core weight used for
-new items, the default weight mode and the Flipper port ("Automatic" opens
+`SpoolBuddy`), the empty-spool catalog entry and the editable core weight
+used for new items, the default weight mode and the Flipper port ("Automatic" opens
 the first `/dev/cu.usbmodemflip_*`). Use **Test connection** after entering
 the key; it also loads the catalog.
 
@@ -53,6 +53,14 @@ Choosing a catalog entry copies its weight once; the number stays editable
 `core_weight_catalog_id`. AMS-added spools get their core weight from the
 first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 325 g as
 well to keep both kinds of spool consistent.
+
+After the startup check the session loads Bambuddy's colour map
+(`GET /inventory/colors/map`, inventory read) once and keeps it; a settings
+change reloads it. New items get `color_name` from it: the detailed type
+and RGB first (`by_material`, e.g. `pla basic|ff9016`), then the RGB alone
+(`colors`); with no match `color_name` is left out rather than set to the
+hex. A failed load shows in the status bar, leaves names empty and never
+blocks a scan; the next startup check retries it.
 
 The window shows the session feed, newest scan first. Known spools get a
 weight field with a net/gross toggle and **Save**; unknown tags get **New…**

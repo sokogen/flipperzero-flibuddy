@@ -176,11 +176,14 @@ mentions tray UUID candidates.
   describes the rule.
 
 ### Task 7: Record the Phase 0 results in the documentation
-- [ ] root `README.md`: turn the "Phase 0 checklist" into "Phase 0 results (2026-10-26)" with what was verified (handshake, scans with and without host, both tags of a spool, reading through the box, weigh/new end to end, block 9, AMS tag UID form, core weight 325) and what was not (NTAG scan, link of a hand-added spool, Back during "Reading tag"); keep the unverified items as a short remaining-checks list
-- [ ] `flipper/README.md`: note that Back on the Idle screen leaves the app and hands USB back to the CLI, and that a tag moved away early yields an all-missing dump
-- [ ] `host/README.md`: settings section updated for the editable core weight and the colour map
-- [ ] `tools/README.md`: `--core-weight` default 325 and the real fixture capture note
-- [ ] run all three suites - must pass before task 8
+- [x] root `README.md`: turn the "Phase 0 checklist" into "Phase 0 results (2026-10-26)" with what was verified (handshake, scans with and without host, both tags of a spool, reading through the box, weigh/new end to end, block 9, AMS tag UID form, core weight 325) and what was not (NTAG scan, link of a hand-added spool, Back during "Reading tag"); keep the unverified items as a short remaining-checks list
+- [x] `flipper/README.md`: note that Back on the Idle screen leaves the app and hands USB back to the CLI, and that a tag moved away early yields an all-missing dump
+- [x] `host/README.md`: settings section updated for the editable core weight and the colour map
+- [x] `tools/README.md`: `--core-weight` default 325 and the real fixture capture note
+- [x] run all three suites - must pass before task 8
+- ➕ the host shows an all-missing dump as an unknown tag with only the UID
+  (no tray UUID, no prefill), not with an "unreadable" text; the READMEs say
+  so. The remaining Phase 0 checks stay as unticked items in the root README.
 
 ### Task 8: Verify acceptance criteria
 - [ ] verify every bullet of the Overview is implemented

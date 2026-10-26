@@ -147,46 +147,35 @@ make lint                    # C with -Werror, Swift with -warnings-as-errors, r
 make coverage                # line coverage of SpoolBuddyCore and tools, >= 80 %
 ```
 
-## Phase 0 checklist
+## Phase 0 results (2026-10-26)
 
-Manual checks with the Flipper, real spools and the NAS. They mirror
-Post-Completion in `docs/plans/20261025-flipper-spoolbuddy-phase0-1.md`.
+Checked with the owner's Flipper (firmware 1.5.1), real Bambu spools and
+the Bambuddy on the NAS; the details are in "Phase 0 findings (2026-10-26)"
+of the design doc. Verified:
 
-- [ ] Install ufbt, run `cd flipper && ufbt launch` with the Flipper on
-      USB; confirm firmware 1.5.1 on the device.
-- [ ] USB link: with the app open the Mac sees a new
-      `/dev/cu.usbmodemflip_*`; opening it (e.g.
-      `python -m serial.tools.miniterm`) yields the Flipper `hello`; typing a
-      host `hello` line within 2 s turns the Idle status line to `USB`;
-      closing it shows `no host`; the CLI and qFlipper work again after
-      leaving the app.
-- [ ] With the bridge or the Mac host connected: scan a known spool →
-      Actions → Enter weight sends a `weigh` intent and shows the host's
-      result; toggle Mode: net and check the pre-fill drops by the core
-      weight; an unknown tag offers New / Link on host (or Create on host /
-      Link on host without prefill); stop the host while "Saving" and check
-      the error after 10 s.
-- [ ] Without a host: scan a Bambu spool and an NTAG; the Flipper shows the
-      UID, the type and for the Bambu tag the material, detailed type, tray
-      hex and "Sectors read 16/16"; Back while "Reading tag" returns to Idle
-      and scanning resumes.
-- [ ] Create a Bambuddy API key with inventory read + update and settings
-      read; put the URL (`http://<BAMBUDDY_LAN_IP>:8000`) and key into the
-      Mac host settings or the bridge flags.
-- [ ] Scan a sealed Bambu spool: all 16 sectors read (no `missing`); save
-      the dump with `--dump-dir protocol/fixtures/tags/` and replace the
-      synthetic fixture with the real one.
-- [ ] Compare the tray UUID candidates with the `tray_uuid` Bambuddy already
-      holds for a spool an AMS has reported (`GET /inventory/spools`):
-      record which block wins, drop the losing candidate from both parsers,
-      and file an upstream issue on maziggy/bambuddy if the daemon's blocks
-      4+5 reading is wrong.
-- [ ] Scan a sealed refill through its box; note where the Flipper must be
-      held and whether it reads at all.
-- [ ] Weigh one open spool from the Flipper and one from the host; check
-      `last_scale_weight`, `weight_used` and `last_weighed_at` in Bambuddy.
-- [ ] Create one new item from the Flipper; confirm it has the right label
-      weight, core weight and tag, and that a second scan of the same spool
-      (other tag) matches it via the tray UUID.
-- [ ] Link one hand-added spool via the host picker; confirm a repeat scan
+- Handshake: with the app open the Mac sees `/dev/cu.usbmodemflip_*`, the
+  Flipper sends `hello`, a host `hello` turns the Idle status to `USB`;
+  Back on the Idle screen leaves the app and the CLI gets the port back.
+- Scans with and without a host: with a host the dump goes out as `scan`
+  and the `lookup` lines show; without one the Flipper shows the UID, the
+  type, the material, the detailed type and the block 9 hex.
+- Both tags of a spool resolve to the same tray UUID, and a sealed refill
+  reads through its box. A tag moved away early yields a dump with all
+  sectors missing, which leaves the host only the UID.
+- Weigh and New end to end, from the Flipper and from the host: Bambuddy
+  records `last_scale_weight` and `weight_used`; a new item gets the label
+  weight, core weight and tag, and a scan of the other tag matches it.
+- The tray UUID is block 9: it matched the `tray_uuid` an AMS reported for
+  a known spool byte for byte. Blocks 4+5 hold the detailed type.
+- Bambuddy stores AMS tag UIDs as the MIFARE UID followed by `00000100`;
+  the host and the bridge send Bambu UIDs in that form.
+- Core weight 325 g: a Bambu reusable spool (293 g) plus a refill core
+  (32 g), for sealed spools and mounted refills alike.
+
+Remaining checks:
+
+- [ ] Scan an NTAG with and without a host.
+- [ ] Link a hand-added spool via the host picker; confirm a repeat scan
       matches.
+- [ ] Press Back while "Reading tag"; the app returns to Idle and scanning
+      resumes.

@@ -22,8 +22,8 @@ writes the tag dump fixtures as C arrays to `flipper/tests/vectors/tag_dumps.h`
 for the C `scan` encoder test; `tests/test_tag_vectors.py` fails when it is
 stale.
 
-`tests/test_fixtures.py` fails when a committed fixture differs from what
-its generator produces.
+`tests/test_fixtures.py` fails when a committed synthetic fixture differs
+from what its generator produces.
 
 ## Dev bridge
 
@@ -42,12 +42,16 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
 - It answers `hello`, prints each parsed tag and the `lookup` it sends, and
   performs `weigh` / `new` intents (`--core-weight`, default 325 g = Bambu
   reusable spool 293 g + refill core 32 g, and `--catalog-id` set the core
-  weight and `core_weight_catalog_id` of new items); `create_on_host` / `link_on_host` are only
-  logged. A repeated intent id gets the stored `result`; failed calls are
+  weight and `core_weight_catalog_id` of new items); `create_on_host` /
+  `link_on_host` are only logged. A repeated intent id gets the stored `result`; failed calls are
   not stored, so a retry runs again.
 - `--dump-dir` saves every scan in the `protocol/fixtures/tags` format.
   MIFARE Classic sector trailers are rebuilt from the derived Key A (the
-  Flipper does not send them).
+  Flipper does not send them). `protocol/fixtures/tags/bambu_pla_pure_real.json`
+  was captured this way in Phase 0 (spool "PLA Pure", UID `7EF1AB04`);
+  sectors 3-15 did not read and are zero-filled and listed in `missing`.
+  Real dumps are marked `"synthetic": false`, have no generator and are
+  checked for shape only by `tests/test_fixtures.py`.
 
 Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one; the
 tray UUID is block 9, which matched the AMS-reported `tray_uuid` in Phase 0;

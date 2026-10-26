@@ -17,14 +17,18 @@ ufbt launch                  # builds, installs and starts it on a Flipper
 stay out of the FAP.
 
 The app takes the USB CDC port from the CLI while it runs (qFlipper and the
-CLI are unavailable until it exits) and gives it back on exit. A host that
+CLI are unavailable until it exits) and gives it back on exit: Back on the
+Idle screen leaves the app and hands the port back to the CLI. A host that
 opens the port gets a `hello`; a host `hello` within 2 s marks it connected
 (`src/host_link.h`).
 
 On the Idle screen the app keeps the NFC scanning for an ISO 14443-3A tag
 and reads it (`src/nfc_read.h`): a MIFARE Classic (SAK 0x08/0x18) with the
 Bambu Key A derived from its UID, sectors that do not open stay missing; an
-NTAG (SAK 0x00) page by page. With a host the dump goes out as `scan`;
+NTAG (SAK 0x00) page by page. A tag moved away before the read finishes
+yields a dump with every sector missing ("Sectors read 0/16"); the host
+then has only the UID to go on, with no tray UUID and no prefill, so hold
+the tag still and scan again. With a host the dump goes out as `scan`;
 without one the Flipper shows the UID, the type and, for a Bambu tag, the
 ASCII of blocks 2 and 4 and the block 9 hex, the tray UUID; in Phase 0 it
 matched the `tray_uuid` an AMS reported (`src/nfc_classify.h`). Every
