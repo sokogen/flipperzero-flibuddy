@@ -233,7 +233,7 @@ static void test_lines_go_out_through_the_line_sender(void) {
     setup();
     LineSender ls;
     line_sender_init(&ls, ble_lines_chunk(&bl), ble_lines_send, &bl);
-    const char* line = "{\"type\":\"hello\",\"app\":\"spoolbuddy-fap/0.1.0\"}";
+    const char* line = "{\"type\":\"hello\",\"app\":\"flibuddy-fap/0.1.0\"}";
     CHECK_EQ_INT(line_sender_send(&ls, line, strlen(line)), TransportSent);
     CHECK_EQ_INT(wire_len, strlen(line) + 1);
     CHECK_MEM_EQ(wire, line, strlen(line));

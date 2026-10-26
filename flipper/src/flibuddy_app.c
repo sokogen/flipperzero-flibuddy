@@ -4,7 +4,7 @@
 
 #include "app_settings_file.h"
 #include "scenes.h"
-#include "spoolbuddy_app.h"
+#include "flibuddy_app.h"
 #include "transport_ble.h"
 #include "transport_none.h"
 #include "transport_usb.h"
@@ -12,20 +12,20 @@
 #define TICK_PERIOD_MS 250
 #define RX_QUEUE_LEN 4
 
-#define SPOOLBUDDY_SCENE_ON_ENTER(name, Name) spoolbuddy_scene_##name##_on_enter,
-#define SPOOLBUDDY_SCENE_ON_EVENT(name, Name) spoolbuddy_scene_##name##_on_event,
-#define SPOOLBUDDY_SCENE_ON_EXIT(name, Name) spoolbuddy_scene_##name##_on_exit,
+#define FLIBUDDY_SCENE_ON_ENTER(name, Name) flibuddy_scene_##name##_on_enter,
+#define FLIBUDDY_SCENE_ON_EVENT(name, Name) flibuddy_scene_##name##_on_event,
+#define FLIBUDDY_SCENE_ON_EXIT(name, Name) flibuddy_scene_##name##_on_exit,
 
-static void (*const scene_on_enter[])(void*) = {SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_ON_ENTER)};
+static void (*const scene_on_enter[])(void*) = {FLIBUDDY_SCENES(FLIBUDDY_SCENE_ON_ENTER)};
 static bool (*const scene_on_event[])(void*, SceneManagerEvent) = {
-    SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_ON_EVENT)};
-static void (*const scene_on_exit[])(void*) = {SPOOLBUDDY_SCENES(SPOOLBUDDY_SCENE_ON_EXIT)};
+    FLIBUDDY_SCENES(FLIBUDDY_SCENE_ON_EVENT)};
+static void (*const scene_on_exit[])(void*) = {FLIBUDDY_SCENES(FLIBUDDY_SCENE_ON_EXIT)};
 
-const SceneManagerHandlers spoolbuddy_scene_handlers = {
+const SceneManagerHandlers flibuddy_scene_handlers = {
     .on_enter_handlers = scene_on_enter,
     .on_event_handlers = scene_on_event,
     .on_exit_handlers = scene_on_exit,
-    .scene_num = SpoolBuddySceneCount,
+    .scene_num = FliBuddySceneCount,
 };
 
 /* 1 tick = 1 ms on f7 (configTICK_RATE_HZ 1000); host_link copes with wrap. */
@@ -34,52 +34,52 @@ static uint32_t now_ms(void) {
 }
 
 /* TransportNotSent also when the line did not encode. */
-static TransportSendResult send_text(SpoolBuddyApp* app, size_t len) {
+static TransportSendResult send_text(FliBuddyApp* app, size_t len) {
     return len > 0 ? transport_send_line(app->transport, app->tx_buf, len) : TransportNotSent;
 }
 
-static void send_hello(SpoolBuddyApp* app) {
+static void send_hello(FliBuddyApp* app) {
     const char* fw = version_get_version(NULL);
     if(fw == NULL || fw[0] == '\0') fw = "unknown";
-    send_text(app, proto_encode_hello(SPOOLBUDDY_HELLO_APP, fw, app->tx_buf, PROTO_LINE_MAX));
+    send_text(app, proto_encode_hello(FLIBUDDY_HELLO_APP, fw, app->tx_buf, PROTO_LINE_MAX));
 }
 
-static SpoolBuddyScene scene_for(AppScreen screen) {
+static FliBuddyScene scene_for(AppScreen screen) {
     switch(screen) {
     case AppScreenIdle:
-        return SpoolBuddySceneIdle;
+        return FliBuddySceneIdle;
     case AppScreenReading:
     case AppScreenWaitingLookup:
-        return SpoolBuddySceneReading;
+        return FliBuddySceneReading;
     case AppScreenResult:
-        return SpoolBuddySceneResult;
+        return FliBuddySceneResult;
     case AppScreenEnterWeight:
-        return SpoolBuddySceneEnterWeight;
+        return FliBuddySceneEnterWeight;
     case AppScreenWaitingResult:
-        return SpoolBuddySceneWaiting;
+        return FliBuddySceneWaiting;
     case AppScreenDone:
     case AppScreenError:
-        return SpoolBuddySceneDone;
+        return FliBuddySceneDone;
     case AppScreenTransport:
-        return SpoolBuddySceneTransport;
+        return FliBuddySceneTransport;
     }
-    return SpoolBuddySceneIdle;
+    return FliBuddySceneIdle;
 }
 
 /* NFC worker thread. */
 static void on_reader_event(TagReaderEvent event, void* ctx) {
-    SpoolBuddyApp* app = ctx;
+    FliBuddyApp* app = ctx;
     static const uint32_t custom[] = {
-        [TagReaderEventDetected] = SpoolBuddyEventTagDetected,
-        [TagReaderEventRead] = SpoolBuddyEventTagRead,
-        [TagReaderEventFailed] = SpoolBuddyEventReadFailed,
+        [TagReaderEventDetected] = FliBuddyEventTagDetected,
+        [TagReaderEventRead] = FliBuddyEventTagRead,
+        [TagReaderEventFailed] = FliBuddyEventReadFailed,
     };
     view_dispatcher_send_custom_event(app->view_dispatcher, custom[event]);
 }
 
 /* The reader scans on Idle and reads on Reading; leaving Reading stops it,
  * so a Back while reading also restarts the scan from Idle. */
-static void sync_reader(SpoolBuddyApp* app, AppScreen before) {
+static void sync_reader(FliBuddyApp* app, AppScreen before) {
     AppScreen now = app->state.screen;
     if(before == AppScreenReading && now != AppScreenReading) tag_reader_stop(app->reader);
     if(now == AppScreenIdle || now == AppScreenReading) {
@@ -89,21 +89,21 @@ static void sync_reader(SpoolBuddyApp* app, AppScreen before) {
     }
 }
 
-static void sync_scene(SpoolBuddyApp* app) {
-    SpoolBuddyScene target = scene_for(app->state.screen);
+static void sync_scene(FliBuddyApp* app) {
+    FliBuddyScene target = scene_for(app->state.screen);
     if(scene_manager_get_current_scene(app->scene_manager) == target) {
-        scene_manager_handle_custom_event(app->scene_manager, SpoolBuddyEventRedraw);
-    } else if(target == SpoolBuddySceneIdle) {
-        scene_manager_search_and_switch_to_previous_scene(app->scene_manager, SpoolBuddySceneIdle);
+        scene_manager_handle_custom_event(app->scene_manager, FliBuddyEventRedraw);
+    } else if(target == FliBuddySceneIdle) {
+        scene_manager_search_and_switch_to_previous_scene(app->scene_manager, FliBuddySceneIdle);
     } else {
         scene_manager_search_and_switch_to_another_scene(app->scene_manager, target);
     }
 }
 
-static void apply_link(SpoolBuddyApp* app, HostLinkOutput out);
+static void apply_link(FliBuddyApp* app, HostLinkOutput out);
 static void on_rx_line(const char* line, size_t len, void* ctx);
 
-static void free_transport(SpoolBuddyApp* app) {
+static void free_transport(FliBuddyApp* app) {
     if(app->transport != transport_none()) {
         if(app->transport_kind == TransportKindUsb) {
             transport_usb_free(app->transport);
@@ -119,13 +119,13 @@ static void free_transport(SpoolBuddyApp* app) {
  * stays with the CLI. Choosing the same kind again in the menu retries it.
  * The state is changed directly: no screen depends on it, and this also
  * runs before the first scene. */
-static void start_transport(SpoolBuddyApp* app) {
+static void start_transport(FliBuddyApp* app) {
     app->transport_kind = app->state.transport;
     app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
                                                                transport_ble_alloc();
     transport_set_rx_callback(app->transport, on_rx_line, app);
     if(!transport_open(app->transport)) {
-        FURI_LOG_E("SpoolBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
+        FURI_LOG_E("FliBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
         free_transport(app);
         app_reduce(&app->state, &(AppEvent){.type = AppEventTransportFailed, .now_ms = now_ms()});
     }
@@ -133,7 +133,7 @@ static void start_transport(SpoolBuddyApp* app) {
 
 /* Closes the old transport (the host it carried is lost), saves the choice
  * and opens the new one. */
-static void switch_transport(SpoolBuddyApp* app) {
+static void switch_transport(FliBuddyApp* app) {
     free_transport(app);
     /* a hello the old worker queued must not connect a host over the new one */
     furi_message_queue_reset(app->rx_queue);
@@ -141,12 +141,12 @@ static void switch_transport(SpoolBuddyApp* app) {
     apply_link(app, host_link_port_closed(&app->link));
     app_settings_set_transport(&app->settings, app->state.transport);
     if(!app_settings_save(&app->settings, &app_settings_file)) {
-        FURI_LOG_E("SpoolBuddy", "settings not saved");
+        FURI_LOG_E("FliBuddy", "settings not saved");
     }
     start_transport(app);
 }
 
-void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
+void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event) {
     AppEvent stamped = *event;
     stamped.now_ms = now_ms();
     AppScreen before = app->state.screen;
@@ -184,17 +184,17 @@ void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
     sync_scene(app);
 }
 
-void spoolbuddy_reduce_type(SpoolBuddyApp* app, AppEventType type) {
-    spoolbuddy_reduce(app, &(AppEvent){.type = type});
+void flibuddy_reduce_type(FliBuddyApp* app, AppEventType type) {
+    flibuddy_reduce(app, &(AppEvent){.type = type});
 }
 
-static void apply_link(SpoolBuddyApp* app, HostLinkOutput out) {
+static void apply_link(FliBuddyApp* app, HostLinkOutput out) {
     if(out.send_hello) send_hello(app);
-    if(out.host_connected) spoolbuddy_reduce_type(app, AppEventHostConnected);
-    if(out.host_lost) spoolbuddy_reduce_type(app, AppEventHostLost);
+    if(out.host_connected) flibuddy_reduce_type(app, AppEventHostConnected);
+    if(out.host_lost) flibuddy_reduce_type(app, AppEventHostLost);
 }
 
-static AppBleStatus ble_status(SpoolBuddyApp* app) {
+static AppBleStatus ble_status(FliBuddyApp* app) {
     if(app->transport_kind != TransportKindBluetooth || app->transport == transport_none()) {
         return AppBleOff;
     }
@@ -210,13 +210,13 @@ static AppBleStatus ble_status(SpoolBuddyApp* app) {
 }
 
 /* Tells the scene when the status line changed since `was_up`. */
-static void notify_status(SpoolBuddyApp* app, bool was_up) {
+static void notify_status(FliBuddyApp* app, bool was_up) {
     if(host_link_is_up(&app->link) != was_up) {
-        scene_manager_handle_custom_event(app->scene_manager, SpoolBuddyEventRedraw);
+        scene_manager_handle_custom_event(app->scene_manager, FliBuddyEventRedraw);
     }
 }
 
-static void handle_message(SpoolBuddyApp* app, const ProtoMessage* msg) {
+static void handle_message(FliBuddyApp* app, const ProtoMessage* msg) {
     bool was_up = host_link_is_up(&app->link);
     switch(msg->type) {
     case ProtoMsgHello:
@@ -224,12 +224,10 @@ static void handle_message(SpoolBuddyApp* app, const ProtoMessage* msg) {
         notify_status(app, was_up);
         break;
     case ProtoMsgLookup:
-        spoolbuddy_reduce(
-            app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
+        flibuddy_reduce(app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
         break;
     case ProtoMsgResult:
-        spoolbuddy_reduce(
-            app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
+        flibuddy_reduce(app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
         break;
     case ProtoMsgNone:
         break;
@@ -238,31 +236,31 @@ static void handle_message(SpoolBuddyApp* app, const ProtoMessage* msg) {
 
 /* Transport worker thread: decode here, hand over to the GUI thread. */
 static void on_rx_line(const char* line, size_t len, void* ctx) {
-    SpoolBuddyApp* app = ctx;
+    FliBuddyApp* app = ctx;
     UNUSED(len);
     if(proto_decode_line(line, &app->rx_decoded) != ProtoDecodeOk) return;
     if(furi_message_queue_put(app->rx_queue, &app->rx_decoded, 0) == FuriStatusOk) {
-        view_dispatcher_send_custom_event(app->view_dispatcher, SpoolBuddyEventRx);
+        view_dispatcher_send_custom_event(app->view_dispatcher, FliBuddyEventRx);
     }
 }
 
 static bool on_custom_event(void* ctx, uint32_t event) {
-    SpoolBuddyApp* app = ctx;
-    if(event == SpoolBuddyEventRx) {
+    FliBuddyApp* app = ctx;
+    if(event == FliBuddyEventRx) {
         while(furi_message_queue_get(app->rx_queue, &app->rx_msg, 0) == FuriStatusOk) {
             handle_message(app, &app->rx_msg);
         }
         return true;
     }
     switch(event) {
-    case SpoolBuddyEventTagDetected:
-        spoolbuddy_reduce_type(app, AppEventTagDetected);
+    case FliBuddyEventTagDetected:
+        flibuddy_reduce_type(app, AppEventTagDetected);
         return true;
-    case SpoolBuddyEventTagRead:
-        spoolbuddy_reduce(app, &(AppEvent){.type = AppEventTagRead, .tag = app->read_dump});
+    case FliBuddyEventTagRead:
+        flibuddy_reduce(app, &(AppEvent){.type = AppEventTagRead, .tag = app->read_dump});
         return true;
-    case SpoolBuddyEventReadFailed:
-        spoolbuddy_reduce_type(app, AppEventReadFailed);
+    case FliBuddyEventReadFailed:
+        flibuddy_reduce_type(app, AppEventReadFailed);
         return true;
     default:
         return scene_manager_handle_custom_event(app->scene_manager, event);
@@ -270,12 +268,12 @@ static bool on_custom_event(void* ctx, uint32_t event) {
 }
 
 static bool on_back(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+    FliBuddyApp* app = ctx;
     return scene_manager_handle_back_event(app->scene_manager);
 }
 
 static void on_tick(void* ctx) {
-    SpoolBuddyApp* app = ctx;
+    FliBuddyApp* app = ctx;
     bool was_up = host_link_is_up(&app->link);
     bool open = transport_is_connected(app->transport);
     if(open != app->port_open) {
@@ -289,17 +287,17 @@ static void on_tick(void* ctx) {
     notify_status(app, was_up);
     AppBleStatus ble = ble_status(app);
     if(ble != app->state.ble) {
-        spoolbuddy_reduce(app, &(AppEvent){.type = AppEventBleStatus, .ble = ble});
+        flibuddy_reduce(app, &(AppEvent){.type = AppEventBleStatus, .ble = ble});
     }
     if(app_result_timed_out(&app->state, now_ms())) {
-        spoolbuddy_reduce_type(app, AppEventTimeout);
+        flibuddy_reduce_type(app, AppEventTimeout);
     }
     scene_manager_handle_tick_event(app->scene_manager);
 }
 
-static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
-    SpoolBuddyApp* app = malloc(sizeof(SpoolBuddyApp));
-    memset(app, 0, sizeof(SpoolBuddyApp));
+static FliBuddyApp* flibuddy_app_alloc(void) {
+    FliBuddyApp* app = malloc(sizeof(FliBuddyApp));
+    memset(app, 0, sizeof(FliBuddyApp));
 
     uint32_t seed = id_seed_from_time(furi_hal_rtc_get_timestamp());
     single_slot_intent_store_init(&app->intents);
@@ -315,7 +313,7 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
 
     app->gui = furi_record_open(RECORD_GUI);
     app->view_dispatcher = view_dispatcher_alloc();
-    app->scene_manager = scene_manager_alloc(&spoolbuddy_scene_handlers, app);
+    app->scene_manager = scene_manager_alloc(&flibuddy_scene_handlers, app);
     view_dispatcher_set_event_callback_context(app->view_dispatcher, app);
     view_dispatcher_set_custom_event_callback(app->view_dispatcher, on_custom_event);
     view_dispatcher_set_navigation_event_callback(app->view_dispatcher, on_back);
@@ -324,29 +322,29 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
 
     app->widget = widget_alloc();
     view_dispatcher_add_view(
-        app->view_dispatcher, SpoolBuddyViewWidget, widget_get_view(app->widget));
+        app->view_dispatcher, FliBuddyViewWidget, widget_get_view(app->widget));
     app->submenu = submenu_alloc();
     view_dispatcher_add_view(
-        app->view_dispatcher, SpoolBuddyViewSubmenu, submenu_get_view(app->submenu));
+        app->view_dispatcher, FliBuddyViewSubmenu, submenu_get_view(app->submenu));
     app->number_input = number_input_alloc();
     view_dispatcher_add_view(
-        app->view_dispatcher, SpoolBuddyViewNumberInput, number_input_get_view(app->number_input));
+        app->view_dispatcher, FliBuddyViewNumberInput, number_input_get_view(app->number_input));
     view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
     start_transport(app);
     return app;
 }
 
-static void spoolbuddy_app_free(SpoolBuddyApp* app) {
+static void flibuddy_app_free(FliBuddyApp* app) {
     /* the workers stop first, so nothing posts events into freed objects */
     tag_reader_free(app->reader);
     free_transport(app);
 
-    view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewNumberInput);
+    view_dispatcher_remove_view(app->view_dispatcher, FliBuddyViewNumberInput);
     number_input_free(app->number_input);
-    view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewSubmenu);
+    view_dispatcher_remove_view(app->view_dispatcher, FliBuddyViewSubmenu);
     submenu_free(app->submenu);
-    view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewWidget);
+    view_dispatcher_remove_view(app->view_dispatcher, FliBuddyViewWidget);
     widget_free(app->widget);
     scene_manager_free(app->scene_manager);
     view_dispatcher_free(app->view_dispatcher);
@@ -358,12 +356,12 @@ static void spoolbuddy_app_free(SpoolBuddyApp* app) {
     free(app);
 }
 
-int32_t spoolbuddy_app(void* p) {
+int32_t flibuddy_app(void* p) {
     UNUSED(p);
-    SpoolBuddyApp* app = spoolbuddy_app_alloc();
-    scene_manager_next_scene(app->scene_manager, SpoolBuddySceneIdle);
+    FliBuddyApp* app = flibuddy_app_alloc();
+    scene_manager_next_scene(app->scene_manager, FliBuddySceneIdle);
     sync_reader(app, app->state.screen);
     view_dispatcher_run(app->view_dispatcher);
-    spoolbuddy_app_free(app);
+    flibuddy_app_free(app);
     return 0;
 }

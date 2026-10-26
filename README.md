@@ -62,7 +62,7 @@ and `cc` from `/usr/bin` exit with 69. Prefix the commands below with
 ```
 cd flipper
 ufbt update --branch=1.5.1    # once; the SDK goes to flipper/.ufbt (.env)
-ufbt                          # builds dist/spoolbuddy.fap
+ufbt                          # builds dist/flibuddy.fap
 ufbt launch                   # builds, installs and starts it over USB
 ```
 
@@ -100,7 +100,7 @@ The transport is a setting on both sides; nothing negotiates it.
 
 - Flipper: on the Idle screen OK opens **Transport** with **USB** and
   **Bluetooth**. The choice is saved in
-  `/ext/apps_data/spoolbuddy/settings.bin` and the app starts that backend
+  `/ext/apps_data/flibuddy/settings.bin` and the app starts that backend
   only; with Bluetooth the USB port stays with the CLI and qFlipper. The
   status line shows `BLE adv` while advertising and `BLE` once a host has
   said hello. See `flipper/README.md`.

@@ -1,4 +1,4 @@
-/* NDJSON over the SpoolBuddy GATT service, as a pure state machine.
+/* NDJSON over the FliBuddy GATT service, as a pure state machine.
  *
  * Outbound, ble_lines_send() is the packet function of a line_sender: it
  * cuts each packet into notifications of up to ATT MTU - 3 bytes (20 until

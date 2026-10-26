@@ -1,11 +1,11 @@
-/* The SpoolBuddy BLE profile: one GATT service with RX (the host writes,
+/* The FliBuddy BLE profile: one GATT service with RX (the host writes,
  * with or without response) and TX (the Flipper notifies), up to 243 bytes
  * each, advertised by its 128-bit UUID (ble_wire.h). No bonding and no
  * pairing: the attributes need no encryption unless
- * SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION is 1, which lets a central try "just
+ * FLIBUDDY_BLE_REQUIRE_ENCRYPTION is 1, which lets a central try "just
  * works" pairing.
  *
- * Start it with bt_profile_start(bt, spoolbuddy_ble_profile, &callbacks);
+ * Start it with bt_profile_start(bt, flibuddy_ble_profile, &callbacks);
  * the callbacks run on the BLE event thread, must be quick and stay valid
  * until the profile stops (bt_profile_restore_default).
  */
@@ -17,8 +17,8 @@
 
 #include <furi_ble/profile_interface.h>
 
-#ifndef SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION
-#define SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION 0
+#ifndef FLIBUDDY_BLE_REQUIRE_ENCRYPTION
+#define FLIBUDDY_BLE_REQUIRE_ENCRYPTION 0
 #endif
 
 typedef struct {
@@ -27,10 +27,10 @@ typedef struct {
     void (*on_mtu)(uint16_t mtu, void* ctx); /* the ATT MTU exchange finished */
     void (*on_disconnect)(void* ctx);
     void* ctx;
-} SpoolBuddyBleCallbacks;
+} FliBuddyBleCallbacks;
 
-extern const FuriHalBleProfileTemplate* const spoolbuddy_ble_profile;
+extern const FuriHalBleProfileTemplate* const flibuddy_ble_profile;
 
 /* Notifies `len` (1..243) bytes on TX; false when the stack did not take
  * them (it is busy even after the SDK's own retries). */
-bool spoolbuddy_ble_notify(FuriHalBleProfileBase* profile, const uint8_t* data, size_t len);
+bool flibuddy_ble_notify(FuriHalBleProfileBase* profile, const uint8_t* data, size_t len);

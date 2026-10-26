@@ -43,6 +43,11 @@ static void put_file(uint8_t version, uint8_t transport) {
     file_present = true;
 }
 
+static void test_settings_live_in_the_flibuddy_dir(void) {
+    CHECK_STR_EQ(APP_SETTINGS_DIR, "/ext/apps_data/flibuddy");
+    CHECK_STR_EQ(APP_SETTINGS_PATH, "/ext/apps_data/flibuddy/settings.bin");
+}
+
 static AppSettings loaded(void) {
     AppSettings s;
     memset(&s, 0xAA, sizeof(s));
@@ -137,6 +142,7 @@ static void test_set_transport_ignores_unknown_kinds(void) {
 }
 
 int main(void) {
+    RUN_TEST(test_settings_live_in_the_flibuddy_dir);
     RUN_TEST(test_layout_is_version_then_transport);
     RUN_TEST(test_defaults_are_usb);
     RUN_TEST(test_missing_file_loads_defaults);

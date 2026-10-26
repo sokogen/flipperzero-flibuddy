@@ -1,8 +1,8 @@
-/* The SpoolBuddy FAP: GUI, scenes and the glue between the transport, the
+/* The FliBuddy FAP: GUI, scenes and the glue between the transport, the
  * NFC reader, the hello handshake (host_link.h) and the screen reducer
  * (app_state.h).
  *
- * Every state change goes through spoolbuddy_reduce(), which also shows the
+ * Every state change goes through flibuddy_reduce(), which also shows the
  * scene for the new AppScreen, runs the NFC reader on Idle and Reading and
  * restarts the transport when the user picks another one (the choice is
  * saved in app_settings).
@@ -10,7 +10,7 @@
  * Threads: the GUI thread owns everything below except rx_decoded, which
  * the transport worker fills and hands over through rx_queue, and
  * read_dump, which the NFC worker fills before it posts
- * SpoolBuddyEventTagRead and then ends. Every source
+ * FliBuddyEventTagRead and then ends. Every source
  * file that uses the SDK includes an SDK header itself, so that the host
  * test build (flipper/tests/Makefile) leaves it out.
  */
@@ -33,25 +33,25 @@
 #include "screen_text.h"
 #include "transport.h"
 
-#define SPOOLBUDDY_HELLO_APP "spoolbuddy-fap/0.1.0"
-#define SPOOLBUDDY_TEXT_MAX (SCREEN_TEXT_MAX + 16) /* screen text and a title */
+#define FLIBUDDY_HELLO_APP "flibuddy-fap/0.1.0"
+#define FLIBUDDY_TEXT_MAX (SCREEN_TEXT_MAX + 16) /* screen text and a title */
 
 typedef enum {
-    SpoolBuddyViewWidget,
-    SpoolBuddyViewSubmenu,
-    SpoolBuddyViewNumberInput,
-} SpoolBuddyView;
+    FliBuddyViewWidget,
+    FliBuddyViewSubmenu,
+    FliBuddyViewNumberInput,
+} FliBuddyView;
 
 typedef enum {
-    SpoolBuddyEventRx = 100, /* messages wait in rx_queue */
-    SpoolBuddyEventRedraw, /* the state or the connection status changed */
-    SpoolBuddyEventTagDetected, /* NFC worker */
-    SpoolBuddyEventTagRead, /* NFC worker, read_dump is filled */
-    SpoolBuddyEventReadFailed, /* NFC worker */
-    SpoolBuddyEventOk, /* OK button of a widget */
-    SpoolBuddyEventWeightEntered, /* number input, entered_grams is set */
-    SpoolBuddyEventMenuItem = 200, /* + the index of the chosen submenu item */
-} SpoolBuddyEvent;
+    FliBuddyEventRx = 100, /* messages wait in rx_queue */
+    FliBuddyEventRedraw, /* the state or the connection status changed */
+    FliBuddyEventTagDetected, /* NFC worker */
+    FliBuddyEventTagRead, /* NFC worker, read_dump is filled */
+    FliBuddyEventReadFailed, /* NFC worker */
+    FliBuddyEventOk, /* OK button of a widget */
+    FliBuddyEventWeightEntered, /* number input, entered_grams is set */
+    FliBuddyEventMenuItem = 200, /* + the index of the chosen submenu item */
+} FliBuddyEvent;
 
 typedef struct {
     Gui* gui;
@@ -71,7 +71,7 @@ typedef struct {
 
     TagReader* reader;
     TagDump* read_dump;
-    char text[SPOOLBUDDY_TEXT_MAX];
+    char text[FLIBUDDY_TEXT_MAX];
     uint32_t menu_item; /* last chosen submenu item, kept across redraws */
     int32_t entered_grams;
 
@@ -79,12 +79,12 @@ typedef struct {
     bool port_open;
     AppState state;
     SingleSlotIntentStore intents;
-} SpoolBuddyApp;
+} FliBuddyApp;
 
 /* Stamps the event with the clock, applies it to the state, performs its
  * effect and shows the scene of the new screen (or redraws the current
  * one). */
-void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event);
+void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event);
 
 /* Shorthand for events without data. */
-void spoolbuddy_reduce_type(SpoolBuddyApp* app, AppEventType type);
+void flibuddy_reduce_type(FliBuddyApp* app, AppEventType type);

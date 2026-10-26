@@ -5,15 +5,15 @@
 #include <furi_ble/gatt.h>
 
 #include "ble_lines.h"
-#include "ble_spoolbuddy_svc.h"
+#include "ble_flibuddy_svc.h"
 #include "ble_wire.h"
 
-#define TAG "SpoolBuddyBle"
+#define TAG "FliBuddyBle"
 
 /* the service, RX (declaration, value), TX (declaration, value, CCCD) */
 #define SVC_ATTRIBUTE_RECORDS 6
 
-#if SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION
+#if FLIBUDDY_BLE_REQUIRE_ENCRYPTION
 #define SVC_PERMISSIONS (ATTR_PERMISSION_ENCRY_READ | ATTR_PERMISSION_ENCRY_WRITE)
 #else
 #define SVC_PERMISSIONS ATTR_PERMISSION_NONE
@@ -27,7 +27,7 @@ typedef enum {
     CharRx,
     CharTx,
     CharCount,
-} SpoolBuddyChar;
+} FliBuddyChar;
 
 typedef struct {
     const uint8_t* data;
@@ -77,20 +77,20 @@ typedef struct {
     uint16_t svc_handle;
     BleGattCharacteristicInstance chars[CharCount];
     GapSvcEventHandler* event_handler;
-    const SpoolBuddyBleCallbacks* callbacks;
-} SpoolBuddyBleProfile;
-_Static_assert(offsetof(SpoolBuddyBleProfile, base) == 0, "the base comes first");
+    const FliBuddyBleCallbacks* callbacks;
+} FliBuddyBleProfile;
+_Static_assert(offsetof(FliBuddyBleProfile, base) == 0, "the base comes first");
 
 /* One instance, never freed: the Bt service still reads the stopped
  * profile's config (furi_hal_bt_check_profile_type) while it switches to
  * the next one. */
-static SpoolBuddyBleProfile instance;
+static FliBuddyBleProfile instance;
 
 /* BLE event thread. Writes to the service's attributes are handled here;
  * everything else also goes on to the other handlers and GAP. */
 static BleEventAckStatus on_event(void* event, void* context) {
-    SpoolBuddyBleProfile* profile = context;
-    const SpoolBuddyBleCallbacks* cb = profile->callbacks;
+    FliBuddyBleProfile* profile = context;
+    const FliBuddyBleCallbacks* cb = profile->callbacks;
     BleWireHandles handles = {
         .rx_value = profile->chars[CharRx].handle + 1,
         .tx_cccd = profile->chars[CharTx].handle + 2,
@@ -117,9 +117,9 @@ static BleEventAckStatus on_event(void* event, void* context) {
 
 static FuriHalBleProfileBase* profile_start(FuriHalBleProfileParams params) {
     furi_check(params);
-    SpoolBuddyBleProfile* profile = &instance;
-    memset(profile, 0, sizeof(SpoolBuddyBleProfile));
-    profile->base.config = spoolbuddy_ble_profile;
+    FliBuddyBleProfile* profile = &instance;
+    memset(profile, 0, sizeof(FliBuddyBleProfile));
+    profile->base.config = flibuddy_ble_profile;
     profile->callbacks = params;
 
     if(!ble_gatt_service_add(
@@ -139,8 +139,8 @@ static FuriHalBleProfileBase* profile_start(FuriHalBleProfileParams params) {
 }
 
 static void profile_stop(FuriHalBleProfileBase* base) {
-    furi_check(base && base->config == spoolbuddy_ble_profile);
-    SpoolBuddyBleProfile* profile = (SpoolBuddyBleProfile*)base;
+    furi_check(base && base->config == flibuddy_ble_profile);
+    FliBuddyBleProfile* profile = (FliBuddyBleProfile*)base;
     ble_event_dispatcher_unregister_svc_handler(profile->event_handler);
     for(size_t i = 0; i < CharCount; i++) {
         ble_gatt_characteristic_delete(profile->svc_handle, &profile->chars[i]);
@@ -181,12 +181,12 @@ static const FuriHalBleProfileTemplate profile_template = {
     .get_gap_config = profile_gap_config,
 };
 
-const FuriHalBleProfileTemplate* const spoolbuddy_ble_profile = &profile_template;
+const FuriHalBleProfileTemplate* const flibuddy_ble_profile = &profile_template;
 
-bool spoolbuddy_ble_notify(FuriHalBleProfileBase* base, const uint8_t* data, size_t len) {
-    furi_check(base && base->config == spoolbuddy_ble_profile);
+bool flibuddy_ble_notify(FuriHalBleProfileBase* base, const uint8_t* data, size_t len) {
+    furi_check(base && base->config == flibuddy_ble_profile);
     furi_check(len > 0 && len <= BLE_LINES_CHUNK_MAX);
-    SpoolBuddyBleProfile* profile = (SpoolBuddyBleProfile*)base;
+    FliBuddyBleProfile* profile = (FliBuddyBleProfile*)base;
     TxValue value = {.data = data, .len = (uint16_t)len};
     /* in SDK 1.5.1 this returns true when the update FAILED (gatt.c returns
      * result != BLE_STATUS_SUCCESS), after retrying a busy stack for up to

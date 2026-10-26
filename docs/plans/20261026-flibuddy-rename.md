@@ -107,27 +107,35 @@
 ## Implementation Steps
 
 ### Task 1: Rename the Flipper app
-- [ ] `git mv flipper/src/spoolbuddy_app.c flipper/src/flibuddy_app.c` and
+- [x] `git mv flipper/src/spoolbuddy_app.c flipper/src/flibuddy_app.c` and
       the header; `git mv flipper/src/ble_spoolbuddy_svc.c
       flipper/src/ble_flibuddy_svc.c` and the header;
       `git mv flipper/icons/spoolbuddy_10px.png flipper/icons/flibuddy_10px.png`
-- [ ] `flipper/application.fam`: `appid="flibuddy"`, `name="FliBuddy"`,
+- [x] `flipper/application.fam`: `appid="flibuddy"`, `name="FliBuddy"`,
       `entry_point="flibuddy_app"`, `fap_icon="icons/flibuddy_10px.png"`;
       the description keeps "Bambuddy"
-- [ ] rename every `SPOOLBUDDY_*` macro, `spoolbuddy_*` symbol, include
+- [x] rename every `SPOOLBUDDY_*` macro, `spoolbuddy_*` symbol, include
       guard and `#include` to `FLIBUDDY_*` / `flibuddy_*` across
       `flipper/src` and `flipper/tests`; log tags and thread names become
       `"FliBuddy"`, `"FliBuddyBle"`, `"FliBuddyNfc"`
-- [ ] `flipper/src/app_settings.h`: `APP_SETTINGS_DIR` is
+- [x] `flipper/src/app_settings.h`: `APP_SETTINGS_DIR` is
       `/ext/apps_data/flibuddy` (no migration of the old directory: the only
       setting is the transport, which defaults to USB)
-- [ ] `flipper/src/scene_idle.c`: the title reads `FliBuddy`
-- [ ] `flipper/src/flibuddy_app.h`: hello id `flibuddy-fap/0.1.0`
-- [ ] update `flipper/tests/*.c` expectations (hello id, settings path, any
+- [x] `flipper/src/scene_idle.c`: the title reads `FliBuddy`
+- [x] `flipper/src/flibuddy_app.h`: hello id `flibuddy-fap/0.1.0`
+- [x] update `flipper/tests/*.c` expectations (hello id, settings path, any
       symbol names) and `flipper/tests/Makefile` if it names files
-- [ ] `flipper/README.md`: FAP name `dist/flibuddy.fap`, install path
-      `/ext/apps/Tools/flibuddy.fap`, settings path, app name
-- [ ] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must
+      (➕ added `test_settings_live_in_the_flibuddy_dir`; the Makefile names
+      no files. ⚠️ `test_proto_decode.c` `test_hello_fixtures` and
+      `test_tag_dump.c` `test_hello_matches_fixture` compare against
+      `protocol/fixtures/messages/hello_*.json`, so their
+      `spoolbuddy-fap`/`spoolbuddy-mac` strings move with the fixtures in
+      Task 2; `src/bambu_keys.h` keeps "the SpoolBuddy daemon", Bambuddy's)
+- [x] `flipper/README.md`: FAP name `dist/flibuddy.fap`, install path
+      `/ext/apps/Tools/flibuddy.fap`, settings path, app name (➕ also the
+      two FAP facts in the root `README.md`: `dist/flibuddy.fap` and the
+      settings path)
+- [x] run `make -C flipper/tests test` and `cd flipper && ufbt` - both must
       pass before task 2
 
 ### Task 2: Rename the protocol ids and the Python tools
@@ -136,6 +144,11 @@
 - [ ] regenerate `protocol/fixtures/messages/hello_flipper.json` and
       `hello_host.json` through `tools/fixtures/make_message_fixtures.py`
       (change the generator, not the files by hand)
+- [ ] ➕ the C fixture tests follow: `flipper/tests/test_proto_decode.c`
+      (`test_hello_fixtures`) and `flipper/tests/test_tag_dump.c`
+      (`test_hello_matches_fixture`) expect `flibuddy-mac/0.1.0` and
+      `flibuddy-fap/0.1.0`; the Swift tests that read the hello fixtures
+      follow as well; run `make -C flipper/tests test`
 - [ ] `tools/bridge/__init__.py`: `APP = f"flibuddy-bridge/{VERSION}"`; update
       `tools/tests/test_bridge_protocol.py`
 - [ ] `tools/pyproject.toml`: name `flibuddy-tools`, description mentions
