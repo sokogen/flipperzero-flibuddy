@@ -251,10 +251,10 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ➕ `NewSpool(tag:coreWeight:coreWeightCatalogId:)` and `TagLink(tag:)` build the create/link bodies from a `ParsedTag` (same field rules as the Python bridge); `spool(id:)` reads one spool; 401 maps to `.unauthorized`, 404 by id to `.spoolNotFound`
 
 ### Task 14: Swift USB serial transport
-- [ ] write `SerialTransportTests.swift` first using an `openpty()` pair: lines written to the slave arrive as framed messages; `send` writes a newline-terminated line; closing the slave reports disconnect; `discoverFlipperPorts()` filters `/dev/cu.usbmodemflip*` from a given directory listing (injectable)
-- [ ] implement `Sources/SpoolBuddyCore/Transport/Transport.swift` protocol (`connect`, `send(Message)`, `messages: AsyncStream<Message>`, `state`) and `SerialTransport.swift` (POSIX `open`/`termios` raw mode 115200 8N1, `DispatchIO` or a reader thread)
-- [ ] implement `hello` handshake and the 2 s connected timeout in `TransportSession.swift`
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] write `SerialTransportTests.swift` first using an `openpty()` pair (the transport opens the slave path like a real device, exercising `open`/`termios`; the test plays the Flipper on the master): lines written to the Flipper end arrive as framed messages; `send` writes a newline-terminated line; closing the Flipper end reports disconnect; `discoverFlipperPorts()` filters `/dev/cu.usbmodemflip*` from a given directory listing (injectable)
+- [x] implement `Sources/SpoolBuddyCore/Transport/Transport.swift` protocol (`connect`, `send(Message)`, `messages: AsyncStream<Message>`, `state`) and `SerialTransport.swift` (POSIX `open`/`termios` raw mode 115200 8N1; reads via a `DispatchSourceRead` on the non-blocking descriptor)
+- [x] implement `hello` handshake and the 2 s connected timeout in `TransportSession.swift` (tests in `TransportSessionTests.swift` with an in-memory `FakeTransport` plus one pty round trip; a Flipper `hello` within 2 s of ours is not answered, any other is, mirroring `host_link.c`)
+- [x] run `cd host && swift test` - must pass before next task
 
 ### Task 15: Session feed model and intent handling
 - [ ] write `SessionTests.swift` first: a `scan` creates a `FeedRow(status: .scanned)`, lookup found → row carries the spool and `.awaitingWeight`; unknown with prefill → `.unknown(prefill: true)`; `lookup` reply built for the Flipper has `status`, `spool_id`, ≤ 4 `lines`, `defaults` (gross = last_scale_weight or label + core); an `intent weigh` with `mode: net` calls `updateWeight` with `net + core`; `intent new` creates with the configured catalog entry and links the row; `create_on_host` / `link_on_host` only flag the row; a repeated intent id returns the cached `result` without a second API call; editing a weight on the host sends the same update and marks `savedBy: .host`
