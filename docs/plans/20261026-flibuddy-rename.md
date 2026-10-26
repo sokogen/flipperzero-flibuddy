@@ -178,41 +178,53 @@
       and Swift 439 also pass)
 
 ### Task 3: Rename the Swift package, targets and sources
-- [ ] `git mv host/Sources/SpoolBuddyCore host/Sources/FliBuddyCore`,
+- [x] `git mv host/Sources/SpoolBuddyCore host/Sources/FliBuddyCore`,
       `SpoolBuddyUI` → `FliBuddyUI`, `SpoolBuddyMac` → `FliBuddyMac`,
       `host/Tests/SpoolBuddyCoreTests` → `host/Tests/FliBuddyCoreTests`;
       inside: `SpoolBuddyCore.swift` → `FliBuddyCore.swift`,
       `SpoolBuddyGATT.swift` → `FliBuddyGATT.swift` (UUID values unchanged)
-- [ ] `host/Package.swift`: package `FliBuddy`, products and targets
+- [x] `host/Package.swift`: package `FliBuddy`, products and targets
       `FliBuddyCore`, `FliBuddyUI`, `FliBuddyMac`, `FliBuddyCoreTests`,
-      the Info.plist path; keep the `Fixtures` symlink working
-- [ ] every `import SpoolBuddyCore` / `import SpoolBuddyUI`,
+      the Info.plist path; keep the `Fixtures` symlink working (it is
+      relative, so it moved with the directory unchanged)
+- [x] every `import SpoolBuddyCore` / `import SpoolBuddyUI`,
       `@testable import`, `enum SpoolBuddyCore` (→ `enum FliBuddyCore`,
       `appName = "flibuddy-mac"`), `SpoolBuddyGATT` type name, DispatchQueue
       labels `"FliBuddy.*"`, `KeychainSecretStore.defaultService = "FliBuddy"`,
-      test Keychain service prefix `FliBuddyTests-`
-- [ ] user-visible strings: Mac window title `FliBuddy`, the macOS-only
+      test Keychain service prefix `FliBuddyTests-` (➕ the iOS and watch
+      shells in `host/Apple` still import `SpoolBuddyCore`/`SpoolBuddyUI`:
+      they build only through `project.yml`, so they move with it in Task 4)
+- [x] user-visible strings: Mac window title `FliBuddy`, the macOS-only
       message, iOS and watch `navigationTitle("FliBuddy")`, empty-feed text,
       Bluetooth hint, watch settings hint, the error texts listed in Context;
       the Spoolman-mode error keeps "Bambuddy" and says "FliBuddy supports
       internal inventory only"
-- [ ] `host/Sources/FliBuddyMac/Info.plist`: bundle name / identifier if
-      present follow Task 4's bundle id scheme
-- [ ] `host/README.md` and `AGENTS.md`: target names, paths, commands, the
-      `@ViewState` rule's paths
-- [ ] `docs/plans/20261026-macos-ui-from-design.md`: update the file paths in
+- [x] `host/Sources/FliBuddyMac/Info.plist`: bundle name / identifier if
+      present follow Task 4's bundle id scheme (none present: the plist
+      keeps no `CFBundleIdentifier` on purpose; its Bluetooth usage text
+      now names FliBuddy)
+- [x] `host/README.md` and `AGENTS.md`: target names, paths, commands, the
+      `@ViewState` rule's paths (➕ `host/README.md` still names
+      `SpoolBuddyiOS`/`SpoolBuddyWatch` in its Apple section until Task 4
+      renames those targets)
+- [x] `docs/plans/20261026-macos-ui-from-design.md`: update the file paths in
       its Context section to the new target names (the plan is not started)
-- [ ] ➕ `tools/tests/test_mac_info_plist.py`: the `FliBuddyMac` plist path,
+- [x] ➕ `tools/tests/test_mac_info_plist.py`: the `FliBuddyMac` plist path,
       the manifest's `"/Sources/FliBuddyMac/Info.plist"` and the docstring
       (moved here from Task 2 so the Python suite stays green); run
       `cd tools && uv run pytest`
-- [ ] ➕ the remaining test strings: `HostModelTests` expects
+- [x] ➕ the remaining test strings: `HostModelTests` expects
       `flibuddy-mac/0.1.0`, `SessionTests` hello app `flibuddy`, the
       rejected-scheme case `spoolbuddy://config` in `APIKeyQRPayloadTests`
       becomes `flibuddy://config` (still rejected: the QR scheme is
       `bambuddy://`), the error-text expectations in `BLETransportTests`,
-      `FlipperLinkTests`, `SettingsViewModelTests`
-- [ ] run `cd host && swift test` - must pass before task 4
+      `FlipperLinkTests`, `SettingsViewModelTests` (➕ new expectations pin
+      `KeychainSecretStore.defaultService == "FliBuddy"`, the Spoolman-mode
+      text "FliBuddy supports" and the "update FliBuddy" endings of the QR
+      and settings-sync version errors)
+- [x] run `cd host && swift test` - must pass before task 4 (440 passed;
+      `swift build`, pytest 319, `make coverage` with FliBuddyCore at
+      88.2 % and `make lint` pass)
 
 ### Task 4: Rename the Xcode project, bundle ids and CI
 - [ ] `host/Apple/project.yml`: project `FliBuddy`, package reference
@@ -224,7 +236,9 @@
       domain replaces the `cool.bambuddy` placeholder, which is Bambuddy's)
 - [ ] `host/Apple/iOS/App.swift`, `host/Apple/Watch/App.swift`: imports and
       titles; comments in `Base.xcconfig` / `Signing.example.xcconfig` if
-      they name the project
+      they name the project (➕ the imports become `FliBuddyCore`/`FliBuddyUI`,
+      the app structs `FliBuddyiOSApp`/`FliBuddyWatchApp`; `host/README.md`'s
+      Apple section names the new targets)
 - [ ] `Makefile`: `apple-build` uses `FliBuddy.xcodeproj` and the new
       schemes; the `coverage` comment; `.gitignore` entries for the generated
       project

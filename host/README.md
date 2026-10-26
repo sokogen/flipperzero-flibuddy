@@ -1,9 +1,9 @@
-# SpoolBuddy host (Swift package)
+# FliBuddy host (Swift package)
 
 The package builds with SwiftPM only; the iPhone/iPad and Apple Watch apps
 in `Apple/` are thin XcodeGen shells over it (see below). No UI tests.
 
-- `SpoolBuddyCore`: platform-neutral library (protocol models, tag parser,
+- `FliBuddyCore`: platform-neutral library (protocol models, tag parser,
   Bambuddy client, transport, session, view models). `TagParser` takes the
   tray UUID from block 9 of a Bambu tag, the block whose value matched the
   AMS-reported `tray_uuid` in Phase 0. Lookups try it first, then the UID,
@@ -11,14 +11,14 @@ in `Apple/` are thin XcodeGen shells over it (see below). No UI tests.
   form an AMS writes (`ParsedTag.bambuddyTagUid`): for Bambu tags the UID
   followed by `00000100` (`7EF1AB04` → `7EF1AB0400000100`), NTAG UIDs as
   read; see `protocol/PROTOCOL.md`.
-- `SpoolBuddyUI`: SwiftUI views shared by the macOS and iOS apps (the feed,
+- `FliBuddyUI`: SwiftUI views shared by the macOS and iOS apps (the feed,
   the settings form with the Transport section, the New and Link sheets,
   the iOS QR scanner); macOS-only parts (the Settings link, the serial port
   picker) sit behind `#if os(macOS)`. `Watch/` holds the compact watch
   views (`#if os(watchOS)`): the feed list, a row detail with the weight on
   the Digital Crown, and a settings page. `FeedView`, `SettingsForm` and
   `UnknownRowActions` are not built for watchOS.
-- `SpoolBuddyMac`: SwiftUI executable for macOS 14+: the app and the
+- `FliBuddyMac`: SwiftUI executable for macOS 14+: the app and the
   Settings window around `SettingsForm`.
 
 The package supports macOS 14+, iOS 26+ and watchOS 26+. Off macOS
@@ -28,10 +28,10 @@ names the platform through `PlatformInfo` (`macOS 26.0`, `iOS 26.1`,
 tests on the iOS simulator:
 
 ```
-xcodebuild -scheme SpoolBuddyUI -destination 'generic/platform=iOS Simulator' build
-xcodebuild test -scheme SpoolBuddy-Package -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild -scheme FliBuddyUI -destination 'generic/platform=iOS Simulator' build
+xcodebuild test -scheme FliBuddy-Package -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
-- `SpoolBuddyCoreTests`: swift-testing suites (`import Testing`). The Command
+- `FliBuddyCoreTests`: swift-testing suites (`import Testing`). The Command
   Line Tools have no XCTest, so the tests do not use it.
 
 ## Commands
@@ -40,7 +40,7 @@ xcodebuild test -scheme SpoolBuddy-Package -destination 'platform=iOS Simulator,
 cd host
 swift build
 swift test
-swift run SpoolBuddyMac
+swift run FliBuddyMac
 ```
 
 If Xcode.app is installed but its license is not accepted, `swift` from
@@ -54,23 +54,23 @@ DEVELOPER_DIR=/Library/Developer/CommandLineTools swift test
 
 ```
 cd host
-DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run SpoolBuddyMac
+DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run FliBuddyMac
 ```
 
 `swift run` starts a plain executable, not an `.app` bundle; the app makes
 itself a regular app (Dock icon, menu bar) at launch. Settings (⌘,) hold the
 Bambuddy URL and API key (stored in the login Keychain, service
-`SpoolBuddy`), the empty-spool catalog entry and the editable core weight
+`FliBuddy`), the empty-spool catalog entry and the editable core weight
 used for new items, the default weight mode and the transport: USB with
 the Flipper port ("Automatic" opens the first `/dev/cu.usbmodemflip_*`), the
 default on the Mac, or Bluetooth (see below). Use **Test connection** after
 entering the key; it also loads the catalog.
 
 `swift run` has no app bundle, so the Bluetooth usage description macOS asks
-for lives in `Sources/SpoolBuddyMac/Info.plist`, linked into the executable's
+for lives in `Sources/FliBuddyMac/Info.plist`, linked into the executable's
 `__TEXT,__info_plist` section with `-sectcreate` (`Package.swift`, macOS
 only). It has no `CFBundleIdentifier` on purpose: one would move
-`UserDefaults.standard` away from the `SpoolBuddyMac` domain that holds the
+`UserDefaults.standard` away from the `FliBuddyMac` domain that holds the
 saved settings.
 
 The core weight is everything on the scale that is not filament (`net =
@@ -98,14 +98,14 @@ picker of Bambuddy's spools). **Clear** empties the feed. The status bar
 shows the Flipper link and the Bambuddy check; the link reconnects on its
 own when the Flipper app is restarted or the cable is replugged.
 
-The view models (`SpoolBuddyCore/ViewModels`) are platform-neutral and
-tested with `swift test`; the SwiftUI views in `SpoolBuddyUI` and
-`SpoolBuddyMac` have no tests.
+The view models (`FliBuddyCore/ViewModels`) are platform-neutral and
+tested with `swift test`; the SwiftUI views in `FliBuddyUI` and
+`FliBuddyMac` have no tests.
 
 ## Bluetooth (`BLETransport`)
 
 `Transport/BLE/BLETransport.swift` implements `Transport` over the FAP's
-GATT service (UUIDs in `SpoolBuddyGATT.swift`, the table in
+GATT service (UUIDs in `FliBuddyGATT.swift`, the table in
 `flipper/README.md`). `connect()` waits for Bluetooth to power on,
 connects to the remembered peripheral if the system still knows it, else
 scans for the service (scan and connect each give up after 10 s with
@@ -148,8 +148,8 @@ Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
                                  set DEVELOPMENT_TEAM
 ```
 
-The apps have no logic of their own: everything is in `SpoolBuddyCore`
-and `SpoolBuddyUI`, used as local package products. The Info.plists are
+The apps have no logic of their own: everything is in `FliBuddyCore`
+and `FliBuddyUI`, used as local package products. The Info.plists are
 generated from `INFOPLIST_KEY_*` settings (Bluetooth on both, camera on the
 iPhone app). `make apple-project` runs `xcodegen generate` and
 `make apple-build` builds both schemes for the simulators with
@@ -190,7 +190,7 @@ is `ViewModels/CrownWeight.swift` (0…9999 g, 1 g steps, 5 g from 20 g/s).
 `SettingsViewModel.applyQRPayload(_:)` fills the URL and key and reports
 in `qrStatus`; `scanQRCode(with:)` takes any `QRScanning` scanner, so it is
 tested without a camera. On iOS **Scan QR code** opens
-`SpoolBuddyUI/QRScanner.swift`, a sheet over VisionKit's
+`FliBuddyUI/QRScanner.swift`, a sheet over VisionKit's
 `DataScannerViewController` reading QR codes. The button only shows where
 the scanner is supported and available, so never in the simulator.
 
@@ -199,13 +199,13 @@ the scanner is supported and available, so never in the simulator.
 The macOS 27 SDK declares `@State` as a macro too, implemented in the
 `SwiftUIMacros` compiler plugin that only Xcode ships. With the Command Line
 Tools, `@State` fails with "plugin for module 'SwiftUIMacros' not found".
-`Sources/SpoolBuddyUI/ViewState.swift` aliases the `State` property wrapper
+`Sources/FliBuddyUI/ViewState.swift` aliases the `State` property wrapper
 struct as a public `ViewState`; use `@ViewState` in both SwiftUI targets.
 
 ## Protocol fixtures
 
 The tests read the shared contract in `protocol/fixtures/` as package
-resources. `Tests/SpoolBuddyCoreTests/Fixtures` is a committed symlink to
+resources. `Tests/FliBuddyCoreTests/Fixtures` is a committed symlink to
 `../../../protocol/fixtures`, declared as `.copy("Fixtures")` in
 `Package.swift`; SwiftPM follows the symlink and copies the directory into
 the test bundle on every build, picking up added, changed and removed
@@ -216,7 +216,7 @@ If the symlink is lost (for example on a checkout with `core.symlinks=false`),
 recreate it:
 
 ```
-cd host/Tests/SpoolBuddyCoreTests && ln -s ../../../protocol/fixtures Fixtures
+cd host/Tests/FliBuddyCoreTests && ln -s ../../../protocol/fixtures Fixtures
 ```
 
 ## swift-testing with the Command Line Tools
