@@ -35,11 +35,6 @@ public struct Settings: Equatable, Sendable {
         self.port = port
     }
 
-    public mutating func useCatalogEntry(_ entry: CatalogEntry) {
-        catalogEntryId = entry.id
-        coreWeight = entry.weight
-    }
-
     /// An http(s) base URL and an API key are set.
     public var isConfigured: Bool { (try? makeClient()) != nil }
 

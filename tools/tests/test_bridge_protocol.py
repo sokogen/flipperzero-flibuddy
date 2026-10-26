@@ -279,6 +279,16 @@ def test_weigh_gross_matches_the_result_fixture():
     assert fake.calls[-1] == ("update_weight", 42, 734)
 
 
+def test_weigh_of_an_ams_added_spool_finds_it_by_the_ams_tag_uid():
+    intent = load("intent_weigh.json")
+    uid = intent["tag"]["uid"]
+    fake = FakeBambuddy([{**SPOOL_42, "tag_uid": uid + "00000100"}])
+    (reply,) = replies(bridge(fake), intent)
+    assert reply["ok"] is True
+    assert ("find_by_tag", bambu_tag.parse_tag(intent["tag"]).tray_uuid, uid + "00000100") in fake.calls
+    assert fake.calls[-1] == ("update_weight", 42, 734)
+
+
 def test_weigh_net_adds_the_core_weight():
     fake = FakeBambuddy([spool_42_on_tag(core_weight=216)])
     intent = {**load("intent_weigh.json"), "grams": 484, "mode": "net"}

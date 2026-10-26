@@ -73,14 +73,17 @@ swift run SpoolBuddyMac
 Open Settings (⌘,), enter the Bambuddy URL (`http://<BAMBUDDY_LAN_IP>:8000`)
 and an API key with inventory read + update and settings read, pick the
 empty-spool catalog entry for new items, and press **Test connection**. The
-core weight of new items defaults to 325 g: everything on the scale that is
-not filament, a Bambu reusable spool (293 g) plus a refill core (32 g). Picking
-a catalog entry copies its weight, which can then be edited; the entry is
-recorded only as `core_weight_catalog_id`. AMS-added spools take their core
-weight from the first "Bambu Lab" catalog entry in Bambuddy, so set that
-entry to 325 g too. The Flipper port defaults to the first `/dev/cu.usbmodemflip_*`. Every scan
+Flipper port defaults to the first `/dev/cu.usbmodemflip_*`. Every scan
 appears in the session feed, where the weight can be entered or corrected,
 new spools created and tags linked to existing spools. See `host/README.md`.
+
+The core weight of new items defaults to 325 g: everything on the scale that
+is not filament, a Bambu reusable spool (293 g) plus a refill core (32 g).
+Picking a catalog entry copies its weight, which can then be edited; the
+entry is recorded only as `core_weight_catalog_id`. A core weight saved
+before keeps its value, so an install set up with 250 g needs 325 entered
+once. AMS-added spools take their core weight from the first "Bambu Lab"
+catalog entry in Bambuddy, so set that entry to 325 g too.
 
 ## Python dev bridge
 

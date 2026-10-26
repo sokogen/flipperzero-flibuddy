@@ -204,6 +204,19 @@ def test_color_map_without_tables_is_empty():
     assert c.color_map() == {"colors": {}, "by_material": {}}
 
 
+@pytest.mark.parametrize("reply", [
+    [],
+    None,
+    {"colors": ["ff9016"]},
+    {"by_material": "none"},
+    {"colors": {"ff9016": 7}},
+])
+def test_color_map_rejects_a_malformed_reply(reply):
+    c, _ = client(httpx.Response(200, json=reply))
+    with pytest.raises(bambuddy.BambuddyError):
+        c.color_map()
+
+
 def test_color_map_maps_403_to_inventory_read():
     c, _ = client(httpx.Response(403, json={"detail": "Missing permission"}))
     with pytest.raises(bambuddy.PermissionMissing) as error:

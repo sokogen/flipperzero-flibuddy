@@ -233,7 +233,8 @@ UUID `F1C8FDF0BC1643C0B37189ADB0687992`.
 *Items requiring manual intervention or external systems - no checkboxes, informational only*
 
 **Manual verification** (owner, with the Flipper and the NAS):
-- Run the Mac host with the new settings screen: core weight shows 325 g,
+- Run the Mac host with the new settings screen: core weight shows 325 g
+  (a core weight saved before, e.g. 250 g, is kept: enter 325 once),
   "Bambu Lab - Plastic Low Temp" selected; scan the orange spool (Bambuddy
   #30) and weigh it in gross mode; check `last_scale_weight` and
   `weight_used` in Bambuddy.

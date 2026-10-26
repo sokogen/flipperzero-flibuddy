@@ -30,6 +30,8 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     /// What `colorMap` answers; empty by default, so new items carry no colour name.
     var colorMapAnswer = ColorMap(colors: [:], byMaterial: [:])
     var colorMapError: BambuddyError?
+    /// Delay before `colorMap` answers, to change the settings mid-load.
+    var colorMapDelay: Duration = .zero
     /// `colorMap` calls; kept out of `calls` so call-order tests stay about tags.
     var colorMapLoads: Int { lock.withLock { colorMapCount } }
     var catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
@@ -132,6 +134,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func colorMap() async throws -> ColorMap {
         lock.withLock { colorMapCount += 1 }
+        if colorMapDelay > .zero { try await Task.sleep(for: colorMapDelay) }
         if let colorMapError { throw colorMapError }
         return colorMapAnswer
     }

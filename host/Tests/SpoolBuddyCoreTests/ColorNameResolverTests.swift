@@ -45,7 +45,8 @@ struct ColorNameResolverTests {
         #expect(resolver.name(rgba: nil, detailedType: "PLA Basic") == nil)
         #expect(resolver.name(rgba: "FFF", detailedType: nil) == nil)
         #expect(resolver.name(rgba: "GGGGGGFF", detailedType: nil) == nil)
-        #expect(ColorNameResolver.empty.name(rgba: "FF9016FF", detailedType: "PLA Basic") == nil)
+        let empty = ColorNameResolver(ColorMap(colors: [:], byMaterial: [:]))
+        #expect(empty.name(rgba: "FF9016FF", detailedType: "PLA Basic") == nil)
     }
 
     @Test func aParsedTagIsNamedByItsColourAndDetailedType() throws {

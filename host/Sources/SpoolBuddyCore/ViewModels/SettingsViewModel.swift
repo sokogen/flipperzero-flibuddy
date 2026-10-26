@@ -89,7 +89,7 @@ public final class SettingsViewModel {
             connection = .failed(Session.describe(error))
             return
         }
-        let state = await Session(settings: settings, inventory: inventory).checkBambuddy()
+        let state = await Session.check(inventory)
         guard state.isReady else {
             connection = .failed(state.message ?? "Bambuddy not ready")
             return

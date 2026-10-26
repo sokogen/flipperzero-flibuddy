@@ -3,7 +3,8 @@
 Date: 2026-10-25
 Status: Phase 0 tooling and Phase 1 (Flipper + macOS over USB) are
 implemented (`docs/plans/20261025-flipper-spoolbuddy-phase0-1.md`); the
-Phase 0 hardware checks are pending (README, "Phase 0 checklist").
+Phase 0 hardware checks ran on 2026-10-26 (see "Phase 0 findings"), the
+remaining ones are listed in README, "Phase 0 results".
 
 ## Intent
 
@@ -97,7 +98,7 @@ permissions. Base path is `/api/v1`.
 | Read spool | `GET /inventory/spools/{id}` | Response includes `label_weight`, `core_weight`, `weight_used`, `last_scale_weight`, `rgba`, `color_name`, `material`, `subtype`. |
 | List spools | `GET /inventory/spools` | For the "link to existing" picker; filter client‑side by material, colour name, brand, note. |
 | Empty‑spool catalog | `GET /inventory/catalog` | Entries `{id, name, weight}`; defaults include "Bambu Lab - Plastic Low Temp" 250 g and "Bambu Lab - Plastic High Temp" 216 g. |
-| Colour catalog | `GET /inventory/colors/lookup`, `/colors/by-material` | Can turn a Bambu material/colour into a name. Optional. |
+| Colour map | `GET /inventory/colors/map` | Colour names for new items; see "Phase 0 findings". Optional. |
 | Settings | `GET /settings` (or equivalent) | Read `spoolman_enabled` once at connect to refuse Spoolman mode. Builder confirms the exact route. |
 
 All of these exist at the deployed version 1.2.5.2 (checked by the builder
@@ -383,7 +384,6 @@ URL carrying it) before designing the parser.
 
 - Offline queue on the Flipper (SD‑backed intent store, replay on connect).
 - NDEF prefill from OpenTag3D / OpenSpool tags.
-- Colour name lookup through Bambuddy's colour catalog.
 
 ## Phase 0 findings (2026-10-26)
 
@@ -422,8 +422,9 @@ spools). Everything below is settled and supersedes earlier wording.
   material word ("Basic", not "PLA Basic"). New items do the same.
 - **Reading.** Both tags of a spool resolve to the same tray UUID; a sealed
   refill reads through its box; a tag moved away early yields a dump with
-  all sectors missing, which the host shows as unreadable. Leaving the app
-  with Back on the Idle screen returns the USB port to the Flipper CLI.
+  all sectors missing, which leaves the host only the UID (an unknown tag
+  without tray UUID or prefill). Leaving the app with Back on the Idle
+  screen returns the USB port to the Flipper CLI.
 - **Why weighing matters.** Bambuddy's AMS remain‑percent fallback charged
   a full label (100 %) to one spool when it was swapped during a print;
   the scale weight overrode it. The project's premise holds.

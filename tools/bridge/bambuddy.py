@@ -117,10 +117,15 @@ class BambuddyClient:
         if response.status_code == 403:
             raise PermissionMissing("inventory:read")
         reply = self._json(response)
-        return {
-            table: {key.lower(): name for key, name in (reply.get(table) or {}).items()}
-            for table in ("colors", "by_material")
-        }
+        tables = {}
+        for table in ("colors", "by_material"):
+            entries = (reply.get(table) or {}) if isinstance(reply, dict) else None
+            if not isinstance(entries, dict) or not all(
+                isinstance(key, str) and isinstance(name, str) for key, name in entries.items()
+            ):
+                raise BambuddyError(f"GET /inventory/colors/map: not a colour map: {str(reply)[:120]}")
+            tables[table] = {key.lower(): name for key, name in entries.items()}
+        return tables
 
     def spoolman_enabled(self) -> bool:
         response = self._request("GET", "/settings/spoolman")

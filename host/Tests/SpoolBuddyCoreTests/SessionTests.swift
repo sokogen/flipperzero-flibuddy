@@ -410,6 +410,18 @@ struct SessionColorNameTests {
         #expect(inventory.creates == [.create(expected)])
     }
 
+    @Test func aFlipperNewAfterARestartSendsTheResolvedName() async throws {
+        let inventory = namingInventory()
+        let session = makeSession(inventory)
+        let intent = try fixtureIntent("intent_new")
+
+        let result = await session.handleIntent(intent)
+
+        #expect(result.ok)
+        guard case .create(let sent) = try #require(inventory.creates.first) else { return }
+        #expect(sent.colorName == "Jade White")
+    }
+
     @Test func aFlipperNewForAnUnnamedColourOmitsTheName() async throws {
         let inventory = namingInventory()
         let session = makeSession(inventory)
@@ -455,6 +467,24 @@ struct SessionColorNameTests {
         #expect(inventory.colorMapLoads == 2)
         #expect(await session.snapshot.colorNamesProblem == nil)
         #expect(await session.rows.first?.colorName == "Jade White")
+    }
+
+    @Test func newSettingsDuringTheMapLoadAreCheckedInstead() async throws {
+        let old = namingInventory()
+        old.colorMapDelay = .milliseconds(200)
+        let session = makeSession(old)
+        _ = await session.record(try fixtureScan())
+        let stale = Task { await session.checkBambuddy() }
+        try await Task.sleep(for: .milliseconds(50))
+
+        let other = namingInventory()
+        other.colorMapAnswer = ColorMap(colors: ["ffffff": "Snow"], byMaterial: [:])
+        await session.reconfigure(settings: testSettings, inventory: other)
+
+        #expect(await stale.value == .ready)
+        #expect(await session.bambuddy == .ready)
+        #expect(other.colorMapLoads == 1)
+        #expect(await session.rows.first?.colorName == "Snow")
     }
 
     @Test func newSettingsLoadTheMapAgain() async throws {

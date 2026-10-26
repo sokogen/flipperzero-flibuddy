@@ -55,10 +55,6 @@ final class ScratchDefaults {
         #expect(store.load().catalogEntryId == 3)
     }
 
-    @Test func theCoreWeightRangeIsOneGramToFiveKilograms() {
-        #expect(Settings.coreWeightRange == 1...5000)
-    }
-
     @Test func theAPIKeyGoesToTheSecretStoreOnly() throws {
         let scratch = ScratchDefaults()
         let secrets = InMemorySecretStore()
@@ -112,13 +108,6 @@ final class ScratchDefaults {
         let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
         #expect(throws: SecretStoreError.status(-25300)) { try store.save(testSettings) }
         #expect(store.load().apiKey == "")
-    }
-
-    @Test func choosingACatalogEntrySetsItsIdAndWeight() {
-        var settings = Settings()
-        settings.useCatalogEntry(CatalogEntry(id: 9, name: "Bambu Lab - Cardboard", weight: 180))
-        #expect(settings.catalogEntryId == 9)
-        #expect(settings.coreWeight == 180)
     }
 
     @Test func configuredNeedsAnHTTPURLAndAKey() {

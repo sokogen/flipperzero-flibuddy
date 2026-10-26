@@ -49,7 +49,8 @@ The core weight is everything on the scale that is not filament (`net =
 gross − core_weight`). It defaults to 325 g, a Bambu reusable spool (293 g)
 plus a refill core (32 g), which fits sealed spools and mounted refills alike.
 Choosing a catalog entry copies its weight once; the number stays editable
-(1–5000 g) and is saved as entered. The entry itself is sent only as
+(1–5000 g) and is saved as entered; a value saved before (e.g. 250 g)
+is kept, not replaced by the new default. The entry itself is sent only as
 `core_weight_catalog_id`. AMS-added spools get their core weight from the
 first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 325 g as
 well to keep both kinds of spool consistent.

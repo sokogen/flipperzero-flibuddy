@@ -64,6 +64,7 @@ struct SettingsViewModelTests {
         #expect(model.connection == .ok("Connected; internal inventory"))
         #expect(model.catalog.map(\.id) == [3, 9])
         #expect(inventory.calls.contains(.spoolman))
+        #expect(inventory.colorMapLoads == 0)
     }
 
     @Test func spoolmanModeFailsTheTest() async {

@@ -162,26 +162,32 @@ public actor Session {
             setBambuddy(.notConfigured)
             return bambuddy
         }
-        let state: BambuddyState
-        do {
-            state = try await inventory.spoolmanEnabled() ? .refused(.spoolmanMode) : .ready
-        } catch BambuddyError.permissionMissing(let permission) {
-            state = .refused(.permissionMissing(permission))
-        } catch BambuddyError.unauthorized {
-            state = .refused(.unauthorized)
-        } catch {
-            state = .unreachable(Self.describe(error))
-        }
+        let state = await Self.check(inventory)
         guard checking == configuration else { return await checkBambuddy() }
         setBambuddy(state)
         if state.isReady, colorNames == nil {
             await loadColorNames(from: inventory, checking: checking)
+            guard checking == configuration else { return await checkBambuddy() }
         }
         return state
     }
 
-    /// A failed load is reported and leaves new items unnamed; the next check
-    /// tries again. Rows already in the feed are named when the map arrives.
+    /// The startup check alone, without the colour map (the settings' "Test connection").
+    static func check(_ inventory: any SpoolInventory) async -> BambuddyState {
+        do {
+            return try await inventory.spoolmanEnabled() ? .refused(.spoolmanMode) : .ready
+        } catch BambuddyError.permissionMissing(let permission) {
+            return .refused(.permissionMissing(permission))
+        } catch BambuddyError.unauthorized {
+            return .refused(.unauthorized)
+        } catch {
+            return .unreachable(describe(error))
+        }
+    }
+
+    /// A failed load is reported and leaves new items unnamed; the next
+    /// startup check (a settings save) tries again. Rows already in the feed
+    /// are named when the map arrives.
     private func loadColorNames(from inventory: any SpoolInventory, checking: Int) async {
         let loaded: Result<ColorMap, any Error>
         do {

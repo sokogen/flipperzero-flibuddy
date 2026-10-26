@@ -27,8 +27,6 @@ public struct ColorMap: Decodable, Equatable, Sendable {
 /// Names a tag's colour the way an AMS-added spool is named: the material
 /// table first, then the colour table; `nil` when neither knows the colour.
 public struct ColorNameResolver: Equatable, Sendable {
-    public static let empty = ColorNameResolver(ColorMap(colors: [:], byMaterial: [:]))
-
     private let colors: [String: String]
     private let byMaterial: [String: String]
 

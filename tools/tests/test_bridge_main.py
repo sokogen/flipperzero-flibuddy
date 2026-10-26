@@ -112,7 +112,11 @@ def test_parse_args_requires_a_key_with_bambuddy(monkeypatch):
 
 
 def test_main_refuses_spoolman_mode(monkeypatch, capsys):
-    monkeypatch.setattr(bambuddy, "BambuddyClient", lambda url, key: FakeSettings(True))
+    class FakeClient(FakeSettings):
+        def color_map(self):
+            raise AssertionError("colour map loaded after a refusal")
+
+    monkeypatch.setattr(bambuddy, "BambuddyClient", lambda url, key: FakeClient(True))
     assert cli.main(["--bambuddy", "http://nas:8000", "--api-key", "bb_x"]) == 2
     assert "Spoolman" in capsys.readouterr().err
 
