@@ -147,8 +147,10 @@ What changes:
 - [x] `make test`, `make lint`, `make coverage` pass (555 Swift tests, 321 Python tests, C suite, lint clean; FliBuddyCore line coverage 89.9 %, tools 96.5 %)
 
 ### Task 8: Documentation
-- [ ] `host/README.md`: keyboard shortcuts, row states, status bar actions
-- [ ] `docs/design/macos-ui-spec.md`: mark anything implemented differently and why
+- [x] `host/README.md`: keyboard shortcuts, row states, status bar actions
+  - ➕ New section "The Mac window" (focus rules, keyboard table, row states, status bar items and their buttons); the stale feed paragraph is gone and "Forget Flipper" now reads Forget, a draft edit applied on Save
+- [x] `docs/design/macos-ui-spec.md`: mark anything implemented differently and why
+  - ➕ New closing section "Implemented differently (2026-10-26)" collects the ➕/⚠️ notes of Tasks 1–7 with their reasons, marking the by-eye items; the intro now exempts it from "this file wins"; the twelve differences are marked implemented
 
 ## Technical Details
 See `docs/design/macos-ui-spec.md` for every string, symbol, size and rule.

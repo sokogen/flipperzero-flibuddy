@@ -5,7 +5,8 @@ Source: the Claude Design project "FliBuddy mobile app design"
 imported on 2026-10-26. This file is the implementation-ready distillation for
 the macOS app; the iPhone, iPad and watch pages get their own files when they
 are implemented. Where this file and the shipped code disagree, this file
-wins; where it is silent, keep the shipped behaviour. The approved design
+wins, except for the deviations recorded in "Implemented differently" at
+the end; where it is silent, keep the shipped behaviour. The approved design
 document (`docs/superpowers/specs/…design.md`) outranks this file on
 behaviour; this file only says how that behaviour looks and feels.
 
@@ -272,7 +273,10 @@ SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
 `nosign`, `paintpalette`, `wave.3.right`, `gearshape`, `trash`, `link`,
 `arrow.left.arrow.right`.
 
-## Differences from the shipped macOS app (to implement)
+## Differences from the shipped macOS app
+
+All twelve are implemented (plan `docs/plans/20261026-macos-ui-from-design.md`).
+
 
 1. Row layout on one line with fixed column widths; UID under the title;
    readout line; "g" unit; `.controlSize(.large)`.
@@ -296,3 +300,104 @@ SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
     as `Created in Bambuddy` with label + core pre-filled; Save sends the
     weight separately; no New button for them.
 12. Rescanning a tag moves its row to the top and reopens it; newest first.
+
+## Implemented differently (2026-10-26)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Window and keyboard
+- The main window is a single `Window`, not a `WindowGroup`: the feed and
+  the Flipper link are app-wide, so a second window would show the same
+  session. Clear is disabled while the feed is empty.
+- ⌘S, ⌘↑ and ⌘↓ are invisible buttons at the feed level, so each shortcut
+  exists once rather than on every row. Selecting the suggestion on focus
+  and the Tab order field → mode → Save are AppKit's (a field selects its
+  text when it becomes first responder; Tab follows view order and reaches
+  the picker and Save only with keyboard navigation on). By eye.
+- "Touched" is the focused row's typed draft. A row that lost focus does
+  not hold it, and writing back the unchanged suggestion does not count.
+  The row that waits behind a touched field gets a tinted outline.
+
+Feed row
+- The one-line layout is macOS only; iOS shares the row and stacks the
+  entry block under the header until the iPhone/iPad spec lands.
+- Title, colour and status columns share the width equally and the entry
+  block is a fixed 360 pt, so columns line up across states.
+- The weight value is bold, as in the row table; the Stance line says
+  semibold.
+- The scan time is the row's tooltip, not a column. Saved rows reopen on a
+  click; VoiceOver gets a "Re-weigh" action for the same thing.
+  **Link to existing…** on a Created row sits right of the readout line.
+- "Saved … by host" after a Flipper timeout is approximate: the host
+  measures its own latency from the intent to the `result` against the
+  Flipper's 10 s, since it cannot see the Flipper's clock.
+- A row whose spool is being created on scan stays "Looking up" until the
+  create returns, rather than flashing "Not in Bambuddy" with New and Link.
+  A failed create shows "Error: <reason>" with **New** (one step, from the
+  tag) and **Link to existing…** as the retry.
+- Two states the row table does not list: "Not in Bambuddy" (a tag with
+  material that has no spool any more, e.g. the link after deleting the
+  created spool failed) offers the one-step **New** and **Link to
+  existing…**; "Error: <reason>" carries the session's message, of which
+  "Bambuddy unreachable" is one.
+- **Link to existing…** on a Created row deletes the spool created on scan
+  first and then links the tag to the chosen spool. The other order cannot
+  work: Bambuddy answers `PATCH /inventory/spools/{id}/link-tag` with 409
+  `tag_already_linked` while another active spool carries the tag. If the
+  delete fails, nothing changes and the row reads "Spool <id> created on
+  scan could not be deleted, so the tag stays on it: <reason>" (Save and
+  Link stay); if the link fails after the delete, the row has no spool and
+  offers New and Link again.
+
+Status bar
+- A bottom `safeAreaInset` on `.bar` with a top `Divider()`. By eye: drop
+  the divider if macOS 27 draws a double separator.
+- "No Flipper · searching" shows a spinner in place of the symbol, not
+  `antenna.radiowaves.left.and.right.slash` beside a spinner. By eye.
+- Each item's tooltip carries the detail the phrase leaves out: the USB
+  port and the firmware, the link's error, Bambuddy's message.
+- States the tables leave open: waiting for `hello` under 2 s and "No
+  Flipper found" count as searching; any other reason the link is down
+  ("Bluetooth is off", "Resource busy") is shown as the phrase itself,
+  orange, with the slash symbol; "Bambuddy not set up" (orange, Settings);
+  "Bambuddy rejected the API key" (red, Settings); "Checking Bambuddy…"
+  with a spinner while a check runs.
+- "Flipper nearby, not connected" (Connect) is shown when the link is
+  stopped, because every other down state already retries every 2 s. The
+  host does not scan for advertising Flippers while disconnected, so
+  "nearby" is not probed, and nothing stops the link today (Forget does
+  not), so the state has no trigger yet.
+
+Sheets
+- New spool: no Core weight or Tag UID rows; the spec lists five fields and
+  the UID is in the subtitle. A Bambu tag's subtitle reads "Bambu tag ·
+  <uid>". The Material menu adds a material outside the list (the tag's
+  own), so the menu always shows the selection.
+- "New…" opens the form for a tag without material; "New" is one step from
+  the tag's data, for a tag with material, which has no spool only after a
+  failed create on scan or when its spool went away. The action the
+  Flipper asked for is the prominent button.
+- Link picker: the row's own spool (the one created on scan) is left out of
+  the list. "Carries a different tag" compares the spool's `tag_uid` with
+  the tag's Bambuddy UID (Bambu UIDs carry the AMS `00000100` suffix) and
+  its tray UUID, so a spool already on this tag does not warn. With no
+  spools at all the list reads "No spools in Bambuddy."; the spool id is
+  the row's tooltip.
+
+Settings
+- Test connection: "Unreachable: no answer within 5 s" for a timeout; any
+  other failure keeps the session's message with `xmark.circle.fill` in
+  red, since the spec names only the timeout.
+- Phase 2 has landed, so the Connection picker shows USB | Bluetooth
+  wherever both exist. "Core weight" is a labelled field with a "g" suffix;
+  the connection line sits left of Forget.
+- Forget is a draft edit like every other field of this explicit-Save
+  screen: it clears the remembered Flipper of the chosen transport (USB
+  port back to Automatic, Bluetooth peripheral to the first found), takes
+  effect on Save, is disabled when nothing is remembered, and does not stop
+  the link.
+- The disconnected connection line reads "No Flipper paired" for both
+  transports, although neither pairs.
+- The iPhone keeps the same form with the Save row until its own spec
+  lands (assumption 4 has the iPhone apply on change).

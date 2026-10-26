@@ -94,16 +94,79 @@ and RGB first (`by_material`, e.g. `pla basic|ff9016`), then the RGB alone
 hex. A failed load shows in the status bar, leaves names empty and never
 blocks a scan; the next startup check retries it.
 
-The window shows the session feed, newest scan first. Known spools get a
-weight field with a net/gross toggle and **Save**; unknown tags get **New…**
-(the form is filled in from the tag) and **Link to existing…** (a filtered
-picker of Bambuddy's spools). **Clear** empties the feed. The status bar
-shows the Flipper link and the Bambuddy check; the link reconnects on its
-own when the Flipper app is restarted or the cable is replugged.
-
 The view models (`FliBuddyCore/ViewModels`) are platform-neutral and
 tested with `swift test`; the SwiftUI views in `FliBuddyUI` and
 `FliBuddyMac` have no tests.
+
+## The Mac window
+
+The layout and copy follow `docs/design/macos-ui-spec.md`; its last section
+lists where the app differs and why.
+
+The window (default 1000 × 600, minimum 760 × 420) shows the session feed,
+newest scan first, one line per tag: swatch, title and UID, colour and
+remaining, status, then the weight entry (field, Net/Gross, **Save**) for
+rows that wait for a weight. A scan of a tag already in the feed moves its
+row to the top and reopens it; no second row. The newest row that waits
+takes focus with the suggestion selected (remaining + core weight in gross,
+remaining in net), so a correct suggestion costs one keystroke. While a
+field holds a number you typed, a new scan does not take focus: the new row
+gets a tinted outline and waits. After a save, focus moves to the newest
+row still waiting. Switching Net/Gross converts an untouched suggestion and
+keeps a typed number. The readout under the field shows what Save sends
+("Saves 590 g left · 915 − 325 g core").
+
+### Keyboard
+
+| Action | Keys |
+|---|---|
+| Save the focused row | ⌘S, or Return in the field |
+| Next / previous row | ⌘↓ / ⌘↑ |
+| Field → mode → Save | ⇥ (⇧⇥ back; the picker and Save need keyboard navigation on) |
+| Switch Net/Gross when the picker has focus | ← → |
+| Clear the feed (asks first; nothing changes in Bambuddy) | ⌘⌫ |
+| Settings | ⌘, |
+
+### Row states
+
+| Status | Meaning | What the row offers |
+|---|---|---|
+| Looking up | the host is asking Bambuddy about the tag, or creating it | nothing yet |
+| Enter weight | a known spool | the weight entry |
+| Saving… | the weight is on its way | the entry, disabled |
+| Saved 590 g left · by host / by Flipper | the last save and who made it; after a host save that came later than the Flipper's 10 s, a note says the Flipper showed a timeout but the save went through | click the row (or the VoiceOver "Re-weigh" action) to weigh again |
+| Created in Bambuddy | an unknown Bambu tag, created on scan with the tag's material, colour and label weight and the core weight from Settings | the entry, pre-filled with label + core; **Link to existing…** deletes the spool just created and links the tag to the chosen one |
+| Not in Bambuddy; tag has no material | an NTAG or blank tag | **New…** (the New spool form) and **Link to existing…** |
+| Not in Bambuddy | a tag with material that has no spool any more (the link after deleting the created spool failed, or the spool went away) | **New** (one step, from the tag) and **Link to existing…** |
+| Flipper asks to create / link it here | the Flipper sent a request for this tag | the requested action is the prominent button |
+| Error: … | the last Bambuddy call failed | on a spool, the entry keeps its value for a retry; after a failed create on scan, **New** and **Link to existing…** |
+
+A rescan of a tag created on scan finds that spool by tag and never creates
+a second one. If the delete behind **Link to existing…** fails, nothing
+changes and the row says so; if the link fails after the delete, the row
+has no spool and offers New and Link again.
+
+### Status bar
+
+Two items, the Flipper link and the Bambuddy check, each a phrase with a
+symbol and a tint; the tooltip holds the detail (port, firmware, error).
+The link reconnects on its own when the Flipper app is restarted or the
+cable is replugged. Some items carry a button:
+
+| Item | Button |
+|---|---|
+| Flipper nearby, not connected (the link is stopped) | Connect |
+| Bambuddy · not checked | Check |
+| Bambuddy unreachable | Retry |
+| Bambuddy is in Spoolman mode (also replaces the feed until it is fixed) | Retry |
+| API key lacks inventory permission, Bambuddy rejected the API key, Bambuddy not set up | Settings |
+
+Connect starts the link with the saved transport; Check and Retry re-run
+the startup check (`HostModel.perform(_:)`); Settings opens the Settings
+window. The other items have no button: "No Flipper · searching" (spinner),
+"Flipper · USB", "Flipper · Bluetooth", "Open FliBuddy on the Flipper" (the
+port is open but no `hello` came within 2 s), "Checking Bambuddy…",
+"Bambuddy ready" and "Bambuddy ready · colour names unavailable".
 
 ## Bluetooth (`BLETransport`)
 
@@ -132,8 +195,10 @@ which would ask for Bluetooth permission.
 `Settings` holds `transport` (`usb` default on macOS, `bluetooth`
 elsewhere, where USB is not offered), `peripheralId` and `peripheralName`.
 **Scan for Flipper** in the settings lists the Flippers found for 15 s
-with their RSSI; choosing one stores it and selects Bluetooth, **Forget
-Flipper** clears it. `HostModel` reconnects when the transport choice
+with their RSSI; choosing one stores it and selects Bluetooth. **Forget**
+clears the remembered Flipper of the chosen transport (the USB port back to
+Automatic, the Bluetooth peripheral to the first found); like every other
+field it takes effect on **Save**. `HostModel` reconnects when the transport choice
 changes (kind, port or peripheral), not on a rename. No pairing: the link
 is unencrypted and carries no secrets.
 
