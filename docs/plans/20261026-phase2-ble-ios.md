@@ -227,10 +227,12 @@ not change. BLE carries the same NDJSON lines.
 - ➕ recorded locally (Xcode 27.1, XcodeGen 2.46): `make apple-project apple-build` → "** BUILD SUCCEEDED **" twice (no warnings in the changed files); `make test` (C suites 0 failures, Swift 430 tests, pytest 315), `make lint` pass; SpoolBuddyCore line coverage 89.8 %
 
 ### Task 10: CI for the Apple builds
-- [ ] `.github/workflows/host.yml`: add a job on `macos-latest` that installs `xcodegen` with Homebrew and runs `make apple-project apple-build`; path filters include `host/Apple/**`
-- [ ] `.github/workflows/README.md` documents the job and the signing policy
-- [ ] write tests: `tools/tests/test_ci.py` checks the new job and the path filters as it does for the others
-- [ ] run all three suites - must pass before task 11
+- [x] `.github/workflows/host.yml`: add a job on `macos-latest` that installs `xcodegen` with Homebrew and runs `make apple-project apple-build`; path filters include `host/Apple/**`
+- [x] `.github/workflows/README.md` documents the job and the signing policy
+- [x] write tests: `tools/tests/test_ci.py` checks the new job and the path filters as it does for the others
+- [x] run all three suites - must pass before task 11
+- ➕ deviations: the job is `apple` next to `test` in `host.yml`; the path filters also gain the root `Makefile` (the `apple-*` recipes live there), and `host/Apple/**` is listed explicitly although `host/**` covers it. No Xcode selection step: `macos-latest` is the macOS 26 arm64 image, whose default Xcode 26.6 ships the iOS and watchOS 26.5 SDKs and simulators (actions/runner-images, checked 2026-10-26). `run_lines`/`step_dirs` in `test_ci.py` now take one job, since `host.yml` has two; the unsigned build itself is guarded by `test_apple_project.py`
+- ⚠️ the Apple build was verified locally only with Xcode 27.1 (`make apple-project apple-build` → "** BUILD SUCCEEDED **" twice); the first CI run is the check against Xcode 26.6. `make test` (C suites 0 failures, Swift 430 tests, pytest 316) and `make lint` pass
 
 ### Task 11: Verify acceptance criteria
 - [ ] verify every bullet of the Overview is implemented
