@@ -235,11 +235,12 @@ not change. BLE carries the same NDJSON lines.
 - ⚠️ the Apple build was verified locally only with Xcode 27.1 (`make apple-project apple-build` → "** BUILD SUCCEEDED **" twice); the first CI run is the check against Xcode 26.6. `make test` (C suites 0 failures, Swift 430 tests, pytest 316) and `make lint` pass
 
 ### Task 11: Verify acceptance criteria
-- [ ] verify every bullet of the Overview is implemented
-- [ ] `protocol/` unchanged (`git diff --stat main...HEAD -- protocol` is empty)
-- [ ] `make test`, `make lint`, `make coverage` (80 %) pass
-- [ ] `cd flipper && ufbt` builds the FAP
-- [ ] `make apple-project apple-build` succeeds for both targets
+- [x] verify every bullet of the Overview is implemented
+- [x] `protocol/` unchanged (`git diff --stat main...HEAD -- protocol` is empty)
+- [x] `make test`, `make lint`, `make coverage` (80 %) pass
+- [x] `cd flipper && ufbt` builds the FAP
+- [x] `make apple-project apple-build` succeeds for both targets
+- ➕ results (2026-10-26): Overview bullets traced to `transport_ble.c`, `app_settings.c`, `scene_transport.c` and `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` (Flipper); `BLETransport` via `FlipperLink.defaultTransport`, `Settings.transport`/`peripheralId` (host, macOS included); `SpoolBuddyUI`; `project.yml` iOS and watchOS 26 targets, `WatchSettingsSender`/`WatchSettingsReceiver`; `QRScannerSheet` in `SettingsForm`; the `apple` job in `host.yml`. `make test`: C suites 0 failures, Swift 430 tests in 33 suites, pytest 316; `make lint` passes; coverage SpoolBuddyCore 89.8 %, tools 96.5 %; `ufbt -c && ufbt` builds `spoolbuddy.fap` (API 88.2) without warnings; `make apple-project apple-build` → "** BUILD SUCCEEDED **" twice (Xcode 27.1, only the appintentsmetadataprocessor notice)
 
 ### Task 12: Documentation
 - [ ] root `README.md`: Phase 2 section (transport setting on both sides, no pairing, the encryption macro, iPhone/iPad/Watch install from Xcode with free provisioning, settings reach the watch from the phone), the `host/Apple` layout, `make apple-*` targets
