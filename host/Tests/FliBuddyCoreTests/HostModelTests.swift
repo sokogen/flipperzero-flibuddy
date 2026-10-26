@@ -46,6 +46,7 @@ struct HostModelTests {
         #expect(model.feed.settings == testSettings)
         #expect(await model.session.settings == testSettings)
         #expect(model.makeSettingsViewModel().draft == testSettings)
+        #expect(model.makeSettingsViewModel().connectionLine == "No Flipper paired")
     }
 
     @Test func applyingSettingsSavesAndReconfigures() async throws {

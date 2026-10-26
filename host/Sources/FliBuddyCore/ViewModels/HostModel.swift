@@ -50,6 +50,22 @@ public final class HostModel {
         Task { await session.checkBambuddy() }
     }
 
+    /// Runs the startup check again (the status bar's Check and Retry, and
+    /// Retry on the blocking Spoolman screen).
+    public func checkBambuddy() async {
+        await session.checkBambuddy()
+    }
+
+    /// A status bar button. Settings is the view's to open, so it does
+    /// nothing here.
+    public func perform(_ action: StatusItem.Action) async {
+        switch action {
+        case .connect: link.connect(settings.transportChoice)
+        case .check, .retry: await checkBambuddy()
+        case .settings: break
+        }
+    }
+
     /// Saves new settings, points the session at them and checks Bambuddy
     /// again; a changed transport choice (kind, USB port or Bluetooth
     /// peripheral) reconnects a running link.
@@ -80,6 +96,7 @@ public final class HostModel {
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
+            connectedTransport: { [link] in link.connectedTransport },
             apply: { [weak self] in try await self?.apply($0) }
         )
     }

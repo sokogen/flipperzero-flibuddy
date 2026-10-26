@@ -10,14 +10,20 @@ public protocol QRScanning {
 
 /// The Settings screen: an editable copy of the settings, the catalog entry
 /// picker, the transport settings (USB port, Bluetooth Flipper scan) and the
-/// connection test. `save()` hands the draft
-/// to `apply`, which stores it and reconfigures the session.
+/// connection test. `save()` hands the draft to `apply`, which stores it and
+/// reconfigures the session; `revert()` goes back to what was saved.
 @MainActor
 @Observable
 public final class SettingsViewModel {
+    /// The last Test connection.
     public enum Connection: Equatable, Sendable {
         case testing
-        case ok(String)
+        /// Internal inventory with the permissions FliBuddy needs.
+        case ready
+        /// No answer, with the reason ("no answer within 5 s").
+        case unreachable(String)
+        /// Bambuddy answered no (Spoolman mode, the API key), or the settings
+        /// cannot make a client.
         case failed(String)
     }
 
@@ -27,8 +33,13 @@ public final class SettingsViewModel {
         case failed(String)
     }
 
-    public var baseURL: String
-    public var apiKey: String
+    /// Editing the URL or the API key drops the test result, which was about the old ones.
+    public var baseURL: String {
+        didSet { if baseURL != oldValue { endpointEdited() } }
+    }
+    public var apiKey: String {
+        didSet { if apiKey != oldValue { endpointEdited() } }
+    }
     /// Picks the entry from `catalog`; choosing a different entry copies its
     /// weight into `coreWeight` once.
     public var catalogEntryId: Int? {
@@ -65,15 +76,21 @@ public final class SettingsViewModel {
     private let discoverFlippers: @MainActor () -> AsyncStream<DiscoveredPeripheral>
     private let bluetoothPower: @MainActor () async -> BLEPowerState
     private let scanDuration: Duration
+    private let connectedTransport: @MainActor () -> TransportKind?
     private let apply: @MainActor (Settings) async throws -> Void
     private var scanTask: Task<Void, Never>?
     private var scanTimer: Task<Void, Never>?
     /// Bumped by every scan start and stop; a stale scan changes nothing.
     private var scanGeneration = 0
+    /// Bumped by every edit of the URL or the API key; a test of older ones changes nothing.
+    private var endpointGeneration = 0
+    /// Bumped by every catalog load; only the latest one sets `catalog` and `catalogError`.
+    private var catalogLoads = 0
 
     /// `discoverFlippers` streams Flippers advertising over Bluetooth; a scan
     /// stops by itself after `scanDuration`, or at once when `bluetoothPower`
-    /// says the radio cannot be used.
+    /// says the radio cannot be used. `connectedTransport` is how the Flipper
+    /// is connected now, `nil` when it is not.
     public init(
         settings: Settings,
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
@@ -81,6 +98,7 @@ public final class SettingsViewModel {
         discoverFlippers: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { FlipperLink.defaultScan() },
         bluetoothPower: @escaping @MainActor () async -> BLEPowerState = { await FlipperLink.defaultPowerState() },
         scanDuration: Duration = .seconds(15),
+        connectedTransport: @escaping @MainActor () -> TransportKind? = { nil },
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
         saved = settings
@@ -98,6 +116,7 @@ public final class SettingsViewModel {
         self.discoverFlippers = discoverFlippers
         self.bluetoothPower = bluetoothPower
         self.scanDuration = scanDuration
+        self.connectedTransport = connectedTransport
         self.apply = apply
     }
 
@@ -118,46 +137,135 @@ public final class SettingsViewModel {
 
     public var hasChanges: Bool { draft != saved }
 
+    /// The line next to Revert and Save.
+    public var saveStatusText: String { hasChanges ? "Unsaved changes" : "All changes saved" }
+    public var canSave: Bool { hasChanges }
+    public var canRevert: Bool { hasChanges }
+
+    /// Puts every field back to the saved settings and drops the results that
+    /// were about the edited ones.
+    public func revert() {
+        baseURL = saved.baseURL
+        apiKey = saved.apiKey
+        // Picking an entry copies its weight, so the saved weight goes in after it.
+        catalogEntryId = saved.catalogEntryId
+        coreWeight = saved.coreWeight
+        defaultMode = saved.defaultMode
+        transport = saved.transport
+        port = saved.port
+        peripheralId = saved.peripheralId
+        peripheralName = saved.peripheralName
+        connection = nil
+        saveError = nil
+        qrStatus = nil
+    }
+
     /// Why the core weight cannot be saved; `nil` when it is in range.
     public var coreWeightError: String? {
         let range = Settings.coreWeightRange
         return range.contains(coreWeight) ? nil : "Core weight must be \(range.lowerBound)–\(range.upperBound) g"
     }
 
-    /// Runs the session's startup check against the draft; loads the catalog when it passes.
+    /// Runs the session's startup check against the draft, then loads the
+    /// catalog (`GET /inventory/catalog`); the test passes only when both do.
+    /// A test that ends after the URL or the API key changed shows nothing
+    /// and keeps the catalog.
     public func testConnection() async {
         connection = .testing
-        let settings = draft
+        let tested = endpointGeneration
         let inventory: any SpoolInventory
         do {
-            inventory = try makeInventory(settings)
+            inventory = try makeInventory(draft)
         } catch {
             connection = .failed(Session.describe(error))
             return
         }
-        let state = await Session.check(inventory)
+        let state: BambuddyState
+        do {
+            state = try await Session.state(spoolmanEnabled: inventory.spoolmanEnabled())
+        } catch BambuddyError.network(let reason) {
+            if tested == endpointGeneration { connection = .unreachable(reason) }
+            return
+        } catch {
+            state = Session.state(after: error)
+        }
+        guard tested == endpointGeneration else { return }
         guard state.isReady else {
             connection = .failed(state.message ?? "Bambuddy not ready")
             return
         }
-        connection = .ok("Connected; internal inventory")
-        await loadCatalog(from: inventory)
-    }
-
-    public func loadCatalog() async {
         do {
-            await loadCatalog(from: try makeInventory(draft))
+            try await fetchCatalog(from: inventory, editedSince: tested)
+            connection = .ready
+        } catch is CancellationError {
+            return
+        } catch BambuddyError.network(let reason) {
+            connection = .unreachable(reason)
         } catch {
-            catalogError = Session.describe(error)
+            connection = .failed(Session.state(after: error).message ?? Session.describe(error))
         }
     }
 
-    private func loadCatalog(from inventory: any SpoolInventory) async {
+    private func endpointEdited() {
+        endpointGeneration += 1
+        connection = nil
+    }
+
+    /// The line next to Test connection.
+    public var connectionResult: StatusItem { Self.result(connection) }
+
+    public static func result(_ connection: Connection?) -> StatusItem {
+        let failed = StatusSymbol.symbol("xmark.circle.fill")
+        return switch connection {
+        case nil: StatusItem(text: "Not tested", symbol: .symbol("circle.dashed"), tint: .gray)
+        case .testing: StatusItem(text: "Testing\u{2026}", symbol: .progress, tint: .gray)
+        case .ready:
+            StatusItem(
+                text: "Ready \u{00B7} inventory access OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
+            )
+        case .unreachable(let reason): StatusItem(text: "Unreachable: \(reason)", symbol: failed, tint: .red)
+        case .failed(let message): StatusItem(text: message, symbol: failed, tint: .red)
+        }
+    }
+
+    public func loadCatalog() async {
+        let inventory: any SpoolInventory
         do {
-            catalog = try await inventory.catalog()
-            catalogError = nil
+            inventory = try makeInventory(draft)
         } catch {
+            catalogLoads += 1
             catalogError = Session.describe(error)
+            return
+        }
+        try? await fetchCatalog(from: inventory, editedSince: endpointGeneration)
+    }
+
+    /// Loads the catalog; a failure is kept in `catalogError` and rethrown.
+    /// An answer for a URL or API key edited since `generation` is dropped
+    /// and reported as `CancellationError`. Loads overlap when Settings opens,
+    /// Test connection and Reload run together; one that ends after a newer
+    /// one started still returns its own answer but leaves `catalog` and
+    /// `catalogError` to the newer one.
+    private func fetchCatalog(from inventory: any SpoolInventory, editedSince generation: Int) async throws {
+        catalogLoads += 1
+        let load = catalogLoads
+        let loaded: Result<[CatalogEntry], any Error>
+        do {
+            loaded = .success(try await inventory.catalog())
+        } catch {
+            loaded = .failure(error)
+        }
+        guard generation == endpointGeneration else { throw CancellationError() }
+        let latest = load == catalogLoads
+        switch loaded {
+        case .success(let entries):
+            if latest {
+                catalog = entries
+                catalogError = nil
+            }
+        case .failure(let error):
+            if latest { catalogError = Session.describe(error) }
+            throw error
         }
     }
 
@@ -256,10 +364,39 @@ public final class SettingsViewModel {
         stopScanning()
     }
 
-    /// Goes back to using the first Flipper found.
-    public func forgetPeripheral() {
-        peripheralId = nil
-        peripheralName = nil
+    /// The Flipper section's status line.
+    public var connectionLine: String { Self.connectionLine(connectedTransport()) }
+
+    public static func connectionLine(_ kind: TransportKind?) -> String {
+        switch kind {
+        case .usb: "Connected over USB"
+        case .bluetooth: "Connected over Bluetooth"
+        case nil: "No Flipper paired"
+        }
+    }
+
+    /// The Bluetooth Flipper row: the chosen one, else the scan or the first found.
+    public var bluetoothFlipperText: String {
+        peripheralName ?? (isScanning ? "Searching\u{2026}" : "First found")
+    }
+
+    /// The current transport remembers a Flipper (a USB port, a Bluetooth peripheral).
+    public var canForget: Bool {
+        switch transport {
+        case .usb: port != nil
+        case .bluetooth: peripheralId != nil
+        }
+    }
+
+    /// Goes back to using the first Flipper found over the current transport.
+    public func forget() {
+        switch transport {
+        case .usb:
+            port = nil
+        case .bluetooth:
+            peripheralId = nil
+            peripheralName = nil
+        }
     }
 
     @discardableResult

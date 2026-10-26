@@ -12,13 +12,14 @@ struct FliBuddyMacApp: App {
     var body: some Scene {
         // One window: the feed and the Flipper link are app-wide.
         Window("FliBuddy", id: "main") {
-            FeedView(feed: host.feed, link: host.link)
+            FeedView(host: host)
                 .frame(minWidth: 760, minHeight: 420)
                 .task {
                     host.start()
                     await host.feed.observe()
                 }
         }
+        .defaultSize(width: 1000, height: 600)
         // `Settings` alone would be FliBuddyCore's settings struct.
         SwiftUI.Settings {
             SettingsView(host: host)

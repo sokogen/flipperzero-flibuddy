@@ -107,10 +107,11 @@ The transport is a setting on both sides; nothing negotiates it.
   only; with Bluetooth the USB port stays with the CLI and qFlipper. The
   status line shows `BLE adv` while advertising and `BLE` once a host has
   said hello. See `flipper/README.md`.
-- Host: Settings → Transport. The Mac offers USB and Bluetooth (USB stays
+- Host: Settings → Connection. The Mac offers USB and Bluetooth (USB stays
   the default); the iPhone, iPad and Watch use Bluetooth only. **Scan for
   Flipper** lists the Flippers nearby by name; the chosen one is
-  remembered and reconnected to directly. **Forget Flipper** clears it.
+  remembered and reconnected to directly. **Forget** clears it; like every
+  other Settings change it takes effect on **Save**.
 
 There is no pairing step anywhere. The FAP publishes its own GATT service
 instead of the stock serial profile, whose passkey prompt watchOS cannot

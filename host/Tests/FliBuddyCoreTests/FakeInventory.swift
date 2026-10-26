@@ -9,6 +9,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         case update(spoolId: Int, gross: Int)
         case create(NewSpool)
         case link(spoolId: Int, TagLink)
+        case delete(spoolId: Int)
         case spoolman
         case list
         case catalog
@@ -26,7 +27,9 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var updateError: BambuddyError?
     var createError: BambuddyError?
     var linkError: BambuddyError?
+    var deleteError: BambuddyError?
     var catalogError: BambuddyError?
+    var listError: BambuddyError?
     /// What `colorMap` answers; empty by default, so new items carry no colour name.
     var colorMapAnswer = ColorMap(colors: [:], byMaterial: [:])
     var colorMapError: BambuddyError?
@@ -43,6 +46,20 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var spoolmanDelay: Duration = .zero
     /// Answer `updateWeight` without `weight_used`, as a Bambuddy might.
     var omitWeightUsed = false
+    /// Runs inside `updateWeight` before it answers, e.g. to move a test clock.
+    var onUpdate: (@Sendable () -> Void)?
+    /// Runs inside `createSpool` before it answers, e.g. to read the feed mid-create.
+    var onCreate: (@Sendable () async -> Void)?
+    /// Runs inside `findSpool` before it answers, e.g. to change the settings mid-lookup.
+    var onFind: (@Sendable () async -> Void)?
+    /// Runs inside `spoolmanEnabled` before it answers, e.g. to edit the settings mid-test.
+    var onSpoolman: (@Sendable () async -> Void)?
+    /// Runs inside `catalog` before it answers, e.g. to edit the settings mid-load.
+    var onCatalog: (@Sendable () async -> Void)?
+    /// Runs inside `listSpools` before it answers, e.g. to change the settings mid-list.
+    var onList: (@Sendable () async -> Void)?
+    /// Runs inside `deleteSpool` before it answers, e.g. to change the settings mid-link.
+    var onDelete: (@Sendable () async -> Void)?
 
     init(spools: [Spool] = []) {
         stored = spools
@@ -60,6 +77,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
         record(.find(tray: trayUuid, uid: uid))
+        await onFind?()
         if let findError { throw findError }
         return lock.withLock {
             if let trayUuid, let spool = stored.first(where: { $0.trayUuid == trayUuid }) { return spool }
@@ -71,6 +89,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         record(.update(spoolId: spoolId, gross: gross))
         let delay = updateDelays[gross] ?? updateDelay
         if delay > .zero { try await Task.sleep(for: delay) }
+        onUpdate?()
         if let updateError { throw updateError }
         return try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {
@@ -85,6 +104,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     func createSpool(_ spool: NewSpool) async throws -> Spool {
         record(.create(spool))
+        await onCreate?()
         if let createError { throw createError }
         return lock.withLock {
             let created = Spool(
@@ -100,6 +120,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         }
     }
 
+    /// Refuses a tag another spool carries, as Bambuddy does (409 naming the holder).
     func linkTag(spoolId: Int, _ link: TagLink) async throws -> Spool {
         record(.link(spoolId: spoolId, link))
         if let linkError { throw linkError }
@@ -107,6 +128,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {
                 throw BambuddyError.spoolNotFound(spoolId)
             }
+            let holder = stored.first { spool in
+                spool.id != spoolId
+                    && (spool.tagUid == link.tagUid || (link.trayUuid != nil && spool.trayUuid == link.trayUuid))
+            }
+            if let holder { throw BambuddyError.tagAlreadyLinked(otherSpoolId: holder.id) }
             stored[index].tagUid = link.tagUid
             stored[index].trayUuid = link.trayUuid
             stored[index].tagType = link.tagType
@@ -114,20 +140,34 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         }
     }
 
+    func deleteSpool(id: Int) async throws {
+        record(.delete(spoolId: id))
+        await onDelete?()
+        if let deleteError { throw deleteError }
+        try lock.withLock {
+            guard let index = stored.firstIndex(where: { $0.id == id }) else { throw BambuddyError.spoolNotFound(id) }
+            stored.remove(at: index)
+        }
+    }
+
     func spoolmanEnabled() async throws -> Bool {
         record(.spoolman)
         if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }
+        await onSpoolman?()
         if let spoolmanError { throw spoolmanError }
         return spoolman
     }
 
     func listSpools() async throws -> [Spool] {
         record(.list)
+        await onList?()
+        if let listError { throw listError }
         return spools
     }
 
     func catalog() async throws -> [CatalogEntry] {
         record(.catalog)
+        await onCatalog?()
         if let catalogError { throw catalogError }
         return catalogEntries
     }

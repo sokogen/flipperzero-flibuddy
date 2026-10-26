@@ -14,6 +14,7 @@ private func makeModel(
     scan: @escaping @MainActor () -> AsyncStream<DiscoveredPeripheral> = { AsyncStream { $0.finish() } },
     scanDuration: Duration = .seconds(15),
     power: @escaping @MainActor () async -> BLEPowerState = { .poweredOn },
+    connected: @escaping @MainActor () -> TransportKind? = { nil },
     apply: @escaping @MainActor (Settings) async throws -> Void = { _ in }
 ) -> SettingsViewModel {
     SettingsViewModel(
@@ -26,6 +27,7 @@ private func makeModel(
         discoverFlippers: scan,
         bluetoothPower: power,
         scanDuration: scanDuration,
+        connectedTransport: connected,
         apply: apply
     )
 }
@@ -114,10 +116,85 @@ struct SettingsViewModelTests {
 
         await model.testConnection()
 
-        #expect(model.connection == .ok("Connected; internal inventory"))
+        #expect(model.connection == .ready)
         #expect(model.catalog.map(\.id) == [3, 9])
         #expect(inventory.calls.contains(.spoolman))
         #expect(inventory.colorMapLoads == 0)
+    }
+
+    @Test func aCatalogTheKeyCannotReadFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .permissionMissing("inventory:read")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyState.refused(.permissionMissing("inventory:read")).message!))
+        #expect(model.catalogError != nil)
+    }
+
+    @Test func aRejectedCatalogFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .unauthorized
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyState.refused(.unauthorized).message!))
+    }
+
+    @Test func anUnreachableCatalogFailsTheTest() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .network("no answer within 5 s")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .unreachable("no answer within 5 s"))
+    }
+
+    @Test func aTestOfAnEditedURLShowsNoResult() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onSpoolman = { await MainActor.run { model.baseURL = "http://other.local:8000" } }
+
+        await model.testConnection()
+
+        #expect(model.connection == nil)
+    }
+
+    @Test func aTestOfAnEditedKeyKeepsTheCatalog() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = { await MainActor.run { model.apiKey = "bb_other" } }
+
+        await model.testConnection()
+
+        #expect(model.connection == nil)
+        #expect(model.catalog.isEmpty)
+    }
+
+    @Test func editingTheURLOrKeyDropsTheResult() async {
+        let model = makeModel()
+        await model.testConnection()
+        #expect(model.connection == .ready)
+
+        model.baseURL = "http://other.local:8000"
+        #expect(model.connection == nil)
+
+        await model.testConnection()
+        model.apiKey = "bb_other"
+        #expect(model.connection == nil)
+    }
+
+    @Test func editingOtherFieldsKeepsTheResult() async {
+        let model = makeModel()
+        await model.testConnection()
+
+        model.coreWeight = 300
+        model.defaultMode = .net
+
+        #expect(model.connection == .ready)
     }
 
     @Test func spoolmanModeFailsTheTest() async {
@@ -250,6 +327,69 @@ struct SettingsViewModelTests {
 
         #expect(model.catalog.isEmpty)
         #expect(model.catalogError == BambuddyError.unauthorized.localizedDescription)
+    }
+
+    @Test func anOlderCatalogLoadThatFailsLastChangesNothing() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.loadCatalog()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
+    }
+
+    @Test func anOlderCatalogLoadThatSucceedsLastChangesNothing() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            inventory.catalogError = .unauthorized
+            await model.loadCatalog()
+            inventory.catalogError = nil
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.catalog.isEmpty)
+        #expect(model.catalogError == BambuddyError.unauthorized.localizedDescription)
+    }
+
+    @Test func aCatalogLoadThatEndsAfterATestKeepsTheTestsCatalog() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.testConnection()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.loadCatalog()
+
+        #expect(model.connection == .ready)
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
+    }
+
+    @Test func aTestWhoseCatalogLoadEndsAfterANewerOneStillShowsItsResult() async {
+        let inventory = FakeInventory()
+        let model = makeModel(inventory)
+        inventory.onCatalog = {
+            inventory.onCatalog = nil
+            await model.loadCatalog()
+            inventory.catalogError = .network("no answer within 5 s")
+        }
+
+        await model.testConnection()
+
+        #expect(model.connection == .unreachable("no answer within 5 s"))
+        #expect(model.catalog.map(\.id) == [3])
+        #expect(model.catalogError == nil)
     }
 
     @Test func aCatalogLoadWithoutAClientIsReported() async {
@@ -407,11 +547,11 @@ struct SettingsViewModelTests {
 
     @Test func aScanWithTheRadioOnHasNoProblem() async {
         let scan = ManualScan()
-        var power = BLEPowerState.poweredOff
-        let model = makeModel(scan: scan.start, power: { power })
+        let power = LockedBox(BLEPowerState.poweredOff)
+        let model = makeModel(scan: scan.start, power: { power.value })
         model.scanForFlippers()
         #expect(await eventually { model.scanProblem != nil })
-        power = .poweredOn
+        power.mutate { $0 = .poweredOn }
 
         model.scanForFlippers()
 
@@ -448,7 +588,7 @@ struct SettingsViewModelTests {
         settings.peripheralName = flipperA.name
         let model = makeModel(settings: settings)
 
-        model.forgetPeripheral()
+        model.forget()
 
         #expect(model.peripheralId == nil)
         #expect(model.peripheralName == nil)
@@ -461,7 +601,7 @@ struct SettingsViewModelTests {
     @Test func aQRPayloadFillsTheURLAndKey() async {
         let model = makeModel()
         await model.testConnection()
-        #expect(model.connection == .ok("Connected; internal inventory"))
+        #expect(model.connection == .ready)
 
         model.applyQRPayload(bambuddyQR)
 
@@ -520,5 +660,200 @@ struct SettingsViewModelTests {
         #expect(model.apiKey == "bb_test")
         #expect(model.qrStatus == nil)
         #expect(!model.hasChanges)
+    }
+
+    // MARK: Test connection result
+
+    @Test func anUntestedConnectionSaysSo() {
+        let model = makeModel()
+        #expect(model.connectionResult == StatusItem(text: "Not tested", symbol: .symbol("circle.dashed"), tint: .gray))
+    }
+
+    @Test(arguments: [
+        (SettingsViewModel.Connection.testing, StatusItem(text: "Testing\u{2026}", symbol: .progress, tint: .gray)),
+        (
+            .ready,
+            StatusItem(
+                text: "Ready \u{00B7} inventory access OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
+            )
+        ),
+        (
+            .unreachable("no answer within 5 s"),
+            StatusItem(
+                text: "Unreachable: no answer within 5 s", symbol: .symbol("xmark.circle.fill"), tint: .red
+            )
+        ),
+        (
+            .failed("Bambuddy rejected the API key; check it in Settings"),
+            StatusItem(
+                text: "Bambuddy rejected the API key; check it in Settings", symbol: .symbol("xmark.circle.fill"),
+                tint: .red
+            )
+        ),
+    ])
+    func eachTestResultHasItsPhraseSymbolAndTint(connection: SettingsViewModel.Connection, item: StatusItem) {
+        #expect(SettingsViewModel.result(connection) == item)
+    }
+
+    @Test func aNetworkFailureIsUnreachableWithTheReason() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .network("no answer within 5 s")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .unreachable("no answer within 5 s"))
+        #expect(model.connectionResult.text == "Unreachable: no answer within 5 s")
+        #expect(model.catalog.isEmpty)
+    }
+
+    @Test func aServerErrorFailsWithBambuddysAnswer() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .http(status: 500, message: "boom")
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyError.http(status: 500, message: "boom").localizedDescription))
+        #expect(model.catalog.isEmpty)
+    }
+
+    @Test func aRejectedKeyFailsWithTheSessionsMessage() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .unauthorized
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(BambuddyState.refused(.unauthorized).message!))
+    }
+
+    // MARK: Save row
+
+    @Test func theSaveLineFollowsTheChanges() async {
+        let model = makeModel()
+        #expect(model.saveStatusText == "All changes saved")
+        #expect(!model.canSave)
+        #expect(!model.canRevert)
+
+        model.apiKey = "bb_new"
+        #expect(model.saveStatusText == "Unsaved changes")
+        #expect(model.canSave)
+        #expect(model.canRevert)
+
+        #expect(await model.save())
+        #expect(model.saveStatusText == "All changes saved")
+        #expect(!model.canSave)
+        #expect(!model.canRevert)
+    }
+
+    @Test func undoingAnEditByHandIsClean() {
+        let model = makeModel()
+        model.apiKey = "bb_new"
+        model.apiKey = "bb_test"
+        #expect(model.saveStatusText == "All changes saved")
+    }
+
+    @Test func revertRestoresTheSavedDraft() async {
+        var settings = testSettings
+        settings.port = "/dev/cu.usbmodemflip_A"
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [
+            CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250),
+            CatalogEntry(id: 9, name: "Bambu Lab - Cardboard", weight: 180),
+        ]
+        let model = makeModel(inventory, settings: settings, apply: { _ in throw SecretStoreError.status(-25300) })
+        await model.loadCatalog()
+        model.baseURL = "http://10.0.0.5:8000"
+        model.apiKey = "bb_new"
+        model.catalogEntryId = 9
+        model.coreWeight = 200
+        model.defaultMode = .net
+        model.transport = .bluetooth
+        model.port = nil
+        model.choosePeripheral(flipperA)
+        await model.testConnection()
+        #expect(!(await model.save()))
+
+        model.revert()
+
+        #expect(model.draft == settings)
+        #expect(model.coreWeight == 250)
+        #expect(!model.hasChanges)
+        #expect(model.saveError == nil)
+        #expect(model.connection == nil)
+    }
+
+    @Test func revertAfterASaveKeepsTheSavedValues() async {
+        let model = makeModel()
+        model.apiKey = "bb_saved"
+        #expect(await model.save())
+        model.apiKey = "bb_draft"
+
+        model.revert()
+
+        #expect(model.apiKey == "bb_saved")
+        #expect(!model.hasChanges)
+    }
+
+    // MARK: Flipper section
+
+    @Test(arguments: [
+        (TransportKind?.some(.usb), "Connected over USB"),
+        (.some(.bluetooth), "Connected over Bluetooth"),
+        (nil, "No Flipper paired"),
+    ])
+    func theConnectionLineNamesTheLink(kind: TransportKind?, text: String) {
+        #expect(SettingsViewModel.connectionLine(kind) == text)
+        #expect(makeModel(connected: { kind }).connectionLine == text)
+    }
+
+    @Test func theBluetoothFlipperIsTheChosenOneOrTheSearch() async {
+        let scan = ManualScan()
+        let model = makeModel(scan: scan.start)
+        #expect(model.bluetoothFlipperText == "First found")
+
+        model.scanForFlippers()
+        #expect(model.bluetoothFlipperText == "Searching\u{2026}")
+
+        scan.continuation?.yield(flipperA)
+        #expect(await eventually { model.discovered == [flipperA] })
+        model.choosePeripheral(flipperA)
+        #expect(model.bluetoothFlipperText == "Flipper Anmaa1")
+    }
+
+    @Test func forgetClearsTheChosenPortOverUSB() {
+        var settings = testSettings
+        settings.port = "/dev/cu.usbmodemflip_A"
+        let model = makeModel(settings: settings)
+        #expect(model.canForget)
+
+        model.forget()
+
+        #expect(model.port == nil)
+        #expect(model.draft.transport == .usb)
+        #expect(model.hasChanges)
+        #expect(!model.canForget)
+    }
+
+    @Test func forgetClearsTheBluetoothFlipper() {
+        var settings = testSettings
+        settings.transport = .bluetooth
+        settings.port = "/dev/cu.usbmodemflip_A"
+        settings.peripheralId = flipperA.id
+        settings.peripheralName = flipperA.name
+        let model = makeModel(settings: settings)
+        #expect(model.canForget)
+
+        model.forget()
+
+        #expect(model.peripheralId == nil)
+        #expect(model.peripheralName == nil)
+        #expect(model.port == "/dev/cu.usbmodemflip_A")
+        #expect(!model.canForget)
+    }
+
+    @Test func nothingRememberedLeavesNothingToForget() {
+        #expect(!makeModel().canForget)
     }
 }

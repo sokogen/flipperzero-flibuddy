@@ -26,8 +26,10 @@ struct WatchRowDetail: View {
                     Text(item.statusText)
                         .font(.footnote)
                         .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                    if item.canWeigh {
+                    if item.isEntry {
                         WatchWeightEntry(feed: feed, item: item)
+                    } else if item.isReopenable {
+                        Button("Re-weigh") { Task { await feed.reopen(id) } }
                     } else if item.offersUnknownActions {
                         WatchUnknownActions(feed: feed, item: item)
                     } else {
@@ -81,7 +83,7 @@ struct WatchWeightEntry: View {
         .onAppear {
             guard !seeded else { return }
             seeded = true
-            weight = .seed(typed: feed.weightText(for: id), suggested: item.suggested(feed.mode(for: id)))
+            weight = .seed(typed: feed.weightText(for: id), suggested: item.suggestion(mode: feed.mode(for: id)))
             feed.setWeightText(weight.text, for: id)
         }
     }

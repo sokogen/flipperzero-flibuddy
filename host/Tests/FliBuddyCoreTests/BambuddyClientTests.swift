@@ -346,6 +346,28 @@ struct BambuddyClientTests {
         await #expect(throws: BambuddyError.spoolNotFound(42)) { try await server.client().spool(id: 42) }
     }
 
+    // MARK: deleteSpool
+
+    @Test func deleteSpoolSendsDelete() async throws {
+        let server = StubServer { _ in .json(200, #"{"status":"deleted"}"#) }
+        try await server.client().deleteSpool(id: 100)
+        let request = try #require(server.requests.first)
+        #expect(request.method == "DELETE")
+        #expect(request.path == "/api/v1/inventory/spools/100")
+    }
+
+    @Test func deleteSpoolMaps404ToSpoolNotFound() async throws {
+        let server = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
+        await #expect(throws: BambuddyError.spoolNotFound(100)) { try await server.client().deleteSpool(id: 100) }
+    }
+
+    @Test func deleteSpoolMaps403ToInventoryUpdate() async throws {
+        let server = StubServer { _ in .json(403, #"{"detail":"forbidden"}"#) }
+        await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
+            try await server.client().deleteSpool(id: 100)
+        }
+    }
+
     @Test func catalogDecodesEntries() async throws {
         let body = #"[{"id":1,"name":"Bambu Lab - Plastic High Temp","weight":216,"is_default":true},{"id":3,"name":"Bambu Lab - Plastic Low Temp","weight":250,"is_default":true}]"#
         let server = StubServer { _ in .json(200, body) }
@@ -468,11 +490,20 @@ struct BambuddyClientTests {
             baseURL: URL(string: "http://unreachable.test:8000")!, apiKey: "bb_test",
             session: URLSession(configuration: configuration)
         )
-        await #expect {
+        await #expect(throws: BambuddyError.network("no answer within 5 s")) {
             try await client.listSpools()
-        } throws: { error in
-            if case BambuddyError.network = error { return true }
-            return false
+        }
+    }
+
+    @Test func otherNetworkFailuresKeepTheSystemReason() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RefusingURLProtocol.self]
+        let client = try BambuddyClient(
+            baseURL: URL(string: "http://unreachable.test:8000")!, apiKey: "bb_test",
+            session: URLSession(configuration: configuration)
+        )
+        await #expect(throws: BambuddyError.network(URLError(.cannotConnectToHost).localizedDescription)) {
+            try await client.listSpools()
         }
     }
 
@@ -495,10 +526,18 @@ struct BambuddyClientTests {
     }
 }
 
-/// Fails every load, as a dead network would.
+/// Fails every load with a timeout, as a dead network would.
 final class FailingURLProtocol: URLProtocol, @unchecked Sendable {
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.timedOut)) }
+    override func stopLoading() {}
+}
+
+/// Refuses every connection, as a host with nothing listening would.
+final class RefusingURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost)) }
     override func stopLoading() {}
 }

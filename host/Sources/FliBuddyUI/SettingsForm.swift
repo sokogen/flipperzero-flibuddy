@@ -18,7 +18,7 @@ public struct SettingsForm: View {
     public var body: some View {
         Form {
             Section("Bambuddy") {
-                TextField("URL", text: $model.baseURL, prompt: Text("http://192.168.1.20:8000"))
+                TextField("Server URL", text: $model.baseURL, prompt: Text("http://192.168.1.20:8000"))
                 SecureField("API key", text: $model.apiKey, prompt: Text("bb_…"))
                 #if os(iOS)
                 if CameraQRScanner.isAvailable {
@@ -28,14 +28,15 @@ public struct SettingsForm: View {
                 }
                 #endif
                 qrStatus
-                HStack {
+                HStack(spacing: 8) {
                     Button("Test connection") {
                         Task { await model.testConnection() }
                     }
-                    connectionStatus
+                    .disabled(model.connection == .testing)
+                    resultLine(model.connectionResult)
                 }
             }
-            Section("New items") {
+            Section {
                 Picker("Empty spool", selection: $model.catalogEntryId) {
                     Text("None").tag(Int?.none)
                     ForEach(model.catalog) { entry in
@@ -45,9 +46,14 @@ public struct SettingsForm: View {
                         Text("Entry #\(id)").tag(Int?.some(id))
                     }
                 }
-                TextField("Core weight (g)", value: $model.coreWeight, format: .number)
-                Text("Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.")
-                    .font(.caption).foregroundStyle(.secondary)
+                LabeledContent("Core weight") {
+                    HStack(spacing: 4) {
+                        TextField("Core weight", value: $model.coreWeight, format: .number)
+                            .labelsHidden()
+                            .multilineTextAlignment(.trailing)
+                        Text("g").foregroundStyle(.secondary)
+                    }
+                }
                 if let error = model.coreWeightError {
                     Text(error).font(.caption).foregroundStyle(.red)
                 }
@@ -57,17 +63,25 @@ public struct SettingsForm: View {
                 Button("Reload catalog") {
                     Task { await model.loadCatalog() }
                 }
+            } header: {
+                Text("New items")
+            } footer: {
+                Text("Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.")
             }
-            Section("Weighing") {
-                Picker("Default mode", selection: $model.defaultMode) {
+            Section {
+                Picker("I type the weight as", selection: $model.defaultMode) {
                     Text("Net").tag(Intent.WeightMode.net)
                     Text("Gross").tag(Intent.WeightMode.gross)
                 }
                 .pickerStyle(.segmented)
+            } header: {
+                Text("Weighing")
+            } footer: {
+                Text("Gross is the whole spool on the scale. Each row can still switch.")
             }
             Section("Flipper") {
                 if model.availableTransports.count > 1 {
-                    Picker("Transport", selection: $model.transport) {
+                    Picker("Connection", selection: $model.transport) {
                         ForEach(model.availableTransports, id: \.self) { kind in
                             Text(kind.title).tag(kind)
                         }
@@ -85,18 +99,27 @@ public struct SettingsForm: View {
                 } else {
                     bluetooth
                 }
+                HStack {
+                    Text(model.connectionLine).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Forget", role: .destructive) { model.forget() }
+                        .disabled(!model.canForget)
+                }
             }
             Section {
+                if let error = model.saveError {
+                    Text(error).foregroundStyle(.red)
+                }
                 HStack {
-                    if let error = model.saveError {
-                        Text(error).foregroundStyle(.red)
-                    }
+                    Text(model.saveStatusText).foregroundStyle(.secondary)
                     Spacer()
+                    Button("Revert") { model.revert() }
+                        .disabled(!model.canRevert)
                     Button("Save") {
                         Task { await model.save() }
                     }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!model.hasChanges)
+                    .disabled(!model.canSave)
                 }
             }
         }
@@ -109,12 +132,9 @@ public struct SettingsForm: View {
         #endif
     }
 
-    /// The remembered Flipper, Forget, and the scan with its results.
+    /// The chosen Flipper and the scan with its results.
     @ViewBuilder private var bluetooth: some View {
-        LabeledContent("Flipper", value: model.peripheralName ?? "First found")
-        if model.peripheralId != nil {
-            Button("Forget Flipper") { model.forgetPeripheral() }
-        }
+        LabeledContent("Flipper", value: model.bluetoothFlipperText)
         HStack {
             Button(model.isScanning ? "Stop scanning" : "Scan for Flipper") {
                 if model.isScanning { model.stopScanning() } else { model.scanForFlippers() }
@@ -154,13 +174,13 @@ public struct SettingsForm: View {
         }
     }
 
-    @ViewBuilder private var connectionStatus: some View {
-        switch model.connection {
-        case nil: EmptyView()
-        case .testing: ProgressView().controlSize(.small)
-        case .ok(let message): Label(message, systemImage: "checkmark.circle").foregroundStyle(.green)
-        case .failed(let message): Label(message, systemImage: "xmark.octagon").foregroundStyle(.red)
+    /// A test result: symbol (or spinner) and phrase, 4 pt apart.
+    private func resultLine(_ item: StatusItem) -> some View {
+        HStack(spacing: 4) {
+            StatusSymbolView(symbol: item.symbol, tint: item.tint)
+            Text(item.text).foregroundStyle(item.tint == .red ? .red : .secondary)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

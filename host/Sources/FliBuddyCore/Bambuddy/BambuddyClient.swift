@@ -107,6 +107,13 @@ public struct BambuddyClient: Sendable {
         return try decode(Spool.self, data)
     }
 
+    /// Hard-delete a spool (Bambuddy needs `inventory:update` for it).
+    public func deleteSpool(id: Int) async throws {
+        let (data, status) = try await send("DELETE", "/inventory/spools/\(id)")
+        if status == 404 { throw BambuddyError.spoolNotFound(id) }
+        try check(status, data, permission: "inventory:update")
+    }
+
     // MARK: Settings
 
     /// Whether Bambuddy runs in Spoolman mode, which the host refuses.
@@ -157,6 +164,8 @@ public struct BambuddyClient: Sendable {
             (data, response) = try await session.data(for: request)
         } catch let error as CancellationError {
             throw error
+        } catch let error as URLError where error.code == .timedOut {
+            throw BambuddyError.network("no answer within \(Int(Self.timeout)) s")
         } catch {
             throw BambuddyError.network(error.localizedDescription)
         }

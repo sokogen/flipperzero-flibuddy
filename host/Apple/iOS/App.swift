@@ -49,16 +49,16 @@ struct RootView: View {
                 }
             }
         } else {
-            TabView {
-                Tab("Feed", systemImage: "list.bullet") { feed }
-                Tab("Settings", systemImage: "gearshape") { settings }
+            TabView(selection: $section) {
+                Tab("Feed", systemImage: "list.bullet", value: Section?.some(.feed)) { feed }
+                Tab("Settings", systemImage: "gearshape", value: Section?.some(.settings)) { settings }
             }
         }
     }
 
     private var feed: some View {
         NavigationStack {
-            FeedView(feed: host.feed, link: host.link)
+            FeedView(host: host) { section = .settings }
                 .navigationTitle("Feed")
         }
     }

@@ -50,6 +50,30 @@ struct FlipperLinkTests {
         #expect(link.port == "/dev/cu.usbmodemflip_A")
     }
 
+    @Test func theConnectedTransportIsKnownOnlyAfterTheHandshake() async {
+        let transport = FakeTransport()
+        let (link, _) = makeLink(transport)
+        #expect(link.connectedTransport == nil)
+
+        link.connect(.usb(port: "/dev/cu.usbmodemflip_A"))
+        defer { link.disconnect() }
+        #expect(await eventually { link.state == .waitingForHello })
+        #expect(link.connectedTransport == nil)
+        transport.deliver(.flipperHello)
+        #expect(await eventually { link.connectedTransport == .usb })
+
+        link.disconnect()
+        #expect(link.connectedTransport == nil)
+    }
+
+    @Test func aBluetoothLinkIsConnectedOverBluetooth() {
+        let hello = Hello(app: "flibuddy-fap/0.1.0", os: "flipper 1.5.1")
+        #expect(FlipperLink.connectedTransport(.connected(hello), choice: .bluetooth(peripheral: nil)) == .bluetooth)
+        #expect(FlipperLink.connectedTransport(.connected(hello), choice: .usb(port: nil)) == .usb)
+        #expect(FlipperLink.connectedTransport(.noAnswer, choice: .bluetooth(peripheral: nil)) == nil)
+        #expect(FlipperLink.connectedTransport(.connected(hello), choice: nil) == nil)
+    }
+
     @Test func aScanIsAnsweredWithALookup() async throws {
         let transport = FakeTransport()
         let (link, session) = makeLink(transport)
