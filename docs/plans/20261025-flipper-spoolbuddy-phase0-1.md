@@ -236,11 +236,11 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - ⚠️ the Command Line Tools have no XCTest, so the Swift suites use swift-testing (`import Testing`); the CLT macro plugin has a broken rpath, worked around with `host/Toolchain/clt-testing-plugin` symlinks and a `-plugin-path` added by `Package.swift` when `DEVELOPER_DIR` is the CLT (see `host/README.md`)
 
 ### Task 12: Swift tag parser
-- [ ] write `TagParserTests.swift` first: synthetic Bambu fixture → `ParsedTag(kind: .bambu, uid, trayUuidCandidates: [block9, blocks4+5], material: "PLA", detailedType: "PLA Basic", rgba: "RRGGBBAA", labelWeight: 1000, nozzleMin/Max, dryingTemp)`; missing sector 1 → material `nil` and `hasPrefill == false`; NTAG fixture → `.ntag` with UID and `hasPrefill == false`
+- [x] write `TagParserTests.swift` first: synthetic Bambu fixture → `ParsedTag(kind: .bambu, uid, trayUuidCandidates: [block9, blocks4+5], material: "PLA", detailedType: "PLA Basic", rgba: "RRGGBBAA", labelWeight: 1000, nozzleMin/Max, dryingTemp)`; missing sector 1 → material `nil` and `hasPrefill == false`; NTAG fixture → `.ntag` with UID and `hasPrefill == false`
 - ⚠️ block 2 (material) is in sector 0, so a missing sector 1 drops detailed type, RGBA and label weight but not `material`; the Python test uses missing sector 0 for "no material, no prefill" — do the same in Swift
-- [ ] implement `Sources/SpoolBuddyCore/Tags/TagParser.swift` and `ParsedTag.swift` (pure functions, byte-exact per the layout in the design)
-- [ ] implement display helpers `ParsedTag.displayLines` (≤ 4 lines, ≤ 40 chars, used for the Flipper `lookup.lines`)
-- [ ] run `cd host && swift test` - must pass before next task
+- [x] implement `Sources/SpoolBuddyCore/Tags/TagParser.swift` and `ParsedTag.swift` (pure functions, byte-exact per the layout in the design)
+- [x] implement display helpers `ParsedTag.displayLines` (≤ 4 lines, ≤ 40 chars, used for the Flipper `lookup.lines`)
+- [x] run `cd host && swift test` - must pass before next task
 
 ### Task 13: Swift Bambuddy client
 - [ ] write `BambuddyClientTests.swift` first with a `URLProtocol` stub: `findSpool(trayCandidates:uid:)` queries candidates in order then UID and maps 404 → `nil`; `updateWeight(spoolId:gross:)`; `createSpool(_:)` sends `material`, `label_weight`, `core_weight`, `core_weight_catalog_id`, `weight_used: 0`, tags, `data_origin: "flipper"`; `linkTag` maps 409 to `.tagAlreadyLinked(otherSpoolId)`; `listSpools`, `catalog`, `spoolmanEnabled` (403 → `.permissionMissing("settings:read")`); all send `X-API-Key`
