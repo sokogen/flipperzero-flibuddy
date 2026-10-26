@@ -243,10 +243,11 @@ not change. BLE carries the same NDJSON lines.
 - ➕ results (2026-10-26): Overview bullets traced to `transport_ble.c`, `app_settings.c`, `scene_transport.c` and `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` (Flipper); `BLETransport` via `FlipperLink.defaultTransport`, `Settings.transport`/`peripheralId` (host, macOS included); `SpoolBuddyUI`; `project.yml` iOS and watchOS 26 targets, `WatchSettingsSender`/`WatchSettingsReceiver`; `QRScannerSheet` in `SettingsForm`; the `apple` job in `host.yml`. `make test`: C suites 0 failures, Swift 430 tests in 33 suites, pytest 316; `make lint` passes; coverage SpoolBuddyCore 89.8 %, tools 96.5 %; `ufbt -c && ufbt` builds `spoolbuddy.fap` (API 88.2) without warnings; `make apple-project apple-build` → "** BUILD SUCCEEDED **" twice (Xcode 27.1, only the appintentsmetadataprocessor notice)
 
 ### Task 12: Documentation
-- [ ] root `README.md`: Phase 2 section (transport setting on both sides, no pairing, the encryption macro, iPhone/iPad/Watch install from Xcode with free provisioning, settings reach the watch from the phone), the `host/Apple` layout, `make apple-*` targets
-- [ ] `flipper/README.md`: the transport submenu, status-line values, the note that the official Flipper app cannot connect while SpoolBuddy holds the BLE profile, the GATT table
-- [ ] `host/README.md`: `SpoolBuddyUI`, `BLETransport`, watch sync, QR scanning, signing files
-- [ ] `docs/superpowers/specs/…design.md`: record the builder's Phase 2 decisions in "Decisions made by the designer"
+- [x] root `README.md`: Phase 2 section (transport setting on both sides, no pairing, the encryption macro, iPhone/iPad/Watch install from Xcode with free provisioning, settings reach the watch from the phone), the `host/Apple` layout, `make apple-*` targets
+- [x] `flipper/README.md`: the transport submenu, status-line values, the note that the official Flipper app cannot connect while SpoolBuddy holds the BLE profile, the GATT table
+- [x] `host/README.md`: `SpoolBuddyUI`, `BLETransport`, watch sync, QR scanning, signing files
+- [x] `docs/superpowers/specs/…design.md`: record the builder's Phase 2 decisions in "Decisions made by the designer"
+- ➕ the encryption macro is documented as `cdefines=["SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION=1"]` in `application.fam` (ufbt passes an app's `cdefines` to its sources); the decisions went under a "Phase 2, decided by the builder" heading in the designer's list; docs only, `make test` (C 0 failures, Swift 430 tests, pytest 316) and `make lint` pass
 
 ## Technical Details
 

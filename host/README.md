@@ -1,6 +1,7 @@
 # SpoolBuddy host (Swift package)
 
-SwiftPM only: no Xcode project, no UI tests.
+The package builds with SwiftPM only; the iPhone/iPad and Apple Watch apps
+in `Apple/` are thin XcodeGen shells over it (see below). No UI tests.
 
 - `SpoolBuddyCore`: platform-neutral library (protocol models, tag parser,
   Bambuddy client, transport, session, view models). `TagParser` takes the
@@ -11,15 +12,20 @@ SwiftPM only: no Xcode project, no UI tests.
   followed by `00000100` (`7EF1AB04` → `7EF1AB0400000100`), NTAG UIDs as
   read; see `protocol/PROTOCOL.md`.
 - `SpoolBuddyUI`: SwiftUI views shared by the macOS and iOS apps (the feed,
-  the settings form, the New and Link sheets); macOS-only parts (the
-  Settings link, the serial port picker) sit behind `#if os(macOS)`.
+  the settings form with the Transport section, the New and Link sheets,
+  the iOS QR scanner); macOS-only parts (the Settings link, the serial port
+  picker) sit behind `#if os(macOS)`. `Watch/` holds the compact watch
+  views (`#if os(watchOS)`): the feed list, a row detail with the weight on
+  the Digital Crown, and a settings page. `FeedView`, `SettingsForm` and
+  `UnknownRowActions` are not built for watchOS.
 - `SpoolBuddyMac`: SwiftUI executable for macOS 14+: the app and the
   Settings window around `SettingsForm`.
 
-The package supports macOS 14+ and iOS 26+. Off macOS `SerialTransport` is a
-stub (no ports, connecting fails) and the `hello` names the platform through
-`PlatformInfo` (`macOS 26.0`, `iOS 26.1`, `iPadOS 26.1`). To build the shared
-targets or run the tests on the iOS simulator:
+The package supports macOS 14+, iOS 26+ and watchOS 26+. Off macOS
+`SerialTransport` is a stub (no ports, connecting fails) and the `hello`
+names the platform through `PlatformInfo` (`macOS 26.0`, `iOS 26.1`,
+`iPadOS 26.1`, `watchOS 26.1`). To build the shared targets or run the
+tests on the iOS simulator:
 
 ```
 xcodebuild -scheme SpoolBuddyUI -destination 'generic/platform=iOS Simulator' build
@@ -55,9 +61,17 @@ DEVELOPER_DIR=/Library/Developer/CommandLineTools swift run SpoolBuddyMac
 itself a regular app (Dock icon, menu bar) at launch. Settings (⌘,) hold the
 Bambuddy URL and API key (stored in the login Keychain, service
 `SpoolBuddy`), the empty-spool catalog entry and the editable core weight
-used for new items, the default weight mode and the Flipper port ("Automatic" opens
-the first `/dev/cu.usbmodemflip_*`). Use **Test connection** after entering
-the key; it also loads the catalog.
+used for new items, the default weight mode and the transport: USB with
+the Flipper port ("Automatic" opens the first `/dev/cu.usbmodemflip_*`), the
+default on the Mac, or Bluetooth (see below). Use **Test connection** after
+entering the key; it also loads the catalog.
+
+`swift run` has no app bundle, so the Bluetooth usage description macOS asks
+for lives in `Sources/SpoolBuddyMac/Info.plist`, linked into the executable's
+`__TEXT,__info_plist` section with `-sectcreate` (`Package.swift`, macOS
+only). It has no `CFBundleIdentifier` on purpose: one would move
+`UserDefaults.standard` away from the `SpoolBuddyMac` domain that holds the
+saved settings.
 
 The core weight is everything on the scale that is not filament (`net =
 gross − core_weight`). It defaults to 325 g, a Bambu reusable spool (293 g)
@@ -87,6 +101,98 @@ own when the Flipper app is restarted or the cable is replugged.
 The view models (`SpoolBuddyCore/ViewModels`) are platform-neutral and
 tested with `swift test`; the SwiftUI views in `SpoolBuddyUI` and
 `SpoolBuddyMac` have no tests.
+
+## Bluetooth (`BLETransport`)
+
+`Transport/BLE/BLETransport.swift` implements `Transport` over the FAP's
+GATT service (UUIDs in `SpoolBuddyGATT.swift`, the table in
+`flipper/README.md`). `connect()` waits for Bluetooth to power on,
+connects to the remembered peripheral if the system still knows it, else
+scans for the service (scan and connect each give up after 10 s with
+`peripheralNotFound`), discovers RX and TX, subscribes to TX and only then
+reports `.open`, so the `hello` the Flipper sends on subscription is kept.
+`BLEChunker` cuts outgoing lines into writes of
+`maximumWriteValueLength(for: .withResponse)` (at most 243 bytes), sends one
+write with response at a time, and reassembles TX notifications into lines
+with `NDJSONFramer`. A disconnect, a failed write or Bluetooth turning off
+finishes the message stream, and `FlipperLink` reconnects as it does on
+USB. Errors: `bluetoothOff`, `bluetoothUnauthorized`,
+`bluetoothUnsupported`, `peripheralNotFound`, `serviceNotFound`.
+
+CoreBluetooth sits behind two protocols in `Central.swift`: `BLECentral`
+(power, scan, retrieve, connect, cancel) and `BLEPeripheralLink`
+(discovery and subscription, write, events). `CoreBluetoothCentral` is the
+real adapter for macOS, iOS and watchOS and is not unit-tested; the tests
+drive `BLETransport` with a fake central and never create the real one,
+which would ask for Bluetooth permission.
+
+`Settings` holds `transport` (`usb` default on macOS, `bluetooth`
+elsewhere, where USB is not offered), `peripheralId` and `peripheralName`.
+**Scan for Flipper** in the settings lists the Flippers found for 15 s
+with their RSSI; choosing one stores it and selects Bluetooth, **Forget
+Flipper** clears it. `HostModel` reconnects when the transport choice
+changes (kind, port or peripheral), not on a rename. No pairing: the link
+is unencrypted and carries no secrets.
+
+## iPhone, iPad and Apple Watch apps (`Apple/`)
+
+```
+Apple/project.yml                XcodeGen spec: SpoolBuddyiOS (iPhone, iPad)
+                                 with the SpoolBuddyWatch companion embedded
+Apple/iOS/App.swift              NavigationSplitView (regular width) or
+                                 TabView (compact) over FeedView and
+                                 SettingsForm
+Apple/Watch/App.swift            the watch app over the Watch/ views
+Apple/Base.xcconfig              tracked; includes Signing.xcconfig if present
+Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
+                                 set DEVELOPMENT_TEAM
+```
+
+The apps have no logic of their own: everything is in `SpoolBuddyCore`
+and `SpoolBuddyUI`, used as local package products. The Info.plists are
+generated from `INFOPLIST_KEY_*` settings (Bluetooth on both, camera on the
+iPhone app). `make apple-project` runs `xcodegen generate` and
+`make apple-build` builds both schemes for the simulators with
+`CODE_SIGNING_ALLOWED=NO` into `Apple/.build`; both need Xcode, not the
+Command Line Tools. To run on a device, fill in `Signing.xcconfig` with a
+team (a free personal team works; the install lasts 7 days), regenerate,
+and run `SpoolBuddyiOS` from Xcode; the watch app installs with it.
+
+### Settings sync to the watch
+
+`Session/SettingsSync.swift`: `SettingsSyncPayload` is the Bambuddy URL,
+API key, core weight, catalog entry id (left out when none) and default
+mode, encoded as a WatchConnectivity application context with `v: 1`;
+other versions and malformed fields are rejected.
+`Session/WatchSettingsSync.swift` works behind a `SessionMessaging`
+protocol (`WatchConnectivitySession` wraps `WCSession`):
+
+- iPhone: `WatchSettingsSender` sends the payload with
+  `updateApplicationContext` after every save (`HostModel.onSettingsSaved`)
+  and once at launch when the settings are complete. A save it cannot send
+  yet (session not activated, no watch app) is held and sent on the next
+  session change. The iPad has no WatchConnectivity and sends nothing.
+- Watch: `WatchSettingsReceiver` merges the payload onto the watch's own
+  settings (the transport and the Flipper stay), stores it through
+  `SettingsStore` (the key in the watch's Keychain), reconfigures
+  `HostModel`, and ignores a payload equal to what it has. It also reads
+  `receivedApplicationContext` on activation.
+
+The watch then talks to Bambuddy itself. Its settings page shows what
+arrived and **Scan for Flipper**. The weight model behind the Digital Crown
+is `ViewModels/CrownWeight.swift` (0…9999 g, 1 g steps, 5 g from 20 g/s).
+
+### API key from Bambuddy's QR code
+
+`Session/APIKeyQRPayload.swift` parses
+`bambuddy://config?v=1&url=<percent-encoded URL>&key=<percent-encoded key>`
+(only `v=1`); the URL is normalised as Settings expects it.
+`SettingsViewModel.applyQRPayload(_:)` fills the URL and key and reports
+in `qrStatus`; `scanQRCode(with:)` takes any `QRScanning` scanner, so it is
+tested without a camera. On iOS **Scan QR code** opens
+`SpoolBuddyUI/QRScanner.swift`, a sheet over VisionKit's
+`DataScannerViewController` reading QR codes. The button only shows where
+the scanner is supported and available, so never in the simulator.
 
 ### `@ViewState` instead of `@State`
 

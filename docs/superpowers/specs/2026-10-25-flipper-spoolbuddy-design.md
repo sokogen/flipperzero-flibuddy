@@ -505,6 +505,53 @@ spools). Everything below is settled and supersedes earlier wording.
   `ufbt` pinned to that release channel in CI. The owner updates the
   Flipper if it is older; no support for older API versions.
 
+Phase 2, decided by the builder (2026-10-26; the plan is
+`docs/plans/20261026-phase2-ble-ios.md`):
+
+- Minimum OS versions: macOS 14 stays; iOS, iPadOS and watchOS 26.
+- No pairing and no encryption on the BLE link by default. One macro,
+  `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` (default 0), makes the
+  characteristics require encryption so "just works" pairing can be tried
+  on real devices; if the Mac, the iPhone and the watch all pair without a
+  prompt, it may become the default.
+- The profile advertises the 128‑bit service UUID and the bare Flipper
+  name (the 31‑byte advertisement has no room for "Flipper <name>"), with
+  the Flipper's MAC changed in one byte (byte 2 XOR 0x5B, as the HID
+  profile does) so a central never mixes it up with the default profile's
+  bonds and cached GATT table.
+- Flow control: the host sends one write with response at a time, chunks
+  of `maximumWriteValueLength` up to 243 bytes; the Flipper sends one
+  notification at a time in chunks of ATT MTU − 3, retrying a busy stack
+  up to 3 times. The Flipper's `hello` goes out when the host subscribes
+  to TX, as on USB DTR.
+- The Flipper's transport menu opens with OK on the Idle screen; the
+  status line reads `USB`, `BLE adv`, `BLE` or `no host` and sits under
+  the title. A BLE backend that cannot start falls back to one that never
+  connects; the app keeps running.
+- Host transport settings: USB is the default on the Mac, Bluetooth
+  elsewhere (USB is not offered there). The remembered peripheral is
+  reconnected to directly when the system still knows it, otherwise
+  scanned for; with none chosen the host takes the first Flipper found. Scan and connect each time out after 10 s; the settings
+  scan runs 15 s. The Mac executable embeds an Info.plist with the
+  Bluetooth usage description and no bundle id, so the Phase 1 settings
+  stay where they are.
+- Apple projects: one XcodeGen `project.yml` in `host/Apple` with the
+  iPhone/iPad app and the watch app embedded as its companion; generated
+  Info.plists; signing from a git‑ignored `Signing.xcconfig` included by
+  the tracked `Base.xcconfig`; placeholder bundle id
+  `cool.bambuddy.spoolbuddy`. iPad gets a split view, iPhone a tab view.
+- Watch sync: the application context (`v: 1`) carries the Bambuddy URL,
+  API key, core weight, catalog entry and default mode, sent after every
+  save and once at launch; the watch keeps its own transport and Flipper.
+  The watch offers New with the tag's prefill; Link to existing stays on
+  the phone and the Mac. Crown steps: 1 g, 5 g from 20 g/s.
+- QR scanning uses VisionKit's `DataScannerViewController`; the button
+  only shows where the scanner is available. Repeated query fields take
+  the first value; the URL keeps any path prefix and drops credentials,
+  query and fragment.
+- CI builds both Apple apps for the simulators on `macos-latest` without
+  signing; the device builds and BLE on hardware are checked by hand.
+
 ## Answered by the owner
 
 - New items are always full: a sealed spool or a sealed refill. One action,
