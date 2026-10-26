@@ -105,7 +105,7 @@ extension SettingsError: LocalizedError {
 
 /// Loads and saves `Settings`: the API key through a `SecretStore`, the rest in
 /// a `KeyValueStore`.
-public struct SettingsStore: @unchecked Sendable {
+public struct SettingsStore: Sendable {
     public static let apiKeyAccount = "bambuddy-api-key"
     private enum Key {
         static let baseURL = "bambuddy.baseURL"
@@ -118,7 +118,6 @@ public struct SettingsStore: @unchecked Sendable {
         static let peripheralName = "flipper.peripheralName"
     }
 
-    // UserDefaults and InMemoryKeyValueStore are thread-safe.
     private let defaults: any KeyValueStore
     private let secrets: any SecretStore
 
@@ -175,8 +174,8 @@ public struct SettingsStore: @unchecked Sendable {
 
 /// Where settings other than the API key are kept: `UserDefaults` in the app,
 /// memory in tests. The accessors `SettingsStore` uses, with `UserDefaults`'
-/// signatures.
-public protocol KeyValueStore: AnyObject {
+/// signatures. Implementations must be thread-safe.
+public protocol KeyValueStore: AnyObject, Sendable {
     func string(forKey key: String) -> String?
     func object(forKey key: String) -> Any?
     /// `nil` removes the key.
