@@ -3,7 +3,9 @@ import SwiftUI
 
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
-/// New and Link to existing, for a tag no spool carries.
+/// New and Link to existing, for a tag no spool carries. New opens the form
+/// for a tag without material and creates from the tag otherwise; the
+/// action the Flipper asked for is the prominent one.
 struct UnknownRowActions: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -11,13 +13,14 @@ struct UnknownRowActions: View {
     @ViewState private var showingLink = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button("New…") { showingNew = true }
-                .help(item.hasPrefill ? "Create a Bambuddy item from the tag" : "Create a Bambuddy item; enter the material")
-            Button("Link to existing…") { showingLink = true }
+        HStack(spacing: 8) {
+            styled(Button(item.newAction.title) { new() }, prominent: item.prominentAction == .new)
+                .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
+            styled(Button("Link to existing\u{2026}") { showingLink = true }, prominent: item.prominentAction == .link)
                 .help("Attach this tag to a spool already in Bambuddy")
             ProgressView().controlSize(.small).opacity(feed.isBusy(item.id) ? 1 : 0)
         }
+        .disabled(feed.isBusy(item.id))
         .sheet(isPresented: $showingNew) {
             if let form = feed.newSpoolForm(for: item.id) {
                 NewSpoolSheet(feed: feed, item: item, form: form)
@@ -25,6 +28,21 @@ struct UnknownRowActions: View {
         }
         .sheet(isPresented: $showingLink) {
             LinkSpoolSheet(feed: feed, item: item)
+        }
+    }
+
+    private func new() {
+        switch item.newAction {
+        case .form: showingNew = true
+        case .fromTag: Task { await feed.createFromTag(item.id) }
+        }
+    }
+
+    @ViewBuilder private func styled(_ button: Button<Text>, prominent: Bool) -> some View {
+        if prominent {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button
         }
     }
 }
@@ -45,7 +63,7 @@ struct LinkExistingButton: View {
     }
 }
 
-/// The New form, filled in from the tag.
+/// The New spool form for a tag without material; Create needs one.
 struct NewSpoolSheet: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -60,15 +78,32 @@ struct NewSpoolSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(NewSpoolForm.title).font(.headline)
+                Text(form.subtitle).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+            }
+            .padding([.horizontal, .top], 20)
             Form {
-                Section("New Bambuddy item") {
-                    TextField("Material", text: $form.material, prompt: Text("required, e.g. PLA"))
+                Section {
+                    Picker("Material", selection: $form.material) {
+                        Text("Choose\u{2026}").tag("")
+                        ForEach(form.materialOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
                     TextField("Subtype", text: $form.subtype, prompt: Text("e.g. Basic"))
                     TextField("Colour", text: $form.colorName)
                     TextField("Brand", text: $form.brand)
-                    TextField("Label weight (g)", text: $form.labelWeight)
-                    LabeledContent("Core weight", value: "\(feed.settings.coreWeight) g")
-                    LabeledContent("Tag UID", value: item.uid)
+                    LabeledContent("Label weight") {
+                        HStack(spacing: 4) {
+                            TextField("Label weight", text: $form.labelWeight)
+                                .labelsHidden()
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                            Text("g").foregroundStyle(.secondary)
+                        }
+                    }
+                } footer: {
+                    Text(NewSpoolForm.footer).foregroundStyle(.secondary)
                 }
                 if let error = feed.error(for: item.id) {
                     Text(error).foregroundStyle(.red)
@@ -85,9 +120,9 @@ struct NewSpoolSheet: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(form.newSpool == nil || feed.isBusy(item.id))
+                .disabled(!form.canCreate || feed.isBusy(item.id))
             }
-            .padding()
+            .padding(20)
         }
         #if os(macOS)
         // A sheet on macOS sizes to its content; on iOS it fills the screen.
@@ -96,27 +131,44 @@ struct NewSpoolSheet: View {
     }
 }
 
-/// Picks the spool to link the tag to, filtered as you type.
+/// Picks the spool to link the tag to, filtered as you type; a pick that
+/// carries another tag moves that link here.
 struct LinkSpoolSheet: View {
     let feed: FeedViewModel
     let item: FeedItem
     @ViewState private var query = ""
-    @ViewState private var selection: Int?
+    @ViewState private var selection: Spool.ID?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Link tag \(item.uid) to a spool").font(.headline)
-            TextField("Filter", text: $query, prompt: Text("material, colour, brand or note"))
+        let picker = LinkPickerModel(item: item, spools: feed.linkCandidates, query: query, selection: selection)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LinkPickerModel.title).font(.headline)
+                Text(picker.tagLine).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+            }
+            TextField("Filter", text: $query, prompt: Text(LinkPickerModel.placeholder))
                 .textFieldStyle(.roundedBorder)
             if let error = feed.linkError {
                 Text(error).foregroundStyle(.red)
             }
-            List(feed.linkMatches(query), selection: $selection) { spool in
+            List(picker.matches, selection: $selection) { spool in
                 SpoolPickerRow(spool: spool)
             }
             .overlay {
-                if feed.isLoadingLinkCandidates { ProgressView() }
+                if feed.isLoadingLinkCandidates {
+                    ProgressView()
+                } else if let empty = picker.emptyText, feed.linkError == nil {
+                    Text(empty).foregroundStyle(.secondary)
+                }
+            }
+            if let warning = picker.warning {
+                Label {
+                    Text(warning)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .font(.callout)
             }
             if let error = feed.error(for: item.id) {
                 Text(error).foregroundStyle(.red)
@@ -125,17 +177,17 @@ struct LinkSpoolSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Link") {
-                    guard let selection else { return }
+                Button(picker.linkTitle) {
+                    guard let spool = picker.selectedSpool else { return }
                     Task {
-                        if await feed.link(item.id, toSpool: selection) { dismiss() }
+                        if await feed.link(item.id, toSpool: spool.id) { dismiss() }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(selection == nil || feed.isBusy(item.id))
+                .disabled(!picker.canLink || feed.isBusy(item.id))
             }
         }
-        .padding()
+        .padding(20)
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 420)
         #endif
@@ -143,34 +195,33 @@ struct LinkSpoolSheet: View {
     }
 }
 
+/// A spool in the Link picker: swatch, title, "colour · brand · n g left",
+/// its note, and the tag it already carries.
 struct SpoolPickerRow: View {
     let spool: Spool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             SwatchView(swatch: spool.rgba.flatMap(Swatch.init(rgba:)))
             VStack(alignment: .leading, spacing: 1) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(FeedItem.title(material: spool.material, subtype: spool.subtype))
-                    if let colorName = spool.colorName {
-                        Text(colorName).foregroundStyle(.secondary)
-                    }
+                Text(FeedItem.title(material: spool.material, subtype: spool.subtype))
+                Text(LinkPickerModel.subtitle(spool)).font(.caption).foregroundStyle(.secondary)
+                if let note = spool.note, !note.isEmpty {
+                    Text(note).font(.caption).foregroundStyle(.tertiary)
                 }
-                Text(details).font(.caption).foregroundStyle(.secondary)
             }
+            .lineLimit(1)
             Spacer()
-            if spool.tagUid != nil {
-                Image(systemName: "tag").foregroundStyle(.secondary).help("Already has a tag")
+            if let badge = LinkPickerModel.badge(spool) {
+                Text(badge)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.quaternary, in: .capsule)
             }
-            Text("#\(spool.id)").foregroundStyle(.tertiary)
         }
-    }
-
-    private var details: String {
-        [spool.brand, "\(spool.remaining) g left of \(spool.labelWeight)", spool.note]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
+        .help("Spool #\(spool.id)")
     }
 }
 #endif

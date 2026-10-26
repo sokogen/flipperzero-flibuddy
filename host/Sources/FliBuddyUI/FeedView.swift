@@ -12,6 +12,7 @@ public struct FeedView: View {
     let openSettings: (() -> Void)?
     /// The weight field with the keyboard, kept in step with `feed.focusedRow`.
     @FocusState private var focusedField: FeedRow.ID?
+    @ViewState private var confirmingClear = false
 
     private var feed: FeedViewModel { host.feed }
 
@@ -36,13 +37,20 @@ public struct FeedView: View {
                 // Losing the field keeps the row focused, so ⌘S still has a target.
                 if let row { feed.focusedRow = row }
             }
+            .confirmationDialog("Clear the feed?", isPresented: $confirmingClear, titleVisibility: .visible) {
+                Button("Clear", role: .destructive) {
+                    Task { await feed.clear() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This clears the session log only. Nothing changes in Bambuddy.")
+            }
             .toolbar {
                 ToolbarItem {
-                    Button("Clear", systemImage: "trash") {
-                        Task { await feed.clear() }
-                    }
-                    .help("Remove all rows from the feed")
-                    .disabled(feed.items.isEmpty)
+                    Button("Clear", systemImage: "trash") { confirmingClear = true }
+                        .keyboardShortcut(.delete, modifiers: .command)
+                        .help("Remove all rows from the feed")
+                        .disabled(feed.items.isEmpty)
                 }
                 #if os(macOS)
                 ToolbarItem {

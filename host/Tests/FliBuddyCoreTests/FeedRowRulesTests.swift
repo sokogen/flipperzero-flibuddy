@@ -195,6 +195,36 @@ struct FeedItemDisplayTests {
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
         #expect(blank.accessibilityHeader == "NTAG 7-byte UID 0411\u{2026}, Not in Bambuddy; tag has no material")
     }
+
+    /// "New…" opens the form for a tag without material; "New" creates from
+    /// the tag in one step; the Flipper's request makes its action prominent.
+    @Test func newAndLinkOnAnUnknownRow() throws {
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.newAction == .form)
+        #expect(blank.newAction.title == "New\u{2026}")
+        #expect(blank.prominentAction == nil)
+
+        // a failed create on scan leaves the one-step New as the retry
+        let failed = FeedItem(try row(status: .error("timed out"), spool: nil))
+        #expect(failed.newAction == .fromTag)
+        #expect(failed.newAction.title == "New")
+        #expect(failed.prominentAction == nil)
+
+        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create)).prominentAction == .new)
+        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link)).prominentAction == .link)
+        var asked = FeedRow(scanId: "s-3", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false))
+        asked.request = .create
+        #expect(FeedItem(asked).newAction == .form)
+        #expect(FeedItem(asked).prominentAction == .new)
+    }
+
+    @Test func theRowCarriesTheTagAsBambuddyKeepsIt() throws {
+        let bambu = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
+        #expect(bambu.bambuddyTagUid == "5A3C9E2100000100")
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.bambuddyTagUid == "04112233445566")
+        #expect(blank.trayUuid == nil)
+    }
 }
 
 @MainActor

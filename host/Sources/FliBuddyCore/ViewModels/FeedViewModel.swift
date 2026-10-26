@@ -271,17 +271,9 @@ public final class FeedViewModel {
         Self.filter(linkCandidates, query: query)
     }
 
-    /// Spools where every word of `query` appears in the material, subtype,
-    /// colour, brand or note, ignoring case and diacritics.
+    /// See `LinkPickerModel.filter`.
     public static func filter(_ spools: [Spool], query: String) -> [Spool] {
-        let words = query.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return spools }
-        return spools.filter { spool in
-            let fields = [spool.material, spool.subtype, spool.colorName, spool.brand, spool.note].compactMap { $0 }
-            return words.allSatisfy { word in
-                fields.contains { $0.range(of: word, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
-            }
-        }
+        LinkPickerModel.filter(spools, query: query)
     }
 
     // MARK: Feed

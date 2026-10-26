@@ -280,18 +280,11 @@ struct FeedViewModelUnknownTests {
         ]
     }
 
-    @Test func theLinkFilterMatchesMaterialColourBrandAndNoteCaseInsensitively() {
+    /// The filter itself is `LinkPickerModel.filter`.
+    @Test func theLinkFilterIsThePickersFilter() {
         let all = spools()
-        #expect(FeedViewModel.filter(all, query: "").map(\.id) == [1, 2, 3])
-        #expect(FeedViewModel.filter(all, query: "  ").map(\.id) == [1, 2, 3])
-        #expect(FeedViewModel.filter(all, query: "petg").map(\.id) == [2])
-        #expect(FeedViewModel.filter(all, query: "CHARCOAL").map(\.id) == [1])
-        #expect(FeedViewModel.filter(all, query: "polymaker").map(\.id) == [2])
-        #expect(FeedViewModel.filter(all, query: "Gaskets").map(\.id) == [3])
-        #expect(FeedViewModel.filter(all, query: "matte").map(\.id) == [1])
         #expect(FeedViewModel.filter(all, query: "teal shelf").map(\.id) == [2])
-        #expect(FeedViewModel.filter(all, query: "teal gaskets").isEmpty)
-        #expect(FeedViewModel.filter(all, query: "nylon").isEmpty)
+        #expect(FeedViewModel.filter(all, query: "").map(\.id) == [1, 2, 3])
     }
 
     @Test func linkCandidatesLoadFromBambuddy() async throws {
@@ -412,8 +405,8 @@ struct FeedViewModelUnknownTests {
 
         form.labelWeight = "0"
         #expect(form.newSpool == nil)
-        form.labelWeight = "12x"
-        #expect(form.newSpool == nil)
+        form.labelWeight = "10000"
+        #expect(form.labelWeight == "1000")
     }
 
     @Test func creatingFromTheFormLinksTheRow() async throws {

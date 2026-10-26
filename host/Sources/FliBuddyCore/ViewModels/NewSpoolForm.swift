@@ -3,12 +3,21 @@ import Foundation
 /// The host's New form for an unknown tag: what the tag says, editable. The
 /// tag identity, colour value and core weight come along unchanged.
 public struct NewSpoolForm: Equatable, Sendable {
+    public static let title = "New spool"
+    public static let footer = "Material is required. The row asks for a weight once Bambuddy has created the spool."
+    /// The Material menu; "Choose…" is the empty material.
+    public static let materials = ["PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC", "PVA"]
+
+    /// Under the title: "NTAG 7-byte · 04112233445566".
+    public let subtitle: String
     public var material: String
     public var subtype: String
     public var colorName: String
     public var brand: String
-    /// Grams, as typed.
-    public var labelWeight: String
+    /// Grams, digits only, at most four.
+    public var labelWeight: String {
+        didSet { labelWeight = FeedViewModel.sanitizeWeight(labelWeight) }
+    }
 
     private var base: NewSpool
 
@@ -23,11 +32,26 @@ public struct NewSpoolForm: Equatable, Sendable {
                 coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
                 tagUid: tag.bambuddyTagUid, trayUuid: tag.trayUuid, tagType: tag.kind.bambuddyTagType
             )
+        subtitle = switch tag.kind {
+        case .ntag: "NTAG \(tag.uid.count / 2)-byte · \(tag.uid)"
+        case .bambu: "Bambu tag · \(tag.uid)"
+        }
         material = base.material
         subtype = base.subtype ?? ""
         self.colorName = base.colorName ?? ""
         brand = base.brand ?? ""
         labelWeight = String(base.labelWeight)
+    }
+
+    /// The menu's materials, plus the current one when it is not in the list
+    /// (a tag's own material), so the menu always shows the selection.
+    public var materialOptions: [String] {
+        material.isEmpty || Self.materials.contains(material) ? Self.materials : Self.materials + [material]
+    }
+
+    /// Create is enabled.
+    public var canCreate: Bool {
+        newSpool != nil
     }
 
     /// The item to create; `nil` without a material or with a label weight

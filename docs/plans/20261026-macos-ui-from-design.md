@@ -117,11 +117,13 @@ What changes:
 - [x] run tests - must pass before task 5
 
 ### Task 5: Clear with confirmation, New sheet, Link picker
-- [ ] Clear: toolbar button with `.keyboardShortcut(.delete, modifiers: .command)` opening `confirmationDialog("Clear the feed?")` with the spec copy; destructive Clear
-- [ ] New spool sheet: title/subtitle, Material menu with the spec list and "Choose…", Subtype, Colour, Brand, Label weight (digits, default 1000), footer copy, Cancel · Create (disabled without material); Bambu tags have no New button (created on scan, Task 1); the no-prefill row keeps "New…" (form) and "Link to existing…"
-- [ ] Link picker: filter placeholder, row subtitle "colour · brand · n g left", note, "Tag <uid>" badge, empty copy, move-link warning text and "Move link" label when the pick carries another tag, Link disabled without a pick
-- [ ] write tests: `NewSpoolForm` validation and label defaults; `LinkPickerModel` filtering over material/colour/brand/note, warning text and button label, empty state
-- [ ] run tests - must pass before task 6
+- [x] Clear: toolbar button with `.keyboardShortcut(.delete, modifiers: .command)` opening `confirmationDialog("Clear the feed?")` with the spec copy; destructive Clear
+- [x] New spool sheet: title/subtitle, Material menu with the spec list and "Choose…", Subtype, Colour, Brand, Label weight (digits, default 1000), footer copy, Cancel · Create (disabled without material); Bambu tags have no New button (created on scan, Task 1); the no-prefill row keeps "New…" (form) and "Link to existing…"
+  - ➕ `FeedItem.newAction`: "New…" opens the form for a tag without material; a tag with material (only after a failed create on scan, or a Flipper request) gets the one-step "New" (`createFromTag`). `FeedItem.prominentAction` makes the Flipper's request (create or link) the `.borderedProminent` button. The Material menu appends a material outside the spec list (a tag's own), so the menu always shows the selection. The sheet drops the Core weight and Tag UID rows: the spec lists five fields, and the UID is in the subtitle ("NTAG 7-byte · <uid>"; a Bambu tag reads "Bambu tag · <uid>").
+- [x] Link picker: filter placeholder, row subtitle "colour · brand · n g left", note, "Tag <uid>" badge, empty copy, move-link warning text and "Move link" label when the pick carries another tag, Link disabled without a pick
+  - ➕ `LinkPickerModel` (pure) owns the filter (`FeedViewModel.filter` delegates). "Another tag" compares the spool's `tag_uid` with `ParsedTag.bambuddyTagUid` (Bambu UIDs carry the AMS `00000100` suffix) and its tray UUID, so a spool already carrying this tag does not warn. The row's own spool (the one created on scan) is left out of the list. Link needs a pick the filter still shows. With no spools at all the list reads "No spools in Bambuddy." (the spec gives only the no-match copy). The spool id moved from the row to its tooltip.
+- [x] write tests: `NewSpoolForm` validation and label defaults; `LinkPickerModel` filtering over material/colour/brand/note, warning text and button label, empty state
+- [x] run tests - must pass before task 6
 
 ### Task 6: Settings per the spec
 - [ ] `SettingsForm`: labels "Server URL", "API key"; test result phrases ("Not tested", "Testing…", "Ready · inventory access OK", "Unreachable: no answer within 5 s") with symbols; New items footer; Weighing title "I type the weight as" and footer; Flipper section with the Connection picker (USB only until Phase 2's Bluetooth lands; then USB | Bluetooth with Scan for Flipper and the connection line) and Forget (destructive); save row with "Unsaved changes" / "All changes saved", Revert and Save (default action, disabled when clean)
@@ -132,6 +134,8 @@ What changes:
 - [ ] every item of "Differences from the shipped macOS app" in the spec is implemented
 - [ ] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
   - ➕ status bar checks from Task 4: the `.bar` background plus the top `Divider()` does not draw a double separator on macOS 27 (drop the divider if it does); the searching item shows only a spinner where the spec row names `antenna.radiowaves.left.and.right.slash` "(spinning progress)", so confirm it reads right; action buttons fit at 760 pt
+  - ➕ sheet checks from Task 5: ⌘⌫ with the insertion point in a weight field opens the Clear dialog rather than deleting text; the Material menu renders as a pop-up in the grouped Form; the Link picker's "Tag <uid>" badge and warning line fit at the sheet's 520 pt
+  - ⚠️ `Session.lookup` publishes `unknown(prefill: true)` before the create on scan runs, so an unknown Bambu row may show "Not in Bambuddy" with New and Link for the length of the create call; check by eye whether the flash is visible against a real Bambuddy and, if it is, keep the row in "Looking up" until the create returns
   - ➕ focus checks from Task 2: a field selects its text when focus lands on it; Tab goes field → mode → Save; focus a field, Tab away without typing, scan → the new row takes focus (no hint); ⌘↑/⌘↓ with the insertion point in a field move rows rather than the cursor; focus on a row scrolled off-screen lands in its field once it scrolls in
 - [ ] `make test`, `make lint`, `make coverage` pass
 

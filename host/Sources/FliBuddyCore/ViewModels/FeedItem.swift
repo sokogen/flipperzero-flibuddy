@@ -8,6 +8,10 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let scannedAt: Date
     /// Upper-case hex, shown under the title.
     public let uid: String
+    /// The tag as Bambuddy keeps it (`ParsedTag.bambuddyTagUid`), and a
+    /// Bambu tag's tray UUID: what the Link picker compares spools against.
+    public let bambuddyTagUid: String
+    public let trayUuid: String?
     /// Material and subtype, e.g. "PLA Basic" or "PETG HF"; a blank tag reads
     /// "NTAG 7-byte UID 04A2…".
     public let title: String
@@ -57,12 +61,35 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let offersUnknownActions: Bool
     /// The tag carries a material, so the New form starts filled in.
     public let hasPrefill: Bool
+    /// What New does on an unknown row.
+    public let newAction: NewAction
+    /// The action the Flipper asked for, shown prominent.
+    public let prominentAction: UnknownAction?
+
+    /// New on an unknown row: the form for a tag without material, one step
+    /// from the tag's own data otherwise (the retry after a failed create on
+    /// scan).
+    public enum NewAction: Equatable, Sendable {
+        case form
+        case fromTag
+
+        public var title: String {
+            self == .form ? "New\u{2026}" : "New"
+        }
+    }
+
+    public enum UnknownAction: Equatable, Sendable {
+        case new
+        case link
+    }
 
     public init(_ row: FeedRow) {
         id = row.id
         scanId = row.scanId
         scannedAt = row.scannedAt
         uid = row.tag.uid
+        bambuddyTagUid = row.tag.bambuddyTagUid
+        trayUuid = row.tag.trayUuid
         let spool = row.spool
         if let spool {
             title = Self.title(material: spool.material, subtype: spool.subtype)
@@ -91,6 +118,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         canWeigh = spool != nil
         offersUnknownActions = spool == nil && row.status != .scanned
         hasPrefill = row.tag.hasPrefill
+        newAction = row.tag.hasPrefill ? .fromTag : .form
+        prominentAction = row.request.map { $0 == .create ? .new : .link }
         isEntry = spool != nil && Self.isEntryState(row.status)
         isWaiting = spool != nil && (row.status == .awaitingWeight || row.status == .created)
         isSaving = row.status == .saving
