@@ -110,11 +110,16 @@ mentions tray UUID candidates.
   dump can replace it after a re-capture.
 
 ### Task 2: Single tray UUID from block 9
-- [ ] Swift: replace `trayUuidCandidates: [String]` with `trayUuid: String?` in `ParsedTag`; `TagParser` reads block 9 only, `nil` when the block is missing or all zero; delete `daemonTrayUuid`; update `LookupBuilder`, `NewSpoolForm`, `IntentHandler`, `FeedItem` and any display text that listed candidates
-- [ ] Swift tests: real dump → the block 9 value; synthetic dump → its block 9 value; missing block 9 → `nil`; all-zero block 9 → `nil`; lookup, create and link use the single value
-- [ ] Python: same change in `tools/bridge/bambu_tag.py` (`tray_uuid: str | None`) and `tools/bridge/session.py`; drop the candidate wording from the module docstring; update `tools/tests/test_bambu_tag.py` and `tools/tests/test_bridge_protocol.py`
-- [ ] docs: `protocol/PROTOCOL.md`, `host/README.md`, `tools/README.md`, `flipper/README.md` no longer mention candidates or blocks 4+5 as a tray UUID source; state block 9 and why
-- [ ] run all three suites - must pass before task 3
+- [x] Swift: replace `trayUuidCandidates: [String]` with `trayUuid: String?` in `ParsedTag`; `TagParser` reads block 9 only, `nil` when the block is missing or all zero; delete `daemonTrayUuid`; update `LookupBuilder`, `NewSpoolForm`, `IntentHandler`, `FeedItem` and any display text that listed candidates
+- [x] Swift tests: real dump → the block 9 value; synthetic dump → its block 9 value; missing block 9 → `nil`; all-zero block 9 → `nil`; lookup, create and link use the single value
+- [x] Python: same change in `tools/bridge/bambu_tag.py` (`tray_uuid: str | None`) and `tools/bridge/session.py`; drop the candidate wording from the module docstring; update `tools/tests/test_bambu_tag.py` and `tools/tests/test_bridge_protocol.py`
+- [x] docs: `protocol/PROTOCOL.md`, `host/README.md`, `tools/README.md`, `flipper/README.md` no longer mention candidates or blocks 4+5 as a tray UUID source; state block 9 and why
+- [x] run all three suites - must pass before task 3
+- ➕ `findSpool(trayCandidates:uid:)` / `find_by_tag(candidates, uid)` became
+  `findSpool(trayUuid:uid:)` / `find_by_tag(tray_uuid, uid)`: one `tray_uuid`
+  query when present, then `tag_uid`. `LookupBuilder` and `FeedItem` never
+  referenced the candidates and needed no change. The root README Phase 0
+  checklist item about candidates is left for task 7.
 
 ### Task 3: Send Bambu tag UIDs in the AMS form
 - [ ] Swift: add `ParsedTag.bambuddyTagUid` — for `.bambu` tags the upper-case UID followed by `00000100`, for NTAG the upper-case UID as read; use it in `LookupBuilder` (by-tag query), `NewSpoolForm`/`NewSpool` (create) and the link call

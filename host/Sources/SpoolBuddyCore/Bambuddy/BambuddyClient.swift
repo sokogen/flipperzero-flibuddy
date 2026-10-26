@@ -31,10 +31,10 @@ public struct BambuddyClient: Sendable {
 
     // MARK: Inventory
 
-    /// The spool carrying this tag: each tray UUID candidate in order, then the
+    /// The spool carrying this tag: the tray UUID when there is one, then the
     /// UID. `nil` when every query answers 404.
-    public func findSpool(trayCandidates: [String], uid: String) async throws -> Spool? {
-        let queries = trayCandidates.map { URLQueryItem(name: "tray_uuid", value: $0) }
+    public func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
+        let queries = (trayUuid.map { [URLQueryItem(name: "tray_uuid", value: $0)] } ?? [])
             + [URLQueryItem(name: "tag_uid", value: uid)]
         for query in queries {
             let (data, status) = try await send("GET", "/inventory/spools/by-tag", query: [query])

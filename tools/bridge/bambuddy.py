@@ -66,9 +66,9 @@ class BambuddyClient:
             f"HTTP {response.status_code} {response.text[:120]}"
         )
 
-    def find_by_tag(self, tray_uuid_candidates: list[str], tag_uid: str) -> dict | None:
-        """The spool carrying this tag: tray UUID candidates in order, then the UID."""
-        queries = [{"tray_uuid": c} for c in tray_uuid_candidates] + [{"tag_uid": tag_uid}]
+    def find_by_tag(self, tray_uuid: str | None, tag_uid: str) -> dict | None:
+        """The spool carrying this tag: the tray UUID when there is one, then the UID."""
+        queries = ([{"tray_uuid": tray_uuid}] if tray_uuid else []) + [{"tag_uid": tag_uid}]
         for params in queries:
             response = self._request("GET", "/inventory/spools/by-tag", params=params)
             if response.status_code != 404:

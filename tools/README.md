@@ -48,7 +48,8 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
   MIFARE Classic sector trailers are rebuilt from the derived Key A (the
   Flipper does not send them).
 
-Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one),
+Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one; the
+tray UUID is block 9, which matched the AMS-reported `tray_uuid` in Phase 0),
 `bambuddy.py` (httpx client), `session.py` (framing and message handling),
 `__main__.py` (CLI and serial loop).
 

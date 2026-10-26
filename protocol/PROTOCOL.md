@@ -137,11 +137,14 @@ A full Bambu dump (48 data blocks) is about 2 KB, a full NTAG216 dump
 | `defaults` | object | optional | Grams for the Enter weight screen: `gross` (last gross weight), `label` (filament weight per label), `core` (empty spool weight); each an integer 0–9999, each optional. |
 | `error` | string, 1–200 | when `error` | Technical reason, for logs; `lines` carries what the user sees. |
 
-The host looks a tag up with `GET /inventory/spools/by-tag`, trying the
-tray UUID candidates in order and then the UID. The candidates are block 9
-as hex, then blocks 4+5 read the way the SpoolBuddy daemon reads them. Until
-Phase 0 settles which block holds the AMS `tray_uuid`, both parsers (Swift
-`TagParser`, Python `bambu_tag`) emit both.
+The host looks a tag up with `GET /inventory/spools/by-tag`, first by the
+tray UUID and then by the UID. The tray UUID of a Bambu tag is block 9 as
+32 upper-case hex characters: in Phase 0 it matched, byte for byte, the
+`tray_uuid` an AMS had reported to Bambuddy for the same spool. A missing
+or all-zero block 9 means no tray UUID, and the lookup goes by the UID
+alone. Blocks 4+5 hold the detailed type and colour, not a tray UUID. Both
+parsers (Swift `TagParser`, Python `bambu_tag`) read the tray UUID the same
+way, and new items and tag links store it as `tray_uuid`.
 
 The Flipper pre-fills the weight with `defaults.gross`, falling back to
 `defaults.label + defaults.core`.

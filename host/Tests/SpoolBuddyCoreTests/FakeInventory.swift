@@ -2,10 +2,10 @@ import Foundation
 @testable import SpoolBuddyCore
 
 /// An in-memory Bambuddy for `Session` tests. Records every call in order and
-/// matches tags the way `by-tag` does: tray UUID candidates first, then the UID.
+/// matches tags the way `by-tag` does: the tray UUID first, then the UID.
 final class FakeInventory: SpoolInventory, @unchecked Sendable {
     enum Call: Equatable {
-        case find(trays: [String], uid: String)
+        case find(tray: String?, uid: String)
         case update(spoolId: Int, gross: Int)
         case create(NewSpool)
         case link(spoolId: Int, TagLink)
@@ -50,13 +50,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         lock.withLock { recorded.append(call) }
     }
 
-    func findSpool(trayCandidates: [String], uid: String) async throws -> Spool? {
-        record(.find(trays: trayCandidates, uid: uid))
+    func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
+        record(.find(tray: trayUuid, uid: uid))
         if let findError { throw findError }
         return lock.withLock {
-            for tray in trayCandidates {
-                if let spool = stored.first(where: { $0.trayUuid == tray }) { return spool }
-            }
+            if let trayUuid, let spool = stored.first(where: { $0.trayUuid == trayUuid }) { return spool }
             return stored.first { $0.tagUid == uid }
         }
     }

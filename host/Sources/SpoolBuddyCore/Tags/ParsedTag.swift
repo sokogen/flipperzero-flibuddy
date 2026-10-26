@@ -17,8 +17,8 @@ public struct ParsedTag: Equatable, Sendable {
     public var kind: Kind
     /// Upper-case hex.
     public var uid: String
-    /// 32 upper-case hex chars each, in lookup order (block 9, then blocks 4+5).
-    public var trayUuidCandidates: [String]
+    /// Block 9, 32 upper-case hex chars; `nil` when missing or all zero.
+    public var trayUuid: String?
     public var material: String?
     public var detailedType: String?
     public var variantId: String?
@@ -36,7 +36,7 @@ public struct ParsedTag: Equatable, Sendable {
     public var nozzleMin: Int?
 
     public init(
-        kind: Kind, uid: String, trayUuidCandidates: [String] = [],
+        kind: Kind, uid: String, trayUuid: String? = nil,
         material: String? = nil, detailedType: String? = nil,
         variantId: String? = nil, materialId: String? = nil,
         rgba: String? = nil, labelWeight: Int? = nil, diameter: Double? = nil,
@@ -45,7 +45,7 @@ public struct ParsedTag: Equatable, Sendable {
     ) {
         self.kind = kind
         self.uid = uid
-        self.trayUuidCandidates = trayUuidCandidates
+        self.trayUuid = trayUuid
         self.material = material
         self.detailedType = detailedType
         self.variantId = variantId

@@ -103,7 +103,7 @@ struct IntentHandler {
     }
 
     func find(_ tag: ParsedTag) async throws -> Spool? {
-        try await inventory.findSpool(trayCandidates: tag.trayUuidCandidates, uid: tag.uid)
+        try await inventory.findSpool(trayUuid: tag.trayUuid, uid: tag.uid)
     }
 
     private func result(_ intent: Intent, ok: Bool, _ lines: [String], _ error: String? = nil) -> IntentResult {

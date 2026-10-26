@@ -26,7 +26,8 @@ and reads it (`src/nfc_read.h`): a MIFARE Classic (SAK 0x08/0x18) with the
 Bambu Key A derived from its UID, sectors that do not open stay missing; an
 NTAG (SAK 0x00) page by page. With a host the dump goes out as `scan`;
 without one the Flipper shows the UID, the type and, for a Bambu tag, the
-ASCII of blocks 2 and 4 and the block 9 hex (`src/nfc_classify.h`). Every
+ASCII of blocks 2 and 4 and the block 9 hex, the tray UUID; in Phase 0 it
+matched the `tray_uuid` an AMS reported (`src/nfc_classify.h`). Every
 screen change goes through the reducer in `src/app_state.h`;
 `spoolbuddy_app.c` picks the scene for the new screen.
 

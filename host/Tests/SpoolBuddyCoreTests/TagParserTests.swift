@@ -88,9 +88,7 @@ enum TagFixtures {
         #expect(parsed.nozzleMax == 230)
         #expect(parsed.nozzleMin == 190)
         #expect(parsed.hasPrefill)
-        // Block 9 raw hex first, then blocks 4+5 the daemon's way ("PLA Basic" has
-        // too few hex characters, so block 4 as raw hex).
-        #expect(parsed.trayUuidCandidates == [try TagFixtures.bambuBlockHex(9), try TagFixtures.bambuBlockHex(4)])
+        #expect(parsed.trayUuid == (try TagFixtures.bambuBlockHex(9)))
     }
 
     @Test func parsesTheRealBambuDump() throws {
@@ -100,7 +98,7 @@ enum TagFixtures {
 
         #expect(parsed.kind == .bambu)
         #expect(parsed.uid == "7EF1AB04")
-        #expect(parsed.trayUuidCandidates.first == "F1C8FDF0BC1643C0B37189ADB0687992")
+        #expect(parsed.trayUuid == "F1C8FDF0BC1643C0B37189ADB0687992")
         #expect(parsed.material == "PLA")
         #expect(parsed.detailedType == "PLA Pure")
         #expect(parsed.variantId == "A19-B00")
@@ -119,7 +117,7 @@ enum TagFixtures {
     @Test func parsedTagEqualsTheExpectedValue() throws {
         let expected = ParsedTag(
             kind: .bambu, uid: "5A3C9E21",
-            trayUuidCandidates: [try TagFixtures.bambuBlockHex(9), try TagFixtures.bambuBlockHex(4)],
+            trayUuid: try TagFixtures.bambuBlockHex(9),
             material: "PLA", detailedType: "PLA Basic", variantId: "A00-W1", materialId: "GFA00",
             rgba: "FFFFFFFF", labelWeight: 1000, diameter: 1.75,
             dryingTemp: 55, dryingHours: 8, bedTemp: 35, nozzleMax: 230, nozzleMin: 190
@@ -130,7 +128,7 @@ enum TagFixtures {
     @Test func parsesTheScanFixtureWithAMissingSector() throws {
         let parsed = TagParser.parse(try TagFixtures.scanTag("scan_mfc"))
         #expect(parsed.material == "PLA")
-        #expect(parsed.trayUuidCandidates.count == 2)
+        #expect(parsed.trayUuid == "FCFFA95B29EA71C5A36D7A067DF82014")
     }
 
     @Test func missingSector1DropsTheSector1Fields() throws {
@@ -142,7 +140,7 @@ enum TagFixtures {
         #expect(parsed.labelWeight == nil)
         #expect(parsed.diameter == nil)
         #expect(parsed.nozzleMin == nil)
-        #expect(parsed.trayUuidCandidates == [try TagFixtures.bambuBlockHex(9)])
+        #expect(parsed.trayUuid == (try TagFixtures.bambuBlockHex(9)))
     }
 
     @Test func missingSector0HasNoMaterialAndNoPrefill() throws {
@@ -159,31 +157,33 @@ enum TagFixtures {
         #expect(TagParser.parse(dump).material == nil)
     }
 
-    @Test func missingSector2HasNoBlock9Candidate() throws {
+    @Test func missingSector2HasNoTrayUuid() throws {
         let parsed = TagParser.parse(try TagFixtures.bambu(missing: [2]))
-        #expect(parsed.trayUuidCandidates == [try TagFixtures.bambuBlockHex(4)])
+        #expect(parsed.trayUuid == nil)
+        #expect(parsed.detailedType == "PLA Basic")
     }
 
-    @Test func asciiHexTrayUuidInBlocks4And5() throws {
+    @Test func absentBlock9HasNoTrayUuid() throws {
+        var dump = try TagFixtures.bambu()
+        dump.blocks[9] = nil
+        #expect(TagParser.parse(dump).trayUuid == nil)
+    }
+
+    @Test func zeroBlock9HasNoTrayUuid() throws {
+        var dump = try TagFixtures.bambu()
+        dump.blocks[9] = Array(repeating: 0, count: 16)
+        #expect(TagParser.parse(dump).trayUuid == nil)
+    }
+
+    @Test func blocks4And5AreNeverATrayUuid() throws {
+        // The SpoolBuddy daemon reads ASCII hex from blocks 4+5; Phase 0 showed
+        // the AMS tray_uuid is block 9, so blocks 4+5 are the detailed type only.
         var dump = try TagFixtures.bambu()
         let text = Array("0123456789abcdef0123456789ABCDEF".utf8)
         dump.blocks[4] = Array(text[0..<16])
         dump.blocks[5] = Array(text[16..<32])
-        #expect(TagParser.parse(dump).trayUuidCandidates[1] == "0123456789ABCDEF0123456789ABCDEF")
-    }
-
-    @Test func zeroBlocksGiveNoCandidates() throws {
-        var dump = try TagFixtures.bambu()
-        for block in [4, 5, 9] {
-            dump.blocks[block] = Array(repeating: 0, count: 16)
-        }
-        #expect(TagParser.parse(dump).trayUuidCandidates.isEmpty)
-    }
-
-    @Test func duplicateCandidatesAreCollapsed() throws {
-        var dump = try TagFixtures.bambu()
-        dump.blocks[9] = dump.blocks[4]
-        #expect(TagParser.parse(dump).trayUuidCandidates == [try TagFixtures.bambuBlockHex(4)])
+        dump.blocks[9] = Array(repeating: 0, count: 16)
+        #expect(TagParser.parse(dump).trayUuid == nil)
     }
 
     @Test func zeroLabelWeightReadsAsUnknown() throws {
@@ -230,7 +230,7 @@ enum TagFixtures {
         let parsed = TagParser.parse(try TagFixtures.scanTag("scan_ntag"))
         #expect(parsed.kind == .ntag)
         #expect(parsed.uid == "04112233445566")
-        #expect(parsed.trayUuidCandidates.isEmpty)
+        #expect(parsed.trayUuid == nil)
         #expect(parsed.material == nil)
         #expect(!parsed.hasPrefill)
     }

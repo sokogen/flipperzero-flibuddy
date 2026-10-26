@@ -26,35 +26,44 @@ private let trayB = "0123456789ABCDEF0123456789ABCDEF"
 struct BambuddyClientTests {
     // MARK: findSpool
 
-    @Test func findSpoolTriesTrayCandidatesInOrderThenUID() async throws {
+    @Test func findSpoolTriesTheTrayUuidThenTheUID() async throws {
         let server = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
-        let spool = try await server.client().findSpool(trayCandidates: [trayA, trayB], uid: "04A1B2C3")
+        let spool = try await server.client().findSpool(trayUuid: trayA, uid: "04A1B2C3")
         #expect(spool == nil)
         let requests = server.requests
-        #expect(requests.map(\.path) == Array(repeating: "/api/v1/inventory/spools/by-tag", count: 3))
-        #expect(requests.map(\.method) == ["GET", "GET", "GET"])
-        #expect(requests.map(\.query) == [["tray_uuid": trayA], ["tray_uuid": trayB], ["tag_uid": "04A1B2C3"]])
+        #expect(requests.map(\.path) == Array(repeating: "/api/v1/inventory/spools/by-tag", count: 2))
+        #expect(requests.map(\.method) == ["GET", "GET"])
+        #expect(requests.map(\.query) == [["tray_uuid": trayA], ["tag_uid": "04A1B2C3"]])
     }
 
-    @Test func findSpoolStopsAtTheFirstMatch() async throws {
+    @Test func findSpoolStopsAtTheTrayUuidMatch() async throws {
         let server = StubServer { request in
-            request.query["tray_uuid"] == trayB ? .json(200, spoolJSON()) : .json(404, #"{"detail":"Spool not found"}"#)
+            request.query["tray_uuid"] == trayA ? .json(200, spoolJSON()) : .json(404, #"{"detail":"Spool not found"}"#)
         }
-        let spool = try #require(try await server.client().findSpool(trayCandidates: [trayA, trayB], uid: "04A1B2C3"))
+        let spool = try #require(try await server.client().findSpool(trayUuid: trayA, uid: "04A1B2C3"))
         #expect(spool.id == 42)
-        #expect(server.requests.count == 2)
+        #expect(server.requests.count == 1)
     }
 
-    @Test func findSpoolWithoutCandidatesQueriesTheUID() async throws {
+    @Test func findSpoolFallsBackToTheUID() async throws {
+        let server = StubServer { request in
+            request.query["tag_uid"] == "04A1B2C3" ? .json(200, spoolJSON()) : .json(404, #"{"detail":"Spool not found"}"#)
+        }
+        let spool = try #require(try await server.client().findSpool(trayUuid: trayB, uid: "04A1B2C3"))
+        #expect(spool.id == 42)
+        #expect(server.requests.map(\.query) == [["tray_uuid": trayB], ["tag_uid": "04A1B2C3"]])
+    }
+
+    @Test func findSpoolWithoutATrayUuidQueriesTheUID() async throws {
         let server = StubServer { _ in .json(200, spoolJSON()) }
-        let spool = try await server.client().findSpool(trayCandidates: [], uid: "04112233445566")
+        let spool = try await server.client().findSpool(trayUuid: nil, uid: "04112233445566")
         #expect(spool?.id == 42)
         #expect(server.requests.map(\.query) == [["tag_uid": "04112233445566"]])
     }
 
     @Test func findSpoolDecodesTheSpool() async throws {
         let server = StubServer { _ in .json(200, spoolJSON()) }
-        let spool = try #require(try await server.client().findSpool(trayCandidates: [trayA], uid: "04A1B2C3"))
+        let spool = try #require(try await server.client().findSpool(trayUuid: trayA, uid: "04A1B2C3"))
         #expect(spool == Spool(
             id: 42, material: "PLA", subtype: "PLA Basic", colorName: "Jade White", rgba: "FFFFFFFF",
             brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
@@ -67,7 +76,7 @@ struct BambuddyClientTests {
     @Test func findSpoolReportsServerErrors() async throws {
         let server = StubServer { _ in .json(500, #"{"detail":"boom"}"#) }
         await #expect(throws: BambuddyError.http(status: 500, message: "boom")) {
-            try await server.client().findSpool(trayCandidates: [trayA, trayB], uid: "04A1B2C3")
+            try await server.client().findSpool(trayUuid: trayA, uid: "04A1B2C3")
         }
         #expect(server.requests.count == 1)
     }
@@ -75,7 +84,7 @@ struct BambuddyClientTests {
     @Test func findSpoolMaps403ToInventoryRead() async throws {
         let server = StubServer { _ in .json(403, #"{"detail":"Missing permission"}"#) }
         await #expect(throws: BambuddyError.permissionMissing("inventory:read")) {
-            try await server.client().findSpool(trayCandidates: [], uid: "04A1B2C3")
+            try await server.client().findSpool(trayUuid: nil, uid: "04A1B2C3")
         }
     }
 
@@ -211,7 +220,7 @@ struct BambuddyClientTests {
         #expect(new.nozzleTempMin == tag.nozzleMin)
         #expect(new.nozzleTempMax == tag.nozzleMax)
         #expect(new.tagUid == tag.uid)
-        #expect(new.trayUuid == tag.trayUuidCandidates.first)
+        #expect(new.trayUuid == tag.trayUuid)
         #expect(new.tagType == "bambulab")
         #expect(new.dataOrigin == "flipper")
     }
@@ -248,9 +257,16 @@ struct BambuddyClientTests {
 
     @Test func linkTagFromAParsedTag() throws {
         let tag = TagParser.parse(try TagFixtures.bambu())
-        #expect(TagLink(tag: tag) == TagLink(tagUid: tag.uid, trayUuid: tag.trayUuidCandidates.first, tagType: "bambulab"))
+        #expect(TagLink(tag: tag) == TagLink(tagUid: tag.uid, trayUuid: tag.trayUuid, tagType: "bambulab"))
         let ntag = TagParser.parse(try TagFixtures.ntag())
         #expect(TagLink(tag: ntag) == TagLink(tagUid: ntag.uid, trayUuid: nil, tagType: "ntag"))
+    }
+
+    @Test func createAndLinkCarryBlock9OfTheRealDump() throws {
+        let tag = TagParser.parse(try TagFixtures.bambuReal())
+        let tray = "F1C8FDF0BC1643C0B37189ADB0687992"
+        #expect(NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: nil)?.trayUuid == tray)
+        #expect(TagLink(tag: tag).trayUuid == tray)
     }
 
     @Test func linkTagMaps409WithAHolderToTagAlreadyLinked() async throws {
@@ -345,7 +361,7 @@ struct BambuddyClientTests {
             }
         }
         let client = try server.client(apiKey: "bb_secret")
-        _ = try await client.findSpool(trayCandidates: [trayA], uid: "04A1B2C3")
+        _ = try await client.findSpool(trayUuid: trayA, uid: "04A1B2C3")
         _ = try await client.spool(id: 42)
         _ = try await client.updateWeight(spoolId: 42, gross: 700)
         _ = try await client.createSpool(NewSpool(material: "PLA", labelWeight: 1000, coreWeight: 250))

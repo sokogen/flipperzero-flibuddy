@@ -36,40 +36,39 @@ def not_found():
     return httpx.Response(404, json={"detail": "Spool not found"})
 
 
-def test_find_by_tag_tries_candidates_in_order_then_uid():
-    c, rec = client(not_found(), not_found(), httpx.Response(200, json=SPOOL))
-    assert c.find_by_tag(["AA" * 16, "BB" * 16], "5A3C9E21") == SPOOL
+def test_find_by_tag_tries_the_tray_uuid_then_the_uid():
+    c, rec = client(not_found(), httpx.Response(200, json=SPOOL))
+    assert c.find_by_tag("AA" * 16, "5A3C9E21") == SPOOL
     assert [dict(r.url.params) for r in rec.requests] == [
         {"tray_uuid": "AA" * 16},
-        {"tray_uuid": "BB" * 16},
         {"tag_uid": "5A3C9E21"},
     ]
     assert all(r.url.path == "/api/v1/inventory/spools/by-tag" for r in rec.requests)
     assert all(r.method == "GET" for r in rec.requests)
 
 
-def test_find_by_tag_stops_at_the_first_match():
+def test_find_by_tag_stops_at_the_tray_uuid_match():
     c, rec = client(httpx.Response(200, json=SPOOL))
-    assert c.find_by_tag(["AA" * 16, "BB" * 16], "5A3C9E21") == SPOOL
+    assert c.find_by_tag("AA" * 16, "5A3C9E21") == SPOOL
     assert len(rec.requests) == 1
 
 
 def test_find_by_tag_returns_none_when_nothing_matches():
     c, rec = client(not_found())
-    assert c.find_by_tag([], "04112233445566") is None
+    assert c.find_by_tag(None, "04112233445566") is None
     assert dict(rec.requests[0].url.params) == {"tag_uid": "04112233445566"}
 
 
 def test_find_by_tag_raises_on_server_error():
     c, _ = client(httpx.Response(500, text="boom"))
     with pytest.raises(bambuddy.BambuddyError, match="500"):
-        c.find_by_tag([], "04112233445566")
+        c.find_by_tag(None, "04112233445566")
 
 
 def test_network_errors_become_bambuddy_errors():
     c, _ = client(httpx.ConnectError("connection refused"))
     with pytest.raises(bambuddy.BambuddyError, match="connection refused"):
-        c.find_by_tag([], "04112233445566")
+        c.find_by_tag(None, "04112233445566")
 
 
 def test_every_request_sends_the_api_key():
@@ -79,7 +78,7 @@ def test_every_request_sends_the_api_key():
         httpx.Response(200, json={"spoolman_enabled": "false"}),
         httpx.Response(200, json=SPOOL),
     )
-    c.find_by_tag([], "5A3C9E21")
+    c.find_by_tag(None, "5A3C9E21")
     c.update_weight(42, 734)
     c.spoolman_enabled()
     c.create_spool({"material": "PLA"})

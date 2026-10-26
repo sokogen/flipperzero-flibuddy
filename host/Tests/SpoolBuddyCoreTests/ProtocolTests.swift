@@ -107,7 +107,7 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         let object = try JSONSerialization.jsonObject(with: Message.scan(scan).encodedLine()) as! [String: Any]
         let tag = object["tag"] as! [String: Any]
         #expect(tag["blocks"] as? [String: String] == [:])
-        #expect(TagParser.parse(scan.tag).trayUuidCandidates.isEmpty)
+        #expect(TagParser.parse(scan.tag).trayUuid == nil)
         #expect(TagParser.parse(scan.tag).material == nil)
     }
 

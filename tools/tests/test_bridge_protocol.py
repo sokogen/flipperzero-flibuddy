@@ -51,11 +51,14 @@ class FakeBambuddy:
         if self.fail:
             raise bambuddy.BambuddyError(self.fail)
 
-    def find_by_tag(self, candidates, uid):
-        self.calls.append(("find_by_tag", tuple(candidates), uid))
+    def find_by_tag(self, tray_uuid, uid):
+        self.calls.append(("find_by_tag", tray_uuid, uid))
         self._maybe_fail()
         for spool in self.spools.values():
-            if spool.get("tray_uuid") in candidates or spool.get("tag_uid") == uid:
+            if tray_uuid is not None and spool.get("tray_uuid") == tray_uuid:
+                return spool
+        for spool in self.spools.values():
+            if spool.get("tag_uid") == uid:
                 return spool
         return None
 
@@ -78,8 +81,7 @@ class FakeBambuddy:
 
 def spool_42_on_tag(**extra) -> dict:
     tag = load("scan_mfc.json")["tag"]
-    candidates = bambu_tag.parse_tag(tag).tray_uuid_candidates
-    return {**SPOOL_42, "tray_uuid": candidates[0], **extra}
+    return {**SPOOL_42, "tray_uuid": bambu_tag.parse_tag(tag).tray_uuid, **extra}
 
 
 def bridge(fake=None, **kwargs) -> session.Bridge:
@@ -156,8 +158,9 @@ def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
     (reply,) = replies(bridge(fake), load("scan_mfc.json"))
     assert reply == load("lookup_unknown.json")
     tag = load("scan_mfc.json")["tag"]
-    candidates = tuple(bambu_tag.parse_tag(tag).tray_uuid_candidates)
-    assert fake.calls == [("find_by_tag", candidates, tag["uid"])]
+    tray_uuid = bambu_tag.parse_tag(tag).tray_uuid
+    assert tray_uuid == tag["blocks"]["9"]
+    assert fake.calls == [("find_by_tag", tray_uuid, tag["uid"])]
 
 
 def test_scan_of_a_known_spool_yields_the_found_lookup():
@@ -204,7 +207,7 @@ def test_scan_of_an_unreadable_mfc_is_looked_up_by_uid():
     assert reply["status"] == "unknown"
     assert reply["scan_id"] == scan["scan_id"]
     assert "prefill" not in reply
-    assert fake.calls == [("find_by_tag", (), scan["tag"]["uid"])]
+    assert fake.calls == [("find_by_tag", None, scan["tag"]["uid"])]
 
 
 def test_lookup_failure_yields_an_error_lookup():
@@ -330,7 +333,7 @@ def test_new_creates_a_full_spool_from_the_tag():
         "nozzle_temp_min": 190,
         "nozzle_temp_max": 230,
         "tag_uid": tag["uid"],
-        "tray_uuid": parsed.tray_uuid_candidates[0],
+        "tray_uuid": parsed.tray_uuid,
         "tag_type": "bambulab",
         "data_origin": "flipper",
     }

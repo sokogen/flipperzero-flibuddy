@@ -3,7 +3,10 @@
 SwiftPM only: no Xcode project, no UI tests.
 
 - `SpoolBuddyCore`: platform-neutral library (protocol models, tag parser,
-  Bambuddy client, transport, session, view models).
+  Bambuddy client, transport, session, view models). `TagParser` takes the
+  tray UUID from block 9 of a Bambu tag, the block whose value matched the
+  AMS-reported `tray_uuid` in Phase 0. Lookups try it first, then the UID,
+  and new items and tag links store it.
 - `SpoolBuddyMac`: SwiftUI executable for macOS 14+.
 - `SpoolBuddyCoreTests`: swift-testing suites (`import Testing`). The Command
   Line Tools have no XCTest, so the tests do not use it.

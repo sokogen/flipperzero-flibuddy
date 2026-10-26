@@ -82,7 +82,7 @@ struct SessionScanTests {
         #expect(row.spool == knownSpool())
         #expect(row.status == .awaitingWeight)
         let tag = row.tag
-        #expect(inventory.calls == [.spoolman, .find(trays: tag.trayUuidCandidates, uid: "5A3C9E21")])
+        #expect(inventory.calls == [.spoolman, .find(tray: tag.trayUuid, uid: "5A3C9E21")])
     }
 
     @Test func theFoundReplyEncodesForTheFlipper() async throws {
@@ -148,7 +148,7 @@ struct SessionScanTests {
         #expect(lookup.scanId == "s-000014")
         #expect(lookup.status == .unknown)
         #expect(lookup.prefill == nil)
-        #expect(inventory.calls.contains(.find(trays: [], uid: "5A3C9E21")))
+        #expect(inventory.calls.contains(.find(tray: nil, uid: "5A3C9E21")))
     }
 
     @Test func aFailedLookupAnswersErrorAndMarksTheRow() async throws {

@@ -2,22 +2,14 @@
 
 Pure functions, no I/O. The Swift `TagParser` mirrors this module. The Bambu
 block layout follows the public Bambu RFID tag guide; see
-tools/fixtures/make_bambu_dump.py for the fields. The tray UUID location is
-not settled yet (Phase 0), so the parser returns candidates in lookup order:
-
-1. block 9 as raw hex (tag guide),
-2. blocks 4+5 the way the SpoolBuddy daemon reads them (`_extract_tray_uuid`
-   in maziggy/bambuddy `spoolbuddy/daemon/nfc_reader.py`): the first 32 hex
-   characters of their ASCII text, else block 4 as raw hex.
-
-All-zero values are skipped and duplicates collapsed.
+tools/fixtures/make_bambu_dump.py for the fields. The tray UUID is block 9 as
+raw hex: Phase 0 matched it byte for byte with the `tray_uuid` an AMS reported
+to Bambuddy. An all-zero block 9 means no tray UUID.
 """
 
 import struct
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 
-HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
-ZERO_UUID = "0" * 32
 MAX_LINES = 4
 MAX_LINE_LEN = 40
 
@@ -26,7 +18,7 @@ MAX_LINE_LEN = 40
 class ParsedTag:
     kind: str  # "bambu" (MIFARE Classic) or "ntag"
     uid: str
-    tray_uuid_candidates: list[str] = field(default_factory=list)
+    tray_uuid: str | None = None  # block 9, 32 upper-case hex chars
     material: str | None = None
     detailed_type: str | None = None
     variant_id: str | None = None
@@ -93,26 +85,10 @@ def _nonzero(value: int) -> int | None:
     return value or None
 
 
-def _daemon_tray_uuid(block4: bytes, block5: bytes) -> str | None:
-    raw = block4 + block5
-    hex_chars = "".join(ch for ch in raw.decode("ascii", errors="ignore") if ch in HEX_DIGITS)
-    if len(hex_chars) >= 32 and hex_chars[:32] != ZERO_UUID:
-        return hex_chars[:32].upper()
-    fallback = raw[:16].hex().upper()
-    return fallback if fallback != ZERO_UUID else None
-
-
-def _tray_uuid_candidates(blocks: dict[int, bytes]) -> list[str]:
-    candidates = []
-    if 9 in blocks:
-        candidates.append(blocks[9].hex().upper())
-    if 4 in blocks and 5 in blocks:
-        candidates.append(_daemon_tray_uuid(blocks[4], blocks[5]))
-    out: list[str] = []
-    for candidate in candidates:
-        if candidate and candidate != ZERO_UUID and candidate not in out:
-            out.append(candidate)
-    return out
+def _tray_uuid(blocks: dict[int, bytes]) -> str | None:
+    """Block 9 as upper-case hex; None when missing or all zero."""
+    block9 = blocks.get(9)
+    return block9.hex().upper() if block9 and any(block9) else None
 
 
 def parse_tag(tag: dict) -> ParsedTag:
@@ -146,6 +122,6 @@ def parse_tag(tag: dict) -> ParsedTag:
     return ParsedTag(
         kind="bambu",
         uid=uid,
-        tray_uuid_candidates=_tray_uuid_candidates(blocks),
+        tray_uuid=_tray_uuid(blocks),
         **fields,
     )
