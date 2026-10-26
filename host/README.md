@@ -72,6 +72,9 @@ for lives in `Sources/FliBuddyMac/Info.plist`, linked into the executable's
 only). It has no `CFBundleIdentifier` on purpose: one would move
 `UserDefaults.standard` away from the `FliBuddyMac` domain that holds the
 saved settings.
+`SettingsStore` keeps the settings in a `KeyValueStore` (`UserDefaults` in
+the apps, `InMemoryKeyValueStore` in the tests) and the API key in a
+`SecretStore` (`KeychainSecretStore` in the apps).
 
 The core weight is everything on the scale that is not filament (`net =
 gross − core_weight`). It defaults to 325 g, a Bambu reusable spool (293 g)

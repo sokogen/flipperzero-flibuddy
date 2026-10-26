@@ -23,8 +23,8 @@ What changes:
   saved/unsaved line.
 
 ## Context (from discovery)
-- Views (after Phase 2 and the rename; adjust names if the rename has not
-  happened): `host/Sources/FliBuddyUI/FeedView.swift` (feed, row, status
+- Views (after Phase 2 and the FliBuddy rename):
+  `host/Sources/FliBuddyUI/FeedView.swift` (feed, row, status
   bar), `UnknownRowActions.swift` (New form, Link picker), `SettingsForm.swift`,
   `host/Sources/FliBuddyMac/{App,SettingsView}.swift`.
 - View models: `host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift`,
