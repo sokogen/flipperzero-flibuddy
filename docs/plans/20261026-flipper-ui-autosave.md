@@ -391,6 +391,10 @@ over USB and Bluetooth:
   at error and drops later lines at debug). At the hello timeout the link
   goes to `LinkState.otherVersion(N)` instead of `noAnswer`; the status bar
   shows the same sentence, with what to update as its detail.
+  Only the hello timeout reads `peerVersion`: a Flipper of another version
+  whose first line comes after the timeout leaves the link at `noAnswer`.
+  In practice its hello comes at once (the USB node and the BLE advert exist
+  only while the FAP runs), so this stays as is.
 - Task 6: a `weigh` (or host Save) on an unknown tag whose create went
   through and whose weight failed leaves the row without the spool, showing
   the error; the retry finds the spool by tag and weighs it. New feed row
