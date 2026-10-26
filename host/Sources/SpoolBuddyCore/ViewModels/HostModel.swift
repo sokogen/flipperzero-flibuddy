@@ -24,7 +24,7 @@ public final class HostModel {
     public init(
         store: SettingsStore = SettingsStore(),
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
-        makeTransport: @escaping @Sendable (String) -> any Transport = { SerialTransport(path: $0) },
+        makeTransport: @escaping @Sendable (TransportChoice) -> any Transport = FlipperLink.defaultTransport,
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() }
     ) {
         let settings = store.load()
@@ -44,7 +44,7 @@ public final class HostModel {
     public func start() {
         guard !started else { return }
         started = true
-        link.connect(port: settings.port)
+        link.connect(.usb(port: settings.port))
         Task { await session.checkBambuddy() }
     }
 
@@ -56,7 +56,7 @@ public final class HostModel {
         settings = new
         feed.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
-        if portChanged, link.isActive { link.connect(port: new.port) }
+        if portChanged, link.isActive { link.connect(.usb(port: new.port)) }
         await session.checkBambuddy()
     }
 

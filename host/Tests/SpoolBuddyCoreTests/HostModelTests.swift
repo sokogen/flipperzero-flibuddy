@@ -61,13 +61,13 @@ struct HostModelTests {
         let model = try makeModel(scratch)
         model.start()
         defer { model.link.disconnect() }
-        #expect(model.link.requestedPort == nil)
+        #expect(model.link.choice == .usb(port: nil))
 
         var changed = testSettings
         changed.port = "/dev/cu.usbmodemflip_B"
         try await model.apply(changed)
 
-        #expect(model.link.requestedPort == "/dev/cu.usbmodemflip_B")
+        #expect(model.link.choice == .usb(port: "/dev/cu.usbmodemflip_B"))
     }
 
     @Test func startingAgainKeepsTheRunningLink() async throws {
