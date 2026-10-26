@@ -13,6 +13,7 @@ public final class FeedViewModel {
     public private(set) var bambuddy: BambuddyState = .unchecked
     /// Why new items get no colour names, when the colour map failed to load.
     public private(set) var colorNamesProblem: String?
+    public private(set) var isCheckingBambuddy = false
     /// The New form's core weight and the preselected weight mode come from here.
     public var settings: Settings
 
@@ -69,6 +70,7 @@ public final class FeedViewModel {
         itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         bambuddy = snapshot.bambuddy
         colorNamesProblem = snapshot.colorNamesProblem
+        isCheckingBambuddy = snapshot.isCheckingBambuddy
         for id in Set(weightTexts.keys).union(modes.keys).union(errors.keys) where rows[id] == nil {
             forget(id)
         }
@@ -83,6 +85,17 @@ public final class FeedViewModel {
 
     public func item(_ id: FeedRow.ID) -> FeedItem? {
         itemsByID[id]
+    }
+
+    /// The Bambuddy half of the status bar.
+    public var bambuddyStatus: StatusItem {
+        bambuddy.statusItem(colorNamesProblem: colorNamesProblem, isChecking: isCheckingBambuddy)
+    }
+
+    /// Spoolman mode: FliBuddy cannot work at all, so the feed gives way to
+    /// an explanation until a check finds the internal inventory again.
+    public var isBlocked: Bool {
+        bambuddy == .refused(.spoolmanMode)
     }
 
     // MARK: Weight entry

@@ -12,7 +12,7 @@ struct FliBuddyMacApp: App {
     var body: some Scene {
         // One window: the feed and the Flipper link are app-wide.
         Window("FliBuddy", id: "main") {
-            FeedView(feed: host.feed, link: host.link)
+            FeedView(host: host)
                 .frame(minWidth: 760, minHeight: 420)
                 .task {
                     host.start()

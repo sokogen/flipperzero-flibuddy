@@ -107,11 +107,14 @@ What changes:
 - [x] run tests - must pass before task 4
 
 ### Task 4: Status bar with symbols, tints and actions; empty and blocking states
-- [ ] `FlipperLink` and `FeedViewModel.bambuddy`: expose a `StatusItem` (text, symbol, tint, optional action) per the spec tables, including the `nohello` state (link open, no hello within 2 s) and `nocolors`
-- [ ] `StatusBar` view: two items in `.footnote.weight(.medium)`, progress indicator for searching/checking, action buttons (Connect, Check, Retry, Settings) wired to `HostModel`
-- [ ] `ContentUnavailableView`s: empty feed copy; blocking Spoolman state with Retry that re-runs the startup check; the list hidden while blocking
-- [ ] write tests: state → `StatusItem` for all Flipper and Bambuddy states; Retry triggers the check; blocking flag
-- [ ] run tests - must pass before task 5
+- [x] `FlipperLink` and `FeedViewModel.bambuddy`: expose a `StatusItem` (text, symbol, tint, optional action) per the spec tables, including the `nohello` state (link open, no hello within 2 s) and `nocolors`
+  - ➕ `StatusItem` also carries `detail` (the reason, port, firmware) for the tooltip. Mappings the spec leaves open: `waitingForHello` (under 2 s) and "No Flipper found" count as searching; any other reason the link is down ("Bluetooth is off", "Resource busy") is the phrase itself, orange, with the slash symbol; Bambuddy `notConfigured` is "Bambuddy not set up" (orange, Settings) and a rejected key "Bambuddy rejected the API key" (red, Settings); a check under way shows "Checking Bambuddy…" with a spinner (`SessionSnapshot.isCheckingBambuddy`).
+  - ⚠️ `adv` ("Flipper nearby, not connected", Connect) is shown when the link is stopped, since every other down state already retries every 2 s and Connect would add nothing; the host does not scan for advertising Flippers while disconnected, so "nearby" is not probed. Nothing stops the link today, so the state appears once something (Task 6's Forget) does.
+- [x] `StatusBar` view: two items in `.footnote.weight(.medium)`, progress indicator for searching/checking, action buttons (Connect, Check, Retry, Settings) wired to `HostModel`
+  - ➕ `HostModel.perform(_:)` runs Connect (the saved transport choice), Check and Retry (`checkBambuddy()`); Settings is the view's: `SettingsLink` on macOS, an `openSettings` closure on iOS (the iOS tab view now has a selection). `FeedView(host:openSettings:)` replaces `FeedView(feed:link:)`. The bar is a bottom `safeAreaInset` on `.bar` with a top divider; the port moved into the Flipper tooltip. The watch keeps its `statusText` lines.
+- [x] `ContentUnavailableView`s: empty feed copy; blocking Spoolman state with Retry that re-runs the startup check; the list hidden while blocking
+- [x] write tests: state → `StatusItem` for all Flipper and Bambuddy states; Retry triggers the check; blocking flag
+- [x] run tests - must pass before task 5
 
 ### Task 5: Clear with confirmation, New sheet, Link picker
 - [ ] Clear: toolbar button with `.keyboardShortcut(.delete, modifiers: .command)` opening `confirmationDialog("Clear the feed?")` with the spec copy; destructive Clear
@@ -128,6 +131,7 @@ What changes:
 ### Task 7: Verify acceptance criteria
 - [ ] every item of "Differences from the shipped macOS app" in the spec is implemented
 - [ ] `swift run FliBuddyMac`: main window and Settings compared with the spec by eye in light and dark; findings recorded in this plan
+  - ➕ status bar checks from Task 4: the `.bar` background plus the top `Divider()` does not draw a double separator on macOS 27 (drop the divider if it does); the searching item shows only a spinner where the spec row names `antenna.radiowaves.left.and.right.slash` "(spinning progress)", so confirm it reads right; action buttons fit at 760 pt
   - ➕ focus checks from Task 2: a field selects its text when focus lands on it; Tab goes field → mode → Save; focus a field, Tab away without typing, scan → the new row takes focus (no hint); ⌘↑/⌘↓ with the insertion point in a field move rows rather than the cursor; focus on a row scrolled off-screen lands in its field once it scrolls in
 - [ ] `make test`, `make lint`, `make coverage` pass
 

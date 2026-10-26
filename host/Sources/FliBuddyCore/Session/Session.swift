@@ -73,17 +73,22 @@ extension SessionError: LocalizedError {
     }
 }
 
-/// What the views render: the feed in arrival order, the Bambuddy state and
-/// why colour names are missing, if they are.
+/// What the views render: the feed in arrival order, the Bambuddy state,
+/// whether a startup check is under way and why colour names are missing, if
+/// they are.
 public struct SessionSnapshot: Equatable, Sendable {
     public var rows: [FeedRow]
     public var bambuddy: BambuddyState
     public var colorNamesProblem: String?
+    public var isCheckingBambuddy: Bool
 
-    public init(rows: [FeedRow], bambuddy: BambuddyState, colorNamesProblem: String? = nil) {
+    public init(
+        rows: [FeedRow], bambuddy: BambuddyState, colorNamesProblem: String? = nil, isCheckingBambuddy: Bool = false
+    ) {
         self.rows = rows
         self.bambuddy = bambuddy
         self.colorNamesProblem = colorNamesProblem
+        self.isCheckingBambuddy = isCheckingBambuddy
     }
 }
 
@@ -155,7 +160,9 @@ public actor Session {
     }
 
     public var snapshot: SessionSnapshot {
-        SessionSnapshot(rows: rows, bambuddy: bambuddy, colorNamesProblem: colorNamesProblem)
+        SessionSnapshot(
+            rows: rows, bambuddy: bambuddy, colorNamesProblem: colorNamesProblem, isCheckingBambuddy: checking != nil
+        )
     }
 
     public func clear() {
@@ -177,9 +184,11 @@ public actor Session {
         let task = Task {
             let state = await runCheck()
             checking = nil
+            publish()
             return state
         }
         checking = task
+        publish()
         return await task.value
     }
 

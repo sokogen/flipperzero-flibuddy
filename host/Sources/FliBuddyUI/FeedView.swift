@@ -3,53 +3,82 @@ import SwiftUI
 
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
-/// The session feed: one row per scanned tag, newest first, and the status bar.
+/// The session feed: one row per scanned tag, newest first, and the status
+/// bar. In Spoolman mode an explanation replaces the feed.
 public struct FeedView: View {
-    let feed: FeedViewModel
-    let link: FlipperLink
+    let host: HostModel
+    /// Opens the settings for the status bar's Settings button; macOS uses
+    /// its Settings scene instead.
+    let openSettings: (() -> Void)?
     /// The weight field with the keyboard, kept in step with `feed.focusedRow`.
     @FocusState private var focusedField: FeedRow.ID?
 
-    public init(feed: FeedViewModel, link: FlipperLink) {
-        self.feed = feed
-        self.link = link
+    private var feed: FeedViewModel { host.feed }
+
+    public init(host: HostModel, openSettings: (() -> Void)? = nil) {
+        self.host = host
+        self.openSettings = openSettings
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            if feed.items.isEmpty {
-                ContentUnavailableView(
-                    "No scans yet", systemImage: "wave.3.right",
-                    description: Text("Hold a spool's tag to the Flipper running FliBuddy.")
+        content
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                StatusBar(
+                    flipper: host.link.statusItem, bambuddy: feed.bambuddyStatus, openSettings: openSettings
+                ) { action in
+                    Task { await host.perform(action) }
+                }
+            }
+            .background { FeedKeyboardShortcuts(feed: feed) }
+            .onAppear { focusField(on: feed.focusedRow) }
+            .onChange(of: feed.focusedRow) { _, row in focusField(on: row) }
+            .onChange(of: focusedField) { _, row in
+                // Losing the field keeps the row focused, so ⌘S still has a target.
+                if let row { feed.focusedRow = row }
+            }
+            .toolbar {
+                ToolbarItem {
+                    Button("Clear", systemImage: "trash") {
+                        Task { await feed.clear() }
+                    }
+                    .help("Remove all rows from the feed")
+                    .disabled(feed.items.isEmpty)
+                }
+                #if os(macOS)
+                ToolbarItem {
+                    SettingsLink {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
+                #endif
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        if feed.isBlocked {
+            ContentUnavailableView {
+                Label {
+                    Text("Bambuddy is in Spoolman mode")
+                } icon: {
+                    Image(systemName: "nosign").foregroundStyle(.red)
+                }
+            } description: {
+                Text(
+                    "FliBuddy works with Bambuddy's own inventory. Switch Bambuddy's inventory back from Spoolman in its settings, then retry."
                 )
-            } else {
-                feedList
-            }
-            Divider()
-            StatusBar(link: link, bambuddy: feed.bambuddy, colorNamesProblem: feed.colorNamesProblem)
-        }
-        .background { FeedKeyboardShortcuts(feed: feed) }
-        .onAppear { focusField(on: feed.focusedRow) }
-        .onChange(of: feed.focusedRow) { _, row in focusField(on: row) }
-        .onChange(of: focusedField) { _, row in
-            // Losing the field keeps the row focused, so ⌘S still has a target.
-            if let row { feed.focusedRow = row }
-        }
-        .toolbar {
-            ToolbarItem {
-                Button("Clear", systemImage: "trash") {
-                    Task { await feed.clear() }
+            } actions: {
+                Button("Retry") {
+                    Task { await host.checkBambuddy() }
                 }
-                .help("Remove all rows from the feed")
-                .disabled(feed.items.isEmpty)
+                .disabled(feed.isCheckingBambuddy)
             }
-            #if os(macOS)
-            ToolbarItem {
-                SettingsLink {
-                    Label("Settings", systemImage: "gearshape")
-                }
-            }
-            #endif
+        } else if feed.items.isEmpty {
+            ContentUnavailableView(
+                "No scans yet", systemImage: "wave.3.right",
+                description: Text("Hold a spool's tag to the Flipper running FliBuddy.")
+            )
+        } else {
+            feedList
         }
     }
 
@@ -324,41 +353,53 @@ struct WeightEntry: View {
     }
 }
 
-/// Transport state, Bambuddy state and a colour map that failed to load.
+/// The Flipper item and the Bambuddy item, each a symbol and a phrase with
+/// its reason in the tooltip, and the button the state offers.
 struct StatusBar: View {
-    let link: FlipperLink
-    let bambuddy: BambuddyState
-    let colorNamesProblem: String?
+    let flipper: StatusItem
+    let bambuddy: StatusItem
+    let openSettings: (() -> Void)?
+    let perform: (StatusItem.Action) -> Void
 
     var body: some View {
         HStack(spacing: 16) {
-            HStack(spacing: 6) {
-                Circle().fill(linkColor).frame(width: 8, height: 8)
-                Text(link.statusText)
-            }
-            HStack(spacing: 6) {
-                Circle().fill(bambuddy.isReady ? .green : .orange).frame(width: 8, height: 8)
-                Text(bambuddy.statusText)
-            }
-            if let colorNamesProblem {
-                Text(colorNamesProblem).foregroundStyle(.orange).help(colorNamesProblem)
-            }
-            Spacer()
-            if let port = link.port {
-                Text(port).foregroundStyle(.tertiary)
-            }
+            item(flipper)
+            item(bambuddy)
+            Spacer(minLength: 0)
         }
-        .font(.caption)
+        .font(.footnote.weight(.medium))
         .lineLimit(1)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
     }
 
-    private var linkColor: Color {
-        switch link.state {
-        case .connected: .green
-        case .waitingForHello: .yellow
-        case .noAnswer, .disconnected: .orange
+    private func item(_ item: StatusItem) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                StatusSymbolView(symbol: item.symbol, tint: item.tint)
+                Text(item.text)
+            }
+            .help(item.detail ?? item.text)
+            .accessibilityElement(children: .combine)
+            if let action = item.action {
+                button(action)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    @ViewBuilder private func button(_ action: StatusItem.Action) -> some View {
+        if action == .settings {
+            #if os(macOS)
+            SettingsLink { Text(action.title) }
+            #else
+            if let openSettings { Button(action.title, action: openSettings) }
+            #endif
+        } else {
+            Button(action.title) { perform(action) }
         }
     }
 }
