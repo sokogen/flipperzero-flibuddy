@@ -35,6 +35,6 @@ jobs:
         run: make -C flipper/tests test
       - uses: actions/upload-artifact@v4
         with:
-          name: spoolbuddy-fap
+          name: flibuddy-fap
           path: flipper/dist/*.fap
           if-no-files-found: error

@@ -1,9 +1,9 @@
-import SpoolBuddyCore
-import SpoolBuddyUI
+import FliBuddyCore
+import FliBuddyUI
 import SwiftUI
 
 @main
-struct SpoolBuddyWatchApp: App {
+struct FliBuddyWatchApp: App {
     // Bluetooth is the only transport on the watch.
     @ViewState private var host = HostModel(
         makeTransport: FlipperLink.defaultTransport,

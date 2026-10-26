@@ -227,28 +227,33 @@
       88.2 % and `make lint` pass)
 
 ### Task 4: Rename the Xcode project, bundle ids and CI
-- [ ] `host/Apple/project.yml`: project `FliBuddy`, package reference
+- [x] `host/Apple/project.yml`: project `FliBuddy`, package reference
       `FliBuddy`, targets `FliBuddyiOS` and `FliBuddyWatch`, `PRODUCT_NAME`
       `FliBuddy` / `FliBuddyWatch`, display names `FliBuddy`, usage
       descriptions start with "FliBuddy …", bundle ids
       `com.sokolachko.flibuddy` and `com.sokolachko.flibuddy.watchkitapp`,
       `INFOPLIST_KEY_WKCompanionAppBundleIdentifier` to match (the owner's
       domain replaces the `cool.bambuddy` placeholder, which is Bambuddy's)
-- [ ] `host/Apple/iOS/App.swift`, `host/Apple/Watch/App.swift`: imports and
+- [x] `host/Apple/iOS/App.swift`, `host/Apple/Watch/App.swift`: imports and
       titles; comments in `Base.xcconfig` / `Signing.example.xcconfig` if
       they name the project (➕ the imports become `FliBuddyCore`/`FliBuddyUI`,
       the app structs `FliBuddyiOSApp`/`FliBuddyWatchApp`; `host/README.md`'s
       Apple section names the new targets)
-- [ ] `Makefile`: `apple-build` uses `FliBuddy.xcodeproj` and the new
+- [x] `Makefile`: `apple-build` uses `FliBuddy.xcodeproj` and the new
       schemes; the `coverage` comment; `.gitignore` entries for the generated
-      project
-- [ ] `.github/workflows/flipper.yml`: artifact `flibuddy-fap`;
+      project (the entry is the glob `host/Apple/*.xcodeproj`, so it needed
+      no change)
+- [x] `.github/workflows/flipper.yml`: artifact `flibuddy-fap`;
       `host.yml`: coverage step name; `.github/workflows/README.md`
-- [ ] `tools/tests/test_apple_project.py` asserts the new project, target,
+- [x] `tools/tests/test_apple_project.py` asserts the new project, target,
       package and scheme names and bundle ids (`test_mac_info_plist.py`
-      follows in Task 3; Task 2 added no TODO)
-- [ ] run `cd tools && uv run pytest` and `make apple-project apple-build`
-      - must pass before task 5
+      follows in Task 3; Task 2 added no TODO) (➕ a new test pins the project
+      name, product and display names, the watch bundle id, the "FliBuddy …"
+      usage descriptions and `-project FliBuddy.xcodeproj` in `apple-build`)
+- [x] run `cd tools && uv run pytest` and `make apple-project apple-build`
+      - must pass before task 5 (pytest 321 passed; both simulator builds
+      succeed, the iOS app's Info.plist has `com.sokolachko.flibuddy` and
+      display name FliBuddy; `make lint` passes)
 
 ### Task 5: Stop the tests from littering ~/Library/Preferences
 - [ ] write the failing test first in `host/Tests/FliBuddyCoreTests/

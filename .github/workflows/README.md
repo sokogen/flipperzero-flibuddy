@@ -11,11 +11,11 @@ workflows and the Makefile stay in line.
   the host-compiled C tests, uploads `dist/*.fap` as an artifact.
 - `host.yml`: macOS, two jobs.
   - `test`: `swift build` with warnings as errors, `swift test` with
-    coverage and the 80 % SpoolBuddyCore gate (`tools/swift_coverage.py`,
+    coverage and the 80 % FliBuddyCore gate (`tools/swift_coverage.py`,
     so it also runs when that script changes).
   - `apple`: installs XcodeGen with Homebrew and runs
     `make apple-project apple-build`, which generates `host/Apple` and
-    builds `SpoolBuddyiOS` and `SpoolBuddyWatch` for the simulators with the
+    builds `FliBuddyiOS` and `FliBuddyWatch` for the simulators with the
     runner's default Xcode. It also runs when the root `Makefile` changes,
     since the `apple-*` recipes live there.
 - `tools.yml`: ubuntu, `uv sync`, `uv run pytest --cov` (fails under 80 %)

@@ -1,9 +1,9 @@
-import SpoolBuddyCore
-import SpoolBuddyUI
+import FliBuddyCore
+import FliBuddyUI
 import SwiftUI
 
 @main
-struct SpoolBuddyiOSApp: App {
+struct FliBuddyiOSApp: App {
     // Bluetooth is the only transport on iOS; there are no serial ports.
     @ViewState private var host = HostModel(
         makeTransport: FlipperLink.defaultTransport,
@@ -41,7 +41,7 @@ struct RootView: View {
                     Label("Feed", systemImage: "list.bullet").tag(Section.feed)
                     Label("Settings", systemImage: "gearshape").tag(Section.settings)
                 }
-                .navigationTitle("SpoolBuddy")
+                .navigationTitle("FliBuddy")
             } detail: {
                 switch section ?? .feed {
                 case .feed: feed

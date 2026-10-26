@@ -137,8 +137,8 @@ is unencrypted and carries no secrets.
 ## iPhone, iPad and Apple Watch apps (`Apple/`)
 
 ```
-Apple/project.yml                XcodeGen spec: SpoolBuddyiOS (iPhone, iPad)
-                                 with the SpoolBuddyWatch companion embedded
+Apple/project.yml                XcodeGen spec: FliBuddyiOS (iPhone, iPad)
+                                 with the FliBuddyWatch companion embedded
 Apple/iOS/App.swift              NavigationSplitView (regular width) or
                                  TabView (compact) over FeedView and
                                  SettingsForm
@@ -156,7 +156,7 @@ iPhone app). `make apple-project` runs `xcodegen generate` and
 `CODE_SIGNING_ALLOWED=NO` into `Apple/.build`; both need Xcode, not the
 Command Line Tools. To run on a device, fill in `Signing.xcconfig` with a
 team (a free personal team works; the install lasts 7 days), regenerate,
-and run `SpoolBuddyiOS` from Xcode; the watch app installs with it.
+and run `FliBuddyiOS` from Xcode; the watch app installs with it.
 
 ### Settings sync to the watch
 

@@ -32,7 +32,7 @@ lint-host:
 lint-tools:
 	cd tools && uv run ruff check
 
-# Line coverage of SpoolBuddyCore and of the Python tools, at least 80 %.
+# Line coverage of FliBuddyCore and of the Python tools, at least 80 %.
 coverage: coverage-host coverage-tools
 
 coverage-host:
@@ -49,9 +49,9 @@ apple-project:
 	cd host/Apple && xcodegen generate
 
 apple-build:
-	cd host/Apple && xcodebuild -project SpoolBuddy.xcodeproj -scheme SpoolBuddyiOS \
+	cd host/Apple && xcodebuild -project FliBuddy.xcodeproj -scheme FliBuddyiOS \
 		-destination 'generic/platform=iOS Simulator' -derivedDataPath .build \
 		CODE_SIGNING_ALLOWED=NO build
-	cd host/Apple && xcodebuild -project SpoolBuddy.xcodeproj -scheme SpoolBuddyWatch \
+	cd host/Apple && xcodebuild -project FliBuddy.xcodeproj -scheme FliBuddyWatch \
 		-destination 'generic/platform=watchOS Simulator' -derivedDataPath .build \
 		CODE_SIGNING_ALLOWED=NO build

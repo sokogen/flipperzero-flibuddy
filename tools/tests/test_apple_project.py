@@ -20,11 +20,11 @@ def spec() -> dict:
 
 
 def ios_settings() -> dict:
-    return spec()["targets"]["SpoolBuddyiOS"]["settings"]["base"]
+    return spec()["targets"]["FliBuddyiOS"]["settings"]["base"]
 
 
 def test_the_ios_target_runs_on_iphone_and_ipad_from_ios_26():
-    target = spec()["targets"]["SpoolBuddyiOS"]
+    target = spec()["targets"]["FliBuddyiOS"]
     assert target["type"] == "application"
     assert target["platform"] == "iOS"
     assert target["deploymentTarget"] == "26.0"
@@ -32,7 +32,7 @@ def test_the_ios_target_runs_on_iphone_and_ipad_from_ios_26():
 
 
 def watch_settings() -> dict:
-    return spec()["targets"]["SpoolBuddyWatch"]["settings"]["base"]
+    return spec()["targets"]["FliBuddyWatch"]["settings"]["base"]
 
 
 def package_products(target: str) -> set:
@@ -41,33 +41,33 @@ def package_products(target: str) -> set:
 
 
 def test_the_ios_target_uses_the_local_package_products():
-    assert spec()["packages"]["SpoolBuddy"]["path"] == ".."
-    assert package_products("SpoolBuddyiOS") == {
-        ("SpoolBuddy", "SpoolBuddyCore"),
-        ("SpoolBuddy", "SpoolBuddyUI"),
+    assert spec()["packages"]["FliBuddy"]["path"] == ".."
+    assert package_products("FliBuddyiOS") == {
+        ("FliBuddy", "FliBuddyCore"),
+        ("FliBuddy", "FliBuddyUI"),
     }
 
 
 def test_the_watch_target_runs_on_watchos_26():
     project = spec()
-    target = project["targets"]["SpoolBuddyWatch"]
+    target = project["targets"]["FliBuddyWatch"]
     assert target["type"] == "application"
     assert target["platform"] == "watchOS"
     assert target["deploymentTarget"] == "26.0"
     assert project["options"]["deploymentTarget"]["watchOS"] == "26.0"
     assert watch_settings()["TARGETED_DEVICE_FAMILY"] == "4"
-    assert package_products("SpoolBuddyWatch") == {
-        ("SpoolBuddy", "SpoolBuddyCore"),
-        ("SpoolBuddy", "SpoolBuddyUI"),
+    assert package_products("FliBuddyWatch") == {
+        ("FliBuddy", "FliBuddyCore"),
+        ("FliBuddy", "FliBuddyUI"),
     }
 
 
 def test_the_watch_app_is_the_ios_apps_companion():
     ios = ios_settings()
     watch = watch_settings()
-    deps = spec()["targets"]["SpoolBuddyiOS"]["dependencies"]
+    deps = spec()["targets"]["FliBuddyiOS"]["dependencies"]
     # Embedding the watch app makes it install from the iPhone.
-    assert {"target": "SpoolBuddyWatch"} in deps
+    assert {"target": "FliBuddyWatch"} in deps
     assert watch["PRODUCT_BUNDLE_IDENTIFIER"].startswith(ios["PRODUCT_BUNDLE_IDENTIFIER"] + ".")
     assert watch["INFOPLIST_KEY_WKCompanionAppBundleIdentifier"] == ios["PRODUCT_BUNDLE_IDENTIFIER"]
     assert watch["GENERATE_INFOPLIST_FILE"] is True
@@ -78,7 +78,7 @@ def test_the_watch_app_is_the_ios_apps_companion():
 
 def test_the_ios_target_has_the_usage_descriptions_and_bundle_id():
     settings = ios_settings()
-    assert settings["PRODUCT_BUNDLE_IDENTIFIER"] == "cool.bambuddy.spoolbuddy"
+    assert settings["PRODUCT_BUNDLE_IDENTIFIER"] == "com.sokolachko.flibuddy"
     assert settings["GENERATE_INFOPLIST_FILE"] is True
     assert settings["INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription"].strip()
     assert settings["INFOPLIST_KEY_NSCameraUsageDescription"].strip()
@@ -94,7 +94,7 @@ def test_both_apps_allow_plain_http_to_bambuddy():
     # user types in (an IP, a .local or a .lan name). App Transport Security
     # blocks such loads unless the Info.plist allows them. Xcode merges this
     # file with the INFOPLIST_KEY_* settings it generates.
-    for name, folder in (("SpoolBuddyiOS", "iOS"), ("SpoolBuddyWatch", "Watch")):
+    for name, folder in (("FliBuddyiOS", "iOS"), ("FliBuddyWatch", "Watch")):
         settings = spec()["targets"][name]["settings"]["base"]
         assert settings["GENERATE_INFOPLIST_FILE"] is True
         assert settings["INFOPLIST_FILE"] == f"{folder}/Info.plist"
@@ -142,9 +142,31 @@ def test_root_makefile_generates_and_builds_both_apps_unsigned():
     commands = apple_build_recipe()
     assert len(commands) == 2
     ios, watch = commands
-    assert "-scheme SpoolBuddyiOS" in ios
+    assert "-scheme FliBuddyiOS" in ios
     assert "generic/platform=iOS Simulator" in ios
-    assert "-scheme SpoolBuddyWatch" in watch
+    assert "-scheme FliBuddyWatch" in watch
     assert "generic/platform=watchOS Simulator" in watch
     for command in commands:
         assert "CODE_SIGNING_ALLOWED=NO" in command
+
+
+def test_the_apps_are_named_flibuddy():
+    project = spec()
+    assert project["name"] == "FliBuddy"
+    ios = ios_settings()
+    watch = watch_settings()
+    assert ios["PRODUCT_NAME"] == "FliBuddy"
+    assert watch["PRODUCT_NAME"] == "FliBuddyWatch"
+    assert ios["INFOPLIST_KEY_CFBundleDisplayName"] == "FliBuddy"
+    assert watch["INFOPLIST_KEY_CFBundleDisplayName"] == "FliBuddy"
+    # The owner's domain, not Bambuddy's.
+    assert watch["PRODUCT_BUNDLE_IDENTIFIER"] == "com.sokolachko.flibuddy.watchkitapp"
+    for settings in (ios, watch):
+        for key, value in settings.items():
+            if key.endswith("UsageDescription"):
+                assert value.startswith("FliBuddy "), key
+
+
+def test_root_makefile_builds_the_flibuddy_project():
+    for command in apple_build_recipe():
+        assert "-project FliBuddy.xcodeproj" in command
