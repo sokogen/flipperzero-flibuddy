@@ -2,8 +2,10 @@
 #include <furi_hal_rtc.h>
 #include <toolbox/version.h>
 
+#include "app_settings_file.h"
 #include "scenes.h"
 #include "spoolbuddy_app.h"
+#include "transport_none.h"
 #include "transport_usb.h"
 
 #define TICK_PERIOD_MS 250
@@ -57,6 +59,8 @@ static SpoolBuddyScene scene_for(AppScreen screen) {
     case AppScreenDone:
     case AppScreenError:
         return SpoolBuddySceneDone;
+    case AppScreenTransport:
+        return SpoolBuddySceneTransport;
     }
     return SpoolBuddySceneIdle;
 }
@@ -95,6 +99,45 @@ static void sync_scene(SpoolBuddyApp* app) {
     }
 }
 
+static void apply_link(SpoolBuddyApp* app, HostLinkOutput out);
+static void on_rx_line(const char* line, size_t len, void* ctx);
+
+/* Bluetooth has no backend yet: it runs the null transport, so no host
+ * connects and the USB port stays with the CLI. */
+static void start_transport(SpoolBuddyApp* app) {
+    app->transport_kind = app->state.transport;
+    app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
+                                                               transport_none();
+    transport_set_rx_callback(app->transport, on_rx_line, app);
+    if(!transport_open(app->transport)) {
+        FURI_LOG_E("SpoolBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
+    }
+}
+
+static void free_transport(SpoolBuddyApp* app) {
+    if(app->transport_kind == TransportKindUsb) {
+        transport_usb_free(app->transport);
+    } else {
+        transport_close(app->transport);
+    }
+    app->transport = transport_none();
+}
+
+/* Closes the old transport (the host it carried is lost), saves the choice
+ * and opens the new one. */
+static void switch_transport(SpoolBuddyApp* app) {
+    free_transport(app);
+    /* a hello the old worker queued must not connect a host over the new one */
+    furi_message_queue_reset(app->rx_queue);
+    app->port_open = false;
+    apply_link(app, host_link_port_closed(&app->link));
+    app_settings_set_transport(&app->settings, app->state.transport);
+    if(!app_settings_save(&app->settings, &app_settings_file)) {
+        FURI_LOG_E("SpoolBuddy", "settings not saved");
+    }
+    start_transport(app);
+}
+
 void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
     AppEvent stamped = *event;
     stamped.now_ms = now_ms();
@@ -118,6 +161,9 @@ void spoolbuddy_reduce(SpoolBuddyApp* app, const AppEvent* event) {
                      intent_encode(
                          intent_store_current(app->state.intents), app->tx_buf, PROTO_LINE_MAX)) ==
                  TransportNotSent;
+        break;
+    case AppEffectSwitchTransport:
+        switch_transport(app);
         break;
     case AppEffectNone:
         break;
@@ -231,6 +277,8 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
     uint32_t seed = id_seed_from_time(furi_hal_rtc_get_timestamp());
     single_slot_intent_store_init(&app->intents);
     app_state_init(&app->state, &app->intents.base, seed, seed);
+    app_settings_load(&app->settings, &app_settings_file);
+    app->state.transport = app_settings_transport(&app->settings);
     host_link_init(&app->link);
 
     app->tx_buf = malloc(PROTO_LINE_MAX);
@@ -258,16 +306,14 @@ static SpoolBuddyApp* spoolbuddy_app_alloc(void) {
         app->view_dispatcher, SpoolBuddyViewNumberInput, number_input_get_view(app->number_input));
     view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
-    app->transport = transport_usb_alloc();
-    transport_set_rx_callback(app->transport, on_rx_line, app);
-    if(!transport_open(app->transport)) FURI_LOG_E("SpoolBuddy", "USB CDC unavailable");
+    start_transport(app);
     return app;
 }
 
 static void spoolbuddy_app_free(SpoolBuddyApp* app) {
     /* the workers stop first, so nothing posts events into freed objects */
     tag_reader_free(app->reader);
-    transport_usb_free(app->transport);
+    free_transport(app);
 
     view_dispatcher_remove_view(app->view_dispatcher, SpoolBuddyViewNumberInput);
     number_input_free(app->number_input);

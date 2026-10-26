@@ -11,7 +11,8 @@
     X(result, Result)            \
     X(enter_weight, EnterWeight) \
     X(waiting, Waiting)          \
-    X(done, Done)
+    X(done, Done)                \
+    X(transport, Transport)
 
 #define SPOOLBUDDY_SCENE_ENUM(name, Name) SpoolBuddyScene##Name,
 typedef enum {

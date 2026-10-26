@@ -3,7 +3,9 @@
  * (app_state.h).
  *
  * Every state change goes through spoolbuddy_reduce(), which also shows the
- * scene for the new AppScreen and runs the NFC reader on Idle and Reading.
+ * scene for the new AppScreen, runs the NFC reader on Idle and Reading and
+ * restarts the transport when the user picks another one (the choice is
+ * saved in app_settings).
  *
  * Threads: the GUI thread owns everything below except rx_decoded, which
  * the transport worker fills and hands over through rx_queue, and
@@ -22,6 +24,7 @@
 #include <gui/scene_manager.h>
 #include <gui/view_dispatcher.h>
 
+#include "app_settings.h"
 #include "app_state.h"
 #include "host_link.h"
 #include "intents.h"
@@ -59,6 +62,8 @@ typedef struct {
     NumberInput* number_input;
 
     Transport* transport;
+    TransportKind transport_kind; /* the backend of `transport` */
+    AppSettings settings;
     FuriMessageQueue* rx_queue; /* ProtoMessage */
     ProtoMessage rx_decoded; /* transport worker only */
     ProtoMessage rx_msg; /* GUI thread */

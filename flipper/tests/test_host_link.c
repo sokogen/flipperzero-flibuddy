@@ -126,20 +126,6 @@ static void test_timeout_survives_tick_counter_wrap(void) {
     check_out(host_link_host_hello(&link, 1200), false, true, false);
 }
 
-static void test_status_text(void) {
-    HostLink link;
-    host_link_init(&link);
-    CHECK_STR_EQ(host_link_status_text(&link), "no host");
-    host_link_port_opened(&link, 0);
-    CHECK_STR_EQ(host_link_status_text(&link), "no host");
-    host_link_tick(&link, HOST_LINK_HELLO_TIMEOUT_MS);
-    CHECK_STR_EQ(host_link_status_text(&link), "no host");
-    host_link_host_hello(&link, 9000);
-    CHECK_STR_EQ(host_link_status_text(&link), "USB");
-    host_link_port_closed(&link);
-    CHECK_STR_EQ(host_link_status_text(&link), "no host");
-}
-
 int main(void) {
     RUN_TEST(test_starts_closed_without_host);
     RUN_TEST(test_port_open_sends_hello_and_waits);
@@ -154,6 +140,5 @@ int main(void) {
     RUN_TEST(test_repeated_port_open_is_ignored);
     RUN_TEST(test_reopen_after_close_handshakes_again);
     RUN_TEST(test_timeout_survives_tick_counter_wrap);
-    RUN_TEST(test_status_text);
     return MINITEST_RESULT();
 }

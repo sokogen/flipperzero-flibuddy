@@ -620,6 +620,105 @@ static void test_result_timeout_for_menu_intents_and_tick_wrap(void) {
     CHECK(!app_result_timed_out(&app, 9000));
 }
 
+static AppEffect send_transport(TransportKind kind) {
+    AppEvent e = {.type = AppEventTransportChosen, .transport = kind};
+    return app_reduce(&app, &e);
+}
+
+static AppEffect send_ble(AppBleStatus status) {
+    AppEvent e = {.type = AppEventBleStatus, .ble = status};
+    return app_reduce(&app, &e);
+}
+
+static void test_init_uses_usb_with_ble_off(void) {
+    single_slot_intent_store_init(&store);
+    app_state_init(&app, &store.base, 1, 1);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.ble == AppBleOff);
+}
+
+static void test_transport_menu_opens_from_idle_and_closes_with_back(void) {
+    setup();
+    CHECK(send(AppEventMenuTransport) == AppEffectNone);
+    CHECK(app.screen == AppScreenTransport);
+    /* the reader is off here: a tag does not start a read */
+    CHECK(send(AppEventTagDetected) == AppEffectNone);
+    CHECK(app.screen == AppScreenTransport);
+    CHECK(send(AppEventBack) == AppEffectNone);
+    CHECK(app.screen == AppScreenIdle);
+    CHECK(app.transport == TransportKindUsb);
+}
+
+static void test_transport_menu_only_from_idle(void) {
+    setup();
+    scan_mfc();
+    CHECK(send(AppEventMenuTransport) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaitingLookup);
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectNone);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.screen == AppScreenWaitingLookup);
+}
+
+static void test_choosing_another_transport_switches_it(void) {
+    setup();
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindBluetooth) == AppEffectSwitchTransport);
+    CHECK(app.transport == TransportKindBluetooth);
+    CHECK(app.ble == AppBleOff);
+    CHECK(app.screen == AppScreenIdle);
+
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindUsb) == AppEffectSwitchTransport);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.screen == AppScreenIdle);
+}
+
+static void test_choosing_the_same_transport_changes_nothing(void) {
+    setup();
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindUsb) == AppEffectNone);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.screen == AppScreenIdle);
+    CHECK(app.connected);
+}
+
+static void test_unknown_transport_kind_is_ignored(void) {
+    setup();
+    send(AppEventMenuTransport);
+    CHECK(send_transport((TransportKind)7) == AppEffectNone);
+    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.screen == AppScreenTransport);
+}
+
+static void test_switching_transport_resets_the_ble_status(void) {
+    setup();
+    app.transport = TransportKindBluetooth;
+    send_ble(AppBleConnected);
+    send(AppEventMenuTransport);
+    CHECK(send_transport(TransportKindUsb) == AppEffectSwitchTransport);
+    CHECK(app.ble == AppBleOff);
+}
+
+static void test_ble_status_is_recorded_on_every_screen(void) {
+    setup();
+    app.transport = TransportKindBluetooth;
+    CHECK(send_ble(AppBleAdvertising) == AppEffectNone);
+    CHECK(app.ble == AppBleAdvertising);
+    CHECK(app.screen == AppScreenIdle);
+    CHECK(send_ble(AppBleConnected) == AppEffectNone);
+    CHECK(app.ble == AppBleConnected);
+
+    scan_mfc();
+    CHECK(send_ble(AppBleAdvertising) == AppEffectNone);
+    CHECK(app.ble == AppBleAdvertising);
+    CHECK(app.screen == AppScreenWaitingLookup);
+    /* the status alone does not lose the host: host_link does */
+    CHECK(app.connected);
+    send(AppEventMenuTransport);
+    CHECK(send_ble(AppBleOff) == AppEffectNone);
+    CHECK(app.ble == AppBleOff);
+}
+
 int main(void) {
     RUN_TEST(test_init_starts_idle_without_host);
     RUN_TEST(test_scan_gets_a_new_id_and_a_copy_of_the_tag);
@@ -651,5 +750,13 @@ int main(void) {
     RUN_TEST(test_net_weight_default);
     RUN_TEST(test_result_times_out_after_10_s);
     RUN_TEST(test_result_timeout_for_menu_intents_and_tick_wrap);
+    RUN_TEST(test_init_uses_usb_with_ble_off);
+    RUN_TEST(test_transport_menu_opens_from_idle_and_closes_with_back);
+    RUN_TEST(test_transport_menu_only_from_idle);
+    RUN_TEST(test_choosing_another_transport_switches_it);
+    RUN_TEST(test_choosing_the_same_transport_changes_nothing);
+    RUN_TEST(test_unknown_transport_kind_is_ignored);
+    RUN_TEST(test_switching_transport_resets_the_ble_status);
+    RUN_TEST(test_ble_status_is_recorded_on_every_screen);
     return MINITEST_RESULT();
 }

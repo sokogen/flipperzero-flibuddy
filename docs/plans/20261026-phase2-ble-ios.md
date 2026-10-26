@@ -169,11 +169,13 @@ not change. BLE carries the same NDJSON lines.
 - ⚠️ in the full iOS simulator run two untouched FlipperLink tests (`aPortThatWillNotOpenIsReported`, `bluetoothThatIsOffIsReportedAndRetried`) missed their 2 s `eventually` window under load (8 s) and pass when run alone; worth a longer timeout if it recurs in CI
 
 ### Task 5: Flipper settings and transport choice on the Idle screen
-- [ ] `flipper/src/app_settings.{c,h}`: `AppSettings { uint8_t version; uint8_t transport; }` saved with `saved_struct_save`/`load` at `/ext/apps_data/spoolbuddy/settings.bin` (directory created with `storage_common_mkdir`); unreadable or wrong-version files load the defaults (USB); the file functions are isolated so the choice logic is host-testable
-- [ ] Idle screen: OK opens a submenu "Transport: USB / Bluetooth"; choosing restarts the transport; the status line shows `USB`, `BLE adv`, `BLE` (connected, hello seen) or `no host`
-- [ ] `app_state` reducer: transport kind and BLE status in the state, with the status-line text derived in `screen_text.c`
-- [ ] write C tests: settings defaults and version handling (with a fake storage), reducer transitions for BLE statuses, status-line text for each state
-- [ ] run all three suites - must pass before task 6
+- [x] `flipper/src/app_settings.{c,h}`: `AppSettings { uint8_t version; uint8_t transport; }` saved with `saved_struct_save`/`load` at `/ext/apps_data/spoolbuddy/settings.bin` (directory created with `storage_common_mkdir`); unreadable or wrong-version files load the defaults (USB); the file functions are isolated so the choice logic is host-testable
+- [x] Idle screen: OK opens a submenu "Transport: USB / Bluetooth"; choosing restarts the transport; the status line shows `USB`, `BLE adv`, `BLE` (connected, hello seen) or `no host`
+- [x] `app_state` reducer: transport kind and BLE status in the state, with the status-line text derived in `screen_text.c`
+- [x] write C tests: settings defaults and version handling (with a fake storage), reducer transitions for BLE statuses, status-line text for each state
+- [x] run all three suites - must pass before task 6
+- ➕ the saved_struct backend lives in `flipper/src/app_settings_file.{c,h}` (SDK) so `app_settings.c` stays host-compiled; the transport menu is its own reducer screen `AppScreenTransport` (scene `scene_transport.c`), so the NFC reader is off and host events do not close the menu; the Idle status line moved under the title because the OK button takes the bottom; `host_link_status_text` is replaced by `screen_status_text`
+- ➕ until Task 6, Bluetooth runs `transport_none` (never opens, never connected, `send_line` → not sent), so the USB port stays with the CLI; Task 6 swaps in `transport_ble` and keeps `transport_none` as the fallback when Bluetooth is unavailable
 
 ### Task 6: Flipper BLE profile, GATT service and transport
 - [ ] `flipper/src/ble_lines.{c,h}` (host-tested, no SDK): outbound chunking at `mtu - 3` (20 until an MTU exchange says more, never above 243), one notification in flight until the stack accepts the next, retry bookkeeping when the stack reports busy; inbound bytes into `line_buffer`

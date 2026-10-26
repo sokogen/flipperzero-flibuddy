@@ -41,7 +41,3 @@ HostLinkOutput host_link_tick(HostLink* link, uint32_t now_ms) {
 bool host_link_is_up(const HostLink* link) {
     return link->state == HostLinkStateUp;
 }
-
-const char* host_link_status_text(const HostLink* link) {
-    return host_link_is_up(link) ? "USB" : "no host";
-}

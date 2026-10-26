@@ -122,3 +122,15 @@ const char* screen_weight_header(WeightMode mode) {
 const char* screen_mode_item(WeightMode mode) {
     return mode == WeightModeNet ? "Mode: net" : "Mode: gross";
 }
+
+const char* screen_status_text(const AppState* s) {
+    if(s->transport == TransportKindBluetooth) {
+        if(s->connected) return "BLE";
+        return s->ble == AppBleAdvertising ? "BLE adv" : "no host";
+    }
+    return s->connected ? "USB" : "no host";
+}
+
+const char* screen_transport_name(TransportKind kind) {
+    return kind == TransportKindBluetooth ? "Bluetooth" : "USB";
+}

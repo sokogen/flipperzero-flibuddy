@@ -48,6 +48,3 @@ HostLinkOutput host_link_host_hello(HostLink* link, uint32_t now_ms);
 HostLinkOutput host_link_tick(HostLink* link, uint32_t now_ms);
 
 bool host_link_is_up(const HostLink* link);
-
-/* The Idle status line: "USB" once the host said hello, else "no host". */
-const char* host_link_status_text(const HostLink* link);

@@ -9,6 +9,8 @@ void app_state_init(
     uint32_t first_intent) {
     memset(s, 0, sizeof(*s));
     s->screen = AppScreenIdle;
+    s->transport = TransportKindUsb;
+    s->ble = AppBleOff;
     s->mode = WeightModeGross;
     s->intents = intents;
     id_seq_init(&s->scan_ids, 's', first_scan);
@@ -145,6 +147,23 @@ static void on_host_lost(AppState* s) {
 
 static AppEffect reduce_idle(AppState* s, const AppEvent* e) {
     if(e->type == AppEventTagDetected) s->screen = AppScreenReading;
+    if(e->type == AppEventMenuTransport) s->screen = AppScreenTransport;
+    return AppEffectNone;
+}
+
+static AppEffect reduce_transport(AppState* s, const AppEvent* e) {
+    if(e->type == AppEventBack) {
+        go_idle(s);
+    } else if(e->type == AppEventTransportChosen) {
+        if(e->transport != TransportKindUsb && e->transport != TransportKindBluetooth) {
+            return AppEffectNone;
+        }
+        go_idle(s);
+        if(e->transport == s->transport) return AppEffectNone;
+        s->transport = e->transport;
+        s->ble = AppBleOff;
+        return AppEffectSwitchTransport;
+    }
     return AppEffectNone;
 }
 
@@ -235,6 +254,10 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         on_host_lost(s);
         return AppEffectNone;
     }
+    if(e->type == AppEventBleStatus) {
+        s->ble = e->ble;
+        return AppEffectNone;
+    }
     switch(s->screen) {
     case AppScreenIdle:
         return reduce_idle(s, e);
@@ -252,6 +275,8 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
     case AppScreenError:
         if(e->type == AppEventBack) go_idle(s);
         break;
+    case AppScreenTransport:
+        return reduce_transport(s, e);
     }
     return AppEffectNone;
 }

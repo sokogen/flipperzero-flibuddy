@@ -1,4 +1,4 @@
-/* A line-oriented link to the host (NDJSON over USB CDC now, BLE later).
+/* A line-oriented link to the host (NDJSON over USB CDC or BLE).
  *
  * The transport frames received bytes into lines (see line_buffer.h) and
  * hands each one to the rx callback on its own worker thread, so the
@@ -13,6 +13,13 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+
+/* The backends the app can run; the value is stored in the settings file
+ * (app_settings.h), so the numbers never change. */
+typedef enum {
+    TransportKindUsb = 0,
+    TransportKindBluetooth = 1,
+} TransportKind;
 
 typedef enum {
     TransportSent,
