@@ -34,15 +34,19 @@ action, no weight entry":
 
 - **Main flow is one spool at a time.** Scan, the row for that spool takes
   focus with a suggested weight, type the scale reading, Save sends it.
-- **Unknown Bambu tags are new spools by default.** The row opens directly in
-  an entry state (`New spool · will be created`) with the field pre-filled to
-  label + core. Save creates the spool in Bambuddy and records the weight in
-  one go. Nothing is sent before Save, so the row can still be corrected: a
-  different weight (the spool is not full) or **Link to existing…** (the
-  spool is not new). After the save the row reads `Created · 1000 g left ·
-  by host`. Interpretation to confirm with the owner: creation happens on
-  Save, not on scan, so "not new" can be corrected without leaving a stray
-  spool in Bambuddy.
+- **Unknown Bambu tags are created on scan.** When the lookup finds nothing
+  for a Bambu tag, the host creates the spool at once with the defaults
+  (material, subtype, colour and label weight from the tag; core weight and
+  catalog entry from Settings) and the row opens as `Created in Bambuddy`
+  with the field pre-filled to label + core and focused. Save sends the
+  weight as a separate request. The owner's reasoning (2026-10-26): the
+  number of requests does not matter here; spool ids are unique and the
+  by-tag lookup makes a rescan find the spool created the first time, so
+  scanning never creates a second one. Corrections after creation are
+  separate edits: a different weight (Save), or **Link to existing…**, which
+  moves the tag to the chosen spool and deletes the spool created on scan
+  (builder's call; `DELETE /inventory/spools/{id}` exists). If the delete
+  fails the row says the spool was left in the inventory.
 - **Known spools go straight to weight entry**, as today.
 - **Several scans per session are allowed** and every row stays editable.
   This is a secondary flow with more room for human error (identical
@@ -122,8 +126,7 @@ left of 1000, Enter weight".
 | Saving | `Saving…` | `ProgressView` | secondary | yes, disabled |
 | Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | no; click reopens for a re-weigh |
 | Timeout | `Saved 590 g left · by host` + note | `checkmark.circle.fill` | green | no; reopenable |
-| New spool (unknown Bambu tag) | `New spool · will be created` | `plus.circle` | blue | yes, pre-filled label + core, focused; secondary **Link to existing…** |
-| Created | `Created · 1000 g left · by host` | `plus.circle.fill` | green | no; click reopens for a re-weigh |
+| Created | `Created in Bambuddy` | `plus.circle.fill` | green | yes, pre-filled label + core, focused; secondary **Link to existing…** (moves the tag, deletes the created spool) |
 | Error | `Error: Bambuddy unreachable` | `exclamationmark.triangle.fill` | red text | yes, value kept for retry |
 | Not in Bambuddy (no material) | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (form) · **Link to existing…** |
 | Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | **New** prominent · Link |
@@ -289,6 +292,7 @@ SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
 10. Settings: "Server URL" label, test result phrases, Weighing footer,
     "Unsaved changes / All changes saved" row with Revert, Forget
     (destructive).
-11. Unknown Bambu tags open as `New spool · will be created`; Save creates
-    the spool and records the weight in one action; no New button for them.
+11. Unknown Bambu tags are created on scan with the defaults; the row opens
+    as `Created in Bambuddy` with label + core pre-filled; Save sends the
+    weight separately; no New button for them.
 12. Rescanning a tag moves its row to the top and reopens it; newest first.
