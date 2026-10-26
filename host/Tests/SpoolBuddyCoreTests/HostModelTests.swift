@@ -187,6 +187,64 @@ struct HostModelTests {
         #expect(transport.state == .open)
     }
 
+    @Test func theSaveHookRunsAfterEverySaveOnly() async throws {
+        let scratch = ScratchDefaults()
+        let model = try makeModel(scratch)
+        var saved: [Settings] = []
+        model.onSettingsSaved = { saved.append($0) }
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(saved.isEmpty)
+
+        var changed = testSettings
+        changed.coreWeight = 300
+        try await model.apply(changed)
+        try await model.apply(changed)
+
+        #expect(saved == [changed, changed])
+    }
+
+    @Test func aFailedSaveSkipsTheHook() async throws {
+        let scratch = ScratchDefaults()
+        let store = SettingsStore(defaults: scratch.defaults, secrets: FailingSecretStore())
+        let model = HostModel(store: store, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] })
+        var saved: [Settings] = []
+        model.onSettingsSaved = { saved.append($0) }
+
+        await #expect(throws: SecretStoreError.status(-25300)) { try await model.apply(testSettings) }
+
+        #expect(saved.isEmpty)
+    }
+
+    @Test func usingAFlipperRemembersItAndReconnects() async throws {
+        let scratch = ScratchDefaults()
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeModel(scratch, settings: bluetoothSettings, opened: opened)
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(await eventually { opened.value.count == 1 })
+
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperB, name: "Flipper Brrr2", rssi: -60))
+
+        var expected = bluetoothSettings
+        expected.peripheralId = Self.flipperB
+        expected.peripheralName = "Flipper Brrr2"
+        #expect(model.settings == expected)
+        #expect(SettingsStore(defaults: scratch.defaults, secrets: InMemorySecretStore()).load().peripheralId == Self.flipperB)
+        #expect(await eventually { opened.value.last == .bluetooth(peripheral: Self.flipperB) })
+    }
+
+    @Test func usingAFlipperSwitchesToBluetooth() async throws {
+        let scratch = ScratchDefaults()
+        let model = try makeModel(scratch, settings: usbSettings)
+
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperA, name: "Flipper Anmaa1", rssi: -50))
+
+        #expect(model.settings.transport == .bluetooth)
+        #expect(model.settings.peripheralId == Self.flipperA)
+        #expect(model.settings.baseURL == usbSettings.baseURL)
+    }
+
     @Test func theHostHelloNamesTheApp() {
         let hello = HostModel.hostHello
         #expect(hello.app == "spoolbuddy-mac/0.1.0")

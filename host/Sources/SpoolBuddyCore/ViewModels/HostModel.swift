@@ -15,6 +15,8 @@ public final class HostModel {
     public let feed: FeedViewModel
     public let link: FlipperLink
     public private(set) var settings: Settings
+    /// Runs after `apply` saved new settings (the iPhone sends them to the watch).
+    @ObservationIgnored public var onSettingsSaved: (@MainActor (Settings) -> Void)?
 
     private let store: SettingsStore
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
@@ -55,10 +57,22 @@ public final class HostModel {
         try store.save(new)
         let choiceChanged = new.transportChoice != settings.transportChoice
         settings = new
+        onSettingsSaved?(new)
         feed.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
         if choiceChanged, link.isActive { link.connect(new.transportChoice) }
         await session.checkBambuddy()
+    }
+
+    /// Remembers `peripheral` as the Bluetooth Flipper, keeping every other
+    /// setting as saved now (settings from the iPhone may have arrived since a
+    /// Settings screen opened).
+    public func useFlipper(_ peripheral: DiscoveredPeripheral) async throws {
+        var new = settings
+        new.transport = .bluetooth
+        new.peripheralId = peripheral.id
+        new.peripheralName = peripheral.name
+        try await apply(new)
     }
 
     public func makeSettingsViewModel() -> SettingsViewModel {

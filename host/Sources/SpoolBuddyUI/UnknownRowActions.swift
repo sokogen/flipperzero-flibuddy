@@ -1,6 +1,8 @@
 import SpoolBuddyCore
 import SwiftUI
 
+// The watch has its own compact views (Watch/).
+#if !os(watchOS)
 /// New and Link to existing, for a tag no spool carries.
 struct UnknownRowActions: View {
     let feed: FeedViewModel
@@ -150,3 +152,4 @@ struct SpoolPickerRow: View {
             .joined(separator: " · ")
     }
 }
+#endif

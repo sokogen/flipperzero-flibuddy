@@ -1,6 +1,8 @@
 import SpoolBuddyCore
 import SwiftUI
 
+// The watch has its own compact views (Watch/).
+#if !os(watchOS)
 /// Bambuddy, new-item and weighing settings, and the Flipper transport: the
 /// USB port (macOS only) or the Bluetooth Flipper.
 public struct SettingsForm: View {
@@ -144,3 +146,4 @@ extension TransportKind {
         }
     }
 }
+#endif

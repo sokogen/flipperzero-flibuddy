@@ -3,12 +3,13 @@ import Foundation
 import UIKit
 #endif
 
-/// The host OS for the `hello` line, e.g. `macOS 26.0` or `iPadOS 26.1`.
+/// The host OS for the `hello` line, e.g. `macOS 26.0`, `iPadOS 26.1` or `watchOS 26.0`.
 public enum PlatformInfo {
     public enum Family: String, Sendable {
         case macOS
         case iOS
         case iPadOS
+        case watchOS
     }
 
     /// `family` and the major and minor version.
@@ -20,6 +21,8 @@ public enum PlatformInfo {
     @MainActor public static var currentFamily: Family {
         #if os(macOS)
         .macOS
+        #elseif os(watchOS)
+        .watchOS
         #elseif canImport(UIKit)
         UIDevice.current.userInterfaceIdiom == .pad ? .iPadOS : .iOS
         #else

@@ -234,7 +234,7 @@ private func keychainIsWritable() -> Bool {
     return true
 }
 
-private struct FailingSecretStore: SecretStore {
+struct FailingSecretStore: SecretStore {
     func secret(for account: String) throws -> String? { throw SecretStoreError.status(-25300) }
     func setSecret(_ value: String?, for account: String) throws { throw SecretStoreError.status(-25300) }
 }

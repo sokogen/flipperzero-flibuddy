@@ -1,4 +1,4 @@
-# XcodeGen spec for the iPhone/iPad app (and, from Task 8, the watch app).
+# XcodeGen spec for the iPhone/iPad app and its companion Apple Watch app.
 # `make apple-project` generates SpoolBuddy.xcodeproj here; the project is
 # not checked in. The apps are thin shells over the local Swift package in
 # `host/`: all logic lives in SpoolBuddyCore, the views in SpoolBuddyUI.
@@ -6,6 +6,7 @@ name: SpoolBuddy
 options:
   deploymentTarget:
     iOS: "26.0"
+    watchOS: "26.0"
   createIntermediateGroups: true
 configFiles:
   # Base.xcconfig optionally includes the git-ignored Signing.xcconfig
@@ -32,6 +33,8 @@ targets:
         product: SpoolBuddyCore
       - package: SpoolBuddy
         product: SpoolBuddyUI
+      # Embedded, so the watch app installs from the iPhone.
+      - target: SpoolBuddyWatch
     settings:
       base:
         # Placeholder until the apps get an Apple Developer account.
@@ -47,3 +50,28 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+  SpoolBuddyWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "26.0"
+    sources:
+      - Watch
+    dependencies:
+      - package: SpoolBuddy
+        product: SpoolBuddyCore
+      - package: SpoolBuddy
+        product: SpoolBuddyUI
+    settings:
+      base:
+        # A companion's bundle id extends the iPhone app's.
+        PRODUCT_BUNDLE_IDENTIFIER: cool.bambuddy.spoolbuddy.watchkitapp
+        PRODUCT_NAME: SpoolBuddyWatch
+        TARGETED_DEVICE_FAMILY: "4"
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SpoolBuddy
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: cool.bambuddy.spoolbuddy
+        # Bluetooth only while the app is open, so no WKBackgroundModes.
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: SpoolBuddy connects to the Flipper Zero over Bluetooth to read spool tags.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown

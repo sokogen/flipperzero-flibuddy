@@ -27,7 +27,7 @@ let macLinkerSettings: [LinkerSetting] = [
 let package = Package(
     name: "SpoolBuddy",
     // `.v26` needs tools version 6.2; the string form works with 6.0.
-    platforms: [.macOS(.v14), .iOS("26.0")],
+    platforms: [.macOS(.v14), .iOS("26.0"), .watchOS("26.0")],
     products: [
         .library(name: "SpoolBuddyCore", targets: ["SpoolBuddyCore"]),
         .library(name: "SpoolBuddyUI", targets: ["SpoolBuddyUI"]),

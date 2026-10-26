@@ -8,6 +8,7 @@ struct PlatformInfoTests {
         (PlatformInfo.Family.macOS, "macOS 26.1"),
         (.iOS, "iOS 26.1"),
         (.iPadOS, "iPadOS 26.1"),
+        (.watchOS, "watchOS 26.1"),
     ])
     func namesTheFamilyAndVersion(family: PlatformInfo.Family, expected: String) {
         let version = OperatingSystemVersion(majorVersion: 26, minorVersion: 1, patchVersion: 3)

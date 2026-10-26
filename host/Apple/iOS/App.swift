@@ -9,11 +9,14 @@ struct SpoolBuddyiOSApp: App {
         makeTransport: FlipperLink.defaultTransport,
         discoverPorts: { [] }
     )
+    /// Sends the settings to the Apple Watch after each save (not on iPad).
+    @ViewState private var watchSync: WatchSettingsSender?
 
     var body: some Scene {
         WindowGroup {
             RootView(host: host)
                 .task {
+                    if watchSync == nil { watchSync = WatchSettingsSender.start(for: host) }
                     host.start()
                     await host.feed.observe()
                 }
