@@ -63,13 +63,13 @@
 ## Implementation Steps
 
 ### Task 1: `Log` facade with unified log and file sinks
-- [ ] write the failing tests first in `host/Tests/FliBuddyCoreTests/LogTests.swift`:
+- [x] write the failing tests first in `host/Tests/FliBuddyCoreTests/LogTests.swift`:
       a line logged at `.info` reaches an in-memory sink with timestamp,
       level, category and message; `.debug` lines are dropped unless the
       level is `.debug`; `redact` replaces any `bb_…` API key and any
       `key=` / `X-API-Key` value with `«redacted»`; the file sink rotates
       at the size limit and keeps the configured number of old files
-- [ ] add `host/Sources/FliBuddyCore/Logging/Log.swift`: `public enum Log`
+- [x] add `host/Sources/FliBuddyCore/Logging/Log.swift`: `public enum Log`
       with `static func info/notice/error/debug(_ category: Category,
       _ message: @autoclosure () -> String)`, `Category` cases `link`,
       `wire`, `session`, `bambuddy`, `settings`, `sync`, `ui`, `app`;
@@ -78,13 +78,13 @@
       `LogSink` protocol (`write(line:)`) with `OSLogSink` (one `os.Logger`
       per category, subsystem `com.sokolachko.flibuddy`), `FileSink` and
       `MemorySink` (tests); `Log.sinks` is configurable
-- [ ] `FileSink`: `~/Library/Logs/FliBuddy/flibuddy.log` on macOS, the app's
+- [x] `FileSink`: `~/Library/Logs/FliBuddy/flibuddy.log` on macOS, the app's
       Application Support `Logs/flibuddy.log` on iOS and watchOS; line
       format `2026-10-26T13:04:05.123+0300 INFO link message`; appends,
       flushes per line, rotates at 5 MB keeping 3 old files; a write
       failure is reported once through the unified log and then ignored
-- [ ] `Log.redact(_:)` applied to every message before the sinks
-- [ ] run `cd host && swift test` - must pass before task 2
+- [x] `Log.redact(_:)` applied to every message before the sinks
+- [x] run `cd host && swift test` - must pass before task 2
 
 ### Task 2: Link and wire events
 - [ ] tests first (`TransportSessionTests`, `FlipperLinkTests`,
