@@ -78,7 +78,7 @@ What changes:
 ## Implementation Steps
 
 ### Task 1: Row view-model rules from the spec
-- [ ] `FeedRow.Status`: add `saving` and `savedAfterTimeout` (saved by host after the Flipper reported a timeout); `Session` sets `saving` while the Bambuddy call runs and `savedAfterTimeout` when a `result` could not be delivered within the Flipper's 10 s window
+- [ ] `FeedRow.Status`: add `saving` and `savedAfterTimeout` (saved by host after the Flipper reported a timeout); `Session` sets `saving` while the Bambuddy call runs and `savedAfterTimeout` when the `result` went out later than about 10 s after the intent arrived (approximate: the host measures its own latency against the Flipper's constant)
 - [ ] `FeedItem`: `suggestion(mode:)` per the spec (base + core for gross, base for net; after Created base = label); `readout(value:mode:core:)` strings; `isEntry` (enter, saving, created, error); `isReopenable` (saved, timeout); `timeoutNote`; status symbol name and tint per state; accessibility header text
 - [ ] `FeedViewModel`: a per-row draft (`value`, `touched`, `mode`); Net/Gross switch converts an untouched suggestion and keeps a typed value; `reopen(row)`; Save disabled rules (empty, negative net, saving)
 - [ ] write tests: suggestion and readout for gross/net/empty/negative; conversion on mode switch (untouched vs touched); state → symbol/tint/text table; reopen; Created keeps the row open with label + core; a Flipper save clears the host draft and shows `by Flipper`

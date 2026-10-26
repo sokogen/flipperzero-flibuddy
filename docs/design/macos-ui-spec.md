@@ -4,8 +4,30 @@ Source: the Claude Design project "FliBuddy mobile app design"
 (`FliBuddy Spec.dc.html`, `FliBuddy macOS.dc.html`, `flibuddy-core.js`),
 imported on 2026-10-26. This file is the implementation-ready distillation for
 the macOS app; the iPhone, iPad and watch pages get their own files when they
-are implemented. Where the design and the shipped code disagree, this file
-wins; where this file is silent, keep the shipped behaviour.
+are implemented. Where this file and the shipped code disagree, this file
+wins; where it is silent, keep the shipped behaviour. The approved design
+document (`docs/superpowers/specs/…design.md`) outranks this file on
+behaviour; this file only says how that behaviour looks and feels.
+
+## Assumptions the designer asked the owner to confirm
+
+Taken from the spec page's "Assumptions to confirm". Adopted here unless the
+owner objects; the first one needs an explicit answer because it bends an
+earlier decision ("New is one action, no weight entry"):
+
+1. After **New** the row stays open for a first weight: "Created in
+   Bambuddy" with the field pre-filled to label + core and focused. On the
+   Mac this makes New a two-step unless the user ignores the field.
+2. The suggestion is gross (remaining + core). Switching Net/Gross converts
+   an untouched suggestion and keeps a number the user typed.
+3. Saved rows reopen on click for a re-weigh. Last save wins; the status
+   says who saved.
+4. macOS keeps the explicit Save section in Settings; iPhone and iPad apply
+   settings on change.
+5. "Link to existing" warns when the chosen spool already carries a
+   different tag and offers to move the link.
+6. The watch creates Bambu Lab tags in one tap but cannot fill the form;
+   for other tags it says "Create it on iPhone or Mac". Watch is dark only.
 
 ## Stance (from the spec)
 
