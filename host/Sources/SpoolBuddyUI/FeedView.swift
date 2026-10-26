@@ -2,11 +2,16 @@ import SpoolBuddyCore
 import SwiftUI
 
 /// The session feed: one row per scanned tag, newest first, and the status bar.
-struct FeedView: View {
+public struct FeedView: View {
     let feed: FeedViewModel
     let link: FlipperLink
 
-    var body: some View {
+    public init(feed: FeedViewModel, link: FlipperLink) {
+        self.feed = feed
+        self.link = link
+    }
+
+    public var body: some View {
         VStack(spacing: 0) {
             if feed.items.isEmpty {
                 ContentUnavailableView(
@@ -29,11 +34,13 @@ struct FeedView: View {
                 .help("Remove all rows from the feed")
                 .disabled(feed.items.isEmpty)
             }
+            #if os(macOS)
             ToolbarItem {
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
             }
+            #endif
         }
     }
 }

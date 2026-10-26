@@ -10,7 +10,21 @@ SwiftPM only: no Xcode project, no UI tests.
   form an AMS writes (`ParsedTag.bambuddyTagUid`): for Bambu tags the UID
   followed by `00000100` (`7EF1AB04` → `7EF1AB0400000100`), NTAG UIDs as
   read; see `protocol/PROTOCOL.md`.
-- `SpoolBuddyMac`: SwiftUI executable for macOS 14+.
+- `SpoolBuddyUI`: SwiftUI views shared by the macOS and iOS apps (the feed,
+  the settings form, the New and Link sheets); macOS-only parts (the
+  Settings link, the serial port picker) sit behind `#if os(macOS)`.
+- `SpoolBuddyMac`: SwiftUI executable for macOS 14+: the app and the
+  Settings window around `SettingsForm`.
+
+The package supports macOS 14+ and iOS 26+. Off macOS `SerialTransport` is a
+stub (no ports, connecting fails) and the `hello` names the platform through
+`PlatformInfo` (`macOS 26.0`, `iOS 26.1`, `iPadOS 26.1`). To build the shared
+targets or run the tests on the iOS simulator:
+
+```
+xcodebuild -scheme SpoolBuddyUI -destination 'generic/platform=iOS Simulator' build
+xcodebuild test -scheme SpoolBuddy-Package -destination 'platform=iOS Simulator,name=iPhone 17'
+```
 - `SpoolBuddyCoreTests`: swift-testing suites (`import Testing`). The Command
   Line Tools have no XCTest, so the tests do not use it.
 
@@ -71,15 +85,16 @@ shows the Flipper link and the Bambuddy check; the link reconnects on its
 own when the Flipper app is restarted or the cable is replugged.
 
 The view models (`SpoolBuddyCore/ViewModels`) are platform-neutral and
-tested with `swift test`; the SwiftUI views in `SpoolBuddyMac` have no tests.
+tested with `swift test`; the SwiftUI views in `SpoolBuddyUI` and
+`SpoolBuddyMac` have no tests.
 
 ### `@ViewState` instead of `@State`
 
 The macOS 27 SDK declares `@State` as a macro too, implemented in the
 `SwiftUIMacros` compiler plugin that only Xcode ships. With the Command Line
 Tools, `@State` fails with "plugin for module 'SwiftUIMacros' not found".
-`Sources/SpoolBuddyMac/ViewState.swift` aliases the `State` property wrapper
-struct as `ViewState`; use `@ViewState` in that target.
+`Sources/SpoolBuddyUI/ViewState.swift` aliases the `State` property wrapper
+struct as a public `ViewState`; use `@ViewState` in both SwiftUI targets.
 
 ## Protocol fixtures
 

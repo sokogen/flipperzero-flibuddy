@@ -15,14 +15,18 @@ let testSwiftSettings: [SwiftSetting] = usesCommandLineTools
 
 let package = Package(
     name: "SpoolBuddy",
-    platforms: [.macOS(.v14)],
+    // `.v26` needs tools version 6.2; the string form works with 6.0.
+    platforms: [.macOS(.v14), .iOS("26.0")],
     products: [
         .library(name: "SpoolBuddyCore", targets: ["SpoolBuddyCore"]),
+        .library(name: "SpoolBuddyUI", targets: ["SpoolBuddyUI"]),
         .executable(name: "SpoolBuddyMac", targets: ["SpoolBuddyMac"]),
     ],
     targets: [
         .target(name: "SpoolBuddyCore"),
-        .executableTarget(name: "SpoolBuddyMac", dependencies: ["SpoolBuddyCore"]),
+        // SwiftUI views shared by the macOS and iOS apps.
+        .target(name: "SpoolBuddyUI", dependencies: ["SpoolBuddyCore"]),
+        .executableTarget(name: "SpoolBuddyMac", dependencies: ["SpoolBuddyCore", "SpoolBuddyUI"]),
         .testTarget(
             name: "SpoolBuddyCoreTests",
             dependencies: ["SpoolBuddyCore"],

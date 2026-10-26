@@ -22,6 +22,7 @@ protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
 flipper/                  the FAP: application.fam, src/, host-compiled
                           unit tests in tests/
 host/                     Swift package: SpoolBuddyCore library,
+                          SpoolBuddyUI shared SwiftUI views,
                           SpoolBuddyMac SwiftUI executable, tests
 tools/                    Python dev bridge (Phase 0 spike, kept as a
                           debugging tool), fixture generators

@@ -17,8 +17,7 @@ final class ScratchDefaults {
         // litter behind.
         defaults.removePersistentDomain(forName: name)
         UserDefaults.standard.removeSuite(named: name)
-        let plist = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Preferences/\(name).plist")
+        let plist = URL.homeDirectory.appendingPathComponent("Library/Preferences/\(name).plist")
         try? FileManager.default.removeItem(at: plist)
     }
 }

@@ -95,7 +95,10 @@ struct HostModelTests {
     @Test func theHostHelloNamesTheApp() {
         let hello = HostModel.hostHello
         #expect(hello.app == "spoolbuddy-mac/0.1.0")
+        #expect(hello.os == PlatformInfo.current)
+        #if os(macOS)
         #expect(hello.os?.hasPrefix("macOS ") == true)
+        #endif
         #expect(throws: Never.self) { try hello.validate() }
     }
 }

@@ -35,6 +35,7 @@ protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
 flipper/                  the FAP: application.fam, src/, host-compiled
                           unit tests in tests/
 host/                     Swift package: SpoolBuddyCore library,
+                          SpoolBuddyUI shared SwiftUI views,
                           SpoolBuddyMac SwiftUI executable, tests
 tools/                    Python dev bridge (Phase 0 spike, kept as a
                           debugging tool), fixture generators
@@ -62,6 +63,6 @@ make coverage                # SpoolBuddyCore and tools line coverage >= 80 %
   macro plugin needs the `-plugin-path` workaround that `host/Package.swift`
   applies when `DEVELOPER_DIR` is the Command Line Tools (see
   `host/README.md`).
-- In `host/Sources/SpoolBuddyMac` views use `@ViewState`, not `@State`: the
+- In `host/Sources/SpoolBuddyUI` and `SpoolBuddyMac` views use `@ViewState`, not `@State`: the
   SDK declares `@State` as a macro whose plugin only Xcode ships, so `@State`
   does not build with the Command Line Tools (see `host/README.md`).

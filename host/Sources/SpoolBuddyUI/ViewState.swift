@@ -6,5 +6,5 @@ import SwiftUI
 /// `SwiftUIMacros` compiler plugin, which only Xcode ships: with the Command
 /// Line Tools every `@State` fails with "plugin for module 'SwiftUIMacros' not
 /// found". The alias names the property wrapper struct, which needs no plugin.
-/// Use `@ViewState` instead of `@State` in this target.
-typealias ViewState<Value> = SwiftUI.State<Value>
+/// Use `@ViewState` instead of `@State` in the SwiftUI targets.
+public typealias ViewState<Value> = SwiftUI.State<Value>

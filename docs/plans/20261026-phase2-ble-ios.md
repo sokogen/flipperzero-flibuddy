@@ -104,12 +104,14 @@ not change. BLE carries the same NDJSON lines.
 ## Implementation Steps
 
 ### Task 1: Package for two platforms and a shared SwiftUI target
-- [ ] `host/Package.swift`: `platforms: [.macOS(.v14), .iOS(.v26)]`; new library target `SpoolBuddyUI` (depends on `SpoolBuddyCore`) and product; `SpoolBuddyMac` depends on both
-- [ ] move `FeedView.swift`, `SettingsView.swift` (the `SettingsForm` part), `UnknownRowActions.swift` and `ViewState.swift` into `host/Sources/SpoolBuddyUI/`, make them `public` where the apps need them, and wrap macOS-only parts (`SwiftUI.Settings` scene, serial port picker, `.keyboardShortcut`, `NSApp`) in `#if os(macOS)`; `SpoolBuddyMac` keeps `App.swift` and the Settings scene wrapper only
-- [ ] `SerialTransport.discoverFlipperPorts()` returns `[]` and `SerialTransport.init` is unavailable off macOS (`#if os(macOS)` around the termios code, a stub that throws `TransportError.notConnected` elsewhere)
-- [ ] `HostModel.hostHello` reports the platform (`"macOS …"` / `"iOS …"` / `"iPadOS …"`) through a small `PlatformInfo` helper with a test
-- [ ] write tests: `PlatformInfo`, port discovery off macOS is empty (compile-time guarded test), existing suites still pass; `swift build` of `SpoolBuddyUI` for macOS succeeds
-- [ ] run all three suites - must pass before task 2
+- [x] `host/Package.swift`: `platforms: [.macOS(.v14), .iOS(.v26)]`; new library target `SpoolBuddyUI` (depends on `SpoolBuddyCore`) and product; `SpoolBuddyMac` depends on both
+- [x] move `FeedView.swift`, `SettingsView.swift` (the `SettingsForm` part), `UnknownRowActions.swift` and `ViewState.swift` into `host/Sources/SpoolBuddyUI/`, make them `public` where the apps need them, and wrap macOS-only parts (`SwiftUI.Settings` scene, serial port picker, `.keyboardShortcut`, `NSApp`) in `#if os(macOS)`; `SpoolBuddyMac` keeps `App.swift` and the Settings scene wrapper only
+- [x] `SerialTransport.discoverFlipperPorts()` returns `[]` and `SerialTransport.init` is unavailable off macOS (`#if os(macOS)` around the termios code, a stub that throws `TransportError.notConnected` elsewhere)
+- [x] `HostModel.hostHello` reports the platform (`"macOS …"` / `"iOS …"` / `"iPadOS …"`) through a small `PlatformInfo` helper with a test
+- [x] write tests: `PlatformInfo`, port discovery off macOS is empty (compile-time guarded test), existing suites still pass; `swift build` of `SpoolBuddyUI` for macOS succeeds
+- [x] run all three suites - must pass before task 2
+- ➕ deviations: the manifest uses `.iOS("26.0")` because `.v26` needs tools version 6.2; `.keyboardShortcut` stays unguarded (SwiftUI has it on iOS too); off macOS `SerialTransport.init` stays available (HostModel's default factory uses it) and the stub's `connect`/`send` throw `notConnected`; `SpoolBuddyMac/App.swift` has an `#else` stub `main` so the whole package (tests included) builds for iOS
+- ➕ `xcodebuild test -scheme SpoolBuddy-Package -destination 'platform=iOS Simulator,…'` runs the suite on the iOS simulator (299 tests pass, the pty tests are macOS-only); `xcodebuild -scheme SpoolBuddyUI -destination 'generic/platform=iOS Simulator' build` succeeds
 
 ### Task 2: Flow-control and chunking model for BLE (pure Swift)
 - [ ] `host/Sources/SpoolBuddyCore/Transport/BLEFlow.swift`: `BLEFlow` keeps the credit (bytes the Flipper will accept, from the flow-control characteristic, uint32 big-endian), the write size (`min(negotiatedMTU - 3, 243)`), and a queue of outgoing bytes; `enqueue(line)`, `nextChunk()` returns the next write (never longer than the write size nor the remaining credit, `nil` when nothing may be sent), `creditUpdated(_:)`, `writeConfirmed()`; lines longer than 8192 bytes are rejected as in PROTOCOL.md

@@ -1,5 +1,7 @@
+#if os(macOS)
 import AppKit
 import SpoolBuddyCore
+import SpoolBuddyUI
 import SwiftUI
 
 @main
@@ -36,3 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 }
+#else
+/// The package also builds for iOS (the iOS app is `host/iOS`); there this
+/// executable has nothing to run.
+@main
+enum SpoolBuddyMacUnsupported {
+    static func main() {
+        print("SpoolBuddyMac runs on macOS only")
+    }
+}
+#endif

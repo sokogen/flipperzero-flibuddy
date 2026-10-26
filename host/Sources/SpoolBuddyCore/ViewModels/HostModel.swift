@@ -8,11 +8,7 @@ import Observation
 public final class HostModel {
     /// Our side of the handshake, e.g. `spoolbuddy-mac/0.1.0` on `macOS 26.0`.
     public static var hostHello: Hello {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return Hello(
-            app: "\(SpoolBuddyCore.appName)/\(SpoolBuddyCore.version)",
-            os: "macOS \(version.majorVersion).\(version.minorVersion)"
-        )
+        Hello(app: "\(SpoolBuddyCore.appName)/\(SpoolBuddyCore.version)", os: PlatformInfo.current)
     }
 
     public let session: Session
