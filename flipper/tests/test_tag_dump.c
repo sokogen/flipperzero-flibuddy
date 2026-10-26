@@ -173,11 +173,11 @@ static void test_scan_rejects_invalid_input(void) {
 }
 
 static void test_hello_matches_fixture(void) {
-    size_t len = proto_encode_hello("spoolbuddy-fap/0.1.0", "1.5.1", line, sizeof(line));
+    size_t len = proto_encode_hello("flibuddy-fap/0.1.0", "1.5.1", line, sizeof(line));
     CHECK(fixture_read_compact("fixtures/messages/hello_flipper.json", expected, sizeof(expected)));
     CHECK_STR_EQ(line, expected);
     CHECK_EQ_INT(len, strlen(expected));
-    CHECK_EQ_INT(proto_encode_hello("spoolbuddy-fap/0.1.0", "1.5.1", line, len), 0);
+    CHECK_EQ_INT(proto_encode_hello("flibuddy-fap/0.1.0", "1.5.1", line, len), 0);
 }
 
 static void test_line_limit_applies_to_large_buffers(void) {

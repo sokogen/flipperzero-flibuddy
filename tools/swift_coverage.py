@@ -2,7 +2,7 @@
 
 Reads the llvm-cov JSON export that `swift test --enable-code-coverage`
 writes (path from `swift test --show-codecov-path`) and fails when the
-files under a path prefix, `Sources/SpoolBuddyCore/` by default, cover
+files under a path prefix, `Sources/FliBuddyCore/` by default, cover
 fewer lines than the minimum.
 """
 
@@ -10,7 +10,7 @@ import argparse
 import json
 import sys
 
-DEFAULT_PREFIX = "Sources/SpoolBuddyCore/"
+DEFAULT_PREFIX = "Sources/FliBuddyCore/"
 
 
 def line_coverage(report: dict, prefix: str) -> tuple[int, int]:

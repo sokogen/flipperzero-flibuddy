@@ -110,7 +110,7 @@ def replies(b: session.Bridge, message: dict) -> list[dict]:
 def test_hello_is_valid():
     hello = bridge().hello()
     assert not list(VALIDATOR.iter_errors(hello))
-    assert hello["app"].startswith("spoolbuddy-bridge/")
+    assert hello["app"].startswith("flibuddy-bridge/")
     assert "os" in hello and "fw" not in hello
 
 

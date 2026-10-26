@@ -139,29 +139,43 @@
       pass before task 2
 
 ### Task 2: Rename the protocol ids and the Python tools
-- [ ] `protocol/PROTOCOL.md`: `flibuddy-fap/0.1.0`, `flibuddy-mac/0.1.0`,
-      `flibuddy-bridge/0.1.0` in the `app` row and the examples
-- [ ] regenerate `protocol/fixtures/messages/hello_flipper.json` and
+- [x] `protocol/PROTOCOL.md`: `flibuddy-fap/0.1.0`, `flibuddy-mac/0.1.0`,
+      `flibuddy-bridge/0.1.0` in the `app` row and the examples (➕ also the
+      title and the schema's `$id`/`title`: `flipper-flibuddy`)
+- [x] regenerate `protocol/fixtures/messages/hello_flipper.json` and
       `hello_host.json` through `tools/fixtures/make_message_fixtures.py`
-      (change the generator, not the files by hand)
-- [ ] ➕ the C fixture tests follow: `flipper/tests/test_proto_decode.c`
+      (change the generator, not the files by hand) (⚠️ no generator writes
+      the hello fixtures: like `lookup_*`, `result_*` and `invalid_*` they
+      are hand-written, so the `app` values were edited in place)
+- [x] ➕ the C fixture tests follow: `flipper/tests/test_proto_decode.c`
       (`test_hello_fixtures`) and `flipper/tests/test_tag_dump.c`
       (`test_hello_matches_fixture`) expect `flibuddy-mac/0.1.0` and
       `flibuddy-fap/0.1.0`; the Swift tests that read the hello fixtures
-      follow as well; run `make -C flipper/tests test`
-- [ ] `tools/bridge/__init__.py`: `APP = f"flibuddy-bridge/{VERSION}"`; update
+      follow as well; run `make -C flipper/tests test` (➕ the synthetic
+      `spoolbuddy-fap`/`spoolbuddy-mac` hellos in the Swift tests changed too;
+      `HostModelTests` line 250 checks `FliBuddyCore.appName` and moves with
+      it in Task 3)
+- [x] `tools/bridge/__init__.py`: `APP = f"flibuddy-bridge/{VERSION}"`; update
       `tools/tests/test_bridge_protocol.py`
-- [ ] `tools/pyproject.toml`: name `flibuddy-tools`, description mentions
+- [x] `tools/pyproject.toml`: name `flibuddy-tools`, description mentions
       flipper-flibuddy; `tools/swift_coverage.py` `DEFAULT_PREFIX =
-      "Sources/FliBuddyCore/"` and its docstring; `tools/README.md`
-- [ ] keep `tools/bambu_keys.py` line 3 ("SpoolBuddy daemon (`pn5180.py`)"):
+      "Sources/FliBuddyCore/"` and its docstring; `tools/README.md` (➕ and
+      `tools/uv.lock`; `tools/README.md` named neither. ⚠️ `make coverage`
+      finds no files under the new prefix and fails until Task 3 renames
+      the directory)
+- [x] keep `tools/bambu_keys.py` line 3 ("SpoolBuddy daemon (`pn5180.py`)"):
       it names Bambuddy's daemon
-- [ ] update `tools/tests/test_fixtures.py`, `test_swift_coverage.py`,
+- [x] update `tools/tests/test_fixtures.py`, `test_swift_coverage.py`,
       `test_ci.py`, `test_apple_project.py`, `test_mac_info_plist.py`
       expectations for the new names and paths (the latter two will pass
       fully after task 3 and 4; note it with a TODO and remove it then)
-- [ ] run `cd tools && uv run pytest` - must pass (except the two files
-      waiting on tasks 3 and 4, if any) before task 3
+      (`test_swift_coverage.py` updated; `test_fixtures.py` and `test_ci.py`
+      name nothing to rename. To keep the suite green the other two are not
+      touched here: `test_mac_info_plist.py` moves with `Package.swift` in
+      Task 3, `test_apple_project.py` with `project.yml` in Task 4)
+- [x] run `cd tools && uv run pytest` - must pass (except the two files
+      waiting on tasks 3 and 4, if any) before task 3 (319 passed; C 234
+      and Swift 439 also pass)
 
 ### Task 3: Rename the Swift package, targets and sources
 - [ ] `git mv host/Sources/SpoolBuddyCore host/Sources/FliBuddyCore`,
@@ -188,6 +202,16 @@
       `@ViewState` rule's paths
 - [ ] `docs/plans/20261026-macos-ui-from-design.md`: update the file paths in
       its Context section to the new target names (the plan is not started)
+- [ ] ➕ `tools/tests/test_mac_info_plist.py`: the `FliBuddyMac` plist path,
+      the manifest's `"/Sources/FliBuddyMac/Info.plist"` and the docstring
+      (moved here from Task 2 so the Python suite stays green); run
+      `cd tools && uv run pytest`
+- [ ] ➕ the remaining test strings: `HostModelTests` expects
+      `flibuddy-mac/0.1.0`, `SessionTests` hello app `flibuddy`, the
+      rejected-scheme case `spoolbuddy://config` in `APIKeyQRPayloadTests`
+      becomes `flibuddy://config` (still rejected: the QR scheme is
+      `bambuddy://`), the error-text expectations in `BLETransportTests`,
+      `FlipperLinkTests`, `SettingsViewModelTests`
 - [ ] run `cd host && swift test` - must pass before task 4
 
 ### Task 4: Rename the Xcode project, bundle ids and CI

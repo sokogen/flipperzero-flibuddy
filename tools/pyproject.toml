@@ -1,7 +1,7 @@
 [project]
-name = "spoolbuddy-tools"
+name = "flibuddy-tools"
 version = "0.1.0"
-description = "Dev bridge and fixture tools for flipper-spoolbuddy"
+description = "Dev bridge and fixture tools for flipper-flibuddy"
 requires-python = ">=3.13"
 dependencies = [
   "pyserial>=3.5",

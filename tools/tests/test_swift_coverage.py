@@ -19,25 +19,25 @@ def codecov(*files: tuple[str, int, int]) -> dict:
     }
 
 
-CORE = "/repo/host/Sources/SpoolBuddyCore/"
+CORE = "/repo/host/Sources/FliBuddyCore/"
 
 
 def test_line_coverage_counts_only_files_under_the_prefix():
     report = codecov(
         (CORE + "A.swift", 9, 10),
         (CORE + "Session/B.swift", 1, 10),
-        ("/repo/host/Sources/SpoolBuddyMac/App.swift", 0, 50),
-        ("/repo/host/Tests/SpoolBuddyCoreTests/T.swift", 100, 100),
+        ("/repo/host/Sources/FliBuddyMac/App.swift", 0, 50),
+        ("/repo/host/Tests/FliBuddyCoreTests/T.swift", 100, 100),
     )
-    assert swift_coverage.line_coverage(report, "Sources/SpoolBuddyCore/") == (10, 20)
+    assert swift_coverage.line_coverage(report, "Sources/FliBuddyCore/") == (10, 20)
 
 
 def test_line_coverage_without_matching_files_is_empty():
-    assert swift_coverage.line_coverage(codecov(), "Sources/SpoolBuddyCore/") == (0, 0)
+    assert swift_coverage.line_coverage(codecov(), "Sources/FliBuddyCore/") == (0, 0)
 
 
 def write(tmp_path, report: dict):
-    path = tmp_path / "SpoolBuddy.json"
+    path = tmp_path / "FliBuddy.json"
     path.write_text(json.dumps(report), encoding="utf-8")
     return str(path)
 
@@ -45,7 +45,7 @@ def write(tmp_path, report: dict):
 def test_main_passes_at_the_minimum(tmp_path, capsys):
     path = write(tmp_path, codecov((CORE + "A.swift", 8, 10)))
     assert swift_coverage.main([path, "--min", "80"]) == 0
-    assert "SpoolBuddyCore line coverage 80.0 % (8/10)" in capsys.readouterr().out
+    assert "FliBuddyCore line coverage 80.0 % (8/10)" in capsys.readouterr().out
 
 
 def test_main_fails_below_the_minimum(tmp_path, capsys):

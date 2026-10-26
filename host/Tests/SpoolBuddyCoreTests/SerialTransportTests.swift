@@ -22,7 +22,7 @@ import Testing
         let received = await Collector.draining(transport.messages)
         let scan = try Message.decode(line: Fixtures.message("scan_mfc"))
 
-        pty.write(#"{"t":"hello","v":1,"app":"spoolbuddy-fap/0.1.0","#)
+        pty.write(#"{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","#)
         pty.write("\"fw\":\"1.5.1\"}\r\n")
         pty.write(try scan.encodedLine())
 

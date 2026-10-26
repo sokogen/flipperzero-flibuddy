@@ -1,4 +1,4 @@
-# flipper-spoolbuddy wire protocol, version 1
+# flipper-flibuddy wire protocol, version 1
 
 The Flipper app and the host (Mac now, iPad/iPhone later) exchange
 newline-delimited JSON over a byte stream: USB CDC in Phase 1, BLE serial
@@ -79,15 +79,15 @@ returns to Idle, and losing the host shows the scan's local facts.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `app` | string, 1–40 | yes | Sender app and version: `spoolbuddy-fap/0.1.0` (Flipper), `spoolbuddy-mac/0.1.0` (Mac host), `spoolbuddy-bridge/0.1.0` (Python dev bridge). |
+| `app` | string, 1–40 | yes | Sender app and version: `flibuddy-fap/0.1.0` (Flipper), `flibuddy-mac/0.1.0` (Mac host), `flibuddy-bridge/0.1.0` (Python dev bridge). |
 | `fw` | string, 1–40 | Flipper | Flipper firmware version, e.g. `1.5.1`. |
 | `os` | string, 1–40 | host | Host OS, e.g. `macOS 26.0`. |
 
 Exactly one of `fw` / `os` is present.
 
 ```json
-{"t":"hello","v":1,"app":"spoolbuddy-fap/0.1.0","fw":"1.5.1"}
-{"t":"hello","v":1,"app":"spoolbuddy-mac/0.1.0","os":"macOS 26.0"}
+{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","fw":"1.5.1"}
+{"t":"hello","v":1,"app":"flibuddy-mac/0.1.0","os":"macOS 26.0"}
 ```
 
 ### `scan` (Flipper → host)

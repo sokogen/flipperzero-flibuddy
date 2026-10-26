@@ -3,8 +3,8 @@ import Testing
 @testable import SpoolBuddyCore
 
 @Suite struct TransportSessionTests {
-    private let hostHello = Hello(app: "spoolbuddy-mac/0.1.0", os: "macOS 26.0")
-    private let flipperHello = Hello(app: "spoolbuddy-fap/0.1.0", fw: "1.5.1")
+    private let hostHello = Hello(app: "flibuddy-mac/0.1.0", os: "macOS 26.0")
+    private let flipperHello = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
 
     private func start(
         helloTimeout: Duration = .seconds(30)

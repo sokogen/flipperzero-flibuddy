@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import SpoolBuddyCore
 
-private let hostHello = Hello(app: "spoolbuddy-mac/0.1.0", os: "macOS 26.0")
+private let hostHello = Hello(app: "flibuddy-mac/0.1.0", os: "macOS 26.0")
 
 @MainActor
 private func makeLink(
@@ -250,7 +250,7 @@ struct FlipperLinkTests {
         #expect(FlipperLink.statusText(.waitingForHello, problem: nil) == "Flipper: waiting for the app")
         #expect(FlipperLink.statusText(.noAnswer, problem: nil) == "Flipper: no answer; open SpoolBuddy on the Flipper")
         #expect(
-            FlipperLink.statusText(.connected(Hello(app: "spoolbuddy-fap/0.1.0", fw: "1.5.1")), problem: nil)
+            FlipperLink.statusText(.connected(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")), problem: nil)
                 == "Flipper: connected (firmware 1.5.1)"
         )
     }

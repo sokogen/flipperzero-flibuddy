@@ -3,7 +3,7 @@ import Testing
 @testable import SpoolBuddyCore
 
 @Suite struct BLEChunkerTests {
-    private let hello = Message.hello(Hello(app: "spoolbuddy-fap/0.1.0", fw: "1.5.1"))
+    private let hello = Message.hello(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1"))
 
     /// Hands out and confirms every write, returning them in order.
     private func drain(_ chunker: inout BLEChunker) -> [Data] {
