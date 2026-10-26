@@ -21,6 +21,9 @@ public final class FeedViewModel {
     public private(set) var linkError: String?
     public private(set) var isLoadingLinkCandidates = false
 
+    /// Which row has the keyboard; see `FocusModel`.
+    public private(set) var focus = FocusModel()
+
     /// A row's weight field: the suggestion until the user types (`touched`),
     /// then what they typed; and the mode it is in.
     public struct Draft: Equatable, Sendable {
@@ -43,6 +46,9 @@ public final class FeedViewModel {
     private var modes: [FeedRow.ID: Intent.WeightMode] = [:]
     private var errors: [FeedRow.ID: String] = [:]
     private var busy: Set<FeedRow.ID> = []
+    /// Rows that waited for a weight, or were saving one, at the last snapshot.
+    private var waitingIDs: Set<FeedRow.ID> = []
+    private var entryIDs: Set<FeedRow.ID> = []
 
     public init(session: Session, settings: Settings) {
         self.session = session
@@ -72,6 +78,7 @@ public final class FeedViewModel {
             weightTexts[id] = nil
             modes[id] = nil
         }
+        updateFocus()
     }
 
     public func item(_ id: FeedRow.ID) -> FeedItem? {
@@ -104,6 +111,7 @@ public final class FeedViewModel {
     /// The user typed: the field keeps this value through a mode switch.
     public func setWeightText(_ text: String, for id: FeedRow.ID) {
         weightTexts[id] = Self.sanitizeWeight(text)
+        focus.update(rows: focusRows())
     }
 
     /// The line under the field for the current draft.
@@ -153,6 +161,45 @@ public final class FeedViewModel {
             weightTexts[id] = nil
             modes[id] = nil
         }
+    }
+
+    // MARK: Focus
+
+    /// The row with the keyboard, for the list selection and the field focus.
+    public var focusedRow: FeedRow.ID? {
+        get { focus.focusedRow }
+        set { focus.focus(newValue) }
+    }
+
+    /// ⌘↑ / ⌘↓.
+    public func moveFocus(_ direction: FocusModel.Direction) {
+        focus.moveFocus(direction)
+    }
+
+    /// ⌘S: saves the focused row when it can be saved.
+    public func saveFocused() async {
+        guard let id = focus.focusedRow else { return }
+        await save(id)
+    }
+
+    /// Acts on what changed since the last snapshot only, so a refresh never
+    /// moves focus: rows that started waiting (oldest first, so the newest
+    /// wins) and rows that went from weight entry to saved.
+    private func updateFocus() {
+        focus.update(rows: focusRows())
+        let waiting = Set(items.filter(\.isWaiting).map(\.id))
+        for item in items.reversed() where item.isWaiting && !waitingIDs.contains(item.id) {
+            focus.onRowBecameWaiting(item.id)
+        }
+        for item in items where item.isReopenable && entryIDs.contains(item.id) {
+            focus.onSaved(item.id)
+        }
+        waitingIDs = waiting
+        entryIDs = Set(items.filter(\.isEntry).map(\.id))
+    }
+
+    private func focusRows() -> [FocusModel.Row] {
+        items.map { FocusModel.Row(id: $0.id, isWaiting: $0.isWaiting, isTouched: weightTexts[$0.id] != nil) }
     }
 
     // MARK: Unknown tags

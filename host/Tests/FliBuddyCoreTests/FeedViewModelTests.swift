@@ -439,4 +439,136 @@ struct FeedViewModelUnknownTests {
         let (model, _) = makeModel()
         #expect(model.newSpoolForm(for: UUID()) == nil)
     }
+
+    // MARK: Focus
+
+    /// A known-spool row in `status`, as the session would hold it.
+    private func spoolRow(_ scanId: String, _ status: FeedRow.Status) throws -> FeedRow {
+        var row = FeedRow(scanId: scanId, dump: try fixtureScan().tag, spool: knownSpool(), status: status)
+        row.status = status
+        return row
+    }
+
+    private func snapshot(_ rows: [FeedRow]) -> SessionSnapshot {
+        SessionSnapshot(rows: rows, bambuddy: .unchecked)
+    }
+
+    @Test func onlyEnterWeightAndCreatedRowsWait() throws {
+        #expect(FeedItem(try spoolRow("s", .awaitingWeight)).isWaiting)
+        #expect(FeedItem(try spoolRow("s", .created)).isWaiting)
+        for status: FeedRow.Status in [.scanned, .saving, .saved, .savedAfterTimeout, .error("x"), .unknown(prefill: true)] {
+            #expect(!FeedItem(try spoolRow("s", status)).isWaiting)
+        }
+        #expect(!FeedItem(try row(status: .awaitingWeight)).isWaiting)
+    }
+
+    @Test func theNewestWaitingRowTakesFocus() throws {
+        let (model, _) = makeModel()
+        let older = try spoolRow("s-1", .awaitingWeight)
+        let newer = try spoolRow("s-2", .awaitingWeight)
+
+        model.apply(snapshot([older, newer]))
+
+        #expect(model.focusedRow == newer.id)
+    }
+
+    @Test func aRefreshWithoutAStateChangeDoesNotMoveFocus() throws {
+        let (model, _) = makeModel()
+        let older = try spoolRow("s-1", .awaitingWeight)
+        let newer = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([older, newer]))
+
+        model.focusedRow = older.id
+        model.apply(snapshot([older, newer]))
+
+        #expect(model.focusedRow == older.id)
+    }
+
+    @Test func aScanWhileTypingOnlyHintsTheNewRow() throws {
+        let (model, _) = makeModel()
+        let typing = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([typing]))
+        model.setWeightText("9", for: typing.id)
+
+        let scanned = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([typing, scanned]))
+
+        #expect(model.focusedRow == typing.id)
+        #expect(model.focus.hintedRow == scanned.id)
+    }
+
+    @Test func aSavedRowPassesFocusToTheNextWaitingRow() throws {
+        let (model, _) = makeModel()
+        var first = try spoolRow("s-1", .awaitingWeight)
+        let second = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([first, second]))
+        model.focusedRow = first.id
+
+        first.status = .saving
+        model.apply(snapshot([first, second]))
+        #expect(model.focusedRow == first.id)
+        first.status = .saved
+        model.apply(snapshot([first, second]))
+
+        #expect(model.focusedRow == second.id)
+    }
+
+    @Test func aReopenedRowTakesFocus() throws {
+        let (model, _) = makeModel()
+        var row = try spoolRow("s-1", .saved)
+        model.apply(snapshot([row]))
+        #expect(model.focusedRow == nil)
+
+        row.status = .awaitingWeight
+        model.apply(snapshot([row]))
+
+        #expect(model.focusedRow == row.id)
+    }
+
+    @Test func commandSSavesTheFocusedRow() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.focusedRow == id)
+
+        model.setWeightText("734", for: id)
+        await model.saveFocused()
+
+        #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
+        #expect(model.focusedRow == id)
+    }
+
+    @Test func commandSWithoutFocusDoesNothing() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, _) = makeModel(inventory)
+
+        await model.saveFocused()
+
+        #expect(inventory.updates.isEmpty)
+    }
+
+    @Test func commandUpAndDownMoveThroughTheFeed() throws {
+        let (model, _) = makeModel()
+        let older = try spoolRow("s-1", .saved)
+        let newer = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([older, newer]))
+
+        model.moveFocus(.down)
+        #expect(model.focusedRow == older.id)
+        model.moveFocus(.up)
+        #expect(model.focusedRow == newer.id)
+    }
+
+    @Test func clearDropsTheFocus() async throws {
+        let (model, session) = makeModel()
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        await model.clear()
+
+        #expect(model.focusedRow == nil)
+    }
 }

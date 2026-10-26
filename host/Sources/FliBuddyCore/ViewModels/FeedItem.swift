@@ -31,6 +31,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The row shows the weight field, mode and Save (Enter weight, Saving…,
     /// Created, or an error on a known spool, which keeps the value for a retry).
     public let isEntry: Bool
+    /// Enter weight or Created: the row waits for a weight and may take focus.
+    public let isWaiting: Bool
     /// A weight is on its way to Bambuddy; the entry block is disabled.
     public let isSaving: Bool
     /// A saved row; a click opens it again for a re-weigh.
@@ -82,6 +84,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         offersUnknownActions = spool == nil && row.status != .scanned
         hasPrefill = row.tag.hasPrefill
         isEntry = spool != nil && Self.isEntryState(row.status)
+        isWaiting = spool != nil && (row.status == .awaitingWeight || row.status == .created)
         isSaving = row.status == .saving
         isReopenable = spool != nil && (row.status == .saved || row.status == .savedAfterTimeout)
         isCreated = row.status == .created
