@@ -600,14 +600,16 @@ struct BambuddyClientLogTests {
     }
 
     @Test func theAPIKeyNeverReachesTheLog() async throws {
-        let key = "secret-key-123"
-        let server = StubServer { _ in .json(200, #"{"spoolman_enabled":"false"}"#) }
+        let key = "bb_secret-key-123"
+        // A server that echoes the key in its error body, logged as `detail`
+        // and, at debug, as the response.
+        let server = StubServer { _ in .json(401, #"{"detail":"invalid key \#(key)"}"#) }
         let client = try server.client(apiKey: key)
 
-        let sink = try await capturingLog(level: .debug) { _ = try await client.spoolmanEnabled() }
+        let sink = try await capturingLog(level: .debug) { _ = try? await client.spoolmanEnabled() }
 
         #expect(server.requests.first?.headers["X-API-Key"] == key)
-        #expect(!sink.lines.isEmpty)
-        #expect(!sink.lines.contains { $0.message.contains(key) || $0.message.contains("«redacted»") })
+        #expect(sink.lines.filter { $0.message.contains("«redacted»") }.count == 2)
+        #expect(!sink.lines.contains { $0.message.contains(key) })
     }
 }

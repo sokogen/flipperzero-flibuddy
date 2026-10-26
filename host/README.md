@@ -307,24 +307,28 @@ per kind of event:
 
 ```
 log stream --level debug --predicate 'subsystem == "com.sokolachko.flibuddy"'
-log show --last 1h --predicate 'subsystem == "com.sokolachko.flibuddy" && category == "bambuddy"'
+log show --last 1h --info --predicate 'subsystem == "com.sokolachko.flibuddy" && category == "bambuddy"'
 ```
+
+The unified log keeps `info` and `debug` lines in memory only, so `log show`
+finds them for a short while at best; the file keeps them.
 
 | Category | Records |
 | --- | --- |
-| `app` | the start line, a log file that cannot be written |
+| `app` | the start line, written whatever the level; a log file that cannot be written (unified log only, once) |
 | `link` | connect and disconnect, link state changes with the problem, retries, the serial port opening and closing (with `errno`), Bluetooth scan, peripherals found (name, RSSI), services, MTU, disconnects, the hello handshake |
 | `wire` | each protocol line sent (`tx`) and received (`rx`) at `debug`, cut to 300 characters; dropped lines at `error` with the reason |
 | `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, colour map failures |
 | `bambuddy` | each request's method, path, status and time; errors with Bambuddy's `detail`; response bodies at `debug` |
 | `settings` | settings load and save (`key=present` or `absent`), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
 | `sync` | watch settings sync: payloads sent, held, received, applied or rejected, by version only |
+| `ui` | reserved; nothing logs to it yet |
 
 The API key is never logged: settings lines only say whether a key is
-present, and `Log.redact` replaces any `bb_…` key and any `key=`,
-`X-API-Key` or `apiKey` value with `«redacted»` before a line reaches the
-unified log or the file. Neither the QR payload nor the sync payload is
-logged.
+present, and `Log.redact` replaces any `bb_…` key, any `key=`, `X-API-Key`
+or `apiKey` value and the `user:password@` of a URL with `«redacted»` before
+a line reaches the unified log or the file. Neither the QR payload nor the
+sync payload is logged.
 
 ## Protocol fixtures
 

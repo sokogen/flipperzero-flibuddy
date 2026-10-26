@@ -114,10 +114,14 @@ public final class LogRouter: @unchecked Sendable {
         }
     }
 
-    /// The message is only built when the level lets the line through.
-    public func log(_ level: LogLevel, _ category: Log.Category, _ message: @autoclosure () -> String, date: Date = Date()) {
+    /// The message is only built when the level lets the line through;
+    /// `ignoringLevel` lets it through at any level (the start line).
+    public func log(
+        _ level: LogLevel, _ category: Log.Category, _ message: @autoclosure () -> String, date: Date = Date(),
+        ignoringLevel: Bool = false
+    ) {
         let (threshold, sinks) = lock.withLock { (storedLevel, storedSinks) }
-        guard level >= threshold, !sinks.isEmpty else { return }
+        guard ignoringLevel || level >= threshold, !sinks.isEmpty else { return }
         let line = LogLine(date: date, level: level, category: category, message: Log.redact(message()))
         for sink in sinks {
             sink.write(line: line)
@@ -159,8 +163,9 @@ public enum Log {
 
     /// Installs the unified log and the log file at `level`, once per
     /// process, and logs `app start: <appName> <version> <platform> log=…
-    /// level=…`. Later calls change nothing and return false. The Mac app
-    /// keeps the default level from `FLIBUDDY_LOG`.
+    /// level=…` whatever the level, so the file exists from the start. Later
+    /// calls change nothing and return false. The Mac app keeps the default
+    /// level from `FLIBUDDY_LOG`.
     @MainActor @discardableResult
     public static func bootstrap(
         appName: String,
@@ -171,7 +176,7 @@ public enum Log {
         makeSinks: (URL) -> [any LogSink] = { [OSLogSink(), FileSink(url: $0)] }
     ) -> Bool {
         guard router.install(level: level, fileURL: fileURL, makeSinks: makeSinks) else { return false }
-        notice(.app, "start: \(appName) \(version) \(platform) log=\(fileURL.path) level=\(level)")
+        router.log(.notice, .app, "start: \(appName) \(version) \(platform) log=\(fileURL.path) level=\(level)", ignoringLevel: true)
         return true
     }
 
@@ -193,6 +198,9 @@ public enum Log {
 
     private static let redacted = "«redacted»"
 
+    /// The `user:password@` of a URL.
+    private static let userInfo = try! NSRegularExpression(pattern: #"(://)[^/?#@\s]+@"#)
+
     /// `key=…`, `X-API-Key: …`, `"apiKey":"…"` and the like, except the
     /// `key=present|absent` that settings lines use.
     private static let keyValue = try! NSRegularExpression(
@@ -203,9 +211,13 @@ public enum Log {
     /// A Bambuddy API key anywhere in the text.
     private static let bambuddyKey = try! NSRegularExpression(pattern: #"\bbb_[A-Za-z0-9_\-.~%+/]+"#)
 
-    /// The message with every API key replaced by `«redacted»`.
+    /// The message with every API key and URL credential replaced by
+    /// `«redacted»`.
     public static func redact(_ message: String) -> String {
         var result = message
+        result = userInfo.stringByReplacingMatches(
+            in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "$1\(redacted)@"
+        )
         result = keyValue.stringByReplacingMatches(
             in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "$1\(redacted)"
         )

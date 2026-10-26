@@ -69,6 +69,36 @@ struct BLETransportTests {
         #expect(sink.lines.last?.level == .error)
     }
 
+    @Test func aScanThatFindsNothingIsLoggedAsAFailedConnect() async {
+        let central = FakeCentral()
+
+        let sink = await capturingLog { _ = try? await makeTransport(central, peripheral: nil).connect() }
+
+        #expect(sink.events == [
+            "link bluetooth scan: peripheral=any",
+            "link bluetooth connect failed: peripheral=any error=\(TransportError.peripheralNotFound.localizedDescription)",
+        ])
+        #expect(sink.lines.last?.level == .error)
+    }
+
+    @Test func aCancelledConnectIsNotLoggedAsAFailure() async {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.connectHangs = true
+        let transport = BLETransport(central: central, peripheral: flipperA, scanTimeout: .seconds(10), connectTimeout: .seconds(10))
+
+        let sink = await capturingLog {
+            let attempt = Task { try await transport.connect() }
+            // Long enough for the attempt to reach the hanging connect.
+            try? await Task.sleep(for: .milliseconds(50))
+            attempt.cancel()
+            _ = try? await attempt.value
+        }
+
+        #expect(central.cancelled == [flipperA])
+        #expect(sink.events("link bluetooth connect failed:").isEmpty)
+    }
+
     @Test func aDropAndAFailedWriteAreLogged() async throws {
         let central = FakeCentral()
         central.known = [flipperA, flipperB]

@@ -162,10 +162,11 @@ public struct BambuddyClient: Sendable {
         let started = clock.now
         let elapsed = { "in \(Int(((clock.now - started) / .milliseconds(1)).rounded())) ms" }
         let data: Data
-        let response: URLResponse
+        let http: HTTPURLResponse
         do {
-            (data, response) = try await session.data(for: request)
-            guard response is HTTPURLResponse else { throw BambuddyError.network("not an HTTP response") }
+            let (body, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse else { throw BambuddyError.network("not an HTTP response") }
+            (data, http) = (body, response)
         } catch {
             let failure: any Error = switch error {
             case is CancellationError, is BambuddyError: error
@@ -180,7 +181,7 @@ public struct BambuddyClient: Sendable {
             }
             throw failure
         }
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let status = http.statusCode
         // 404 answers a lookup or names a missing spool; the callers say which.
         if status < 400 || status == 404 {
             Log.info(.bambuddy, "\(method) \(path) -> \(status) \(elapsed())")

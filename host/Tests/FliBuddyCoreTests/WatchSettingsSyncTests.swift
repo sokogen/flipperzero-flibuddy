@@ -292,6 +292,21 @@ struct WatchSettingsSenderLogTests {
         #expect(sink.events == ["sync held: reason=no watch app", "sync send failed: error=Watch not reachable"])
         #expect(sink.lines.map(\.level) == [.debug, .error])
     }
+
+    @Test func aSendHeldOnAnUnsupportedOrInactiveSessionIsLoggedWithTheReason() async {
+        let session = FakeSessionMessaging()
+        session.isSupported = false
+        let sender = WatchSettingsSender(session: session)
+
+        let sink = await capturingLog(level: .debug) {
+            sender.settingsSaved(testSettings)
+            session.isSupported = true
+            session.isActivated = false
+            sender.sessionStateChanged()
+        }
+
+        #expect(sink.events == ["sync held: reason=unsupported", "sync held: reason=not activated"])
+    }
 }
 
 extension WatchSettingsReceiverTests {
