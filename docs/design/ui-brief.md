@@ -11,8 +11,9 @@ tool only renders frames.
 You are designing the user interface of **SpoolBuddy**, a small production
 tool for a 3D-printing workshop. Design native Apple apps for macOS, iPhone,
 iPad and Apple Watch that follow the current Apple Human Interface Guidelines
-(iOS 26, iPadOS 26, macOS 26, watchOS 26: system materials and Liquid Glass
-through standard controls; the macOS app must still look right on macOS 14).
+(the iOS 27, iPadOS 27, macOS 27 and watchOS 27 idiom: system materials and
+Liquid Glass through standard controls; deployment minimums are iOS, iPadOS
+and watchOS 26 and macOS 14, so the macOS app must still look right there).
 Optimise for speed and glanceability during repetitive physical work, not for
 marketing polish. Use only native, standard SwiftUI components and system
 styling; no custom chrome, no illustrations, no onboarding tour.
