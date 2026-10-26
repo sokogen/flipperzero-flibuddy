@@ -97,6 +97,23 @@ public final class LogRouter: @unchecked Sendable {
         set { lock.withLock { storedSinks = newValue } }
     }
 
+    /// The log file `install` set up; nil before.
+    public var fileURL: URL? { lock.withLock { installedFile } }
+
+    private var installedFile: URL?
+
+    /// Sets the level and the sinks the first time; later calls change
+    /// nothing and return false.
+    func install(level: LogLevel, fileURL: URL, makeSinks: (URL) -> [any LogSink]) -> Bool {
+        lock.withLock {
+            guard installedFile == nil else { return false }
+            installedFile = fileURL
+            storedLevel = level
+            storedSinks = makeSinks(fileURL)
+            return true
+        }
+    }
+
     /// The message is only built when the level lets the line through.
     public func log(_ level: LogLevel, _ category: Log.Category, _ message: @autoclosure () -> String, date: Date = Date()) {
         let (threshold, sinks) = lock.withLock { (storedLevel, storedSinks) }
@@ -134,6 +151,28 @@ public enum Log {
     public static var sinks: [any LogSink] {
         get { router.sinks }
         set { router.sinks = newValue }
+    }
+
+    /// The log file `bootstrap` installed (the Mac app's Show Log File);
+    /// nil before.
+    public static var fileURL: URL? { router.fileURL }
+
+    /// Installs the unified log and the log file at `level`, once per
+    /// process, and logs `app start: <appName> <version> <platform> log=…
+    /// level=…`. Later calls change nothing and return false. The Mac app
+    /// keeps the default level from `FLIBUDDY_LOG`.
+    @MainActor @discardableResult
+    public static func bootstrap(
+        appName: String,
+        version: String = FliBuddyCore.version,
+        platform: String = PlatformInfo.current,
+        level: LogLevel = .fromEnvironment(ProcessInfo.processInfo.environment),
+        fileURL: URL = FileSink.defaultURL,
+        makeSinks: (URL) -> [any LogSink] = { [OSLogSink(), FileSink(url: $0)] }
+    ) -> Bool {
+        guard router.install(level: level, fileURL: fileURL, makeSinks: makeSinks) else { return false }
+        notice(.app, "start: \(appName) \(version) \(platform) log=\(fileURL.path) level=\(level)")
+        return true
     }
 
     public static func debug(_ category: Category, _ message: @autoclosure () -> String) {

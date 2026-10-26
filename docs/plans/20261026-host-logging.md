@@ -144,16 +144,21 @@
 - [x] run tests - must pass before task 4
 
 ### Task 4: Apps: start-up line, level, Show Log File
-- [ ] `FliBuddyMac/App.swift`, `iOS/App.swift`, `Watch/App.swift`: on launch
+- [x] `FliBuddyMac/App.swift`, `iOS/App.swift`, `Watch/App.swift`: on launch
       `app start: FliBuddy <version> <platform> log=<file path>
       level=<level>`; the Mac app adds a Help menu item "Show Log File"
       (reveals the file in Finder) and reads `FLIBUDDY_LOG` from the
       environment; iOS and watch keep `.info`
-- [ ] `Log` installs `OSLogSink` and `FileSink` once per process
+- [x] `Log` installs `OSLogSink` and `FileSink` once per process
       (`Log.bootstrap(appName:)`), idempotent; tests cover bootstrap
       idempotence with the memory sink
-- [ ] run `make test`, `make lint`, `make coverage`, `make apple-project
+- [x] run `make test`, `make lint`, `make coverage`, `make apple-project
       apple-build` - must pass before task 5
+- [x] ➕ the start line is logged at `.notice` by `Log.bootstrap`, which
+      also takes the level, version, platform, file URL and sinks (tests
+      pass a memory sink); `Log.fileURL` is the installed file, which Show
+      Log File reveals. The apps bootstrap in `init()` before creating the
+      `HostModel`, whose settings load already logs
 
 ### Task 5: Verify acceptance criteria
 - [ ] every seam listed in Context emits its events (grep the sources for

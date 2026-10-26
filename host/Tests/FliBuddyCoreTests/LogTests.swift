@@ -209,6 +209,51 @@ import Testing
             sink.write(line: LogLine(date: Self.date, level: level, category: .ui, message: "log test \(level)"))
         }
     }
+
+    @Test @MainActor func bootstrapInstallsTheSinksOnceAndLogsTheStartLine() {
+        let sink = MemorySink()
+        let file = URL(fileURLWithPath: "/tmp/FliBuddy/flibuddy.log")
+        Log.$scoped.withValue(LogRouter(level: .error, sinks: [])) {
+            #expect(Log.fileURL == nil)
+            var madeFor: [URL] = []
+
+            let first = Log.bootstrap(
+                appName: "FliBuddy", version: "1.2.3", platform: "macOS 26.0", level: .debug, fileURL: file,
+                makeSinks: { madeFor.append($0); return [sink] }
+            )
+            let second = Log.bootstrap(
+                appName: "Other", version: "9.9.9", platform: "iOS 26.0", level: .error,
+                fileURL: URL(fileURLWithPath: "/tmp/other.log"),
+                makeSinks: { madeFor.append($0); return [MemorySink()] }
+            )
+
+            #expect(first)
+            #expect(!second)
+            #expect(madeFor == [file])
+            #expect(Log.level == .debug)
+            #expect(Log.fileURL == file)
+            #expect(Log.sinks.count == 1)
+        }
+        #expect(sink.lines.map(\.level) == [.notice])
+        #expect(sink.events == ["app start: FliBuddy 1.2.3 macOS 26.0 log=/tmp/FliBuddy/flibuddy.log level=debug"])
+    }
+
+    @Test @MainActor func bootstrapByDefaultWritesToTheUnifiedLogAndTheFile() throws {
+        let directory = try TemporaryDirectory()
+        let file = directory.url.appendingPathComponent("Logs/flibuddy.log")
+        try Log.$scoped.withValue(LogRouter(level: .info, sinks: [])) {
+            #expect(Log.bootstrap(appName: "FliBuddy", level: .info, fileURL: file))
+
+            let sinks = Log.sinks
+            #expect(sinks.count == 2)
+            #expect(sinks.first is OSLogSink)
+            #expect((sinks.last as? FileSink)?.url == file)
+            let content = try String(contentsOf: file, encoding: .utf8)
+            #expect(content.hasSuffix(
+                " NOTICE app start: FliBuddy \(FliBuddyCore.version) \(PlatformInfo.current) log=\(file.path) level=info\n"
+            ))
+        }
+    }
 }
 
 private final class Failures: @unchecked Sendable {

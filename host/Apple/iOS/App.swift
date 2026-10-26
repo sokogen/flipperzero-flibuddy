@@ -4,13 +4,19 @@ import SwiftUI
 
 @main
 struct FliBuddyiOSApp: App {
-    // Bluetooth is the only transport on iOS; there are no serial ports.
-    @ViewState private var host = HostModel(
-        makeTransport: FlipperLink.defaultTransport,
-        discoverPorts: { [] }
-    )
+    @ViewState private var host: HostModel
     /// Sends the settings to the Apple Watch after each save (not on iPad).
     @ViewState private var watchSync: WatchSettingsSender?
+
+    init() {
+        // Before the host model: loading the settings already logs.
+        Log.bootstrap(appName: "FliBuddy", level: .info)
+        // Bluetooth is the only transport on iOS; there are no serial ports.
+        _host = ViewState(initialValue: HostModel(
+            makeTransport: FlipperLink.defaultTransport,
+            discoverPorts: { [] }
+        ))
+    }
 
     var body: some Scene {
         WindowGroup {
