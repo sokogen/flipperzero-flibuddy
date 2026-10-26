@@ -51,3 +51,11 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
 Modules: `bambu_tag.py` (pure tag parser, mirrored by the Swift one),
 `bambuddy.py` (httpx client), `session.py` (framing and message handling),
 `__main__.py` (CLI and serial loop).
+
+## Lint and coverage
+
+`uv run ruff check` lints the tools; `uv run pytest --cov` fails under 80 %
+line coverage (`[tool.coverage]` in `pyproject.toml`). `swift_coverage.py`
+applies the same gate to the Swift package: `make coverage-host` at the
+repository root runs `swift test --enable-code-coverage` and passes the
+report to it.

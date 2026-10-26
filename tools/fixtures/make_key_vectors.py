@@ -136,7 +136,7 @@ HKDF_VECTORS = [
     ),
     HkdfVector(
         "rfc5869_case_2",
-        bytes(range(0x00, 0x50)),
+        bytes(range(0x50)),
         bytes(range(0x60, 0xB0)),
         bytes(range(0xB0, 0x100)),
         "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c"

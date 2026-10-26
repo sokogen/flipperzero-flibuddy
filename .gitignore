@@ -6,3 +6,4 @@ host/.build/
 __pycache__/
 .DS_Store
 flipper/tests/build/
+.coverage

@@ -32,4 +32,6 @@ make test                    # all three below; CI runs each per part
 make -C flipper/tests test   # C unit tests, host-compiled, no Flipper needed
 cd host && swift test        # Swift
 cd tools && uv run pytest    # Python
+make lint                    # C with -Werror, Swift with -warnings-as-errors, ruff
+make coverage                # line coverage of SpoolBuddyCore and tools, >= 80 %
 ```

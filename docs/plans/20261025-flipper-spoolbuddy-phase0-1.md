@@ -286,11 +286,13 @@ offline queue on the Flipper, tag writing, Spoolman mode.
 - [x] ➕ `tools/tests/test_ci.py` (pyyaml dev dep) checks the workflow triggers, commands and the root `Makefile`; `tools.yml` also watches `flipper/tests/vectors/**`, which the tools tests compare against their generators; workflows pass `actionlint`, and the flipper job was reproduced in Linux containers (gcc C tests, `ufbt` 1.5.1 build). `host.yml` (macos-latest) is not run locally
 
 ### Task 18: Verify acceptance criteria
-- [ ] verify all requirements from Overview are implemented (scan → lookup → weigh/new/link from Flipper; feed with editable weights on the host; dedupe via tray UUID candidates then UID; Spoolman refused)
-- [ ] verify edge cases: missing sectors, over-long lines, host disconnect mid-intent, 409 on link, 404 on lookup, net with zero core
-- [ ] run full test suite (`make test`)
-- [ ] run linters: `swift build -Xswiftc -warnings-as-errors`, C tests with `-Werror`, `uv run ruff check` (add ruff to dev deps)
-- [ ] verify test coverage: `swift test --enable-code-coverage` for `SpoolBuddyCore` ≥ 80 %, pytest `--cov` ≥ 80 %
+- [x] verify all requirements from Overview are implemented (scan → lookup → weigh/new/link from Flipper; feed with editable weights on the host; dedupe via tray UUID candidates then UID; Spoolman refused)
+- [x] verify edge cases: missing sectors, over-long lines, host disconnect mid-intent, 409 on link, 404 on lookup, net with zero core
+- [x] run full test suite (`make test`)
+- [x] run linters: `swift build -Xswiftc -warnings-as-errors`, C tests with `-Werror`, `uv run ruff check` (add ruff to dev deps)
+- [x] verify test coverage: `swift test --enable-code-coverage` for `SpoolBuddyCore` ≥ 80 %, pytest `--cov` ≥ 80 %
+- ➕ requirements and edge cases traced to tests in each suite: Flipper flow in `test_app_state.c` (weigh, New only with prefill, Link/Create on host, host lost mid-intent → Error, timeout), host in `SessionTests`/`FeedViewModelTests` (host-edited weights, Spoolman refused), lookup order in `findSpoolTriesTrayCandidatesInOrderThenUID` and `test_find_by_tag_tries_candidates_in_order_then_uid`, missing sectors in the C/Swift/Python parser tests, over-long lines in `test_line_buffer.c`, `NDJSONFramerTests`, `test_framer_drops_over_long_lines`, 409/404 in `BambuddyClientTests`/`test_bambuddy.py`. Added the missing Swift session test `weighNetWithAZeroCoreSendsTheNet`
+- ➕ root `Makefile` gained `lint` (C tests with `-Werror`, `swift build -Xswiftc -warnings-as-errors`, `uv run ruff check`) and `coverage` (`swift test --enable-code-coverage` checked by the new `tools/swift_coverage.py`, `pytest --cov` with `fail_under = 80`); `tools.yml` runs ruff; ruff and pytest-cov are dev deps. Measured: SpoolBuddyCore 94.9 % lines, tools 96 %. The test target also builds cleanly with `-warnings-as-errors`; the only remaining output is `ld` search-path notices from the Command Line Tools
 
 ### Task 19: Update documentation
 - [ ] update `README.md` (install ufbt, build and `ufbt launch` the FAP, run the Mac host, run the Python bridge, where fixtures live, how to capture real dumps with `--dump-dir`)

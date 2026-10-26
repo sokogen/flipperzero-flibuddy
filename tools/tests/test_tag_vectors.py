@@ -22,7 +22,7 @@ def header() -> str:
 
 def c_array(content: str, name: str) -> list[str]:
     """Rows of a generated array as upper-case hex strings."""
-    body = re.search(rf"{name}\[[^=]*= \{{\n(.*?)\n\}};", content, re.S)
+    body = re.search(rf"{name}\[[^=]*= \{{\n(.*?)\n\}};", content, re.DOTALL)
     if body is None:  # one-line array
         body = re.search(rf"{name}\[[^=]*= (\{{[^;]*\}});", content)
         rows = [body.group(1)]

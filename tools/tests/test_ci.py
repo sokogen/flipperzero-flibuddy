@@ -90,6 +90,7 @@ def test_tools_workflow_runs_pytest_with_uv():
     lines = run_lines(wf)
     assert "uv sync" in lines
     assert "uv run pytest" in lines
+    assert "uv run ruff check" in lines
     assert step_dirs(wf) == {"tools"}
 
 
@@ -99,3 +100,19 @@ def test_root_makefile_runs_all_three_suites():
     assert "$(MAKE) -C flipper/tests test" in makefile
     assert "cd host && swift test" in makefile
     assert "cd tools && uv run pytest" in makefile
+
+
+def test_root_makefile_runs_the_linters():
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "lint: lint-flipper lint-host lint-tools" in makefile
+    # The C tests already build with -Werror.
+    assert "$(MAKE) -C flipper/tests test" in makefile
+    assert "cd host && swift build -Xswiftc -warnings-as-errors" in makefile
+    assert "cd tools && uv run ruff check" in makefile
+
+
+def test_root_makefile_checks_coverage():
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    assert "coverage: coverage-host coverage-tools" in makefile
+    assert "swift test --enable-code-coverage" in makefile
+    assert "cd tools && uv run pytest --cov" in makefile

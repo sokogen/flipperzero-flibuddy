@@ -29,3 +29,6 @@ jobs:
       - name: Python tests
         working-directory: tools
         run: uv run pytest
+      - name: Lint
+        working-directory: tools
+        run: uv run ruff check

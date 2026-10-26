@@ -47,6 +47,8 @@ tools/                    Python dev bridge (Phase 0 spike, kept as a
 make -C flipper/tests test   # C unit tests, host-compiled
 cd host && swift test        # Swift (SpoolBuddyCore)
 cd tools && uv run pytest    # Python bridge, fixtures, schema
+make lint                    # warnings fail: C -Werror, Swift, ruff
+make coverage                # SpoolBuddyCore and tools line coverage >= 80 %
 ```
 
 ## Environment notes

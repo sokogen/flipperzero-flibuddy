@@ -317,6 +317,20 @@ struct SessionIntentTests {
         #expect(row.spool?.remaining == 484)
     }
 
+    @Test func weighNetWithAZeroCoreSendsTheNet() async throws {
+        var spool = knownSpool()
+        spool.coreWeight = 0
+        let inventory = FakeInventory(spools: [spool])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+
+        let result = await session.handleIntent(try weighIntent(grams: 484, mode: .net))
+
+        #expect(inventory.updates == [.update(spoolId: 42, gross: 484)])
+        #expect(result.ok)
+        #expect(try #require(await session.rows.first).spool?.remaining == 484)
+    }
+
     @Test func weighGrossSendsTheGramsAsTheyAre() async throws {
         let inventory = FakeInventory(spools: [knownSpool()])
         let session = makeSession(inventory)
