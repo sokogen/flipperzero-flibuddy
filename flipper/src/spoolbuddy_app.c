@@ -5,6 +5,7 @@
 #include "app_settings_file.h"
 #include "scenes.h"
 #include "spoolbuddy_app.h"
+#include "transport_ble.h"
 #include "transport_none.h"
 #include "transport_usb.h"
 
@@ -102,25 +103,29 @@ static void sync_scene(SpoolBuddyApp* app) {
 static void apply_link(SpoolBuddyApp* app, HostLinkOutput out);
 static void on_rx_line(const char* line, size_t len, void* ctx);
 
-/* Bluetooth has no backend yet: it runs the null transport, so no host
- * connects and the USB port stays with the CLI. */
+static void free_transport(SpoolBuddyApp* app) {
+    if(app->transport != transport_none()) {
+        if(app->transport_kind == TransportKindUsb) {
+            transport_usb_free(app->transport);
+        } else {
+            transport_ble_free(app->transport);
+        }
+    }
+    app->transport = transport_none();
+}
+
+/* A backend that does not open (Bluetooth off or unavailable) gives way to
+ * the null transport: no host connects, and with Bluetooth the USB port
+ * stays with the CLI. */
 static void start_transport(SpoolBuddyApp* app) {
     app->transport_kind = app->state.transport;
     app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
-                                                               transport_none();
+                                                               transport_ble_alloc();
     transport_set_rx_callback(app->transport, on_rx_line, app);
     if(!transport_open(app->transport)) {
         FURI_LOG_E("SpoolBuddy", "%s unavailable", screen_transport_name(app->transport_kind));
+        free_transport(app);
     }
-}
-
-static void free_transport(SpoolBuddyApp* app) {
-    if(app->transport_kind == TransportKindUsb) {
-        transport_usb_free(app->transport);
-    } else {
-        transport_close(app->transport);
-    }
-    app->transport = transport_none();
 }
 
 /* Closes the old transport (the host it carried is lost), saves the choice
@@ -184,6 +189,21 @@ static void apply_link(SpoolBuddyApp* app, HostLinkOutput out) {
     if(out.send_hello) send_hello(app);
     if(out.host_connected) spoolbuddy_reduce_type(app, AppEventHostConnected);
     if(out.host_lost) spoolbuddy_reduce_type(app, AppEventHostLost);
+}
+
+static AppBleStatus ble_status(SpoolBuddyApp* app) {
+    if(app->transport_kind != TransportKindBluetooth || app->transport == transport_none()) {
+        return AppBleOff;
+    }
+    switch(transport_ble_status(app->transport)) {
+    case TransportBleAdvertising:
+        return AppBleAdvertising;
+    case TransportBleConnected:
+        return AppBleConnected;
+    case TransportBleOff:
+        break;
+    }
+    return AppBleOff;
 }
 
 /* Tells the scene when the status line changed since `was_up`. */
@@ -264,6 +284,10 @@ static void on_tick(void* ctx) {
     }
     apply_link(app, host_link_tick(&app->link, now_ms()));
     notify_status(app, was_up);
+    AppBleStatus ble = ble_status(app);
+    if(ble != app->state.ble) {
+        spoolbuddy_reduce(app, &(AppEvent){.type = AppEventBleStatus, .ble = ble});
+    }
     if(app_result_timed_out(&app->state, now_ms())) {
         spoolbuddy_reduce_type(app, AppEventTimeout);
     }

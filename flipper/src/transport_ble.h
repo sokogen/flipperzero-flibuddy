@@ -1,0 +1,26 @@
+/* Transport over the SpoolBuddy BLE profile (ble_spoolbuddy_svc.h).
+ *
+ * open() replaces the Flipper's default BLE profile with SpoolBuddy's;
+ * close() disconnects the host and restores the default one, so the
+ * official Flipper app cannot connect while the transport is open. A host
+ * is connected once it holds the link and subscribed to TX, as DTR on
+ * USB. Received bytes are framed into lines of up to PROTO_LINE_MAX - 1
+ * bytes on a worker thread, which also calls the rx callback.
+ */
+#pragma once
+
+#include "transport.h"
+
+typedef enum {
+    TransportBleOff, /* not advertising: Bluetooth is off or unavailable */
+    TransportBleAdvertising,
+    TransportBleConnected, /* a central holds the link; it may not have subscribed */
+} TransportBleStatus;
+
+Transport* transport_ble_alloc(void);
+
+/* Closes the transport if needed. */
+void transport_ble_free(Transport* transport);
+
+/* For the status line. */
+TransportBleStatus transport_ble_status(const Transport* transport);

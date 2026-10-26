@@ -1,7 +1,9 @@
-/* Sends lines as fixed-size packets (USB CDC bulk), as a pure state machine.
+/* Sends lines as packets (USB CDC bulk, BLE notifications), as a pure state
+ * machine.
  *
  * A line and its '\n' go out in packets of up to `packet_size` bytes; a
- * transfer that ends on a full packet gets a zero-length packet. The packet
+ * transfer that ends on a full packet gets a zero-length packet (a packet
+ * function without such packets takes it as sent). The packet
  * callback reports whether the packet reached the host, did not go out (the
  * host is not reading), or was handed over but not confirmed; the rest of
  * the line is then not sent.
@@ -20,7 +22,7 @@
 
 #include "transport.h"
 
-#define LINE_SENDER_PACKET_MAX 64
+#define LINE_SENDER_PACKET_MAX 243 /* a USB CDC packet (64) or a BLE notification */
 
 typedef enum {
     LinePacketSent, /* the host took it */
@@ -40,6 +42,10 @@ typedef struct {
 
 /* `packet_size` is 1..LINE_SENDER_PACKET_MAX. */
 void line_sender_init(LineSender* ls, size_t packet_size, LineSenderPacketFn send, void* ctx);
+
+/* For the next line (BLE chunks grow after the MTU exchange); out of range
+ * sizes become LINE_SENDER_PACKET_MAX. */
+void line_sender_set_packet_size(LineSender* ls, size_t packet_size);
 
 /* Sends `line` (without its '\n') and the '\n'. TransportNotSent when the
  * host cannot get it, TransportMaybeSent when the host may hold all of it

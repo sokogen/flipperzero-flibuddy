@@ -178,12 +178,22 @@ not change. BLE carries the same NDJSON lines.
 - ➕ until Task 6, Bluetooth runs `transport_none` (never opens, never connected, `send_line` → not sent), so the USB port stays with the CLI; Task 6 swaps in `transport_ble` and keeps `transport_none` as the fallback when Bluetooth is unavailable
 
 ### Task 6: Flipper BLE profile, GATT service and transport
-- [ ] `flipper/src/ble_lines.{c,h}` (host-tested, no SDK): outbound chunking at `mtu - 3` (20 until an MTU exchange says more, never above 243), one notification in flight until the stack accepts the next, retry bookkeeping when the stack reports busy; inbound bytes into `line_buffer`
-- [ ] `flipper/src/ble_spoolbuddy_svc.{c,h}`: the profile template (`get_gap_config`: `bonding_mode = false`, `pairing_method = GapPairingNone`, MAC and name from `furi_hal_version_*`, `adv_service` set to the service UUID; `start`: `ble_gatt_service_add` plus RX (write with and without response, variable, 243) and TX (notify, variable, 243) with `ATTR_PERMISSION_NONE`, or `ATTR_PERMISSION_ENCRY_READ | ATTR_PERMISSION_ENCRY_WRITE` when `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` is 1; `stop`: delete them); an event handler registered with `ble_event_dispatcher_register_svc_handler` that turns RX attribute-modified events into received bytes, the TX CCCD write into "host subscribed", and the MTU exchange response into the chunk size
-- [ ] `flipper/src/transport_ble.c` implementing `Transport`: `open` records the Bt service, sets the status callback, `bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)`; `send_line` uses `ble_gatt_characteristic_update` on TX through `line_sender` and `ble_lines`; `is_connected` is `BtStatusConnected` and subscribed; `close` disconnects, restores the default profile and closes the record
-- [ ] `spoolbuddy_app.c`: pick the transport from `app_settings`; the hello is sent when the host subscribes to TX, as it is on USB DTR; the USB CLI stays untouched while BLE is selected
-- [ ] write C tests for `ble_lines` (chunk boundaries at 20 and 182 bytes, in-flight gating, busy retry, partial lines) and for the event decoding that is pure (attribute-modified payload → bytes, CCCD value → subscribed flag, MTU response → chunk size); `ufbt` builds the FAP
-- [ ] run all three suites - must pass before task 7
+- [x] `flipper/src/ble_lines.{c,h}` (host-tested, no SDK): outbound chunking at `mtu - 3` (20 until an MTU exchange says more, never above 243), one notification in flight until the stack accepts the next, retry bookkeeping when the stack reports busy; inbound bytes into `line_buffer`
+- [x] `flipper/src/ble_spoolbuddy_svc.{c,h}`: the profile template (`get_gap_config`: `bonding_mode = false`, `pairing_method = GapPairingNone`, MAC and name from `furi_hal_version_*`, `adv_service` set to the service UUID; `start`: `ble_gatt_service_add` plus RX (write with and without response, variable, 243) and TX (notify, variable, 243) with `ATTR_PERMISSION_NONE`, or `ATTR_PERMISSION_ENCRY_READ | ATTR_PERMISSION_ENCRY_WRITE` when `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` is 1; `stop`: delete them); an event handler registered with `ble_event_dispatcher_register_svc_handler` that turns RX attribute-modified events into received bytes, the TX CCCD write into "host subscribed", and the MTU exchange response into the chunk size
+- [x] `flipper/src/transport_ble.c` implementing `Transport`: `open` records the Bt service, sets the status callback, `bt_profile_start(bt, &spoolbuddy_ble_profile, NULL)`; `send_line` uses `ble_gatt_characteristic_update` on TX through `line_sender` and `ble_lines`; `is_connected` is `BtStatusConnected` and subscribed; `close` disconnects, restores the default profile and closes the record
+- [x] `spoolbuddy_app.c`: pick the transport from `app_settings`; the hello is sent when the host subscribes to TX, as it is on USB DTR; the USB CLI stays untouched while BLE is selected
+- [x] write C tests for `ble_lines` (chunk boundaries at 20 and 182 bytes, in-flight gating, busy retry, partial lines) and for the event decoding that is pure (attribute-modified payload → bytes, CCCD value → subscribed flag, MTU response → chunk size); `ufbt` builds the FAP
+- [x] run all three suites - must pass before task 7
+- ➕ the pure parts not named above live in `flipper/src/ble_wire.{c,h}` (host-tested): the UUIDs LSB first (a test checks them against the GATT table), the advertised name and address, and the decoding of raw ACI events by offset (the stack's own structs and codes are not in the SDK; codes copied from the STM32WB copro headers firmware 1.5.1 pins: attribute modified 0x0C01, MTU response 0x0C03, TX pool available 0x0C16, HCI disconnection complete 0x05)
+- ➕ the advertisement is 31 bytes: flags (3) and the 128-bit UUID (18) leave room for an 8-char name only, so the profile advertises the bare Flipper name (fallback "Flipper"), not "Flipper <name>"; GAP uses the same as the device name
+- ➕ the profile advertises with the Flipper's MAC with byte 2 XOR 0x5B, as the HID profile changes its MAC, so a central never mixes it up with the default profile's bonds and cached GATT table
+- ➕ `bt_profile_start` gets the service callbacks as its params (not NULL), so the event handler has its context from the first event
+- ➕ TX uses the SDK's callback data type: with the fixed type `ble_gatt_characteristic_update` always sends the full 243 bytes. In SDK 1.5.1 that function returns true on failure (`result != BLE_STATUS_SUCCESS`) after retrying a busy stack for up to a second; `spoolbuddy_ble_notify` inverts it, and `ble_lines` retries a busy answer up to 3 times, waiting for ACI_GATT_TX_POOL_AVAILABLE (100 ms timeout)
+- ➕ received bytes go from the BLE event thread through a stream buffer to a worker thread (as on USB), which frames them and decodes the messages; a CCCD write that turns notifications off or a disconnection ends the session (partial line and buffered bytes dropped, chunk back to 20)
+- ➕ `line_sender` gets `line_sender_set_packet_size` and a 243-byte packet buffer: the BLE transport sends each line in chunks of the current `mtu - 3`; the zero-length packet `line_sender` adds after a full last packet is a no-op in `ble_lines`
+- ➕ the app polls `transport_ble_status()` on every tick and reduces `AppEventBleStatus`, so the status line shows `BLE adv`; a backend that does not open (the radio stack did not start or does not support the profile) is freed and `transport_none` takes its place. With Bluetooth switched off in the Flipper's Settings the profile still starts but does not advertise: the status line shows `no host`; `application.fam` requires `bt`
+- ➕ the profile instance is static, not allocated: the Bt service reads the stopped profile's config while it switches to the next one
+- ➕ `ufbt` builds the FAP with `SPOOLBUDDY_BLE_REQUIRE_ENCRYPTION` 0 and 1 (APPCHK passes, API 88.2)
 
 ### Task 7: iOS app project with XcodeGen
 - [ ] `host/Apple/project.yml`: target `SpoolBuddyiOS` (iOS 26, iPhone and iPad), depends on the local package products `SpoolBuddyCore` and `SpoolBuddyUI`; `Info.plist` keys `NSBluetoothAlwaysUsageDescription`, `NSCameraUsageDescription`; bundle id `cool.bambuddy.spoolbuddy` placeholder; `Signing.xcconfig` is git-ignored and `Signing.example.xcconfig` carries `DEVELOPMENT_TEAM = `; CI builds with `CODE_SIGNING_ALLOWED=NO`
@@ -274,8 +284,8 @@ host/Sources/SpoolBuddyCore/Session/{SettingsSync,WatchSettingsSync,APIKeyQRPayl
 host/Sources/SpoolBuddyUI/Watch/            compact watch views
 host/Apple/project.yml, host/Apple/iOS/App.swift, host/Apple/Watch/App.swift,
 host/Apple/Signing.example.xcconfig
-flipper/src/app_settings.{c,h}, ble_lines.{c,h}, ble_spoolbuddy_svc.{c,h},
-transport_ble.c, scene_transport.c
+flipper/src/app_settings.{c,h}, ble_lines.{c,h}, ble_wire.{c,h}, ble_spoolbuddy_svc.{c,h},
+transport_ble.{c,h}, scene_transport.c
 ```
 
 ## Post-Completion
@@ -283,7 +293,10 @@ transport_ble.c, scene_transport.c
 
 **Manual verification** (owner, with the Flipper, the Mac, an iPhone, an iPad and the watch):
 - Flipper: Idle → OK → Transport: Bluetooth; the status line shows `BLE adv`.
-- Mac: Settings → Transport Bluetooth → Scan → pick "Flipper <name>"; no
+- Flipper with Bluetooth switched off in Settings → Bluetooth: the FAP on
+  Bluetooth shows `no host` (nothing advertises); switching it on there
+  and starting the FAP again brings `BLE adv`.
+- Mac: Settings → Transport Bluetooth → Scan → pick the Flipper by its name (the advertisement has room for the bare name only); no
   pairing prompt; status `BLE`; scan a spool and weigh it; compare with USB.
 - iPhone/iPad: `make apple-project`, open `host/Apple/SpoolBuddy.xcodeproj`
   in Xcode, sign with the personal team (free provisioning, 7-day
