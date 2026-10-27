@@ -1,5 +1,5 @@
-/* The Flipper app's screen flow as a pure reducer (docs/plans, "Flipper UI
- * spec"; the screens are numbered there).
+/* The Flipper app's screen flow as a pure reducer
+ * (docs/design/flipper-ui-spec.md; the screens are numbered there).
  *
  *   Waiting ⇄ Ready → Reading → LookingUp → Result{Known|UnknownPrefill|
  *   UnknownBare|Blank|NoHost} ⇄ Menu ⇄ Details / ConfirmDelete

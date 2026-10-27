@@ -262,8 +262,8 @@ Feedback (respecting Feedback / Sound settings):
 - [x] fix all issues (none found: all suites pass, FliBuddyCore coverage 91.1 %, tools 96.4 %, clean `ufbt` build without warnings)
 
 ### Task 9: [Final] Update documentation
-- [ ] add `docs/design/flipper-ui-spec.md` (the spec section above, kept current) and point `flipper/README.md` at it
-- [ ] update READMEs for protocol v2 and the new settings
+- [x] add `docs/design/flipper-ui-spec.md` (the spec section above, kept current) and point `flipper/README.md` at it
+- [x] update READMEs for protocol v2 and the new settings
 
 ## Post-Completion
 **Manual verification** on the real Flipper (firmware 1.5.1) with the Mac app
@@ -421,3 +421,9 @@ over USB and Bluetooth:
 - Task 7: the Python bridge pushes no lookup (it has no host actions), and
   its Mark as empty falls back to a 1000 g label when the spool has none,
   as its `spool.label` does.
+- Task 9: `docs/design/flipper-ui-spec.md` describes the app as built (the
+  wording and key map of `ui_frame.c` and `app_state.c`, the choices
+  recorded above), not the design as drawn; Result · no host is its own
+  screen there, so the numbers from Menu on are one higher than in the
+  spec section of this plan. `app_state.h` and `ui_frame.h` point at it.
+  The dated Phase 0 results in the root README keep their "Idle" wording.

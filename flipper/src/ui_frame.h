@@ -1,5 +1,5 @@
 /* What a Flipper screen shows, built from the app state without the SDK
- * (docs/plans, "Flipper UI spec"; the screens are numbered there).
+ * (docs/design/flipper-ui-spec.md; the screens are numbered there).
  *
  * The draw callback runs on the GUI thread, so it never reads AppState:
  * the app builds a UiFrame after every state change and every tick into
