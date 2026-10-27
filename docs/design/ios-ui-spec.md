@@ -35,6 +35,8 @@ them:
    typed or not (see "Owner decisions").
 2. *After New the row stays open for a first weight, "Created in Bambuddy"
    pre-filled to label + core.* Adopted, and extended by Auto-save new.
+   **Overridden (2026-10-27):** a Created row opens no entry until Set
+   weight… (see "Owner decisions").
 3. *Saved rows reopen on tap for a re-weigh; last save wins; the status
    says who saved.* Adopted.
 4. *The watch creates Bambu tags in one tap but cannot fill the form; other
@@ -64,6 +66,18 @@ They apply to every platform and override the design where they conflict.
     label + core and **New** and **Link to existing…** under it. Save
     creates the spool from the tag, then records the weight. Nothing reaches
     Bambuddy until New, Link or Save.
+  - **Superseded (owner, 2026-10-27, plan
+    `docs/plans/20261027-new-spool-card.md`): add by default, weight
+    optional.** Off, the row reads `New spool` (`plus.circle`, secondary)
+    and does not wait for a weight: no field, no focus, no number pad.
+    **Save as new** (prominent) creates the spool from the tag, full;
+    **Save with weight…** reveals the entry and focuses it, and its Save
+    creates the spool, then records the weight; **Link to existing…** as
+    before. On, the row reads `Created in Bambuddy` and does not wait
+    either: **Set weight…** (prominent) reveals the entry, whose Save
+    records the weight, and **Link to existing…**. Cancel hides a revealed
+    entry without saving. A Flipper request still makes the asked action
+    prominent.
 - **Known spools:** a weight that comes in (from the Flipper) is saved at
   once. The Flipper's actions Mark as new (`full`), Mark as empty (`empty`,
   archives) and Delete (`delete`) show on the row. An archived spool
@@ -199,7 +213,7 @@ the entry states of the table below:
 | Net / Gross | segmented, full width, height 32, capsule track; labels 14 sb. |
 | Readout | `.footnote.monospacedDigit()` `.secondary` (13): `Saves 590 g left · 915 − 325 g core` (gross), `Saves 590 g left` (net), `Type the scale reading` (empty), `Below the core weight (325 g)` in `.red`. |
 | Save | full width, height 50, `.borderedProminent`, capsule, `.headline` (17 sb): `Save` / `Saving…`; disabled (45 % look) when empty, below the core or saving. |
-| Actions | when the state offers New / Link: a row of two equal capsules, height 44, 10 apart, 15 sb. The prominent one is `.tint` with white text, the other `tertiarySystemFill` with `.tint` text. |
+| Actions | New spool and Created cards (entry hidden): the lead action (**Save as new** / **Set weight…**) full width, height 50, `.borderedProminent` capsule, 17 sb, over the others (**Save with weight…**, **Link to existing…**) as equal capsules, height 44, 10 apart, 15 sb. A revealed entry: **Cancel** and **Link to existing…** as the 44 pt capsules under Save. Other rows that offer actions (New… / Save as new and Link): a row of two equal 44 pt capsules, the prominent one `.tint` with white text, the other `tertiarySystemFill` with `.tint` text. |
 
 A row without an entry block or actions has a minimum height of 76.
 
@@ -218,17 +232,17 @@ Same model and texts as the macOS table; only the entry column differs.
 | Saving | `Saving…` | spinner | secondary | entry, disabled |
 | Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | none; tap reopens |
 | Timeout | `Saved 590 g left · by host` + timeout note | `checkmark.circle.fill` | green | none; tap reopens |
-| Creating (after New) | `Creating in Bambuddy…` | spinner | secondary | none |
-| Created (Auto-save new on, or after New) | `Created in Bambuddy` | `plus.circle.fill` | green | entry pre-filled label + core, focused; `Link to existing…` as a plain `.footnote` button right of the readout (moves the tag, deletes the created spool) |
-| Error | `Error: Bambuddy unreachable` (any message) | `exclamationmark.triangle.fill` | red text | entry, value kept for retry |
-| Not in Bambuddy, Bambu tag (Auto-save new off) | `Not in Bambuddy` | `questionmark.circle` | secondary | entry pre-filled label + core, focused; Save creates the spool, then records the weight; actions **New** (prominent) · **Link to existing…** under Save |
+| Created (Auto-save new on, or after Save as new or New…) | `Created in Bambuddy` | `plus.circle.fill` | green | no entry, never focused; lead **Set weight…** · capsule **Link to existing…** (moves the tag, deletes the created spool). Set weight… reveals the entry, pre-filled label + core, focused; its Save records the weight |
+| Error | `Error: Bambuddy unreachable` (any message) | `exclamationmark.triangle.fill` | red text | entry, value kept for retry; on a New spool or Created card whose entry is hidden, the card's buttons stay as the retry |
+| New spool, Bambu tag (Auto-save new off) | `New spool` | `plus.circle` | secondary | no entry, never focused, no number pad; lead **Save as new** (creates the spool from the tag, full) · capsules **Save with weight…** · **Link to existing…**. Save with weight… reveals the entry, pre-filled label + core, focused; its Save creates the spool, then records the weight |
+| Revealed entry (New spool or Created) | the row's status | as the row | as the row | entry, focused; capsules **Cancel** · **Link to existing…** under Save; Cancel hides the entry without saving |
 | Not in Bambuddy, no material | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | actions **New…** (prominent, opens the form) · **Link to existing…** |
-| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | as Not in Bambuddy, **New** / **New…** prominent |
-| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | as Not in Bambuddy, **Link to existing…** first and prominent |
+| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | as New spool (lead **Save as new**), or **New…** prominent without material |
+| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | as New spool or no material, **Link to existing…** first and prominent (the lead on a New spool card) |
 | Updating (a Flipper action under way) | `Updating…` | spinner | secondary | entry disabled, if it was open |
 | Marked as new | `Marked as new · 1000 g left · by Flipper` | `arrow.counterclockwise.circle.fill` | green | none; tap reopens |
 | Marked as empty | `Marked as empty · archived · by Flipper`; colour line ends `· archived` | `archivebox` | secondary | none; tap reopens (a Save restores the spool) |
-| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | actions **New** · **Link to existing…**, no entry |
+| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | actions **Save as new** (tag with material) or **New…** (without) · **Link to existing…**, no entry |
 | Archived spool scanned | `Enter weight`; colour line ends `· archived` | `scalemass` | blue | entry; Save restores the spool, then records the weight |
 
 A weight saved from the Flipper on a row the iPhone shows as waiting turns
@@ -249,7 +263,8 @@ it into `Saved … · by Flipper` and drops the iPhone's draft.
   sends today (gross to Bambuddy).
 - After a successful save the row shows `Saved n g left · by host`, keeps
   the value as the new base, and focus moves to the newest row that still
-  waits for a weight. With none, the pad lowers.
+  waits for a weight (Enter weight, or a revealed New spool or Created
+  entry). With none, the pad lowers.
 - Focus never steals from a field the user is typing in (`touched`): the
   new row only gets a 2 pt `.tint` outline and waits.
 
@@ -257,9 +272,11 @@ it into `Saved … · by Flipper` and drops the iPhone's draft.
 
 "Correct suggestion: 1 tap. Otherwise: digits + 1 tap."
 
-1. A row turns Enter weight (or Created, or Not in Bambuddy for a Bambu
-   tag). The list scrolls it to the top and its field takes focus; the
-   system number pad (`.numberPad`) rises with the suggestion selected.
+1. A row turns Enter weight, or Save with weight… / Set weight… reveals
+   the entry of a New spool or Created card (a New spool or Created row
+   alone raises nothing). The list scrolls it to the top and its field
+   takes focus; the system number pad (`.numberPad`) rises with the
+   suggestion selected.
 2. The first key replaces the selection (a lone `0` is replaced too); ⌫
    (`delete.left`) deletes one digit; at most four digits (0…9999).
 3. Net/Gross sits under the field and converts the number.
@@ -412,7 +429,7 @@ feed and Form · `secondarySystemGroupedBackground` the row card ·
 the swatch stroke.
 
 SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
-`checkmark.circle.fill`, `plus.circle.fill`, `questionmark.circle`,
+`checkmark.circle.fill`, `plus.circle`, `plus.circle.fill`, `questionmark.circle`,
 `exclamationmark.triangle.fill`, `xmark.circle.fill`,
 `dot.radiowaves.left.and.right`, `antenna.radiowaves.left.and.right`,
 `antenna.radiowaves.left.and.right.slash`, `app.dashed`, `server.rack`,
@@ -446,6 +463,8 @@ departs from this file, the next section says how and why. What changed:
 12. Clear: `trash` button, `Clear feed` in the dialog.
 13. Watch sync after each applied change, debounced.
 14. Not-in-Bambuddy rows: New / Link as 44 pt capsules under Save.
+    Superseded on 2026-10-27 by the New spool card (plan
+    `docs/plans/20261027-new-spool-card.md`): see the row table.
 
 ## Implemented differently (2026-10-27)
 
@@ -471,13 +490,23 @@ Feed row, number pad and focus
 - The card is the row of its own inset-grouped `Section` with 16 pt row
   insets; the waiting-row hint is a 2 pt `.tint` stroke on the card's row
   background (24 pt continuous corner), not on the field. By eye.
-- Save and the New / Link capsules are stock `.borderedProminent` /
+- Save, the lead button and the capsules are stock `.borderedProminent` /
   `.bordered` buttons with `.buttonBorderShape(.capsule)` at
   `.controlSize(.large)`; the label's minimum height (36 / 30) gives about
   50 / 44 pt rather than an exact frame. The non-prominent capsule is the
   bordered style's tinted fill rather than `tertiarySystemFill`. By eye.
-- The capsules show no spinner of their own: the row's status line shows
-  `Creating in Bambuddy…` with its spinner while New or Link runs.
+- While Save as new, New or Link runs, the buttons dim; there is no
+  spinner and the status keeps its phrase (the design's `Creating in
+  Bambuddy…` row is the watch's only). After Save as new the card reads
+  `Created in Bambuddy` with Set weight… and Link to existing…; a failed
+  one keeps the card for a retry. While the Flipper weighs a New spool
+  the card reads `Saving…` with no field and no buttons.
+- The revealed field takes the keyboard as soon as it appears, also from
+  a row the user is typing in. Cancel drops the draft and moves focus to
+  the next row that waits; a failed save keeps the entry and the value.
+  On a Created row Link to existing… moved from beside the readout to a
+  capsule under Save, next to Cancel. By eye: the pad rises after Save
+  with weight… / Set weight….
 - Select-all on focus sets the field's `TextSelection` to the whole value
   one turn after the field takes the keyboard, so the caret the tap placed
   does not win; a Net/Gross switch reselects a converted suggestion. A tap
@@ -494,7 +523,7 @@ Feed row, number pad and focus
   `sheetClosed()`), and the focused row's field takes the pad back when the
   last one closes.
 - The success haptic plays after a save from the host; the error haptic
-  after any failed host action (save, New, Link), as `FeedViewModel.haptic`
+  after any failed host action (save, Save as new, New, Link), as `FeedViewModel.haptic`
   events. A save from the Flipper plays nothing on the iPhone.
 - The timeout note's symbol and text are a `Label` 4 pt under the status.
 - Tag details opens from the card's context menu and the VoiceOver action

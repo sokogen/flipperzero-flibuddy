@@ -116,10 +116,16 @@ minimum height of 64; the iPad page draws field 100, Net/Gross 120 and 76.
 This file follows the iPad page, which is the drawn and interactive mock-up
 and leaves the flexible status column room for the readout.
 
-On a `Not in Bambuddy` Bambu row and on Created, the secondary buttons
-(**New**, **Link to existing…**) do not fit beside the entry: they go as
-plain `.footnote` buttons under the short readout in the status column
-(builder's call; the design has no row with both).
+New spool card (owner, 2026-10-27; behaviour in `ios-ui-spec.md`): a
+`New spool` row shows **Save as new** (prominent) and **Save with
+weight…** as the pills in the trailing column, a `Created in Bambuddy` row
+**Set weight…** (prominent); neither has a field or takes focus. Their
+**Link to existing…** does not fit beside the pills or the entry: it goes
+as a plain `.footnote` button under the status, where **Cancel** joins it
+while Save with weight… / Set weight… has revealed the entry in the
+trailing column (builder's call; the design has no row with both). Esc
+hides a revealed entry with a hardware keyboard; with touch, Cancel
+does.
 
 The focused row's background is the selection tint. A tap on a saved row
 reopens it. A row waiting behind a touched field gets the 2 pt `.tint`
@@ -129,9 +135,11 @@ outline, as on the Mac.
 
 "Hardware keyboard: same as macOS. Touch: same as iPhone."
 
-1. Landscape: the newest Enter weight row focuses its inline field with the
-   suggestion selected (the same focus model as the Mac and iPhone; it
-   never steals from a touched field).
+1. Landscape: the newest Enter weight row, or a revealed New spool or
+   Created entry, focuses its inline field with the suggestion selected
+   (the same focus model as the Mac and iPhone; it never steals from a
+   touched field). A New spool or Created row with the entry hidden takes
+   no focus.
 2. With a hardware keyboard: type, ⇥ to Net/Gross, ⌘S or Return saves.
    Holding ⌘ shows the shortcut overlay (the commands below are declared as
    menu commands so they appear there).
@@ -224,10 +232,14 @@ Sidebar
 Feed table
 - The focused row's background is the tint at 15 % rather than a `List`
   selection, so a tap in the row never fights the weight field. By eye.
-- A row with no entry (a tag without material, a deleted spool) shows New
-  and Link to existing… as the 44 pt capsules in the trailing column; the
-  footnote buttons under the readout are for rows with an entry
-  (`Not in Bambuddy` with material, Created).
+- A row with no entry and no card (a tag without material, a deleted
+  spool) shows New… or Save as new and Link to existing… as the 44 pt
+  capsules in the trailing column, the first (or the one the Flipper
+  asked for) tinted. A New spool or Created row puts Link to existing…
+  (and Cancel, while revealed) under the status (`FeedItem.tableStatusActions`)
+  and its other actions in the trailing column
+  (`tableTrailingActions`); when the Flipper asked for Link, the footnote
+  Link is semibold and no pill is tinted.
 - Save is the stock `.borderedProminent` capsule with a 30 pt label
   minimum height (about 44 pt), not an exact frame. By eye.
 

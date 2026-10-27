@@ -1,16 +1,21 @@
 import Foundation
 
 /// Which body the watch's row detail shows under its header (watch spec,
-/// "Row detail"): the weight entry, the saved result, an unknown tag, or a
-/// spinner while the row is looked up or created.
+/// "Row detail"): the weight entry, the saved result, the new spool card, an
+/// unknown tag, or a spinner while the row is looked up or created.
 public enum WatchRowScreen: Equatable, Sendable {
-    /// The crown entry; `offersNew` puts New under Save (a Not in Bambuddy
-    /// Bambu tag, whose Save also creates the spool).
-    case entry(offersNew: Bool)
+    /// The crown entry; `offersCancel` puts Cancel under Save (a New spool's
+    /// or a Created row's entry that With weight / Set weight opened).
+    case entry(offersCancel: Bool)
     /// Saved, Timeout, Marked as new / empty: the result and Weigh again.
     case saved
-    /// No spool and no entry: the phrase, a hint where the phone or Mac has
-    /// to act, and New in one tap for a tag with material.
+    /// A New spool (Save as new, With weight) or a Created row (Set
+    /// weight): the colour line, the weight, the status, a hint where the
+    /// phone or Mac has to act, and the buttons; `prominent` is blue.
+    case card(hint: String?, actions: [FeedItem.RowAction], prominent: FeedItem.RowAction?)
+    /// No spool and no entry (a tag without material, a deleted spool): the
+    /// phrase, a hint where the phone or Mac has to act, and Save as new in
+    /// one tap for a tag with material.
     case unknown(hint: String?, offersNew: Bool)
     /// A spinner and the phrase.
     case busy(String)
@@ -20,29 +25,34 @@ public enum WatchRowScreen: Equatable, Sendable {
     public static let linkHint = "Link it on iPhone or Mac."
     public static let turnTheCrownText = "Turn the crown"
 
-    /// `isCreating`: New on the watch is on its way to Bambuddy.
+    /// `isCreating`: Save as new on the watch is on its way to Bambuddy.
     public init(_ item: FeedItem, isCreating: Bool) {
         if isCreating {
             self = .busy(Self.creatingText)
         } else if item.isEntry {
-            self = .entry(offersNew: item.savesNewSpool)
+            self = .entry(offersCancel: item.offersCancel)
         } else if item.isReopenable {
             self = .saved
         } else if item.statusSymbol == .progress {
             self = .busy(item.statusText)
+        } else if item.revealsEntry {
+            // Link is for the phone or the Mac.
+            let actions = item.rowActions.filter { $0 != .link }
+            let prominent = item.prominentRowAction.flatMap { actions.contains($0) ? $0 : nil }
+            self = .card(hint: item.prominentRowAction == .link ? Self.linkHint : nil, actions: actions, prominent: prominent)
         } else {
             // A link request wins: the Flipper asked for something only the
             // phone or the Mac can do.
             let hint: String? = if item.isDeleted {
                 nil
-            } else if item.prominentAction == .link {
+            } else if item.prominentRowAction == .link {
                 Self.linkHint
-            } else if item.newAction == .form {
+            } else if item.rowActions.contains(.newForm) {
                 Self.createHint
             } else {
                 nil
             }
-            self = .unknown(hint: hint, offersNew: item.newAction == .fromTag)
+            self = .unknown(hint: hint, offersNew: item.rowActions.contains(.saveAsNew))
         }
     }
 

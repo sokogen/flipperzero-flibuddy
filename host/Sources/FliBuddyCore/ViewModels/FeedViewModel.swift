@@ -66,6 +66,8 @@ public final class FeedViewModel {
     }
 
     private let session: Session
+    /// The session's rows, newest last.
+    private var sessionRows: [FeedRow] = []
     private var rows: [FeedRow.ID: FeedRow] = [:]
     private var itemsByID: [FeedRow.ID: FeedItem] = [:]
     /// What the user typed; absent while the field shows the suggestion.
@@ -76,6 +78,9 @@ public final class FeedViewModel {
     /// Rows that waited for a weight, or were saving one, at the last snapshot.
     private var waitingIDs: Set<FeedRow.ID> = []
     private var entryIDs: Set<FeedRow.ID> = []
+    /// New spool and Created rows whose entry Save with weight… / Set
+    /// weight… showed; a row that leaves those states forgets it.
+    private var revealedIDs: Set<FeedRow.ID> = []
 
     public init(session: Session, settings: Settings) {
         self.session = session
@@ -91,17 +96,27 @@ public final class FeedViewModel {
 
     public func apply(_ snapshot: SessionSnapshot) {
         // The session keeps rows by last scan, newest last.
-        items = snapshot.rows.reversed().map { FeedItem($0, coreWeight: settings.coreWeight) }
+        sessionRows = snapshot.rows
         rows = Dictionary(uniqueKeysWithValues: snapshot.rows.map { ($0.id, $0) })
-        itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        revealedIDs = revealedIDs.filter { rows[$0].map(FeedItem.revealsEntry) == true }
         bambuddy = snapshot.bambuddy
         colorNamesProblem = snapshot.colorNamesProblem
         isCheckingBambuddy = snapshot.isCheckingBambuddy
         for id in Set(weightTexts.keys).union(modes.keys).union(errors.keys) where rows[id] == nil {
             forget(id)
         }
-        // A row that left weight entry (saved, also from the Flipper, or
-        // scanned again) drops the host's draft.
+        refresh()
+    }
+
+    /// Builds the items from the session's rows and the reveals, drops the
+    /// drafts of rows that left weight entry and moves focus.
+    private func refresh() {
+        items = sessionRows.reversed().map {
+            FeedItem($0, coreWeight: settings.coreWeight, entryRevealed: revealedIDs.contains($0.id))
+        }
+        itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
+        // A row that left weight entry (saved, also from the Flipper, scanned
+        // again, or its entry hidden) drops the host's draft.
         for id in Set(weightTexts.keys).union(modes.keys) where itemsByID[id]?.isEntry != true {
             weightTexts[id] = nil
             modes[id] = nil
@@ -295,6 +310,34 @@ public final class FeedViewModel {
 
     private func focusRows() -> [FocusModel.Row] {
         items.map { FocusModel.Row(id: $0.id, isWaiting: $0.isWaiting, isTouched: weightTexts[$0.id] != nil) }
+    }
+
+    // MARK: New spool and Created rows
+
+    /// Save with weight… / Set weight…: shows the row's entry and gives it
+    /// the keyboard, even from a row the user is typing in.
+    public func revealEntry(_ id: FeedRow.ID) {
+        guard let row = rows[id], FeedItem.revealsEntry(row), !revealedIDs.contains(id) else { return }
+        revealedIDs.insert(id)
+        refresh()
+        focus.focus(id)
+    }
+
+    /// Esc / Cancel: hides the revealed entry without saving and drops its
+    /// draft; focus moves on as after a save.
+    public func hideEntry(_ id: FeedRow.ID) {
+        guard revealedIDs.remove(id) != nil else { return }
+        let wasFocused = focus.focusedRow == id
+        refresh()
+        if wasFocused { focus.focus(focus.nextWaitingRow(excluding: id) ?? id) }
+    }
+
+    /// Save as new: creates the spool from the tag, full, without a weight.
+    public func saveAsNew(_ id: FeedRow.ID) async -> Bool {
+        guard itemsByID[id]?.rowActions.contains(.saveAsNew) == true else { return false }
+        guard await createFromTag(id) else { return false }
+        play(.success)
+        return true
     }
 
     // MARK: Unknown tags

@@ -355,8 +355,9 @@ struct FeedRowView: View {
 
     #if os(iOS)
     /// Swatch 28 · title 150 · colour 112 · remaining 140 · status
-    /// (flexible, the short readout and New / Link under it) · entry or
-    /// actions; 12 apart, at least 76 high with the row's padding.
+    /// (flexible, the short readout, Cancel and Link to existing… under it)
+    /// · entry or action pills; 12 apart, at least 76 high with the row's
+    /// padding.
     private var tableContent: some View {
         HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
@@ -391,19 +392,15 @@ struct FeedRowView: View {
                         .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                         .lineLimit(1)
                 }
-                if item.offersLinkExisting {
-                    LinkExistingButton(feed: feed, item: item)
-                        .font(.footnote)
-                        .buttonStyle(.borderless)
-                } else if item.isEntry && item.offersUnknownActions {
-                    UnknownRowActions(feed: feed, item: item, style: .compact)
+                if item.offersCancel || !item.tableStatusActions.isEmpty {
+                    RowActions(feed: feed, item: item, style: .compact)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if item.isEntry {
                 WeightEntry(feed: feed, item: item, focusedField: focusedField)
-            } else if item.offersUnknownActions {
-                UnknownRowActions(feed: feed, item: item, style: .pills)
+            } else if !item.tableTrailingActions.isEmpty {
+                RowActions(feed: feed, item: item, style: .pills)
             }
         }
         .frame(minHeight: 56)
@@ -419,7 +416,7 @@ struct FeedRowView: View {
                 .onTapGesture {
                     if !item.isReopenable { focusedField.wrappedValue = nil }
                 }
-            if item.isEntry || item.offersUnknownActions {
+            if item.isEntry || !item.rowActions.isEmpty {
                 trailing
             }
         }
@@ -502,11 +499,12 @@ struct FeedRowView: View {
     @ViewBuilder private var trailing: some View {
         if item.isEntry {
             WeightEntry(feed: feed, item: item, focusedField: focusedField)
-        } else if item.offersUnknownActions {
+        } else if !item.rowActions.isEmpty {
+            // A New spool or Created row, or a tag no spool carries.
             #if os(macOS)
-            UnknownRowActions(feed: feed, item: item)
+            RowActions(feed: feed, item: item)
             #else
-            UnknownRowActions(feed: feed, item: item, style: .capsules)
+            RowActions(feed: feed, item: item, style: .card)
             #endif
         } else {
             // Saved, timed out or looking up: the space stays empty.
@@ -550,12 +548,12 @@ extension StatusTint {
 }
 
 /// Weight field with its "g" unit, Net/Gross and Save, the readout under the
-/// field, and Link to existing… on a row created on scan, or New and Link to
-/// existing… on a tag no spool carries (Save then creates the spool and
-/// records the weight). macOS lays it out on one line (Tab goes field → mode
-/// → Save in view order); iOS stacks it full width with the number pad, and
-/// beside the iPad sidebar puts field · g · Net/Gross · Save on one line (the
-/// row shows the readout under its status).
+/// field, and on a revealed New spool or Created entry Cancel (Esc) and Link
+/// to existing… (a New spool's Save creates the spool and records the
+/// weight). macOS lays it out on one line (Tab goes field → mode → Save in
+/// view order); iOS stacks it full width with the number pad, and beside the
+/// iPad sidebar puts field · g · Net/Gross · Save on one line (the row shows
+/// the readout, Cancel and Link under its status).
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -635,13 +633,8 @@ struct WeightEntry: View {
             HStack(spacing: 8) {
                 readout
                 Spacer(minLength: 0)
-                if item.offersLinkExisting {
-                    LinkExistingButton(feed: feed, item: item)
-                        .buttonStyle(.link)
-                        .font(.footnote)
-                        .controlSize(.small)
-                } else if item.offersUnknownActions {
-                    UnknownRowActions(feed: feed, item: item, style: .compact)
+                if item.offersCancel || !item.rowActions.isEmpty {
+                    RowActions(feed: feed, item: item, style: .compact)
                 }
             }
         }
@@ -673,6 +666,9 @@ struct WeightEntry: View {
         // AppKit selects the field's text on focus, so the first keystroke
         // replaces the suggestion.
         .onSubmit { Task { await feed.save(id) } }
+        // Esc hides a revealed entry; a known spool's stays.
+        .onExitCommand(perform: item.offersCancel ? { feed.hideEntry(id) } : nil)
+        .takesRevealFocus(feed: feed, id: id, focusedField: focusedField)
     }
     #else
     /// Field 100 × 44 · `g` · Net/Gross 120 × 34 · Save 44 high, 8 apart;
@@ -704,8 +700,8 @@ struct WeightEntry: View {
         .disabled(feed.isSaving(id))
     }
 
-    /// Field, Net / Gross, readout, Save, then New / Link to existing… as
-    /// capsules on a tag no spool carries; 10 pt apart.
+    /// Field, Net / Gross, readout, Save, then Cancel and Link to existing…
+    /// as capsules on a revealed New spool or Created entry; 10 pt apart.
     private var stackedBody: some View {
         let id = item.id
         return VStack(alignment: .leading, spacing: 10) {
@@ -715,13 +711,7 @@ struct WeightEntry: View {
                 .disabled(feed.isSaving(id))
             modePicker
                 .disabled(feed.isSaving(id))
-            HStack(spacing: 8) {
-                readout
-                Spacer(minLength: 0)
-                if item.offersLinkExisting {
-                    LinkExistingButton(feed: feed, item: item).font(.footnote)
-                }
-            }
+            readout
             Button {
                 Task { await feed.save(id) }
             } label: {
@@ -734,8 +724,8 @@ struct WeightEntry: View {
             .controlSize(.large)
             .disabled(!feed.canSave(id))
             .accessibilityHint(saveHelp)
-            if item.offersUnknownActions {
-                UnknownRowActions(feed: feed, item: item, style: .capsules)
+            if item.offersCancel || !item.rowActions.isEmpty {
+                RowActions(feed: feed, item: item, style: .card)
             }
         }
     }
@@ -781,6 +771,8 @@ struct PadWeightField: View {
         .contentShape(.rect(cornerRadius: 12))
         .onTapGesture { focusedField.wrappedValue = id }
         .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
+        .hidesRevealedEntryOnEscape(feed: feed, item: item)
+        .takesRevealFocus(feed: feed, id: id, focusedField: focusedField)
     }
 }
 
@@ -804,6 +796,15 @@ extension View {
         .onChange(of: mode) {
             // A converted suggestion stays selected; a typed number keeps its caret.
             if focused && !feed.draft(for: id).touched { selectAll() }
+        }
+    }
+
+    /// Esc on a hardware keyboard hides a revealed entry; a known spool's stays.
+    func hidesRevealedEntryOnEscape(feed: FeedViewModel, item: FeedItem) -> some View {
+        onKeyPress(.escape) {
+            guard item.offersCancel else { return .ignored }
+            feed.hideEntry(item.id)
+            return .handled
         }
     }
 }
@@ -857,9 +858,22 @@ struct PhoneWeightField: View {
         // A tap anywhere in the box, not only on the digits, takes the pad.
         .onTapGesture { focusedField.wrappedValue = id }
         .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
+        .hidesRevealedEntryOnEscape(feed: feed, item: item)
+        .takesRevealFocus(feed: feed, id: id, focusedField: focusedField)
     }
 }
 #endif
+
+extension View {
+    /// Save with weight… / Set weight… focus the row before its field
+    /// exists, so the feed's change of focus finds no field: the field takes
+    /// the keyboard as it appears.
+    func takesRevealFocus(feed: FeedViewModel, id: FeedRow.ID, focusedField: FocusState<FeedRow.ID?>.Binding) -> some View {
+        onAppear {
+            if feed.focusedField == id { focusedField.wrappedValue = id }
+        }
+    }
+}
 
 #if os(macOS)
 /// The Flipper item and the Bambuddy item, each a symbol and a phrase with

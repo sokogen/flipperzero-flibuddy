@@ -55,6 +55,21 @@ action, no weight entry":
   moves the tag to the chosen spool and deletes the spool created on scan
   (builder's call; `DELETE /inventory/spools/{id}` exists). If the delete
   fails the row says the spool was left in the inventory.
+  **Superseded (owner, 2026-10-27, plan
+  `docs/plans/20261027-new-spool-card.md`):** a new spool opens a card, not
+  a weight entry; see the next decision.
+- **New spool card (owner, 2026-10-27): add by default, weight optional.**
+  With Auto-save new off, an unknown Bambu tag (one with material) reads
+  `New spool` (`plus.circle`, secondary). The row does not wait for a
+  weight: no field, no focus. **Save as new** (prominent) creates the spool
+  from the tag, full; **Save with weight…** reveals the weight entry on the
+  row and focuses it, and its Save creates the spool, then records the
+  weight; **Link to existing…** as before. With Auto-save new on, the row
+  reads `Created in Bambuddy` and does not wait either: **Set weight…**
+  (prominent) reveals the entry, whose Save records the weight, and
+  **Link to existing…** keeps its semantics. Esc or Cancel hides a revealed
+  entry without saving. A Flipper request (`create_on_host` /
+  `link_on_host`) still makes the asked action prominent.
 - **Known spools go straight to weight entry**, as today.
 - **Several scans per session are allowed** and every row stays editable.
   This is a secondary flow with more room for human error (identical
@@ -142,17 +157,18 @@ identifiers monospaced and selectable. Done closes it. The same
 | Saving | `Saving…` | `ProgressView` | secondary | yes, disabled |
 | Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | no; click reopens for a re-weigh |
 | Timeout | `Saved 590 g left · by host` + note | `checkmark.circle.fill` | green | no; reopenable |
-| Created | `Created in Bambuddy` | `plus.circle.fill` | green | yes, pre-filled label + core, focused; secondary **Link to existing…** (moves the tag, deletes the created spool) |
-| Error | `Error: Bambuddy unreachable` | `exclamationmark.triangle.fill` | red text | yes, value kept for retry |
-| Not in Bambuddy (Bambu tag, Auto-save new off) | `Not in Bambuddy` | `questionmark.circle` | secondary | yes, pre-filled label + core (Settings), focused; Save creates the spool, then records the weight; **New** · **Link to existing…** under the field |
+| Created | `Created in Bambuddy` | `plus.circle.fill` | green | no; **Set weight…** (prominent) · **Link to existing…** (moves the tag, deletes the created spool). Set weight… reveals the entry, pre-filled label + core, focused; its Save records the weight |
+| Error | `Error: Bambuddy unreachable` | `exclamationmark.triangle.fill` | red text | yes, value kept for retry; on a New spool or Created card whose entry is hidden, the card's buttons stay as the retry |
+| New spool (Bambu tag, Auto-save new off) | `New spool` | `plus.circle` | secondary | no, never focused; **Save as new** (prominent, creates the spool from the tag, full) · **Save with weight…** · **Link to existing…**. Save with weight… reveals the entry, pre-filled label + core (Settings), focused; its Save creates the spool, then records the weight |
+| Revealed entry (New spool or Created) | the row's status | as the row | as the row | yes, focused; link-style **Cancel** (Esc) and **Link to existing…** right of the readout; Cancel hides the entry without saving |
 | Not in Bambuddy (no material) | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (form) · **Link to existing…** |
 | Updating | `Updating…` (Mark as new / empty or Delete from the Flipper) | `ProgressView` | secondary | yes, disabled |
 | Marked as new | `Marked as new · 1000 g left · by Flipper` | `arrow.counterclockwise.circle.fill` | green | no; reopenable |
 | Marked as empty | `Marked as empty · archived · by Flipper`; the colour column reads `Jade White · archived` | `archivebox` | secondary | no; reopenable (a Save restores the spool) |
-| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | **New** · **Link to existing…** |
+| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | **Save as new** (tag with material) or **New…** (without) · **Link to existing…** |
 | Archived spool scanned again | `Enter weight`; the colour column reads `… · archived` | `scalemass` | blue | yes; Save restores the spool, then records the weight |
-| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | **New** prominent · Link |
-| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | **Link to existing…** prominent · New |
+| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | as New spool, **Save as new** prominent; without material **New…** prominent · Link |
+| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | as New spool (or New… · Link without material), **Link to existing…** first and prominent |
 
 ### Weight rules (from the prototype model)
 
@@ -167,8 +183,10 @@ identifiers monospaced and selectable. Done closes it. The same
 - `net = gross − core` in gross mode; Save sends gross to Bambuddy as today.
 - After a successful save the row shows `Saved n g left · by host`, keeps the
   value as the new base, and focus moves to the next newest row that still
-  waits for a weight (Enter weight or Created). If none, the selection stays
-  and the next scan takes focus.
+  waits for a weight (Enter weight, or a New spool or Created row whose
+  entry Save with weight… / Set weight… revealed); New spool and Created
+  rows with the entry hidden never take focus. If none, the selection
+  stays and the next scan takes focus.
 - Focus never steals from a field the user is typing in (`touched`): the new
   row gets a blue focus hint and waits.
 - Digits only, at most four; leading zeros drop, so a digit typed after a
@@ -186,6 +204,7 @@ identifiers monospaced and selectable. Done closes it. The same
 | Action | Keys |
 |---|---|
 | Save focused row | ⌘S or Return in the field |
+| Hide a revealed entry (New spool, Created) without saving | Esc in the field |
 | Clear feed (with confirmation) | ⌘⌫ |
 | Settings | ⌘, |
 | Field → mode → Save | ⇥ (⇧⇥ back) |
@@ -292,7 +311,7 @@ ready), `.orange` (warnings: timeout, advertising, no hello), `.gray`
 (searching, not checked); backgrounds and fills are the system grouped
 backgrounds and `tertiarySystemFill`; `.separator` for the swatch stroke.
 
-SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
+SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle`, `plus.circle.fill`,
 `questionmark.circle`, `exclamationmark.triangle.fill`, `xmark.circle.fill`,
 `dot.radiowaves.left.and.right`, `antenna.radiowaves.left.and.right`,
 `antenna.radiowaves.left.and.right.slash`, `cable.connector`, `app.dashed`,
@@ -331,6 +350,9 @@ a typed number too (items 1 and 3 below are superseded there).
     Flipper's Auto-save new is on; the row opens as `Created in Bambuddy`
     with label + core pre-filled; Save sends the weight separately. With
     Auto-save new off the row reads `Not in Bambuddy` (see the row table).
+    Superseded on 2026-10-27 by the new spool card (`New spool`, Save as
+    new by default; Created opens no entry until Set weight…), plan
+    `docs/plans/20261027-new-spool-card.md`.
 12. Rescanning a tag moves its row to the top and reopens it; newest first.
 
 ## Implemented differently (2026-10-26)
@@ -360,17 +382,15 @@ Feed row
   semibold.
 - The scan time is the row's tooltip, not a column. Saved rows reopen on a
   click; VoiceOver gets a "Re-weigh" action for the same thing.
-  **Link to existing…** on a Created row sits right of the readout line.
 - "Saved … by host" after a Flipper timeout is approximate: the host
   measures its own latency from the intent to the `result` against the
   Flipper's 10 s, since it cannot see the Flipper's clock.
 - A row whose spool is being created on scan stays "Looking up" until the
-  create returns, rather than flashing "Not in Bambuddy" with New and Link.
-  A failed create shows "Error: <reason>" with **New** (one step, from the
-  tag) and **Link to existing…** as the retry.
-- "Not in Bambuddy" also covers a tag with material that has no spool any
-  more (e.g. the link after deleting the created spool failed): the same
-  weight entry with the one-step **New** and **Link to existing…**.
+  create returns, rather than flashing "New spool" with its buttons. A
+  failed create shows "Error: <reason>" with the New spool card's buttons
+  (Save as new, Save with weight…, Link to existing…) as the retry.
+- "New spool" also covers a tag with material that has no spool any more
+  (e.g. the link after deleting the created spool failed): the same card.
   "Error: <reason>" carries the session's message, of which "Bambuddy
   unreachable" is one.
 - **Link to existing…** on a Created row deletes the spool created on scan
@@ -404,32 +424,45 @@ Status bar
   "nearby" is not probed, and nothing stops the link today (Forget does
   not), so the state has no trigger yet.
 
-- Flipper UI plan (2026-10-26): on a `Not in Bambuddy` Bambu row, **New**
-  and **Link to existing…** are link-style buttons right of the readout,
-  where Created's Link sits, so the 360 pt entry block keeps its width; the
-  one the Flipper asked for is semibold rather than prominent. By eye: the
-  readout may be cut short beside them. The row takes focus like Enter
-  weight and keeps the entry through Saving and an error. Save's tooltip
-  says it creates the spool. A deleted row offers New and Link, no weight.
+- New spool card (2026-10-27): with the entry hidden, the New spool and
+  Created buttons stand in the 360 pt entry column, bordered, the
+  prominent one `.borderedProminent`; when the three do not fit at the
+  large size they drop to the regular, then the small control size
+  (`ViewThatFits`). By eye. The link-style buttons right of the readout
+  (**Cancel** and **Link to existing…**, the one the Flipper asked for
+  semibold) show only while an entry is revealed; the readout may be cut
+  short beside them. By eye.
+- The revealed field takes focus as soon as it appears, also from a row
+  the user is typing in (the user asked for it). Cancel or Esc drops the
+  draft and moves focus to the next row that waits, as after a save. A
+  failed save keeps the entry and the typed value. By eye: the cursor
+  lands in the field after Save with weight… / Set weight….
+- While the Flipper weighs a New spool the row reads `Saving…` with no
+  field and no buttons. While Save as new or Link runs from the host the
+  buttons dim and a small spinner sits beside them; the status keeps its
+  phrase. After Save as new the row reads `Created in Bambuddy` with
+  Set weight… and Link to existing…; a failed one keeps the card for a
+  retry.
+- Save's tooltip on a revealed New spool entry says it creates the spool.
+  A deleted row offers Save as new (or New… without material) and Link,
+  no weight.
 - After New, Link, or a Save that created the spool, the host sends the
   Flipper a fresh `lookup` for the row's scan (PROTOCOL.md, Session), so a
   Flipper still showing that tag shows the spool.
 - `Marked as empty` and `Deleted` say which side did it, as `Saved` and
   `Marked as new` do; the host has no buttons for Mark or Delete, so it is
   the Flipper.
-- The watch (`FliBuddyUI/Watch`) shows the weight entry on a `Not in
-  Bambuddy` Bambu row and no New / Link there; its own spec will settle
-  it.
+- The watch has its own New spool card (`watchos-ui-spec.md`): Save as
+  new and With weight, no Link.
 
 Sheets
 - New spool: no Core weight or Tag UID rows; the spec lists five fields and
   the UID is in the subtitle. A Bambu tag's subtitle reads "Bambu tag ·
   <uid>". The Material menu adds a material outside the list (the tag's
   own), so the menu always shows the selection.
-- "New…" opens the form for a tag without material; "New" is one step from
-  the tag's data, for a tag with material, which has no spool only after a
-  failed create on scan or when its spool went away. The action the
-  Flipper asked for is the prominent button.
+- "New…" opens the form for a tag without material; a tag with material
+  gets "Save as new", one step from the tag's data, instead. The action
+  the Flipper asked for is the prominent button.
 - Link picker: the row's own spool (the one created on scan) is left out of
   the list. "Carries a different tag" compares the spool's `tag_uid` with
   the tag's Bambuddy UID (Bambu UIDs carry the AMS `00000100` suffix) and

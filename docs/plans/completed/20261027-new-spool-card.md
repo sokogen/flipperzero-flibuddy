@@ -64,23 +64,23 @@
 ## Implementation Steps
 
 ### Task 1: View model for the new spool card
-- [ ] `FeedItem`: new status `New spool` for an unknown tag with material; `isWaiting` false for it and for a created-on-scan row; a per-row "entry revealed" state (in `FeedViewModel`, like drafts) that makes `isEntry` / `isWaiting` true; actions model exposing Save as new / Save with weight… / Set weight… / Link to existing… with the prominent one
-- [ ] `FeedViewModel`: `saveAsNew(row)` (the one-step create), `revealEntry(row)` (focuses it), `hideEntry(row)`; Save on a revealed new-spool entry creates and weighs; Save on a revealed created entry weighs
-- [ ] `FocusModel`: new spools and created rows never take focus unless revealed; after a save focus skips them
-- [ ] write tests for every state, the reveal/hide flow, focus rules and both Save paths (success and failure)
-- [ ] run `make test` — must pass before Task 2
+- [x] `FeedItem`: new status `New spool` for an unknown tag with material; `isWaiting` false for it and for a created-on-scan row; a per-row "entry revealed" state (in `FeedViewModel`, like drafts) that makes `isEntry` / `isWaiting` true; actions model exposing Save as new / Save with weight… / Set weight… / Link to existing… with the prominent one
+- [x] `FeedViewModel`: `saveAsNew(row)` (the one-step create), `revealEntry(row)` (focuses it), `hideEntry(row)`; Save on a revealed new-spool entry creates and weighs; Save on a revealed created entry weighs
+- [x] `FocusModel`: new spools and created rows never take focus unless revealed; after a save focus skips them
+- [x] write tests for every state, the reveal/hide flow, focus rules and both Save paths (success and failure)
+- [x] run `make test` — must pass before Task 2
 
 ### Task 2: macOS, iPhone and iPad rows
-- [ ] macOS row: New spool / Created rows show the actions instead of the field; Save with weight… / Set weight… reveal the entry inline and focus it; Esc hides it
-- [ ] iPhone card and iPad one-line row: same, with the iOS sizes from the specs (Save as new full-width 50 pt prominent; the two secondaries as 44 pt capsules)
-- [ ] write view-model-level tests for anything new the views bind to
-- [ ] run `make test`, `swift build`, `make apple-build` — must pass before Task 3
+- [x] macOS row: New spool / Created rows show the actions instead of the field; Save with weight… / Set weight… reveal the entry inline and focus it; Esc hides it
+- [x] iPhone card and iPad one-line row: same, with the iOS sizes from the specs (Save as new full-width 50 pt prominent; the two secondaries as 44 pt capsules)
+- [x] write view-model-level tests for anything new the views bind to
+- [x] run `make test`, `swift build`, `make apple-build` — must pass before Task 3
 
 ### Task 3: Watch
-- [ ] detail screens per the Behaviour section; auto-open only for waiting rows
-- [ ] write tests for the screen-state selection and auto-open rule
-- [ ] run `make test` and `make apple-build` — must pass before Task 4
+- [x] detail screens per the Behaviour section; auto-open only for waiting rows
+- [x] write tests for the screen-state selection and auto-open rule
+- [x] run `make test` and `make apple-build` — must pass before Task 4
 
 ### Task 4: Verify and document
-- [ ] update the four specs' row-states tables and actions; note the change under "Implemented differently" where it departs from the design
-- [ ] run `make test`, `make lint`, `make coverage`, `make apple-build`; fix all issues
+- [x] update the four specs' row-states tables and actions; note the change under "Implemented differently" where it departs from the design
+- [x] run `make test`, `make lint`, `make coverage`, `make apple-build`; fix all issues

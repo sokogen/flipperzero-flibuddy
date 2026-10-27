@@ -13,7 +13,9 @@ extension FeedViewModel {
 
         public struct Row: Equatable, Sendable {
             public var id: FeedRow.ID
-            /// Enter weight or Created: the row waits for a weight.
+            /// Enter weight, or a revealed New spool or Created entry: the row
+            /// waits for a weight. A New spool or Created row whose entry is
+            /// hidden never takes focus.
             public var isWaiting: Bool
             /// The user typed in the row's field.
             public var isTouched: Bool
