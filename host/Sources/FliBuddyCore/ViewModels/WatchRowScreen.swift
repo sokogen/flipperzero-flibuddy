@@ -42,7 +42,7 @@ public enum WatchRowScreen: Equatable, Sendable {
             } else {
                 nil
             }
-            self = .unknown(hint: hint, offersNew: item.newAction == .fromTag)
+            self = .unknown(hint: hint, offersNew: item.rowActions.contains(.saveAsNew))
         }
     }
 

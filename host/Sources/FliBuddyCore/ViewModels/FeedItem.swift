@@ -53,15 +53,18 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// settings value a spool created from it gets.
     public let core: Int?
     /// The row shows the weight field, mode and Save (Enter weight, Saving…,
-    /// Created, or an error on a known spool, which keeps the value for a
-    /// retry). A tag with material and no spool ("Not in Bambuddy", the
-    /// Flipper's Auto-save new off) shows it too: Save creates the spool
-    /// from the tag, then records the weight.
+    /// or an error on a known spool, which keeps the value for a retry). A
+    /// New spool or a Created row shows it only once revealed (`revealsEntry`).
     public let isEntry: Bool
-    /// Save creates the spool before it records the weight.
+    /// A New spool (a tag with material and no spool, the Flipper's Auto-save
+    /// new off) or a Created row: the weight is optional, and the entry
+    /// shows only after Save with weight… / Set weight… reveals it.
+    public let revealsEntry: Bool
+    /// Save creates the spool before it records the weight: a New spool's
+    /// revealed entry.
     public let savesNewSpool: Bool
-    /// Enter weight, Created, or Not in Bambuddy for a tag with material:
-    /// the row waits for a weight and may take focus.
+    /// Enter weight, or a revealed New spool or Created entry: the row waits
+    /// for a weight and may take focus.
     public let isWaiting: Bool
     /// A weight is on its way to Bambuddy; the entry block is disabled.
     public let isSaving: Bool
@@ -85,6 +88,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let newAction: NewAction
     /// The action the Flipper asked for, shown prominent.
     public let prominentAction: UnknownAction?
+    /// What the row offers besides the weight entry, the prominent one
+    /// first; none while a weight or an update is on its way.
+    public let rowActions: [RowAction]
+    /// Save as new on a New spool, Set weight… on a Created row, else the
+    /// action the Flipper asked for; none while the entry is shown.
+    public let prominentRowAction: RowAction?
 
     /// New on an unknown row: the form for a tag without material, one step
     /// from the tag's own data otherwise (the retry after a failed create on
@@ -103,9 +112,43 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         case link
     }
 
+    /// A row's actions, worded the same on every platform.
+    public enum RowAction: Equatable, Sendable {
+        /// Creates the spool from the tag, full.
+        case saveAsNew
+        /// Reveals the entry; its Save creates the spool and records the weight.
+        case saveWithWeight
+        /// Reveals a Created row's entry; its Save records the weight.
+        case setWeight
+        /// The New form, for a tag without material.
+        case newForm
+        case link
+
+        public var title: String {
+            switch self {
+            case .saveAsNew: "Save as new"
+            case .saveWithWeight: "Save with weight\u{2026}"
+            case .setWeight: "Set weight\u{2026}"
+            case .newForm: "New\u{2026}"
+            case .link: "Link to existing\u{2026}"
+            }
+        }
+
+        /// The watch's shorter button titles.
+        public var watchTitle: String {
+            switch self {
+            case .saveWithWeight: "With weight"
+            case .setWeight: "Set weight"
+            case .saveAsNew, .newForm, .link: title
+            }
+        }
+    }
+
     /// `coreWeight`: the settings' core weight, which a spool created from
     /// the tag gets; the suggestion and readout of a tag without a spool use it.
-    public init(_ row: FeedRow, coreWeight: Int? = nil) {
+    /// `entryRevealed`: Save with weight… / Set weight… showed the entry of
+    /// a row that `revealsEntry`.
+    public init(_ row: FeedRow, coreWeight: Int? = nil, entryRevealed: Bool = false) {
         id = row.id
         scanId = row.scanId
         scannedAt = row.scannedAt
@@ -151,15 +194,22 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         offersUnknownActions = spool == nil && row.status != .scanned
         newAction = row.tag.hasPrefill ? .fromTag : .form
         prominentAction = row.request.map { $0 == .create ? .new : .link }
-        savesNewSpool = spool == nil && row.tag.hasPrefill && Self.isNewEntryState(row.status)
-        isEntry = (spool != nil && Self.isEntryState(row.status)) || savesNewSpool
-        isWaiting = (spool != nil && (row.status == .awaitingWeight || row.status == .created))
-            || (savesNewSpool && row.status.isUnknown)
+        let isNewSpool = Self.isNewSpool(row)
+        revealsEntry = Self.revealsEntry(row)
+        let revealed = revealsEntry && entryRevealed
+        savesNewSpool = isNewSpool && revealed
+        isEntry = revealsEntry ? revealed : spool != nil && Self.isEntryState(row.status)
+        isWaiting = (spool != nil && row.status == .awaitingWeight)
+            || (revealed && (row.status == .created || row.status.isUnknown))
         isSaving = row.status == .saving || row.status == .updating
         isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
         offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
             && (row.status == .created || isError)
         isDeleted = row.status == .deleted
+        (rowActions, prominentRowAction) = Self.rowActions(
+            row, isNewSpool: isNewSpool, revealed: revealed, offersUnknown: offersUnknownActions,
+            offersLink: offersLinkExisting, isSaving: isSaving
+        )
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
@@ -252,6 +302,60 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         }
     }
 
+    /// A New spool or a Created row, whose entry shows only when revealed.
+    public static func revealsEntry(_ row: FeedRow) -> Bool {
+        isNewSpool(row) || isCreated(row)
+    }
+
+    /// A tag with material and no spool, not yet looked up again or deleted:
+    /// also while the save that creates it runs, and after it (or a create
+    /// on scan) fails.
+    static func isNewSpool(_ row: FeedRow) -> Bool {
+        row.spool == nil && row.tag.hasPrefill && isNewEntryState(row.status)
+    }
+
+    /// Created in Bambuddy, also while its weight saves and after that, or
+    /// a Link, fails.
+    static func isCreated(_ row: FeedRow) -> Bool {
+        guard let spool = row.spool else { return false }
+        if row.status == .created { return true }
+        guard row.createdSpoolId == spool.id else { return false }
+        return switch row.status {
+        case .saving, .error: true
+        default: false
+        }
+    }
+
+    /// The row's actions, prominent first, and the prominent one.
+    static func rowActions(
+        _ row: FeedRow, isNewSpool: Bool, revealed: Bool, offersUnknown: Bool, offersLink: Bool, isSaving: Bool
+    ) -> ([RowAction], RowAction?) {
+        guard !isSaving else { return ([], nil) }
+        let link: [RowAction] = offersLink || offersUnknown ? [.link] : []
+        if revealed { return (link, nil) }
+        let actions: [RowAction]
+        let preferred: RowAction?
+        if isNewSpool {
+            actions = [.saveAsNew, .saveWithWeight] + link
+            preferred = .saveAsNew
+        } else if isCreated(row) {
+            actions = [.setWeight] + link
+            preferred = .setWeight
+        } else if offersUnknown {
+            actions = [row.tag.hasPrefill ? .saveAsNew : .newForm] + link
+            preferred = nil
+        } else {
+            return ([], nil)
+        }
+        let asked: RowAction? = switch row.request {
+        case .link: .link
+        case .create: actions.first
+        case nil: nil
+        }
+        guard let prominent = asked ?? preferred else { return (actions, nil) }
+        return ([prominent] + actions.filter { $0 != prominent }, prominent)
+    }
+
     /// A tag with material and no spool: the weight entry stays through the
     /// save that creates the spool, and after it fails.
     static func isNewEntryState(_ status: FeedRow.Status) -> Bool {
@@ -268,7 +372,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         case .awaitingWeight: return "Enter weight"
         case .unknown(let prefill):
             if let request = row.request { return requestText(request) }
-            return prefill ? "Not in Bambuddy" : "Not in Bambuddy; tag has no material"
+            return prefill ? "New spool" : "Not in Bambuddy; tag has no material"
         case .saving: return "Saving\u{2026}"
         case .saved, .savedAfterTimeout:
             let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
@@ -288,9 +392,11 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         switch row.status {
         case .scanned, .saving, .updating: (.progress, .secondary)
         case .awaitingWeight: (.symbol("scalemass"), .blue)
-        case .unknown: row.request == nil
-            ? (.symbol("questionmark.circle"), .secondary)
-            : (.symbol("dot.radiowaves.left.and.right"), .blue)
+        case .unknown(let prefill): if row.request != nil {
+            (.symbol("dot.radiowaves.left.and.right"), .blue)
+        } else {
+            (.symbol(prefill ? "plus.circle" : "questionmark.circle"), .secondary)
+        }
         case .saved, .savedAfterTimeout: (.symbol("checkmark.circle.fill"), .green)
         case .created: (.symbol("plus.circle.fill"), .green)
         case .markedNew: (.symbol("arrow.counterclockwise.circle.fill"), .green)

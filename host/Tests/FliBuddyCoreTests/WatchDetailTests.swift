@@ -18,18 +18,23 @@ private func screen(_ row: FeedRow, isCreating: Bool = false) -> WatchRowScreen 
 @Suite("Watch row detail screen")
 struct WatchRowScreenTests {
     @Test func aKnownSpoolWaitingForAWeightIsTheEntry() throws {
-        for status in [FeedRow.Status.awaitingWeight, .saving, .created, .updating, .error("timed out")] {
+        for status in [FeedRow.Status.awaitingWeight, .saving, .updating, .error("timed out")] {
             #expect(screen(try row(status: status)) == .entry(offersNew: false))
         }
     }
 
-    @Test func aNotInBambuddyBambuTagKeepsTheEntryWithNew() throws {
-        #expect(screen(try row(status: .unknown(prefill: true), spool: nil)) == .entry(offersNew: true))
+    /// The spool exists: New is never offered again.
+    @Test func aCreatedRowOffersNoNew() throws {
+        #expect(screen(try row(status: .created)) == .unknown(hint: nil, offersNew: false))
     }
 
-    @Test func aBambuTagSavingItsNewSpoolStaysTheEntry() throws {
+    @Test func aNewSpoolOffersNew() throws {
+        #expect(screen(try row(status: .unknown(prefill: true), spool: nil)) == .unknown(hint: nil, offersNew: true))
+    }
+
+    @Test func aBambuTagSavingItsNewSpoolIsBusy() throws {
         let saving = try row(status: .saving, spool: nil)
-        #expect(screen(saving) == .entry(offersNew: true))
+        #expect(screen(saving) == .busy("Saving\u{2026}"))
     }
 
     @Test func newOnTheWatchShowsBusyUntilTheSpoolExists() throws {
