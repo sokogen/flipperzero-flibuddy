@@ -174,33 +174,22 @@ Flipper`, `Forget this Flipper`) with no footer under them (the iPhone's
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27; the iPhone list applies to the
-portrait layout and to everything shared (number keyboard, Net/Gross
-conversion, colour code, Tag details, apply on change, sheets, QR cover).
+None remain. The seven differences found on 2026-10-27 were closed by the
+plan `docs/plans/20261027-apple-ui-from-design.md` (the iPhone list covers
+the portrait layout and everything shared); where the app departs from
+this file, the next section says how and why. What changed:
 
-1. **Layout switch.** `RootView` (`host/Apple/iOS/App.swift`) switches on
-   `horizontalSizeClass`, so a full-screen portrait iPad gets the split view
-   and landscape rows, not the iPhone cards.
-2. **Sidebar.** The shipped sidebar holds only Feed and Settings: no
-   Connections section with the two status rows and their action chips, no
-   count badge on Feed, no `⌘,` hint, no Clear feed at its bottom.
-3. **Status bar.** `FeedView` (`host/Sources/FliBuddyUI/FeedView.swift`)
-   draws the macOS bottom `StatusBar` in the detail column on the iPad; the
-   design moves both states into the sidebar (landscape) or the banner
-   (portrait).
-4. **Row geometry.** The one-line layout in `FeedRowView` is `#if
-   os(macOS)`; the iPad stacks the entry under the header. It needs the
-   one-line grid (28 · 150 · 112 · 140 · flexible · auto), field 100 × 44 at
-   28 pt, segmented 120 × 34, Save 44 high, the short readout under the
-   status and the colour and remaining in separate columns.
-5. **Keyboard.** ⌘S, ⌘↑ / ⌘↓ (`FeedKeyboardShortcuts`) and ⌘⌫ (the toolbar
-   Clear) exist; ⌘, does not open Settings on the iPad, and the commands are
-   not menu commands, so the ⌘ overlay does not list them.
-6. **Clear placement.** Clear is a toolbar button of the feed, labelled
-   `Clear`, not the sidebar's `Clear feed`.
-7. **Link warning.** Inline already, but worded `… Linking moves it to
-   <uid>.` with a `Move link` button title (the macOS form); the iPad page
-   says `Saving moves the link to <uid>.`
+1. Layout by window width (`FeedLayout`), not size class alone.
+2. Sidebar (`Sidebar`, `PadSidebar`): Connections with the two status rows
+   and their chips, Feed with the count badge, Settings with `⌘,`, Clear
+   feed at the bottom.
+3. No status bar in the detail column: the sidebar (landscape) or the
+   banner (portrait) shows both states.
+4. The one-line table row on the iPad's grid.
+5. ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, as menu commands (`FeedCommands`), listed in
+   the ⌘ overlay.
+6. Clear feed in the sidebar.
+7. Link warning `Saving moves the link to <uid>.`
 
 ## Implemented differently (2026-10-27)
 

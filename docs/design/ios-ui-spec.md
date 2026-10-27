@@ -424,72 +424,28 @@ SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27.
+None remain. The fourteen differences found on 2026-10-27 were closed by
+the plan `docs/plans/20261027-apple-ui-from-design.md`; where the app
+departs from this file, the next section says how and why. What changed:
 
-1. **Connection banner.** `FeedView` (`host/Sources/FliBuddyUI/FeedView.swift`)
-   puts the macOS `StatusBar` in a bottom safe-area inset on iOS too; the
-   iPhone needs the top glass capsule showing the healthy line or the one
-   problem that counts (Flipper first) with its action, and the shorter iPhone phrases (`Flipper nearby`, `Flipper
-   connected`, `Key lacks inventory permission`, `Colour names
-   unavailable`, `Bambuddy not checked`).
-2. **Row card layout.** `FeedRowView` on iOS stacks the macOS header (title,
-   detail and status side by side in three equal columns) over a 96 × 34
-   field with an inline segmented picker 150 wide; the iPhone needs the
-   stacked card: status under the colour line, field 64 high full width with
-   the mode word inside, 34 pt value, segmented full width, readout,
-   full-width 50 pt Save, 44 pt action capsules. Rows should be one
-   `Section` each with `.listSectionSpacing(.compact)`.
-3. **Number pad and focus.** No `.keyboardType(.numberPad)`, no
-   select-all on focus (the comment in `FeedView` relies on AppKit), no
-   scroll-to-row on focus, no tab bar hiding, no lowering when no row
-   waits, no tap on the list background to dismiss.
-4. **Haptics.** None on iOS: add `.success` after a save and `.error` on a
-   failure.
-5. **Net/Gross converts typed numbers.** `FeedViewModel.setMode`
-   (`host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift:157`) only
-   stores the mode, so a typed number stays as typed (the macOS rule). The
-   owner decision applies to the Mac as well.
-6. **Colour code and UID.** `FeedItem.detailText`
-   (`host/Sources/FliBuddyCore/ViewModels/FeedItem.swift`) is colour name ·
-   amount without the Bambu code, although the data exists
-   (`Spool.materialNumber`, `TagInfo.code`, `ParsedTag.bambuColor`); the UID
-   is in the row under the title.
-7. **Tag details.** There is no details surface for UID, tray UUID,
-   filament id, diameter and nozzle range.
-8. **Settings apply on change.** `SettingsForm`
-   (`host/Sources/FliBuddyUI/SettingsForm.swift`) keeps the macOS Save /
-   Revert row on iOS (the "Implemented differently" note in the macOS spec
-   says so); the labels differ (`Server URL` → `URL`, `I type the weight as`
-   → `Type weight as`, `Forget` beside the connection line → a `Forget this
-   Flipper` row, `Flipper` value row); the Flipper footer (`No pairing: the
-   Flipper runs FliBuddy with Transport set to Bluetooth.`) and the QR
-   footers differ; the iOS form shows a `Reload catalog` button and a
-   Connection picker the design does not have (keep Reload; the picker
-   only appears with two transports, so it stays hidden on iOS).
-9. **QR scanner.** `QRScannerSheet`
-   (`host/Sources/FliBuddyUI/QRScanner.swift`) is a sheet with a navigation
-   bar, Cancel and the hint `The QR code from Bambuddy's API key dialog`;
-   the design wants a full-screen cover with the bracket frame and its
-   hint. The Scan row is hidden without a camera instead of dimmed with the
-   footer; a read does not start Test connection; the applied message says
-   `Save to keep them`, which apply-on-change makes wrong.
-10. **New spool sheet.** `NewSpoolSheet`
-    (`host/Sources/FliBuddyUI/UnknownRowActions.swift`) has no colour picker
-    (only a colour name), no Required / Optional sections, text Cancel /
-    Create buttons at the bottom instead of `xmark` / `checkmark` in the
-    navigation bar, and the macOS footer text.
-11. **Link picker.** `LinkSpoolSheet` uses a plain filter `TextField` and an
-    inline warning with a `Move link` button title, not `.searchable` and
-    the confirmation alert; Cancel / Link are bottom text buttons.
-12. **Clear.** The dialog's destructive button reads `Clear`, the design
-    `Clear feed`; the toolbar button carries a text label.
-13. **Watch sync cadence.** `WatchSettingsSender.settingsSaved` runs from
-    `HostModel.onSettingsSaved` after an explicit Save
-    (`host/Sources/FliBuddyCore/Session/WatchSettingsSync.swift`); with
-    apply-on-change it has to run after each applied change.
-14. **Not-in-Bambuddy actions.** On iOS `UnknownRowActions(compact: true)`
-    draws New / Link as small footnote buttons beside the readout (the
-    macOS placement); the iPhone wants the two 44 pt capsules under Save.
+1. Connection banner: the top glass banner (`ConnectionBanner`,
+   `ConnectionBannerView`) replaced the bottom macOS status bar on iOS,
+   with the iPhone phrases, one line per side in trouble.
+2. Row card: the stacked card, one `Section` per row.
+3. Number pad and focus: number pad, select-all, scroll to the focused
+   row, tab bar hidden while typing, pad lowered when no row waits.
+4. Haptics: success after a host save, error on a failed host action.
+5. Net/Gross converts the number on screen, typed or not (Mac too).
+6. Colour line `<colour name> · <code>`; the UID left the row.
+7. Tag details sheet from the row's context menu and VoiceOver action.
+8. Settings apply on change, with the labels, rows and footers above.
+9. QR scanner as a full-screen cover; a dimmed Scan row without a camera;
+   a read applies and starts Test connection.
+10. New spool sheet: colour picker, Required / Optional, toolbar buttons.
+11. Link picker: `.searchable`, the move-link alert, toolbar buttons.
+12. Clear: `trash` button, `Clear feed` in the dialog.
+13. Watch sync after each applied change, debounced.
+14. Not-in-Bambuddy rows: New / Link as 44 pt capsules under Save.
 
 ## Implemented differently (2026-10-27)
 

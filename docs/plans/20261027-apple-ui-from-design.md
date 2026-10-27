@@ -131,7 +131,7 @@
 - [x] fix all issues (four unused-result / redundant `try` warnings in the host tests)
 
 ### Task 9: [Final] Update documentation
-- [ ] update the three specs' "Differences" sections to what remains (ideally nothing) and the READMEs for the new behaviour
+- [x] update the three specs' "Differences" sections to what remains (ideally nothing) and the READMEs for the new behaviour
 
 ## Post-Completion
 - Manual check on the iPhone (`sokophone14`), an iPad (simulator or device)

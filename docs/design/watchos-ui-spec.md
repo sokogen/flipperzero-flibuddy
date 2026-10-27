@@ -215,49 +215,28 @@ black. Colours: blue `#0A84FF`, red `#FF453A`, green `#30D158`, orange
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27.
+None remain. The thirteen differences found on 2026-10-27 were closed by
+the plan `docs/plans/20261027-apple-ui-from-design.md`; where the app
+departs from this file, the next section says how and why. What changed:
 
-1. **Navigation.** `host/Apple/Watch/App.swift` is a vertical-page
-   `TabView` (feed, settings); the page wants one `NavigationStack` with
-   Settings behind the leading glyph.
-2. **Status.** `WatchStatus` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
-   is a list section with two coloured dots and phrases, not the single
-   glyph button.
-3. **List row.** `WatchFeedRow` uses a 24 pt swatch, `.headline`, and the
-   status as text; the page wants a 16 pt swatch, 15 sb title, the short
-   sub line (`590 g left`, `Unknown tag`) and a 19 pt trailing glyph. The
-   empty state is a `ContentUnavailableView` with a different text.
-4. **Auto-open and pop.** Rows open only on a tap; nothing opens on focus,
-   and the detail does not pop a second after a save.
-5. **Entry.** `WatchWeightEntry`
-   (`host/Sources/FliBuddyUI/Watch/WatchRowDetail.swift`) shows `.title2`
-   (≈ 22 pt) `"\(grams) g"`, a `Toggle("Gross")`, a plain Save and no
-   readout line; the page wants 50 pt + 20 pt unit, the line (`Saves … g
-   left` / `Turn the crown`), the two pills and the 40 pt blue Save.
-6. **Crown.** `CrownWeight` (`host/Sources/FliBuddyCore/ViewModels/CrownWeight.swift`)
-   switches to 5 g at 20 g/s, and the view uses `sensitivity: .medium`;
-   the page says about 6 detents per second and `.low`.
-7. **Net / Gross.** Switching does not convert a crowned value
-   (`FeedViewModel.setMode`,
-   `host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift:157`).
-8. **Haptics.** Only the crown's detent haptic; no `.success` / `.failure`.
-9. **Saved and unknown screens.** A saved row shows `Re-weigh` under the
-   status, not the 34 pt result and `Weigh again`. `WatchUnknownActions`
-   opens a full `WatchNewSpool` form for every tag without a spool; the
-   page has one-tap New for prefill tags only and the two hints. On a `Not
-   in Bambuddy` Bambu row the detail shows the entry but no New.
-10. **Details.** Colour code, UID, filament id, diameter and nozzle range
-    are shown nowhere.
-11. **AOD.** No `isLuminanceReduced` handling.
-12. **Settings.** `WatchSettingsView` lists URL, `API key Set/Missing`,
-    Core, Weight and the Bambuddy status, and scans inline with RSSI in
-    dBm and Stop scanning; the page has Server / Core weight / Weight as,
-    the `Received … Change these on iPhone.` footer, the Flipper platter,
-    and a separate scan screen with `Searching…` and signal words. The
-    empty text says "save its settings".
-13. **Sync cadence.** `WatchSettingsSender` sends after an explicit Save on
-    the iPhone (`host/Sources/FliBuddyCore/Session/WatchSettingsSync.swift`);
-    with apply-on-change it must send after each applied change.
+1. One `NavigationStack` (`WatchNavigation`) with Settings behind the
+   leading glyph.
+2. The single connection glyph (`WatchGlyph`) from the merged status.
+3. Feed rows: 16 pt swatch, short sub line, trailing glyph; the empty text.
+4. Auto-open of a new row that waits, pop one second after a save.
+5. Entry: 50 pt value, readout line, Net / Gross pills, 40 pt Save.
+6. Crown: `.low` sensitivity, 5 g per detent from 6 detents per second.
+7. Net / Gross converts the crowned value.
+8. Haptics `.success` / `.failure`.
+9. Saved screen with `Weigh again`; unknown screen with one-tap New for
+   tags with material and the two hints; a Not-in-Bambuddy Bambu row keeps
+   the entry.
+10. Details (colour code, UID, filament id, diameter, nozzle range) in the
+    row detail.
+11. Always-On: title and remaining only, no taps.
+12. Read-only Settings (`WatchSettingsTexts`) with the Flipper platter and a
+    separate Scan for Flipper screen.
+13. Settings arrive after each change applied on the iPhone.
 
 ## Implemented differently (2026-10-27)
 
