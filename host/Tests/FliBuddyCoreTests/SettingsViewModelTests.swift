@@ -1112,6 +1112,46 @@ struct SettingsApplyOnChangeTests {
         #expect(applied.values.map(\.coreWeight) == [300])
     }
 
+    /// Holds an apply until the test opens it.
+    @MainActor
+    final class Gate {
+        private var waiting: CheckedContinuation<Void, Never>?
+        private var isOpen = false
+
+        func wait() async {
+            guard !isOpen else { return }
+            await withCheckedContinuation { waiting = $0 }
+        }
+
+        func open() {
+            isOpen = true
+            waiting?.resume()
+            waiting = nil
+        }
+    }
+
+    private func changeThenDrop(_ applied: Applied, gate: Gate) {
+        let model = makeModel(appliesOnChange: true, apply: { settings in
+            if applied.values.isEmpty { await gate.wait() }
+            try applied.apply(settings)
+        })
+        model.defaultMode = .net
+        model.baseURL = "http://10.0.0.5:8000"
+        model.commit()
+    }
+
+    @Test func aModelDroppedWhileApplyingStillAppliesItsQueuedChanges() async throws {
+        let applied = Applied()
+        let gate = Gate()
+
+        changeThenDrop(applied, gate: gate)
+        gate.open()
+        for _ in 0..<200 where applied.values.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+
+        #expect(applied.values.map(\.defaultMode) == [.net, .net])
+        #expect(applied.values.map(\.baseURL) == [testSettings.baseURL, "http://10.0.0.5:8000"])
+    }
+
     // MARK: iPhone texts
 
     @Test(arguments: [

@@ -532,19 +532,21 @@ public final class SettingsViewModel {
 
     /// With `appliesOnChange`, queues `change` to apply on top of the
     /// settings applied last; a change that changes nothing is skipped.
+    /// The task holds the model until it is done: the iPad drops the screen
+    /// (and the model) on leaving Settings, and a change made just before
+    /// must still be applied. The finished task keeps no reference.
     private func applyChange(_ change: @escaping @MainActor (inout Settings) -> Void) {
         guard appliesOnChange, !holdsApply else { return }
         let previous = applying
-        applying = Task { [weak self] in
+        applying = Task {
             await previous?.value
-            guard let self else { return }
-            var settings = self.saved
+            var settings = saved
             change(&settings)
-            guard settings != self.saved else { return }
-            if await self.store(settings) {
+            guard settings != saved else { return }
+            if await store(settings) {
                 Log.info(.settings, "applied on change")
             } else {
-                Log.error(.settings, "apply on change failed: error=\(self.saveError ?? "")")
+                Log.error(.settings, "apply on change failed: error=\(saveError ?? "")")
             }
         }
     }
