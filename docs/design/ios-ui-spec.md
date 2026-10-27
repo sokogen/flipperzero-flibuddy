@@ -508,8 +508,8 @@ Connection banner
   eye.
 - The chip fills with the app tint, not the state's tint. The healthy
   line's accessibility hint is the firmware version. By eye.
-- iPad gets the same banner over the feed until Task 5 of
-  `docs/plans/20261027-apple-ui-from-design.md` gives it the sidebar status rows.
+- A portrait iPad shows the same banner; beside the iPad sidebar the
+  banner gives way to the sidebar's status rows (`ipados-ui-spec.md`).
 
 Feed row, number pad and focus
 - The card is the row of its own inset-grouped `Section` with 16 pt row
@@ -577,10 +577,11 @@ Settings, QR, sheets and Clear
 - Link to existing: the rows are buttons with the `checkmark` on the
   pick; the search field is always shown; no match is a
   `ContentUnavailableView` with `magnifyingglass`. Link with a pick that
-  carries another tag asks with the alert; the iPad shows the same alert
-  until Task 5 of `docs/plans/20261027-apple-ui-from-design.md` gives it the
-  inline warning.
-- Clear keeps ⌘⌫ on a hardware keyboard.
+  carries another tag asks with the alert; the iPad shows the inline
+  warning instead (`ipados-ui-spec.md`).
+- Clear keeps ⌘⌫ on a hardware keyboard, now a menu command of the app
+  (`FeedCommands`, shared with the iPad) rather than the toolbar button's
+  shortcut; ⌘S and ⌘↑ / ⌘↓ are menu commands too.
 
 ## Open questions for the owner
 

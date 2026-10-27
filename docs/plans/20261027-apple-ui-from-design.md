@@ -100,13 +100,13 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 5
 
 ### Task 5: iPad layout
-- [ ] layout switch by width (≥ 900 pt detail → one-line table, else iPhone cards), not size class alone (`host/Apple/iOS/App.swift`)
-- [ ] sidebar: Connections section with the two status rows and their chips, Feed with count badge, Settings with the ⌘, hint, Clear feed at the bottom
-- [ ] one-line row grid per ipados spec (28 · 150 · 112 · 140 · flexible · auto; field 100 × 44 at 28 pt; segmented 120 × 34; Save 44); readout under the status; colour and remaining in their columns
-- [ ] keyboard: ⌘S, ⌘↑/⌘↓, ⌘⌫, ⌘, as menu commands (listed in the ⌘ overlay)
-- [ ] link warning wording `Saving moves the link to <uid>.`
-- [ ] write tests for the layout decision and sidebar model
-- [ ] run `make test` and `make apple-build` — must pass before Task 6
+- [x] layout switch by width (≥ 900 pt detail → one-line table, else iPhone cards), not size class alone (`host/Apple/iOS/App.swift`)
+- [x] sidebar: Connections section with the two status rows and their chips, Feed with count badge, Settings with the ⌘, hint, Clear feed at the bottom
+- [x] one-line row grid per ipados spec (28 · 150 · 112 · 140 · flexible · auto; field 100 × 44 at 28 pt; segmented 120 × 34; Save 44); readout under the status; colour and remaining in their columns
+- [x] keyboard: ⌘S, ⌘↑/⌘↓, ⌘⌫, ⌘, as menu commands (listed in the ⌘ overlay)
+- [x] link warning wording `Saving moves the link to <uid>.`
+- [x] write tests for the layout decision and sidebar model
+- [x] run `make test` and `make apple-build` — must pass before Task 6
 
 ### Task 6: Watch feed, navigation and status
 - [ ] one `NavigationStack` with Settings behind the leading connection glyph (watchos spec); glyph from the merged status

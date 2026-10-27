@@ -4,22 +4,35 @@ import SwiftUI
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
 /// The session feed: one row per scanned tag, newest first, with the status
-/// bar under it on macOS and the connection banner over it on iOS. In
-/// Spoolman mode an explanation replaces the feed.
+/// bar under it on macOS and the connection banner over it on iOS (the
+/// iPad's table has both states in its sidebar instead). In Spoolman mode an
+/// explanation replaces the feed.
 public struct FeedView: View {
     let host: HostModel
     /// Opens the settings for the banner's Settings chip; macOS uses its
     /// Settings scene instead.
     let openSettings: (() -> Void)?
+    /// The Clear confirmation, when the app's ⌘⌫ command or the iPad sidebar
+    /// asks for it too; else the view keeps its own.
+    private let externalConfirmingClear: Binding<Bool>?
     /// The weight field with the keyboard, kept in step with `feed.focusedRow`.
     @FocusState private var focusedField: FeedRow.ID?
-    @ViewState private var confirmingClear = false
+    @ViewState private var ownConfirmingClear = false
+    #if os(iOS)
+    @Environment(\.feedLayout) private var layout
+    @ViewState private var listWidth: CGFloat = 0
+    #endif
 
     private var feed: FeedViewModel { host.feed }
 
-    public init(host: HostModel, openSettings: (() -> Void)? = nil) {
+    private var confirmingClear: Binding<Bool> {
+        externalConfirmingClear ?? $ownConfirmingClear
+    }
+
+    public init(host: HostModel, openSettings: (() -> Void)? = nil, confirmingClear: Binding<Bool>? = nil) {
         self.host = host
         self.openSettings = openSettings
+        externalConfirmingClear = confirmingClear
     }
 
     public var body: some View {
@@ -30,14 +43,17 @@ public struct FeedView: View {
                     Task { await host.perform(action) }
                 }
             }
+            // On iOS the app declares these as menu commands (`FeedCommands`).
+            .background { FeedKeyboardShortcuts(feed: feed) }
             #else
             .safeAreaInset(edge: .top, spacing: 0) {
-                ConnectionBannerView(banner: host.connectionBanner, openSettings: openSettings) { action in
-                    Task { await host.perform(action) }
+                if layout == .cards {
+                    ConnectionBannerView(banner: host.connectionBanner, openSettings: openSettings) { action in
+                        Task { await host.perform(action) }
+                    }
                 }
             }
             #endif
-            .background { FeedKeyboardShortcuts(feed: feed) }
             // The field of a row in weight entry takes the keyboard; AppKit
             // selects its text, so the first keystroke replaces the suggestion.
             .onAppear { focusedField = feed.focusedField }
@@ -57,26 +73,23 @@ public struct FeedView: View {
                 }
             }
             #endif
-            .confirmationDialog("Clear the feed?", isPresented: $confirmingClear, titleVisibility: .visible) {
-                Button(Self.clearButton, role: .destructive) {
-                    Task { await feed.clear() }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This clears the session log only. Nothing changes in Bambuddy.")
-            }
+            .modifier(ClearConfirmation(isPresented: confirmingClear, centred: isTable) {
+                Task { await feed.clear() }
+            })
             .toolbar {
                 #if os(iOS)
-                // Icon only, at the leading end of the bar.
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Clear feed", systemImage: "trash") { confirmingClear = true }
-                        .labelStyle(.iconOnly)
-                        .keyboardShortcut(.delete, modifiers: .command)
-                        .disabled(feed.items.isEmpty)
+                // Icon only, at the leading end of the bar; the iPad's table
+                // has Clear feed in its sidebar. ⌘⌫ is a menu command.
+                if layout == .cards {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Clear feed", systemImage: "trash") { confirmingClear.wrappedValue = true }
+                            .labelStyle(.iconOnly)
+                            .disabled(feed.items.isEmpty)
+                    }
                 }
                 #else
                 ToolbarItem {
-                    Button("Clear", systemImage: "trash") { confirmingClear = true }
+                    Button("Clear", systemImage: "trash") { confirmingClear.wrappedValue = true }
                         .keyboardShortcut(.delete, modifiers: .command)
                         .help("Remove all rows from the feed")
                         .disabled(feed.items.isEmpty)
@@ -92,12 +105,14 @@ public struct FeedView: View {
             }
     }
 
-    /// The Clear dialog's destructive button.
-    #if os(iOS)
-    private static let clearButton = "Clear feed"
-    #else
-    private static let clearButton = "Clear"
-    #endif
+    /// The iPad's one-line table is showing.
+    private var isTable: Bool {
+        #if os(iOS)
+        layout == .table
+        #else
+        false
+        #endif
+    }
 
     @ViewBuilder private var content: some View {
         if feed.isBlocked {
@@ -133,8 +148,43 @@ public struct FeedView: View {
             FeedRowView(feed: feed, item: item, focusedField: $focusedField)
         }
         #else
-        // One card per row; the focused row scrolls to the top so its entry
-        // block, Save included, stays clear of the number pad.
+        if layout == .table { tableList } else { cardList }
+        #endif
+    }
+
+    #if os(iOS)
+    /// The side margin that centres 760-wide cards; the list's own on an iPhone.
+    private var cardMargin: CGFloat? {
+        listWidth > Self.maxCardWidth + 64 ? (listWidth - Self.maxCardWidth) / 2 : nil
+    }
+
+    private static let maxCardWidth: CGFloat = 760
+
+    /// The iPad's one-line rows in one inset-grouped card; the focused row
+    /// scrolls into view above the number keyboard.
+    private var tableList: some View {
+        ScrollViewReader { proxy in
+            List {
+                Section {
+                    ForEach(feed.items) { item in
+                        FeedRowView(feed: feed, item: item, focusedField: $focusedField)
+                            .id(item.id)
+                            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollDismissesKeyboard(.immediately)
+            .onChange(of: focusedField) { _, row in
+                guard let row else { return }
+                withAnimation { proxy.scrollTo(row) }
+            }
+        }
+    }
+
+    /// One card per row; the focused row scrolls to the top so its entry
+    /// block, Save included, stays clear of the number pad.
+    private var cardList: some View {
         ScrollViewReader { proxy in
             List {
                 ForEach(feed.items) { item in
@@ -147,16 +197,58 @@ public struct FeedView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
+            // A portrait iPad keeps the cards at most 760 wide, centred.
+            .contentMargins(.horizontal, cardMargin, for: .scrollContent)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listWidth = $0 }
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: focusedField) { _, row in
                 guard let row else { return }
                 withAnimation { proxy.scrollTo(row, anchor: .top) }
             }
         }
-        #endif
+    }
+    #endif
+}
+
+/// "Clear the feed?": an action sheet on the iPhone and the Mac, a centred
+/// alert beside the iPad sidebar. Same copy everywhere.
+private struct ClearConfirmation: ViewModifier {
+    @Binding var isPresented: Bool
+    let centred: Bool
+    let clear: () -> Void
+
+    private static let title = "Clear the feed?"
+    private static let message = "This clears the session log only. Nothing changes in Bambuddy."
+    /// The destructive button.
+    #if os(iOS)
+    private static let clearButton = "Clear feed"
+    #else
+    private static let clearButton = "Clear"
+    #endif
+
+    func body(content: Content) -> some View {
+        if centred {
+            content.alert(Self.title, isPresented: $isPresented) {
+                buttons
+            } message: {
+                Text(Self.message)
+            }
+        } else {
+            content.confirmationDialog(Self.title, isPresented: $isPresented, titleVisibility: .visible) {
+                buttons
+            } message: {
+                Text(Self.message)
+            }
+        }
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button(Self.clearButton, role: .destructive, action: clear)
+        Button("Cancel", role: .cancel) {}
     }
 }
 
+#if os(macOS)
 /// ⌘S saves the focused row, ⌘↑ / ⌘↓ move between rows. Invisible buttons,
 /// so each shortcut exists once rather than on every row.
 struct FeedKeyboardShortcuts: View {
@@ -176,11 +268,13 @@ struct FeedKeyboardShortcuts: View {
         .accessibilityHidden(true)
     }
 }
+#endif
 
 /// One feed row. On macOS a single line with fixed columns: swatch · title
 /// · colour line · status · weight entry. Rows outside weight entry keep the
 /// entry block's space empty so the columns line up. On iOS a stacked card:
-/// swatch beside title, colour line and status, the entry block under them.
+/// swatch beside title, colour line and status, the entry block under them;
+/// beside the iPad sidebar a single line with the ipados spec's columns.
 /// The UID and the other tag facts are in Tag details (context menu,
 /// VoiceOver action).
 struct FeedRowView: View {
@@ -188,6 +282,9 @@ struct FeedRowView: View {
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
     @ViewState private var showingDetails = false
+    #if os(iOS)
+    @Environment(\.feedLayout) private var layout
+    #endif
 
     /// Field 96 + unit + segmented 150 + Save, with 8 pt between them.
     static let entryWidth: CGFloat = 360
@@ -220,14 +317,24 @@ struct FeedRowView: View {
             }
             #else
             .listRowBackground(
-                Color(uiColor: .secondarySystemGroupedBackground).overlay {
+                rowBackground.overlay {
                     if feed.focus.hintedRow == item.id {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.tint, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: layout == .table ? 12 : 24, style: .continuous)
+                            .strokeBorder(.tint, lineWidth: 2)
                     }
                 }
             )
             #endif
     }
+
+    #if os(iOS)
+    /// The table's focused row takes the selection tint.
+    private var rowBackground: Color {
+        layout == .table && feed.focusedRow == item.id
+            ? Color(uiColor: .tintColor).opacity(0.15)
+            : Color(uiColor: .secondarySystemGroupedBackground)
+    }
+    #endif
 
     @ViewBuilder private var content: some View {
         #if os(macOS)
@@ -238,6 +345,71 @@ struct FeedRowView: View {
         .controlSize(.large)
         .frame(minHeight: 60)
         #else
+        if layout == .table {
+            tableContent
+        } else {
+            cardContent
+        }
+        #endif
+    }
+
+    #if os(iOS)
+    /// Swatch 28 · title 150 · colour 112 · remaining 140 · status
+    /// (flexible, the short readout and New / Link under it) · entry or
+    /// actions; 12 apart, at least 76 high with the row's padding.
+    private var tableContent: some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                SwatchView(swatch: item.swatch, size: 28)
+                Text(item.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .frame(width: 150, alignment: .leading)
+                Text(item.tableColorText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 112, alignment: .leading)
+                Text(item.tableRemainingText)
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 140, alignment: .leading)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(item.accessibilityHeader)
+            .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !item.isReopenable { focusedField.wrappedValue = nil }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                status.accessibilityHidden(true)
+                if item.isEntry, let readout = feed.readout(for: item.id) {
+                    Text(readout.short)
+                        .font(.footnote.monospacedDigit())
+                        .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                }
+                if item.offersLinkExisting {
+                    LinkExistingButton(feed: feed, item: item)
+                        .font(.footnote)
+                        .buttonStyle(.borderless)
+                } else if item.isEntry && item.offersUnknownActions {
+                    UnknownRowActions(feed: feed, item: item, style: .compact)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if item.isEntry {
+                WeightEntry(feed: feed, item: item, focusedField: focusedField)
+            } else if item.offersUnknownActions {
+                UnknownRowActions(feed: feed, item: item, style: .pills)
+            }
+        }
+        .frame(minHeight: 56)
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
                 .frame(minHeight: 44)
@@ -251,8 +423,8 @@ struct FeedRowView: View {
                 trailing
             }
         }
-        #endif
     }
+    #endif
 
     /// Swatch, title, colour line, status: one element for VoiceOver.
     private var header: some View {
@@ -300,6 +472,9 @@ struct FeedRowView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 StatusSymbolView(symbol: item.statusSymbol, tint: item.statusTint)
+                    #if os(iOS)
+                    .font(layout == .table ? .system(size: 17) : nil)
+                    #endif
                 Text(item.statusText)
                     .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
@@ -378,7 +553,9 @@ extension StatusTint {
 /// field, and Link to existing… on a row created on scan, or New and Link to
 /// existing… on a tag no spool carries (Save then creates the spool and
 /// records the weight). macOS lays it out on one line (Tab goes field → mode
-/// → Save in view order); iOS stacks it full width with the number pad.
+/// → Save in view order); iOS stacks it full width with the number pad, and
+/// beside the iPad sidebar puts field · g · Net/Gross · Save on one line (the
+/// row shows the readout under its status).
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -386,13 +563,15 @@ struct WeightEntry: View {
     #if os(macOS)
     /// The weight is the one custom-sized type: 22 pt at the default size.
     @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 22
+    #else
+    @Environment(\.feedLayout) private var layout
     #endif
 
     var body: some View {
         #if os(macOS)
         lineBody
         #else
-        stackedBody
+        if layout == .table { tableBody } else { stackedBody }
         #endif
     }
 
@@ -496,6 +675,35 @@ struct WeightEntry: View {
         .onSubmit { Task { await feed.save(id) } }
     }
     #else
+    /// Field 100 × 44 · `g` · Net/Gross 120 × 34 · Save 44 high, 8 apart;
+    /// ⇥ goes field → mode → Save, Return in the field saves.
+    private var tableBody: some View {
+        let id = item.id
+        return HStack(spacing: 8) {
+            PadWeightField(feed: feed, item: item, focusedField: focusedField)
+            Text("g")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            modePicker
+                .frame(width: 120, height: 34)
+            Button {
+                Task { await feed.save(id) }
+            } label: {
+                Text(feed.saveTitle(for: id))
+                    .font(.headline)
+                    .frame(minWidth: 52, minHeight: 30)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .frame(minHeight: 44)
+            .disabled(!feed.canSave(id))
+            .help("Save (\u{2318}S)")
+            .accessibilityHint(saveHelp)
+        }
+        .disabled(feed.isSaving(id))
+    }
+
     /// Field, Net / Gross, readout, Save, then New / Link to existing… as
     /// capsules on a tag no spool carries; 10 pt apart.
     private var stackedBody: some View {
@@ -535,6 +743,71 @@ struct WeightEntry: View {
 }
 
 #if os(iOS)
+/// The iPad table's weight field: 100 × 44, the value right-aligned at 28 pt.
+/// Taking the keyboard selects the value, as on the iPhone.
+struct PadWeightField: View {
+    let feed: FeedViewModel
+    let item: FeedItem
+    var focusedField: FocusState<FeedRow.ID?>.Binding
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 28
+    @ViewState private var selection: TextSelection?
+
+    var body: some View {
+        let id = item.id
+        let mode = feed.mode(for: id)
+        let focused = focusedField.wrappedValue == id
+        TextField(
+            FeedItem.weightFieldLabel(mode: mode),
+            text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
+            selection: $selection,
+            prompt: Text("0").foregroundStyle(.tertiary)
+        )
+        .labelsHidden()
+        .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
+        .keyboardType(.numberPad)
+        .font(.system(size: weightSize, weight: .bold, design: .rounded).monospacedDigit())
+        .minimumScaleFactor(0.6)
+        .multilineTextAlignment(.trailing)
+        .focused(focusedField, equals: id)
+        .onSubmit { Task { await feed.save(id) } }
+        .padding(.horizontal, 10)
+        .frame(width: 100, height: 44)
+        .background(Color(uiColor: .tertiarySystemFill), in: .rect(cornerRadius: 12))
+        .overlay {
+            if focused {
+                RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 2)
+            }
+        }
+        .contentShape(.rect(cornerRadius: 12))
+        .onTapGesture { focusedField.wrappedValue = id }
+        .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
+    }
+}
+
+extension View {
+    /// The first key replaces the value: taking the keyboard selects it, and
+    /// so does a mode switch of an untouched suggestion.
+    func selectsAllOnFocus(
+        feed: FeedViewModel, id: FeedRow.ID, focused: Bool, mode: Intent.WeightMode,
+        selection: Binding<TextSelection?>
+    ) -> some View {
+        // After the field has placed its caret from the tap.
+        let selectAll = {
+            let text = feed.weightText(for: id)
+            Task { @MainActor in
+                selection.wrappedValue = TextSelection(range: text.startIndex..<text.endIndex)
+            }
+        }
+        return onChange(of: focused) { _, now in
+            if now { selectAll() } else { selection.wrappedValue = nil }
+        }
+        .onChange(of: mode) {
+            // A converted suggestion stays selected; a typed number keeps its caret.
+            if focused && !feed.draft(for: id).touched { selectAll() }
+        }
+    }
+}
+
 /// The iPhone's weight field: 64 high, full width, the value with its unit
 /// and the mode word inside. Taking the keyboard selects the value, so the
 /// first key on the number pad replaces it.
@@ -583,21 +856,7 @@ struct PhoneWeightField: View {
         .contentShape(.rect(cornerRadius: 14))
         // A tap anywhere in the box, not only on the digits, takes the pad.
         .onTapGesture { focusedField.wrappedValue = id }
-        .onChange(of: focused) { _, now in
-            if now { selectAll() } else { selection = nil }
-        }
-        .onChange(of: mode) {
-            // A converted suggestion stays selected; a typed number keeps its caret.
-            if focused && !feed.draft(for: id).touched { selectAll() }
-        }
-    }
-
-    /// After the field has placed its caret from the tap.
-    private func selectAll() {
-        let text = feed.weightText(for: item.id)
-        Task { @MainActor in
-            selection = TextSelection(range: text.startIndex..<text.endIndex)
-        }
+        .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
     }
 }
 #endif

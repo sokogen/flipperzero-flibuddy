@@ -202,6 +202,60 @@ conversion, colour code, Tag details, apply on change, sheets, QR cover).
    <uid>.` with a `Move link` button title (the macOS form); the iPad page
    says `Saving moves the link to <uid>.`
 
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Layout
+- `FeedLayout.forWindow(width:isCompact:)` (`FliBuddyCore`) decides from
+  the window's width, measured at the root: the table when the window
+  leaves 900 pt beside a 300 pt sidebar (window ≥ 1200 pt) and the size
+  class is regular, else the cards. A 13" iPad (1366 / 1376 pt) gets the
+  table in landscape; an 11" iPad (1180–1210 pt) gets the cards in
+  landscape too, as the 900 pt rule says. A narrow multitasking window
+  gets the cards.
+- The portrait cards are centred at most 760 wide through the list's
+  content margins.
+
+Sidebar
+- The rows come from `Sidebar` (`FliBuddyCore`), built from the same two
+  `StatusItem`s as the macOS status bar and the iPhone banner. A connected
+  Flipper without a saved name reads `Flipper · Bluetooth`. Sub lines for
+  states the table above leaves out: `Not set up`, `Rejected the API key`,
+  `Checking…` (with the spinner); a Flipper problem (`Bluetooth is off`,
+  a version mismatch) shows as it is.
+- A state that spins (searching, checking) keeps its symbol
+  (`antenna.radiowaves.left.and.right.slash`, `server.rack`) and shows the
+  10 pt spinner before the sub line. The chip fills with the app tint, as
+  on the iPhone banner. By eye.
+- Clear feed is a plain red button in the sidebar's bottom inset with
+  `⌘⌫` trailing; disabled it dims. By eye.
+
+Feed table
+- The focused row's background is the tint at 15 % rather than a `List`
+  selection, so a tap in the row never fights the weight field. By eye.
+- A row with no entry (a tag without material, a deleted spool) shows New
+  and Link to existing… as the 44 pt capsules in the trailing column; the
+  footnote buttons under the readout are for rows with an entry
+  (`Not in Bambuddy` with material, Created).
+- Save is the stock `.borderedProminent` capsule with a 30 pt label
+  minimum height (about 44 pt), not an exact frame. By eye.
+
+Keyboard
+- The commands are `FeedCommands` on the app's scene: a `Feed` menu with
+  Save Focused Row (⌘S), Previous Row (⌘↑), Next Row (⌘↓) and Clear Feed…
+  (⌘⌫), and Settings… (⌘,) in the app menu. ⌘⌫ shows the feed and asks;
+  ⌘, opens Settings in either layout. The iPhone gets the same commands.
+
+Dialogs
+- Clear the feed? is an alert beside the sidebar; the portrait cards keep
+  the iPhone's confirmation dialog.
+- The inline Link warning goes by device (an iPad shows it in both
+  layouts, never the alert): `<title> <colour> is linked to tag <tag>.
+  Saving moves the link to <uid>.` The ✓ button keeps its title; the Mac
+  keeps `… Linking moves it to <uid>.` and `Move link`.
+
 ## Open questions for the owner
 
 None. Decided 2026-10-27: portrait shows the iPhone cards, as designed.

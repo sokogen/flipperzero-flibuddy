@@ -29,6 +29,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The colour line: "Bambu Green · 10501 · 590 g left of 1000",
     /// "label 1000 g", or empty.
     public let detailText: String
+    /// The iPad table's colour column: the colour line, with `archived`
+    /// after it for an archived spool ("Jade White · archived").
+    public let tableColorText: String
+    /// The iPad table's remaining column: "590 g left of 1000", "label
+    /// 1000 g"; empty for an archived spool, which says so in the colour column.
+    public let tableRemainingText: String
     public let statusText: String
     public let isError: Bool
     public let spoolId: Int?
@@ -119,6 +125,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         colorCode = Self.colorCode(row)
         colorLine = [colorName, colorCode].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         detailText = [colorLine, remainingText].filter { !$0.isEmpty }.joined(separator: " · ")
+        let archived = spool?.isArchived ?? false
+        tableColorText = archived ? detailText : colorLine
+        tableRemainingText = archived ? "" : remainingText
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
@@ -154,6 +163,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         public var text: String
         /// Red: the gross value is below the core weight.
         public var isError: Bool
+
+        /// The iPad table's readout under the status, without the gross
+        /// sum: "Saves 590 g left".
+        public var short: String {
+            text.components(separatedBy: " \u{00B7} ").first ?? text
+        }
     }
 
     /// "Saves 590 g left · 915 − 325 g core" in gross, "Saves 590 g left" in

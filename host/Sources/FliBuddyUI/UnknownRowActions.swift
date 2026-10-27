@@ -16,6 +16,9 @@ struct UnknownRowActions: View {
         /// Two equal capsules, 44 high and 10 apart, the prominent one first:
         /// New unless the Flipper asked to link (iPhone card).
         case capsules
+        /// Two capsules sized to their titles, 44 high and 8 apart, the
+        /// prominent one tinted (iPad table row).
+        case pills
     }
 
     let feed: FeedViewModel
@@ -45,7 +48,8 @@ struct UnknownRowActions: View {
             #if os(macOS)
             buttons.buttonStyle(.link).font(.footnote).controlSize(.small)
             #else
-            buttons.font(.footnote)
+            // Borderless: in a list row each button keeps its own tap.
+            buttons.buttonStyle(.borderless).font(.footnote)
             #endif
         case .capsules:
             // The row's status shows the spinner while New or Link runs.
@@ -54,8 +58,49 @@ struct UnknownRowActions: View {
                     capsule(action, prominent: action == item.cardActions.first)
                 }
             }
+        case .pills:
+            #if os(iOS)
+            HStack(spacing: 8) {
+                ForEach(item.cardActions, id: \.self) { action in
+                    pill(action, prominent: action == item.cardActions.first)
+                }
+            }
+            #else
+            buttons
+            #endif
         }
     }
+
+    private func perform(_ action: FeedItem.UnknownAction) {
+        switch action {
+        case .new: new()
+        case .link: showingLink = true
+        }
+    }
+
+    private func title(_ action: FeedItem.UnknownAction) -> String {
+        action == .new ? item.newAction.title : "Link to existing\u{2026}"
+    }
+
+    #if os(iOS)
+    private func pill(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
+        Button {
+            perform(action)
+        } label: {
+            Text(title(action))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                .padding(.horizontal, 18)
+                .frame(height: 44)
+                .background(
+                    prominent ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(uiColor: .tertiarySystemFill)),
+                    in: .capsule
+                )
+        }
+        .buttonStyle(.borderless)
+    }
+    #endif
 
     private var buttons: some View {
         HStack(spacing: 8) {
@@ -77,12 +122,9 @@ struct UnknownRowActions: View {
 
     @ViewBuilder private func capsule(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
         let button = Button {
-            switch action {
-            case .new: new()
-            case .link: showingLink = true
-            }
+            perform(action)
         } label: {
-            Text(action == .new ? item.newAction.title : "Link to existing\u{2026}")
+            Text(title(action))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, minHeight: 30)
@@ -335,8 +377,14 @@ struct LinkSpoolSheet: View {
     }
 
     #if os(iOS)
+    /// The iPad has the room for the move warning under the list, so ✓ moves
+    /// the link without the iPhone's alert.
+    private var warnsInline: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     /// iOS spec, "Sheets": a searchable list, a checkmark on the pick, and an
-    /// alert before a link moves away from another tag.
+    /// alert before a link moves away from another tag (inline on the iPad).
     private var phoneBody: some View {
         let picker = picker
         return NavigationStack {
@@ -362,6 +410,16 @@ struct LinkSpoolSheet: View {
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(spool.id == picker.selection ? .isSelected : [])
                 }
+                if warnsInline, let warning = picker.padWarning {
+                    Section {
+                        Label {
+                            Text(warning)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        }
+                        .font(.callout)
+                    }
+                }
             }
             .overlay {
                 if feed.isLoadingLinkCandidates {
@@ -384,7 +442,7 @@ struct LinkSpoolSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Link", systemImage: "checkmark") {
-                        if picker.moveAlert == nil { link() } else { confirmingMove = true }
+                        if picker.moveAlert == nil || warnsInline { link() } else { confirmingMove = true }
                     }
                     .disabled(!picker.canLink || feed.isBusy(item.id) || feed.isLoadingLinkCandidates)
                 }

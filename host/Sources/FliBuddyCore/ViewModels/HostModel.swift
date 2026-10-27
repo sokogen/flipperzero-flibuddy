@@ -61,6 +61,14 @@ public final class HostModel {
         ConnectionBanner(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
     }
 
+    /// The iPad sidebar: both connection rows, the feed's count, Clear.
+    public var sidebar: Sidebar {
+        Sidebar(
+            flipper: link.statusItem, bambuddy: feed.bambuddyStatus, flipperName: settings.peripheralName,
+            serverURL: settings.baseURL, feedCount: feed.items.count
+        )
+    }
+
     /// A status bar button. Settings is the view's to open, so it does
     /// nothing here.
     public func perform(_ action: StatusItem.Action) async {

@@ -287,6 +287,34 @@ struct FeedViewModelTests {
         #expect(blank.detailText == "")
     }
 
+    @Test func theiPadTableSplitsTheColourAndRemainingColumns() throws {
+        var coded = knownSpool()
+        coded.materialNumber = "10501"
+        let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
+        #expect(known.tableColorText == "Jade White · 10501")
+        #expect(known.tableRemainingText == "484 g left of 1000")
+        let unknown = FeedItem(try row(status: .unknown(prefill: true)))
+        #expect(unknown.tableColorText == "10100")
+        #expect(unknown.tableRemainingText == "label 1000 g")
+        // an archived spool says so in the colour column
+        var archived = knownSpool(weightUsed: 1000)
+        archived.archived = true
+        let empty = FeedItem(try row(status: .markedEmpty, spool: archived))
+        #expect(empty.tableColorText == "Jade White · 10100 · archived")
+        #expect(empty.tableRemainingText == "")
+        let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
+        #expect(blank.tableColorText == "")
+    }
+
+    @Test func theiPadReadoutDropsTheGrossSum() {
+        #expect(FeedItem.readout(value: 915, mode: .gross, core: 325).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: 590, mode: .net, core: 325).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: nil, mode: .gross, core: 325).short == "Type the scale reading")
+        let below = FeedItem.readout(value: 200, mode: .gross, core: 325)
+        #expect(below.short == "Below the core weight (325 g)")
+        #expect(below.isError)
+    }
+
     @Test func theSuggestionIsRemainingPlusCoreInGrossAndRemainingInNet() throws {
         let weighed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(lastScaleWeight: 734)))
         #expect(weighed.suggestion(mode: .gross) == 734)

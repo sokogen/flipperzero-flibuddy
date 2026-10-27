@@ -86,6 +86,11 @@ public struct LinkPickerModel: Equatable, Sendable {
         movedLink.map { "\($0). Linking moves it to \(uid)." }
     }
 
+    /// The iPad's inline form of the warning, under the list; ✓ then moves the link.
+    public var padWarning: String? {
+        movedLink.map { "\($0). Saving moves the link to \(uid)." }
+    }
+
     /// The iPhone asks before Link moves another tag's link here.
     public var moveAlert: MoveAlert? {
         movedLink.map {
