@@ -9,11 +9,13 @@ import SwiftUI
 public struct WatchRootView: View {
     let host: HostModel
     let receiver: WatchSettingsReceiver?
-    @ViewState private var navigation = WatchNavigation()
+    @ViewState private var navigation: WatchNavigation
 
     public init(host: HostModel, receiver: WatchSettingsReceiver?) {
         self.host = host
         self.receiver = receiver
+        // Rows already waiting do not count as started.
+        _navigation = ViewState(initialValue: WatchNavigation(host.feed.items))
     }
 
     public var body: some View {
@@ -36,7 +38,6 @@ public struct WatchRootView: View {
                 }
             }
         }
-        .onAppear { navigation.update(feed.items) }
         .onChange(of: feed.items) { _, items in navigation.update(items) }
     }
 }
@@ -129,7 +130,6 @@ struct WatchFeedRow: View {
         .padding(.vertical, 9)
         .frame(minHeight: 52)
         .accessibilityElement(children: .combine)
-        .accessibilityValue(item.statusText)
     }
 
     @ViewBuilder private var statusGlyph: some View {

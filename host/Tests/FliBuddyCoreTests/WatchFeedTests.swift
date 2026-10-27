@@ -214,6 +214,23 @@ struct WatchNavigationTests {
         #expect(navigation.path.isEmpty)
     }
 
+    /// The view seeds the navigation from the feed it appears with: a row
+    /// that already waits then does not open on the next snapshot.
+    @MainActor
+    @Test func rowsWaitingAtTheStartDoNotOpen() async throws {
+        let session = Session(settings: testSettings, inventory: FakeInventory(spools: [knownSpool()]))
+        let feed = FeedViewModel(session: session, settings: testSettings)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        feed.apply(await session.snapshot)
+        #expect(feed.items.first?.isWaiting == true)
+
+        var navigation = WatchNavigation(feed.items)
+        navigation.update(feed.items)
+
+        #expect(navigation.path.isEmpty)
+    }
+
     @MainActor
     @Test func aFailedSaveReportsFalse() async throws {
         let inventory = FakeInventory(spools: [knownSpool()])
