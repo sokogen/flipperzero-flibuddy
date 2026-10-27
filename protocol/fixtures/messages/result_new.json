@@ -1,0 +1,17 @@
+{
+  "t": "result",
+  "v": 2,
+  "id": "i-000004",
+  "ok": true,
+  "lines": ["Created", "spool #31"],
+  "spool": {
+    "id": 31,
+    "material": "PLA",
+    "subtype": "Basic",
+    "color_name": "Jade White",
+    "rgba": "FFFFFFFF",
+    "remaining": 1000,
+    "label": 1000,
+    "core": 250
+  }
+}

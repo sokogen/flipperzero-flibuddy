@@ -73,7 +73,7 @@ public final class FeedViewModel {
 
     public func apply(_ snapshot: SessionSnapshot) {
         // The session keeps rows by last scan, newest last.
-        items = snapshot.rows.reversed().map(FeedItem.init)
+        items = snapshot.rows.reversed().map { FeedItem($0, coreWeight: settings.coreWeight) }
         rows = Dictionary(uniqueKeysWithValues: snapshot.rows.map { ($0.id, $0) })
         itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         bambuddy = snapshot.bambuddy

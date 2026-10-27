@@ -261,8 +261,9 @@ extension StatusTint {
 }
 
 /// Weight field with its "g" unit, Net/Gross and Save, the readout under the
-/// field, and Link to existing… on a row created on scan. Tab goes field →
-/// mode → Save in view order.
+/// field, and Link to existing… on a row created on scan, or New and Link to
+/// existing… on a tag no spool carries (Save then creates the spool and
+/// records the weight). Tab goes field → mode → Save in view order.
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -306,6 +307,7 @@ struct WeightEntry: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!feed.canSave(id))
+                .help(item.savesNewSpool ? "Create the spool in Bambuddy from the tag and save the weight" : "Save the weight")
             }
             .disabled(saving)
             HStack(spacing: 8) {
@@ -325,6 +327,8 @@ struct WeightEntry: View {
                     #else
                     LinkExistingButton(feed: feed, item: item).font(.footnote)
                     #endif
+                } else if item.offersUnknownActions {
+                    UnknownRowActions(feed: feed, item: item, compact: true)
                 }
             }
         }

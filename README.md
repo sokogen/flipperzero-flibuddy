@@ -7,8 +7,11 @@ the raw dump over USB or Bluetooth LE to a host app on the Mac, an iPhone,
 an iPad or an Apple Watch; the host parses the tag, looks the spool up in
 Bambuddy, and records weights typed in from an ordinary kitchen scale, on
 either the Flipper or the host. New spools can be created and existing ones
-linked to a tag. See
-`docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`.
+linked to a tag; from the Flipper a spool can also be marked new, marked
+empty (archived) or deleted. See
+`docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`; the
+Flipper screens are in `docs/design/flipper-ui-spec.md`, the Mac window in
+`docs/design/macos-ui-spec.md`.
 
 FliBuddy, not SpoolBuddy: SpoolBuddy is Bambuddy's own kiosk device. The
 project was renamed on 2026-10-26; the design spec keeps its old file name.
@@ -71,9 +74,21 @@ ufbt launch                   # builds, installs and starts it over USB
 
 While the app runs on USB (the default transport) it owns the USB serial
 port, so qFlipper and the Flipper CLI are unavailable until you leave it.
-The Idle screen shows `USB` once a host has said hello, `no host` otherwise;
-Bluetooth is described below. Without a host a scan shows the
-tag's local facts only. See `flipper/README.md` for the screens.
+The app opens on **Waiting for host** (`USB: no host app`) and turns to
+**Ready** once a host has said hello; Bluetooth is described below. Without
+a host a scan shows the tag's local facts only.
+
+▶ opens the Flipper's **Settings**: Connection (USB / Bluetooth),
+**Auto-save new** (default Off), Feedback (Vibro+LED / LED / Off) and Sound.
+With Auto-save new on, the host creates a scanned Bambu tag that Bambuddy
+does not know at once ("Added to Bambuddy"); off, the tag shows "Not in
+Bambuddy" and nothing is created until **Add** on the Flipper or **New** /
+**Save** on the host. See `flipper/README.md`.
+
+The Flipper and the hosts speak protocol version 2
+(`protocol/PROTOCOL.md`) and ship together: a peer on another version is
+ignored, and the Mac status bar says so ("Flipper speaks protocol 1, host
+speaks 2"), with what to update in its tooltip.
 
 ## Mac host
 
@@ -105,12 +120,11 @@ catalog entry in Bambuddy, so set that entry to 325 g too.
 
 The transport is a setting on both sides; nothing negotiates it.
 
-- Flipper: on the Idle screen OK opens **Transport** with **USB** and
-  **Bluetooth**. The choice is saved in
-  `/ext/apps_data/flibuddy/settings.bin` and the app starts that backend
-  only; with Bluetooth the USB port stays with the CLI and qFlipper. The
-  status line shows `BLE adv` while advertising and `BLE` once a host has
-  said hello. See `flipper/README.md`.
+- Flipper: Settings → **Connection**, **USB** or **Bluetooth**. The choice
+  is saved in `/ext/apps_data/flibuddy/settings.bin` and the app starts
+  that backend only; with Bluetooth the USB port stays with the CLI and
+  qFlipper. The Waiting screen shows `Visible as <name>` while advertising,
+  and Ready follows once a host has said hello. See `flipper/README.md`.
 - Host: Settings → Connection. The Mac offers USB and Bluetooth (USB stays
   the default); the iPhone, iPad and Watch use Bluetooth only. **Scan for
   Flipper** lists the Flippers nearby by name; the chosen one is
@@ -267,5 +281,5 @@ Remaining checks:
 - [ ] Scan an NTAG with and without a host.
 - [ ] Link a hand-added spool via the host picker; confirm a repeat scan
       matches.
-- [ ] Press Back while "Reading tag"; the app returns to Idle and scanning
+- [ ] Press Back while "Reading tag"; the app returns to Ready and scanning
       resumes.

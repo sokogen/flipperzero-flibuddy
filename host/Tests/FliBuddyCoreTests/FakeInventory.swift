@@ -10,6 +10,9 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         case create(NewSpool)
         case link(spoolId: Int, TagLink)
         case delete(spoolId: Int)
+        case setUsed(spoolId: Int, grams: Int)
+        case archive(spoolId: Int)
+        case restore(spoolId: Int)
         case spoolman
         case list
         case catalog
@@ -28,6 +31,9 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var createError: BambuddyError?
     var linkError: BambuddyError?
     var deleteError: BambuddyError?
+    var setUsedError: BambuddyError?
+    var archiveError: BambuddyError?
+    var restoreError: BambuddyError?
     var catalogError: BambuddyError?
     var listError: BambuddyError?
     /// What `colorMap` answers; empty by default, so new items carry no colour name.
@@ -70,11 +76,21 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
 
     var updates: [Call] { calls.filter { if case .update = $0 { true } else { false } } }
     var creates: [Call] { calls.filter { if case .create = $0 { true } else { false } } }
+    /// Every call that changes the inventory, in order.
+    var writes: [Call] {
+        calls.filter {
+            switch $0 {
+            case .update, .create, .link, .delete, .setUsed, .archive, .restore: true
+            case .find, .spoolman, .list, .catalog: false
+            }
+        }
+    }
 
     private func record(_ call: Call) {
         lock.withLock { recorded.append(call) }
     }
 
+    /// Archived spools are found too (`include_archived=true`).
     func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
         record(.find(tray: trayUuid, uid: uid))
         await onFind?()
@@ -150,6 +166,38 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         }
     }
 
+    /// Answers the spool as Bambuddy's `PATCH` does.
+    func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
+        record(.setUsed(spoolId: spoolId, grams: grams))
+        if let setUsedError { throw setUsedError }
+        return try change(spoolId) { $0.weightUsed = Double(grams) }
+    }
+
+    func archiveSpool(id: Int) async throws {
+        record(.archive(spoolId: id))
+        if let archiveError { throw archiveError }
+        _ = try change(id) { $0.archivedAt = "2026-10-26T12:00:00" }
+    }
+
+    func restoreSpool(id: Int) async throws {
+        record(.restore(spoolId: id))
+        if let restoreError { throw restoreError }
+        _ = try change(id) { $0.archivedAt = nil }
+    }
+
+    private func change(_ id: Int, _ edit: (inout Spool) -> Void) throws -> Spool {
+        try lock.withLock {
+            guard let index = stored.firstIndex(where: { $0.id == id }) else { throw BambuddyError.spoolNotFound(id) }
+            edit(&stored[index])
+            return stored[index]
+        }
+    }
+
+    /// Removes the spool without recording a call, as another client would.
+    func removeQuietly(_ id: Int) {
+        lock.withLock { stored.removeAll { $0.id == id } }
+    }
+
     func spoolmanEnabled() async throws -> Bool {
         record(.spoolman)
         if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }
@@ -162,7 +210,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         record(.list)
         await onList?()
         if let listError { throw listError }
-        return spools
+        return spools.filter { !$0.isArchived }
     }
 
     func catalog() async throws -> [CatalogEntry] {

@@ -137,14 +137,27 @@ keeps a typed number. The readout under the field shows what Save sends
 | Enter weight | a known spool | the weight entry |
 | Saving… | the weight is on its way | the entry, disabled |
 | Saved 590 g left · by host / by Flipper | the last save and who made it; after a host save that came later than the Flipper's 10 s, a note says the Flipper showed a timeout but the save went through | click the row (or the VoiceOver "Re-weigh" action) to weigh again |
-| Created in Bambuddy | an unknown Bambu tag, created on scan with the tag's material, colour and label weight and the core weight from Settings | the entry, pre-filled with label + core; **Link to existing…** deletes the spool just created and links the tag to the chosen one |
+| Created in Bambuddy | an unknown Bambu tag, created on scan (the Flipper's **Auto-save new** is on) with the tag's material, colour and label weight and the core weight from Settings | the entry, pre-filled with label + core; **Link to existing…** deletes the spool just created and links the tag to the chosen one |
+| Not in Bambuddy | an unknown Bambu tag with Auto-save new off, or a tag with material that has no spool any more (the link after deleting the created spool failed, or the spool went away) | the entry, pre-filled with label + core; **Save** creates the spool, then records the weight; **New** (one step, from the tag) and **Link to existing…** |
 | Not in Bambuddy; tag has no material | an NTAG or blank tag | **New…** (the New spool form) and **Link to existing…** |
-| Not in Bambuddy | a tag with material that has no spool any more (the link after deleting the created spool failed, or the spool went away) | **New** (one step, from the tag) and **Link to existing…** |
+| Updating… | Mark as new / empty or Delete from the Flipper on its way | the entry, disabled |
+| Marked as new · 1000 g left · by Flipper | the spool is full again (restored first when it was archived) | click the row to weigh |
+| Marked as empty · archived · by Flipper | remaining 0 and archived; the colour column reads `… · archived` | click the row to weigh; a Save restores the spool |
+| Deleted from Bambuddy · by Flipper | the Flipper deleted the spool | **New** and **Link to existing…** |
 | Flipper asks to create / link it here | the Flipper sent a request for this tag | the requested action is the prominent button |
 | Error: … | the last Bambuddy call failed | on a spool, the entry keeps its value for a retry; after a failed create on scan, **New** and **Link to existing…** |
 
+Whether an unknown Bambu tag is created on scan is up to the Flipper: its
+Auto-save new setting travels in every `scan` (`autosave`), and the host has
+no switch of its own. Lookups include archived spools, so a spool marked
+empty and scanned again reads `Enter weight` with `… · archived` in the
+colour column, and its Save restores it first. After New, Link, or a Save
+that created the spool, the host pushes a fresh `lookup` for the row's scan
+so a Flipper still showing that tag shows the spool.
+
 A rescan of a tag created on scan finds that spool by tag and never creates
-a second one. If the delete behind **Link to existing…** fails, nothing
+a second one; so does a retried Save on a `Not in Bambuddy` row whose create
+went through and whose weight failed. If the delete behind **Link to existing…** fails, nothing
 changes and the row says so; if the link fails after the delete, the row
 has no spool and offers New and Link again.
 
@@ -167,7 +180,9 @@ Connect starts the link with the saved transport; Check and Retry re-run
 the startup check (`HostModel.perform(_:)`); Settings opens the Settings
 window. The other items have no button: "No Flipper · searching" (spinner),
 "Flipper · USB", "Flipper · Bluetooth", "Open FliBuddy on the Flipper" (the
-port is open but no `hello` came within 2 s), "Checking Bambuddy…",
+port is open but no `hello` came within 2 s), "Flipper speaks protocol 1,
+host speaks 2" (the Flipper answered in another protocol version; the
+tooltip says which side to update), "Checking Bambuddy…",
 "Bambuddy ready" and "Bambuddy ready · colour names unavailable".
 
 ## Bluetooth (`BLETransport`)

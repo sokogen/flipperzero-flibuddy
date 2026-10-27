@@ -8,6 +8,7 @@
 #include "bambu_keys.h"
 #include "nfc_classify.h"
 #include "nfc_read.h"
+#include "tag_watch.h"
 
 #define READER_STACK    3072 /* HKDF runs on it */
 #define RESCAN_DELAY_MS 500 /* after a tag of another technology */
@@ -27,6 +28,7 @@ struct TagReader {
     bool started; /* GUI thread: started and not joined yet */
     volatile bool stopping;
     volatile bool found_3a; /* the last detection was ISO 14443-3A */
+    TagWatch watch; /* workers only, one after the other: the tag read last */
 };
 
 /* NFC worker thread. */
@@ -94,14 +96,15 @@ static bool read_ntag(TagReader* r, TagDump* out) {
 
 bool tag_reader_read(TagReader* r, TagDump* out) {
     Iso14443_3aData iso;
+    tag_dump_init(out, TagTypeMfc); /* no UID until a tag answers */
     if(iso14443_3a_poller_sync_read(r->nfc, &iso) != Iso14443_3aErrorNone) return false;
+    if(!tag_dump_set_uid(out, iso.uid, iso.uid_len)) return false;
     TagType type;
     if(!tag_type_from_sak(iso.sak, &type)) {
         FURI_LOG_I("FliBuddy", "unsupported SAK %02X", iso.sak);
         return false;
     }
-    tag_dump_init(out, type);
-    if(!tag_dump_set_uid(out, iso.uid, iso.uid_len)) return false;
+    out->type = type;
     out->sak = iso.sak;
     memcpy(out->atqa, iso.atqa, sizeof(out->atqa));
     return type == TagTypeMfc ? read_mfc(r, out) : read_ntag(r, out);
@@ -126,11 +129,29 @@ static bool wait_for_tag(TagReader* r) {
     }
 }
 
+/* Waits until the tag read last has left the field (tag_watch.h); false
+ * when asked to stop. */
+static bool wait_gone(TagReader* r) {
+    while(tag_watch_waiting(&r->watch)) {
+        Iso14443_3aData iso;
+        bool answered = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+        tag_watch_poll(&r->watch, iso.uid, answered ? iso.uid_len : 0);
+        uint32_t flags =
+            furi_thread_flags_wait(ReaderFlagStop, FuriFlagWaitAny, TAG_WATCH_POLL_MS);
+        if(!(flags & FuriFlagError) && (flags & ReaderFlagStop)) return false;
+    }
+    return true;
+}
+
 static int32_t reader_worker(void* ctx) {
     TagReader* r = ctx;
-    if(!wait_for_tag(r)) return 0;
+    if(!wait_gone(r) || !wait_for_tag(r)) return 0;
     report(r, TagReaderEventDetected);
     bool ok = tag_reader_read(r, r->out);
+    /* also a tag that failed: it would fail again at once. A result nobody
+     * gets (the reader was stopped during the read) is not remembered: the
+     * next reader reads that tag. */
+    if(!r->stopping) tag_watch_set(&r->watch, r->out->uid, r->out->uid_len);
     report(r, ok ? TagReaderEventRead : TagReaderEventFailed);
     return 0;
 }
@@ -169,6 +190,10 @@ void tag_reader_stop(TagReader* r) {
     if(id) furi_thread_flags_set(id, ReaderFlagStop);
     furi_thread_join(r->worker);
     r->started = false;
+}
+
+void tag_reader_forget(TagReader* r) {
+    if(!r->started) tag_watch_clear(&r->watch);
 }
 
 bool tag_reader_is_started(const TagReader* r) {

@@ -28,6 +28,34 @@ static bool read_grams(JsonReader* r, bool* has, uint16_t* out) {
     return true;
 }
 
+/* Exactly eight upper-case hex digits, RRGGBBAA. */
+static bool read_rgba(JsonReader* r, bool* has, uint32_t* out) {
+    char s[9];
+    if(!json_read_string(r, s, sizeof(s)) || strlen(s) != 8) return false;
+    uint32_t v = 0;
+    for(size_t i = 0; i < 8; i++) {
+        char c = s[i];
+        unsigned d;
+        if(c >= '0' && c <= '9')
+            d = (unsigned)(c - '0');
+        else if(c >= 'A' && c <= 'F')
+            d = (unsigned)(c - 'A' + 10);
+        else
+            return false;
+        v = v << 4 | d;
+    }
+    *has = true;
+    *out = v;
+    return true;
+}
+
+static bool read_spool_id(JsonReader* r, int32_t* out) {
+    long v;
+    if(!json_read_int(r, &v) || v < 1 || v > INT32_MAX) return false;
+    *out = (int32_t)v;
+    return true;
+}
+
 static bool read_lines(JsonReader* r, ProtoLines* lines) {
     memset(lines, 0, sizeof(*lines));
     if(!json_array_begin(r)) return false;
@@ -58,6 +86,75 @@ static bool read_defaults(JsonReader* r, ProtoDefaults* d) {
     return json_reader_ok(r);
 }
 
+enum {
+    SpoolSeenId = 1 << 0,
+    SpoolSeenMaterial = 1 << 1,
+    SpoolSeenRemaining = 1 << 2,
+    SpoolSeenLabel = 1 << 3,
+    SpoolSeenCore = 1 << 4,
+    SpoolSeenRequired = (1 << 5) - 1,
+};
+
+static bool read_spool_field(JsonReader* r, const char* key, ProtoSpool* s, unsigned* seen) {
+    bool has; /* the required grams are always present once seen */
+    if(key_is(key, "id")) {
+        *seen |= SpoolSeenId;
+        return read_spool_id(r, &s->id);
+    }
+    if(key_is(key, "material")) {
+        *seen |= SpoolSeenMaterial;
+        return read_text(r, s->material, sizeof(s->material));
+    }
+    if(key_is(key, "subtype")) return read_text(r, s->subtype, sizeof(s->subtype));
+    if(key_is(key, "color_name")) return read_text(r, s->color_name, sizeof(s->color_name));
+    if(key_is(key, "rgba")) return read_rgba(r, &s->has_rgba, &s->rgba);
+    if(key_is(key, "remaining")) {
+        *seen |= SpoolSeenRemaining;
+        return read_grams(r, &has, &s->remaining);
+    }
+    if(key_is(key, "label")) {
+        *seen |= SpoolSeenLabel;
+        return read_grams(r, &has, &s->label);
+    }
+    if(key_is(key, "core")) {
+        *seen |= SpoolSeenCore;
+        return read_grams(r, &has, &s->core);
+    }
+    if(key_is(key, "archived")) return json_read_bool(r, &s->archived);
+    return json_skip(r);
+}
+
+static bool read_spool(JsonReader* r, ProtoSpool* s) {
+    char key[PROTO_KEY_MAX];
+    unsigned seen = 0;
+    memset(s, 0, sizeof(*s));
+    if(!json_object_begin(r)) return false;
+    while(json_object_next(r, key, sizeof(key)))
+        if(!read_spool_field(r, key, s, &seen)) return false;
+    return json_reader_ok(r) && seen == SpoolSeenRequired;
+}
+
+static bool read_tag_info(JsonReader* r, ProtoTagInfo* t) {
+    char key[PROTO_KEY_MAX];
+    memset(t, 0, sizeof(*t));
+    if(!json_object_begin(r)) return false;
+    while(json_object_next(r, key, sizeof(key))) {
+        bool ok;
+        if(key_is(key, "material"))
+            ok = read_text(r, t->material, sizeof(t->material));
+        else if(key_is(key, "subtype"))
+            ok = read_text(r, t->subtype, sizeof(t->subtype));
+        else if(key_is(key, "rgba"))
+            ok = read_rgba(r, &t->has_rgba, &t->rgba);
+        else if(key_is(key, "label"))
+            ok = read_grams(r, &t->has_label, &t->label);
+        else
+            ok = json_skip(r);
+        if(!ok) return false;
+    }
+    return json_reader_ok(r);
+}
+
 /* Required-field bookkeeping while walking the fields of one message. */
 enum {
     SeenId = 1 << 0, /* scan_id for lookup, id for result */
@@ -69,6 +166,9 @@ enum {
     SeenOs = 1 << 6,
     SeenSpoolId = 1 << 7,
     SeenError = 1 << 8,
+    SeenSpool = 1 << 9,
+    SeenCreated = 1 << 10,
+    SeenTagInfo = 1 << 11,
 };
 
 static bool decode_hello_field(JsonReader* r, const char* key, ProtoHello* h, unsigned* seen) {
@@ -117,13 +217,22 @@ static bool decode_lookup_field(JsonReader* r, const char* key, ProtoLookup* l, 
         return read_lookup_status(r, &l->status);
     }
     if(key_is(key, "spool_id")) {
-        long v;
-        if(!json_read_int(r, &v) || v < 1 || v > INT32_MAX) return false;
         *seen |= SeenSpoolId;
-        l->spool_id = (int32_t)v;
-        return true;
+        return read_spool_id(r, &l->spool_id);
     }
     if(key_is(key, "prefill")) return json_read_bool(r, &l->prefill);
+    if(key_is(key, "spool")) {
+        *seen |= SeenSpool;
+        return l->has_spool = read_spool(r, &l->spool);
+    }
+    if(key_is(key, "created")) {
+        *seen |= SeenCreated;
+        return json_read_bool(r, &l->created);
+    }
+    if(key_is(key, "tag_info")) {
+        *seen |= SeenTagInfo;
+        return l->has_tag_info = read_tag_info(r, &l->tag_info);
+    }
     if(key_is(key, "lines")) {
         *seen |= SeenLines;
         return read_lines(r, &l->lines);
@@ -141,7 +250,9 @@ static bool lookup_complete(const ProtoLookup* l, unsigned seen) {
     if((seen & required) != required) return false;
     if(l->status == ProtoLookupFound && !(seen & SeenSpoolId)) return false;
     if(l->status == ProtoLookupError && !(seen & SeenError)) return false;
-    return true;
+    if(l->status != ProtoLookupFound && (seen & (SeenSpool | SeenCreated))) return false;
+    if(l->status != ProtoLookupUnknown && (seen & SeenTagInfo)) return false;
+    return !l->has_spool || l->spool.id == l->spool_id;
 }
 
 static bool decode_result_field(JsonReader* r, const char* key, ProtoResult* res, unsigned* seen) {
@@ -157,6 +268,10 @@ static bool decode_result_field(JsonReader* r, const char* key, ProtoResult* res
         *seen |= SeenLines;
         return read_lines(r, &res->lines);
     }
+    if(key_is(key, "spool")) {
+        *seen |= SeenSpool;
+        return res->has_spool = read_spool(r, &res->spool);
+    }
     if(key_is(key, "error")) {
         *seen |= SeenError;
         return read_text(r, res->error, sizeof(res->error));
@@ -167,7 +282,8 @@ static bool decode_result_field(JsonReader* r, const char* key, ProtoResult* res
 static bool result_complete(const ProtoResult* res, unsigned seen) {
     unsigned required = SeenId | SeenOk | SeenLines;
     if((seen & required) != required) return false;
-    return res->ok || (seen & SeenError);
+    if(res->ok) return true;
+    return (seen & SeenError) && !(seen & SeenSpool);
 }
 
 /* First pass: validates the whole line as one JSON object and picks up

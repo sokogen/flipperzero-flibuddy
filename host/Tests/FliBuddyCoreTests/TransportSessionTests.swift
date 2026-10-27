@@ -47,6 +47,23 @@ import Testing
         #expect(sink.lines.last?.level == .notice)
     }
 
+    @Test func aSilentFlipperOfAnotherVersionSaysWhichVersionItSpeaks() async throws {
+        let sink = await capturingLog {
+            let (transport, session, events, run) = await start(helloTimeout: .milliseconds(50))
+            defer { run.cancel() }
+            transport.otherVersion = 1
+            #expect(await eventually { await session.state == .otherVersion(1) })
+            #expect(await events.items == [.state(.waitingForHello), .state(.otherVersion(1))])
+
+            // a Flipper of this version that says hello after all connects
+            transport.deliver(.hello(flipperHello))
+            #expect(await eventually { await session.state == .connected(flipperHello) })
+            transport.disconnect()
+        }
+
+        #expect(sink.events("link hello timeout:") == ["link hello timeout: after=50ms peer_version=1"])
+    }
+
     @Test func defaultHelloTimeoutIsTwoSeconds() {
         #expect(TransportSession.defaultHelloTimeout == .seconds(2))
     }

@@ -151,6 +151,74 @@ struct FlipperLinkTests {
         #expect(await eventually { link.state == .waitingForHello })
     }
 
+    @Test func aLookupTheHostSendsByItselfReachesTheFlipper() async throws {
+        let transport = FakeTransport()
+        let session = Session(settings: testSettings, inventory: FakeInventory())
+        let link = FlipperLink(
+            session: session, hello: hostHello, makeTransport: { _ in transport },
+            discoverPorts: { ["/dev/cu.usbmodemflip_A"] }, retryDelay: .milliseconds(50)
+        )
+        link.connect(.usb(port: nil))
+        defer { link.disconnect() }
+        #expect(await eventually { transport.state == .open })
+        transport.deliver(.flipperHello)
+        #expect(await eventually { if case .connected = link.state { true } else { false } })
+        transport.deliver(.scan(try fixtureScan()))
+        #expect(await eventually { transport.sent.count == 2 })
+        let row = try #require(await session.rows.first)
+        let form = try #require(NewSpool(tag: row.tag, coreWeight: 250, coreWeightCatalogId: 3))
+
+        let created = try await session.createSpool(row: row.id, form)
+
+        #expect(await eventually { transport.sent.count == 3 })
+        #expect(transport.sent.last == .lookup(LookupBuilder.found(scanId: "s-000012", spool: created)))
+    }
+
+    @Test func aPushedLookupThatCannotBeSentDropsTheLinkAndReconnects() async throws {
+        let transport = FakeTransport()
+        let session = Session(settings: testSettings, inventory: FakeInventory())
+        let link = FlipperLink(
+            session: session, hello: hostHello, makeTransport: { _ in transport },
+            discoverPorts: { ["/dev/cu.usbmodemflip_A"] }, retryDelay: .milliseconds(50)
+        )
+        link.connect(.usb(port: nil))
+        defer { link.disconnect() }
+        #expect(await eventually { transport.state == .open })
+        transport.deliver(.flipperHello)
+        #expect(await eventually { if case .connected = link.state { true } else { false } })
+        transport.deliver(.scan(try fixtureScan()))
+        #expect(await eventually { transport.sent.count == 2 })
+        let row = try #require(await session.rows.first)
+        let form = try #require(NewSpool(tag: row.tag, coreWeight: 250, coreWeightCatalogId: 3))
+
+        transport.nextSendError = TransportError.writeTimedOut
+        _ = try await session.createSpool(row: row.id, form)
+
+        #expect(await eventually { link.problem == "Writing to the Flipper timed out" })
+        #expect(await eventually { transport.connectCount == 2 && transport.state == .open })
+    }
+
+    @Test func aPushBeforeTheFlipperSaidHelloIsNotSent() async throws {
+        let transport = FakeTransport()
+        let session = Session(settings: testSettings, inventory: FakeInventory())
+        let link = FlipperLink(
+            session: session, hello: hostHello, makeTransport: { _ in transport },
+            discoverPorts: { ["/dev/cu.usbmodemflip_A"] }, retryDelay: .milliseconds(50)
+        )
+        link.connect(.usb(port: nil))
+        defer { link.disconnect() }
+        #expect(await eventually { link.state == .waitingForHello })
+        let id = await session.record(try fixtureScan())
+        _ = await session.lookup(row: id)
+        let row = try #require(await session.rows.first)
+        let form = try #require(NewSpool(tag: row.tag, coreWeight: 250, coreWeightCatalogId: 3))
+
+        _ = try await session.createSpool(row: row.id, form)
+
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(transport.sent == [.hello(hostHello)])
+    }
+
     @Test func aPortThatWillNotOpenIsReported() async {
         let transport = FakeTransport()
         transport.connectError = TransportError.openFailed(path: "/dev/cu.usbmodemflip_A", errno: 16)
@@ -406,6 +474,8 @@ struct FlipperLinkTests {
         #expect(FlipperLink.statusText(.disconnected, problem: "No Flipper found") == "Flipper: No Flipper found")
         #expect(FlipperLink.statusText(.waitingForHello, problem: nil) == "Flipper: waiting for the app")
         #expect(FlipperLink.statusText(.noAnswer, problem: nil) == "Flipper: no answer; open FliBuddy on the Flipper")
+        #expect(FlipperLink.statusText(.otherVersion(1), problem: nil) == "Flipper: speaks protocol 1, host speaks 2")
+        #expect(FlipperLink.connectedTransport(.otherVersion(1), choice: .usb(port: nil)) == nil)
         #expect(
             FlipperLink.statusText(.connected(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")), problem: nil)
                 == "Flipper: connected (firmware 1.5.1)"

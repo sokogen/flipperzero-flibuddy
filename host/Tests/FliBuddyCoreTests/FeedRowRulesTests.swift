@@ -14,14 +14,17 @@ final class TestClock: @unchecked Sendable {
     }
 }
 
-private func scan(_ scanId: String, _ name: String = "scan_mfc") throws -> Scan {
+private func scan(_ scanId: String, _ name: String = "scan_mfc", autosave: Bool = false) throws -> Scan {
     var scan = try fixtureScan(name)
     scan.scanId = scanId
+    scan.autosave = autosave
     return scan
 }
 
-private func row(status: FeedRow.Status, spool: Spool? = knownSpool(), request: FeedRow.HostRequest? = nil) throws -> FeedRow {
-    var row = FeedRow(scanId: "s-1", dump: try fixtureScan().tag, spool: spool, status: status)
+private func row(
+    status: FeedRow.Status, spool: Spool? = knownSpool(), request: FeedRow.HostRequest? = nil, _ name: String = "scan_mfc"
+) throws -> FeedRow {
+    var row = FeedRow(scanId: "s-1", dump: try fixtureScan(name).tag, spool: spool, status: status)
     row.request = request
     return row
 }
@@ -64,6 +67,10 @@ struct FeedItemRulesTests {
             (saved, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
             (timedOut, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
             (try row(status: .created), "Created in Bambuddy", .symbol("plus.circle.fill"), .green),
+            (try row(status: .updating), "Updating\u{2026}", .progress, .secondary),
+            (try row(status: .markedNew), "Marked as new · 484 g left", .symbol("arrow.counterclockwise.circle.fill"), .green),
+            (try row(status: .markedEmpty), "Marked as empty · archived", .symbol("archivebox"), .secondary),
+            (try row(status: .deleted, spool: nil), "Deleted from Bambuddy", .symbol("trash"), .secondary),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable",
              .symbol("exclamationmark.triangle.fill"), .red),
             (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
@@ -83,23 +90,35 @@ struct FeedItemRulesTests {
     }
 
     @Test func entryAndReopenableStates() throws {
-        let entry: [FeedRow.Status] = [.awaitingWeight, .saving, .created, .error("boom")]
+        let entry: [FeedRow.Status] = [.awaitingWeight, .saving, .created, .updating, .error("boom")]
         for status in entry {
             #expect(FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.saved, .savedAfterTimeout] {
+        for status in [FeedRow.Status.saved, .savedAfterTimeout, .markedNew, .markedEmpty] {
             #expect(!FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.scanned, .unknown(prefill: true), .unknown(prefill: false)] {
+        for status in [FeedRow.Status.scanned, .deleted] {
             #expect(!FeedItem(try row(status: status, spool: nil)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status, spool: nil)).isReopenable, "\(status)")
         }
-        // an error without a spool offers New and Link, not a weight
-        #expect(!FeedItem(try row(status: .error("boom"), spool: nil)).isEntry)
-        #expect(FeedItem(try row(status: .error("boom"), spool: nil)).offersUnknownActions)
+        // a tag without material and no spool: New and Link, no weight
+        for status in [FeedRow.Status.unknown(prefill: false), .error("boom")] {
+            #expect(!FeedItem(try row(status: status, spool: nil, "scan_ntag")).isEntry, "\(status)")
+            #expect(FeedItem(try row(status: status, spool: nil, "scan_ntag")).offersUnknownActions, "\(status)")
+        }
+        // a Bambu tag no spool carries (Auto-save new off): a weight, whose
+        // Save creates the spool, and New and Link; an error keeps them
+        for status in [FeedRow.Status.unknown(prefill: true), .saving, .error("boom")] {
+            let item = FeedItem(try row(status: status, spool: nil))
+            #expect(item.isEntry, "\(status)")
+            #expect(item.savesNewSpool, "\(status)")
+            #expect(item.offersUnknownActions, "\(status)")
+            #expect(!item.isReopenable, "\(status)")
+        }
         #expect(FeedItem(try row(status: .saving)).isSaving)
+        #expect(FeedItem(try row(status: .updating)).isSaving)
         var created = try row(status: .created)
         created.createdSpoolId = created.spool?.id
         #expect(FeedItem(created).offersLinkExisting)
@@ -174,12 +193,14 @@ struct FeedItemDisplayTests {
             (timedOut, "Saved 484 g left · by host", false, true, true),
             (try row(status: .created), "Created in Bambuddy", true, false, false),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable", true, false, false),
-            (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
+            (try row(status: .unknown(prefill: true), spool: nil), "Not in Bambuddy", true, false, false),
+            (try row(status: .unknown(prefill: false), spool: nil, "scan_ntag"), "Not in Bambuddy; tag has no material",
              false, false, false),
-            (try row(status: .unknown(prefill: true), spool: nil, request: .create), "Flipper asks to create it here",
-             false, false, false),
+            (try row(status: .unknown(prefill: false), spool: nil, request: .create, "scan_ntag"),
+             "Flipper asks to create it here", false, false, false),
             (try row(status: .unknown(prefill: true), spool: nil, request: .link), "Flipper asks to link it here",
-             false, false, false),
+             true, false, false),
+            (try row(status: .updating), "Updating\u{2026}", true, false, false),
         ]
         for (row, status, entry, reopenable, note) in cases {
             let item = FeedItem(row)
@@ -340,7 +361,7 @@ struct FeedViewModelRulesTests {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
 
-        let lookup = await session.handleScan(try scan("s-1"))
+        let lookup = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
 
         let tag = TagParser.parse(try fixtureScan().tag)
@@ -367,8 +388,8 @@ struct FeedViewModelRulesTests {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
 
-        _ = await session.handleScan(try scan("s-1"))
-        let again = await session.handleScan(try scan("s-2"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
+        let again = await session.handleScan(try scan("s-2", autosave: true))
         model.apply(await session.snapshot)
 
         #expect(inventory.creates.count == 1)
@@ -383,7 +404,7 @@ struct FeedViewModelRulesTests {
         inventory.createError = .network("timed out")
         let (model, session) = makeModel(inventory)
 
-        let lookup = await session.handleScan(try scan("s-1"))
+        let lookup = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
 
         // the Flipper keeps its own New
@@ -391,7 +412,9 @@ struct FeedViewModelRulesTests {
         #expect(lookup.prefill == true)
         let item = try #require(model.items.first)
         #expect(item.statusText == "Error: \(BambuddyError.network("timed out").localizedDescription)")
-        #expect(!item.isEntry)
+        // a Save would create the spool too
+        #expect(item.isEntry)
+        #expect(item.savesNewSpool)
         #expect(item.offersUnknownActions)
         #expect(item.newAction == .fromTag)
 
@@ -405,7 +428,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
 
@@ -426,7 +449,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         inventory.deleteError = .http(status: 500, message: "boom")
@@ -454,7 +477,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         try await inventory.deleteSpool(id: 100)
@@ -469,7 +492,7 @@ struct FeedViewModelRulesTests {
     @Test func aWeighedCreatedSpoolIsNotOfferedForDeletion() async throws {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         model.setWeightText("1100", for: id)
@@ -486,7 +509,7 @@ struct FeedViewModelRulesTests {
 
     @Test func newSettingsForgetTheSpoolCreatedOnTheOldBambuddy() async throws {
         let (model, session) = makeModel(FakeInventory())
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         let target = Spool(id: 100, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let other = FakeInventory(spools: [target])
         await session.reconfigure(settings: testSettings, inventory: other)
@@ -504,7 +527,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let old = FakeInventory(spools: [target])
         let (model, session) = makeModel(old)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         await model.loadLinkCandidates()
@@ -524,7 +547,7 @@ struct FeedViewModelRulesTests {
         let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
         let inventory = FakeInventory(spools: [target])
         let (model, session) = makeModel(inventory)
-        _ = await session.handleScan(try scan("s-1"))
+        _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
         inventory.linkError = .network("timed out")

@@ -1,0 +1,20 @@
+{
+  "t": "lookup",
+  "v": 2,
+  "scan_id": "s-000015",
+  "status": "found",
+  "spool_id": 31,
+  "spool": {
+    "id": 31,
+    "material": "PLA",
+    "subtype": "Basic",
+    "color_name": "Jade White",
+    "rgba": "FFFFFFFF",
+    "remaining": 1000,
+    "label": 1000,
+    "core": 250
+  },
+  "created": true,
+  "lines": ["PLA Basic", "Jade White", "1000 g left of 1000", "core 250 g"],
+  "defaults": { "gross": 1250, "label": 1000, "core": 250 }
+}

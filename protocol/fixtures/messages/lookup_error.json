@@ -1,6 +1,6 @@
 {
   "t": "lookup",
-  "v": 1,
+  "v": 2,
   "scan_id": "s-000012",
   "status": "error",
   "lines": ["Bambuddy unreachable"],

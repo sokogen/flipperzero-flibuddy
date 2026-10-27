@@ -16,6 +16,14 @@ class BambuddyError(Exception):
     """A Bambuddy call failed: network error or unexpected status."""
 
 
+class SpoolNotFound(BambuddyError):
+    """Bambuddy answered 404 for the spool."""
+
+    def __init__(self, spool_id: int):
+        super().__init__(f"spool {spool_id} not found")
+        self.spool_id = spool_id
+
+
 class PermissionMissing(BambuddyError):
     def __init__(self, permission: str):
         super().__init__(f"API key lacks the {permission} permission")
@@ -31,6 +39,15 @@ def used_after_weighing(spool: dict, gross: int) -> float:
     """`weight_used` after a `gross` scale weight, as Bambuddy computes it."""
     net = max(0, gross - (spool.get("core_weight") or 0))
     return max(0, spool.get("label_weight", 0) - net)
+
+
+def is_archived(spool: dict) -> bool:
+    """Whether the spool is in Bambuddy's archive: an explicit `archived`
+    flag wins over `archived_at`."""
+    archived = spool.get("archived")
+    if archived is not None:
+        return bool(archived)
+    return spool.get("archived_at") is not None
 
 
 def remaining(spool: dict) -> int:
@@ -89,9 +106,12 @@ class BambuddyClient:
         )
 
     def find_by_tag(self, tray_uuid: str | None, tag_uid: str) -> dict | None:
-        """The spool carrying this tag: the tray UUID when there is one, then the UID."""
+        """The spool carrying this tag: the tray UUID when there is one, then
+        the UID. Archived spools count, so a spool marked empty is found again
+        rather than added twice."""
         queries = ([{"tray_uuid": tray_uuid}] if tray_uuid else []) + [{"tag_uid": tag_uid}]
         for params in queries:
+            params = {**params, "include_archived": "true"}
             response = self._request("GET", "/inventory/spools/by-tag", params=params)
             if response.status_code != 404:
                 return self._json(response)
@@ -104,6 +124,31 @@ class BambuddyClient:
         """Record a gross scale weight; Bambuddy subtracts the core weight."""
         body = {"spool_id": spool_id, "weight_grams": gross}
         return self._json(self._request("POST", "/spoolbuddy/scale/update-spool-weight", json=body))
+
+    def _spool_write(self, method: str, path: str, spool_id: int, **kwargs) -> httpx.Response:
+        response = self._request(method, path, **kwargs)
+        if response.status_code == 404:
+            raise SpoolNotFound(spool_id)
+        if not response.is_success:
+            self._json(response)  # raises with the status
+        return response
+
+    def set_weight_used(self, spool_id: int, grams: int) -> dict:
+        """`PATCH /inventory/spools/{id}`: 0 marks the spool full, the label
+        weight marks it empty."""
+        path = f"/inventory/spools/{spool_id}"
+        return self._json(self._spool_write("PATCH", path, spool_id, json={"weight_used": grams}))
+
+    def archive_spool(self, spool_id: int) -> None:
+        """Move the spool to the archive; the reply's body is not read."""
+        self._spool_write("POST", f"/inventory/spools/{spool_id}/archive", spool_id)
+
+    def restore_spool(self, spool_id: int) -> None:
+        """Bring an archived spool back; the reply's body is not read."""
+        self._spool_write("POST", f"/inventory/spools/{spool_id}/restore", spool_id)
+
+    def delete_spool(self, spool_id: int) -> None:
+        self._spool_write("DELETE", f"/inventory/spools/{spool_id}", spool_id)
 
     def create_spool(self, body: dict) -> dict:
         if not body.get("material"):

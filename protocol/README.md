@@ -3,6 +3,11 @@
 Wire protocol between the Flipper and the host: `PROTOCOL.md`, the JSON
 schema and shared fixtures (tag dumps, sample messages).
 
+The protocol is at version 2 (`v: 2` on every line): `scan` carries the
+Flipper's Auto-save new flag, `lookup` and `result` carry the spool's
+fields, and the intents add `full`, `empty` and `delete`. A peer on another
+version is ignored, so the Flipper app and the hosts ship together.
+
 ## Fixtures
 
 - `fixtures/messages/`: one sample per message type, status and action.

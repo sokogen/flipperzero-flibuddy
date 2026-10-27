@@ -28,15 +28,23 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let isError: Bool
     public let spoolId: Int?
     /// Filament grams the suggestion starts from: the spool's remaining
-    /// grams, which right after Created are its label weight.
+    /// grams, which right after Created are its label weight; for a tag
+    /// with material and no spool, the label weight.
     public let base: Int?
     /// The spool's core weight (`core_weight`); for a Created row the
-    /// settings value just sent.
+    /// settings value just sent; for a tag with material and no spool, the
+    /// settings value a spool created from it gets.
     public let core: Int?
     /// The row shows the weight field, mode and Save (Enter weight, Saving…,
-    /// Created, or an error on a known spool, which keeps the value for a retry).
+    /// Created, or an error on a known spool, which keeps the value for a
+    /// retry). A tag with material and no spool ("Not in Bambuddy", the
+    /// Flipper's Auto-save new off) shows it too: Save creates the spool
+    /// from the tag, then records the weight.
     public let isEntry: Bool
-    /// Enter weight or Created: the row waits for a weight and may take focus.
+    /// Save creates the spool before it records the weight.
+    public let savesNewSpool: Bool
+    /// Enter weight, Created, or Not in Bambuddy for a tag with material:
+    /// the row waits for a weight and may take focus.
     public let isWaiting: Bool
     /// A weight is on its way to Bambuddy; the entry block is disabled.
     public let isSaving: Bool
@@ -76,7 +84,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         case link
     }
 
-    public init(_ row: FeedRow) {
+    /// `coreWeight`: the settings' core weight, which a spool created from
+    /// the tag gets; the suggestion and readout of a tag without a spool use it.
+    public init(_ row: FeedRow, coreWeight: Int? = nil) {
         id = row.id
         scanId = row.scanId
         scannedAt = row.scannedAt
@@ -87,7 +97,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         if let spool {
             title = Self.title(material: spool.material, subtype: spool.subtype)
             colorName = spool.colorName
-            remainingText = "\(spool.remaining) g left of \(spool.labelWeight)"
+            remainingText = spool.isArchived ? "archived" : "\(spool.remaining) g left of \(spool.labelWeight)"
             base = spool.remaining
             core = spool.coreWeight
         } else {
@@ -98,8 +108,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             }
             colorName = row.colorName
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
-            base = nil
-            core = nil
+            base = row.tag.hasPrefill ? row.tag.labelWeight ?? NewSpool.defaultLabelWeight : nil
+            core = row.tag.hasPrefill ? coreWeight : nil
         }
         detailText = [colorName, remainingText].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
@@ -109,10 +119,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         offersUnknownActions = spool == nil && row.status != .scanned
         newAction = row.tag.hasPrefill ? .fromTag : .form
         prominentAction = row.request.map { $0 == .create ? .new : .link }
-        isEntry = spool != nil && Self.isEntryState(row.status)
-        isWaiting = spool != nil && (row.status == .awaitingWeight || row.status == .created)
-        isSaving = row.status == .saving
-        isReopenable = spool != nil && (row.status == .saved || row.status == .savedAfterTimeout)
+        savesNewSpool = spool == nil && row.tag.hasPrefill && Self.isNewEntryState(row.status)
+        isEntry = (spool != nil && Self.isEntryState(row.status)) || savesNewSpool
+        isWaiting = (spool != nil && (row.status == .awaitingWeight || row.status == .created))
+            || (savesNewSpool && row.status.isUnknown)
+        isSaving = row.status == .saving || row.status == .updating
+        isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
         offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
             && (row.status == .created || isError)
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
@@ -173,8 +185,18 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
 
     static func isEntryState(_ status: FeedRow.Status) -> Bool {
         switch status {
-        case .awaitingWeight, .saving, .created, .error: true
-        case .scanned, .unknown, .saved, .savedAfterTimeout: false
+        case .awaitingWeight, .saving, .created, .updating, .error: true
+        case .scanned, .unknown, .saved, .savedAfterTimeout, .markedNew, .markedEmpty, .deleted: false
+        }
+    }
+
+    /// A tag with material and no spool: the weight entry stays through the
+    /// save that creates the spool, and after it fails.
+    static func isNewEntryState(_ status: FeedRow.Status) -> Bool {
+        switch status {
+        case .unknown, .saving, .error: true
+        case .scanned, .awaitingWeight, .saved, .savedAfterTimeout, .created, .updating, .markedNew, .markedEmpty,
+             .deleted: false
         }
     }
 
@@ -190,21 +212,35 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
             return row.savedBy.map { "\(saved) · \(savedByText($0))" } ?? saved
         case .created: return "Created in Bambuddy"
+        case .updating: return "Updating\u{2026}"
+        case .markedNew:
+            let marked = row.spool.map { "Marked as new · \($0.remaining) g left" } ?? "Marked as new"
+            return row.savedBy.map { "\(marked) · \(savedByText($0))" } ?? marked
+        case .markedEmpty: return bySide(row, "Marked as empty · archived")
+        case .deleted: return bySide(row, "Deleted from Bambuddy")
         case .error(let message): return "Error: \(message)"
         }
     }
 
     static func statusLook(_ row: FeedRow) -> (StatusSymbol, StatusTint) {
         switch row.status {
-        case .scanned, .saving: (.progress, .secondary)
+        case .scanned, .saving, .updating: (.progress, .secondary)
         case .awaitingWeight: (.symbol("scalemass"), .blue)
         case .unknown: row.request == nil
             ? (.symbol("questionmark.circle"), .secondary)
             : (.symbol("dot.radiowaves.left.and.right"), .blue)
         case .saved, .savedAfterTimeout: (.symbol("checkmark.circle.fill"), .green)
         case .created: (.symbol("plus.circle.fill"), .green)
+        case .markedNew: (.symbol("arrow.counterclockwise.circle.fill"), .green)
+        case .markedEmpty: (.symbol("archivebox"), .secondary)
+        case .deleted: (.symbol("trash"), .secondary)
         case .error: (.symbol("exclamationmark.triangle.fill"), .red)
         }
+    }
+
+    /// `phrase · by host` / `· by Flipper`, or the phrase alone.
+    private static func bySide(_ row: FeedRow, _ phrase: String) -> String {
+        row.savedBy.map { "\(phrase) · \(savedByText($0))" } ?? phrase
     }
 
     static func savedByText(_ side: FeedRow.Side) -> String {
@@ -215,12 +251,14 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         request == .create ? "Flipper asks to create it here" : "Flipper asks to link it here"
     }
 
-    /// Title, colour name, what is left (or the label weight) and the status,
-    /// grams spelled out; never the hex of an unnamed colour.
+    /// Title, colour name, what is left (or the label weight, or "archived")
+    /// and the status, grams spelled out; never the hex of an unnamed colour.
     static func accessibilityHeader(
         title: String, colorName: String?, spool: Spool?, labelWeight: Int?, status: String
     ) -> String {
-        let amount: String? = if let spool {
+        let amount: String? = if let spool, spool.isArchived {
+            "archived"
+        } else if let spool {
             "\(spool.remaining) grams left of \(spool.labelWeight)"
         } else {
             labelWeight.map { "label \($0) grams" }

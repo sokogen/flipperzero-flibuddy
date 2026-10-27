@@ -1,7 +1,8 @@
 # flipper
 
 The Flipper Zero external app (FAP), built with stock `ufbt` pinned to
-firmware 1.5.1, and its host-compiled unit tests.
+firmware 1.5.1, and its host-compiled unit tests. The screens, keys and
+feedback are specified in `docs/design/flipper-ui-spec.md`.
 
 ## Build
 
@@ -21,30 +22,54 @@ stay out of the FAP.
 
 With the USB transport (the default) the app takes the USB CDC port from
 the CLI while it runs (qFlipper and the CLI are unavailable until it exits)
-and gives it back on exit: Back on the Idle screen leaves the app and hands
-the port back to the CLI. A host that opens the port gets a `hello`; a host
+and gives it back on exit: Back on the Waiting or Ready screen leaves the
+app and hands the port back to the CLI. A host that opens the port gets a `hello`; a host
 `hello` within 2 s marks it connected (`src/host_link.h`).
 
-## Transport
+## Settings
 
-On the Idle screen OK opens the **Transport** menu with **USB** and
-**Bluetooth**; the one in use is selected and Back returns to Idle without
-a change. Choosing a different one closes the running backend and opens the
-other. The choice is saved with `saved_struct` in
-`/ext/apps_data/flibuddy/settings.bin` (version 1, `0` = USB, `1` =
-Bluetooth); a missing or unreadable file, or one of another version, means USB
+▶ on the Waiting or Ready screen opens **Settings**: ▲▼ select a row, ◀▶
+change its value in place, Back saves and returns.
+
+| Setting | Values | Default |
+|---|---|---|
+| Connection | USB / Bluetooth | USB |
+| Auto-save new | Off / On | Off |
+| Feedback | Vibro+LED / LED / Off | Vibro+LED |
+| Sound | Off / On | Off |
+| Version | OK opens About (version, protocol, firmware, host) | |
+
+**Auto-save new** travels in every `scan` (`autosave`). On, the host
+creates a Bambu tag Bambuddy does not know at once with the tag's defaults
+and the Flipper shows **Added to Bambuddy**. Off, the result reads **Not in
+Bambuddy** and nothing reaches Bambuddy until **Add** (OK), **Add and
+weigh** (menu) or a save on the host. **Feedback** and **Sound** choose
+what the LED, the vibro motor and the speaker do per event
+(`src/feedback.h`).
+
+Leaving Settings with another Connection closes the running backend and
+opens the other (and retries the transport in use when it did not open).
+The settings are saved with `saved_struct` in
+`/ext/apps_data/flibuddy/settings.bin`, version 2: one byte each for the
+transport (`0` = USB, `1` = Bluetooth), Auto-save new, Feedback (`0` =
+Vibro+LED, `1` = LED, `2` = Off) and Sound. A version 1 file (transport
+only) keeps its transport and takes the defaults for the rest; it is
+rewritten as version 2 on the next save. A missing or unreadable file, one
+of another version or with any value out of range loads the defaults
 (`src/app_settings.h`, the SDK side in `src/app_settings_file.c`). Only the
 chosen backend runs: with Bluetooth the USB port stays with the CLI and
 qFlipper.
 
-The status line under the title shows:
+Without a host the Waiting screen names the transport in use; with one it
+gives way to Ready:
 
 | Text | Meaning |
 |---|---|
-| `USB` | USB; a host has opened the port and said hello |
-| `BLE adv` | Bluetooth; the Bt service says advertising, no host subscribed yet (shown even when the stack refused the advertisement, see "Findings on hardware") |
-| `BLE` | Bluetooth; a host is connected, subscribed and said hello |
-| `no host` | no host on the chosen transport; on Bluetooth also when it does not advertise (Bluetooth switched off in the Flipper's Settings, or the radio stack could not start the profile, in which case the app falls back to a backend that never connects) |
+| `USB: no host app` | USB; no host has opened the port and said hello |
+| `USB unavailable` | the USB port could not be taken |
+| `Visible as <name>` | Bluetooth; the Bt service says advertising, no host subscribed yet (shown even when the stack refused the advertisement, see "Findings on hardware"); the Bluetooth icon blinks |
+| `Bluetooth: no host app` | Bluetooth; a central subscribed but sent no hello |
+| `Bluetooth off` | Bluetooth does not advertise (switched off in the Flipper's Settings, or the radio stack could not start the profile, in which case the app falls back to a backend that never connects) |
 
 ### Bluetooth
 
@@ -119,11 +144,11 @@ host:
    host's CCCD write reaches the service as an attribute-modified event and
    the subscription is seen at all.
 
-`BLE adv` on the Idle screen does not prove the Flipper is on air: the
-firmware raises `GapEventTypeStartAdvertising` even when
+`Visible as <name>` on the Waiting screen does not prove the Flipper is on
+air: the firmware raises `GapEventTypeStartAdvertising` even when
 `aci_gap_set_discoverable` fails (`gap_advertise_start` in
-`targets/f7/ble_glue/gap.c`), so the app shows `BLE adv` either way. The
-Flipper log tells.
+`targets/f7/ble_glue/gap.c`), so the app shows it either way. The Flipper
+log tells.
 
 ### Reading the Flipper log
 
@@ -131,7 +156,7 @@ With Bluetooth chosen the USB port stays with the CLI, so the log can be
 read while the app runs. Open a CLI session (`ufbt cli` from `flipper/`,
 or any serial terminal on the Flipper's USB port) and run `log debug`
 (`log ?` lists the levels; Ctrl+C stops, and the previous level comes
-back). Then start the app and choose Bluetooth. The lines to look for:
+back). Then start the app and choose Bluetooth in Settings. The lines to look for:
 `BleGap` (advertising, connections; `set_discoverable failed` means
 nothing is advertised), `FliBuddyBle` (the profile and the service) and
 `FliBuddy` (the app). With the USB transport the app holds the port, so
@@ -139,28 +164,34 @@ there is no CLI to read the log from.
 
 ## Scanning
 
-On the Idle screen the app keeps the NFC scanning for an ISO 14443-3A tag
-and reads it (`src/nfc_read.h`): a MIFARE Classic (SAK 0x08/0x18) with the
-Bambu Key A derived from its UID, sectors that do not open stay missing; an
-NTAG (SAK 0x00) page by page. A tag moved away before the read finishes
-yields a dump with every sector missing ("Sectors read 0/16"); the host
-then has only the UID to go on, with no tray UUID and no prefill, so hold
-the tag still and scan again. With a host the dump goes out as `scan`;
-without one the Flipper shows the UID, the type and, for a Bambu tag, the
-ASCII of blocks 2 and 4 and the block 9 hex, the tray UUID; in Phase 0 it
-matched the `tray_uuid` an AMS reported (`src/nfc_classify.h`). Every
-screen change goes through the reducer in `src/app_state.h`;
-`flibuddy_app.c` picks the scene for the new screen.
+On the Waiting and Ready screens the app keeps the NFC scanning for an ISO
+14443-3A tag and reads it (`src/nfc_read.h`): a MIFARE Classic (SAK
+0x08/0x18) with the Bambu Key A derived from its UID, sectors that do not
+open stay missing; an NTAG (SAK 0x00) page by page. A tag moved away before
+the read finishes yields a dump with every sector missing (Tag details:
+"0/16 sectors"); the host then has only the UID to go on, with no tray UUID
+and no prefill, so hold the tag still and scan again. A tag that was read is
+not read again until it has left the field or another tag answers
+(`src/tag_watch.h`), so a spool left on the Flipper does not rescan.
 
-With a host, the Result screen shows the host's `lookup` lines; OK opens
-the actions: a found spool offers **Enter weight** and **Mode: gross/net**
-(kept for the session), an unknown tag with prefill **New** and **Link on
-host**, a bare one **Create on host** and **Link on host**. The weight
-input is pre-filled for the current mode (gross: the last gross weight or
-label + core; net: gross - core or the label weight). An intent waits up to
-10 s for its `result`, then the Flipper shows an error; Done/Error close
-with OK or Back. The wording lives in `src/screen_text.h` and is tested on
-the host.
+With a host the dump goes out as `scan` (protocol version 2,
+`protocol/PROTOCOL.md`) and the host's `lookup` brings the spool's fields;
+the Flipper lays out the result itself. A known spool offers **Weigh**, **New**
+(Mark as new) and, in the menu, Mark as empty, Relink on host, Tag details
+and Delete spool; an unknown Bambu tag **Add**, **Link** and Add and weigh;
+a blank tag Link on host. Mark as new / empty wait 3 s with **Undo** before
+anything is sent; Delete asks first. An intent waits up to 10 s for its
+`result`, then the Flipper shows an error whose Retry resends it under the
+same id. Without a host a scan shows the tag's own detailed type or
+material, the type and the UID; Tag details adds how many sectors or pages
+were read.
+
+Every screen change goes through the pure reducer in `src/app_state.h`. The
+app has one custom View: after every state change and tick
+`ui_frame_build()` (`src/ui_frame.h`, SDK-free) turns the state into a
+`UiFrame` with all the wording, and `src/ui_draw.c` lays it out on the GUI
+thread. The reducer's feedback cue goes through `src/feedback.h` (tested)
+to the notification sequences in `src/feedback_play.c`.
 
 ## Tests
 

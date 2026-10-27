@@ -19,6 +19,8 @@ public final class SerialTransport: Transport, @unchecked Sendable {
     private let lock = NSLock()
     private var connection: Connection?
     private var stream = AsyncStream<Message> { $0.finish() }
+    /// The current connection's `peerVersion`, copied from the read queue.
+    private var otherVersion: Int?
 
     public init(path: String) {
         self.path = path
@@ -43,6 +45,10 @@ public final class SerialTransport: Transport, @unchecked Sendable {
 
     public var messages: AsyncStream<Message> {
         lock.withLock { stream }
+    }
+
+    public var peerVersion: Int? {
+        lock.withLock { otherVersion }
     }
 
     public func connect() throws {
@@ -74,6 +80,7 @@ public final class SerialTransport: Transport, @unchecked Sendable {
             connection.source.resume()
             self.connection = connection
             self.stream = stream
+            otherVersion = nil
             Log.info(.link, "open: port=\(path)")
         }
     }
@@ -110,7 +117,14 @@ public final class SerialTransport: Transport, @unchecked Sendable {
             while true {
                 let count = read(connection.fd, &buffer, buffer.count)
                 if count > 0 {
-                    for message in WireLog.receive(buffer[..<count], framer: &connection.framer) {
+                    let known = connection.otherVersion
+                    let messages = WireLog.receive(
+                        buffer[..<count], framer: &connection.framer, otherVersion: &connection.otherVersion
+                    )
+                    if connection.otherVersion != known {
+                        lock.withLock { if self.connection === connection { otherVersion = connection.otherVersion } }
+                    }
+                    for message in messages {
                         connection.continuation.yield(message)
                     }
                 } else if count < 0, errno == EINTR {
@@ -180,6 +194,7 @@ private final class Connection: @unchecked Sendable {
     let continuation: AsyncStream<Message>.Continuation
     let log: LogRouter
     var framer = NDJSONFramer()
+    var otherVersion: Int?
 
     init(fd: Int32, queue: DispatchQueue, continuation: AsyncStream<Message>.Continuation, log: LogRouter) {
         self.fd = fd

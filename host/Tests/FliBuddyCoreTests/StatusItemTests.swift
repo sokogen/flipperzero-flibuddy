@@ -67,6 +67,17 @@ struct StatusItemTests {
         )
     }
 
+    @Test func aFlipperOfAnotherVersionSaysWhatToUpdate() {
+        #expect(
+            flipper(.otherVersion(1))
+                == StatusItem(
+                    text: "Flipper speaks protocol 1, host speaks 2", symbol: .symbol("exclamationmark.triangle"),
+                    tint: .orange, detail: "Install the matching FliBuddy app on the Flipper"
+                )
+        )
+        #expect(flipper(.otherVersion(3)).detail == "Update FliBuddy on this device")
+    }
+
     @Test func aStoppedLinkOffersConnect() {
         #expect(
             flipper(.disconnected, choice: nil, isActive: false)

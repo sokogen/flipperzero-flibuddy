@@ -127,14 +127,27 @@ struct BLETransportTests {
 
         let sink = try await capturingLog(level: .debug) {
             try transport.send(.hostHello)
-            central.peripheral(flipperA).notify(Data(#"{"t":"ping","v":1}"#.utf8 + [0x0A]))
+            central.peripheral(flipperA).notify(Data(#"{"t":"ping","v":2}"#.utf8 + [0x0A]))
         }
 
         #expect(sink.events == [
-            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":1}"#,
-            #"wire rx: {"t":"ping","v":1}"#,
-            #"wire dropped: reason=unknown type ping line={"t":"ping","v":1}"#,
+            #"wire tx: {"app":"flibuddy-mac/0.1.0","os":"macOS 26.0","t":"hello","v":2}"#,
+            #"wire rx: {"t":"ping","v":2}"#,
+            #"wire dropped: reason=unknown type ping line={"t":"ping","v":2}"#,
         ])
+    }
+
+    @Test func aFlipperOfAnotherVersionIsReported() async throws {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        let transport = makeTransport(central, peripheral: flipperA)
+        try await transport.connect()
+        defer { transport.disconnect() }
+        #expect(transport.peerVersion == nil)
+
+        central.peripheral(flipperA).notify(Data(#"{"t":"hello","v":1,"app":"a","fw":"1"}"#.utf8 + [0x0A]))
+
+        #expect(transport.peerVersion == 1)
     }
 
     @Test func connectingSubscribesAndKeepsTheHelloSentOnSubscribe() async throws {

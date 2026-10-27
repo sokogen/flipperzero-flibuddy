@@ -1,7 +1,8 @@
 {
   "t": "scan",
-  "v": 1,
+  "v": 2,
   "scan_id": "s-000013",
+  "autosave": false,
   "tag": {
     "type": "ntag",
     "uid": "04112233445566",

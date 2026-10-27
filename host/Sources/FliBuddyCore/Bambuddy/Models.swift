@@ -24,13 +24,18 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
     public var tagType: String?
     public var dataOrigin: String?
     public var note: String?
+    /// When the spool went to Bambuddy's archive (marked empty); `nil` while active.
+    public var archivedAt: String?
+    /// An explicit archive flag, set by the host after archiving or restoring
+    /// and taken from Bambuddy should it send one; wins over `archivedAt`.
+    public var archived: Bool?
 
     public init(
         id: Int, material: String, subtype: String? = nil, colorName: String? = nil,
         rgba: String? = nil, brand: String? = nil, labelWeight: Int, coreWeight: Int,
         coreWeightCatalogId: Int? = nil, weightUsed: Double, lastScaleWeight: Int? = nil,
         tagUid: String? = nil, trayUuid: String? = nil, tagType: String? = nil,
-        dataOrigin: String? = nil, note: String? = nil
+        dataOrigin: String? = nil, note: String? = nil, archivedAt: String? = nil, archived: Bool? = nil
     ) {
         self.id = id
         self.material = material
@@ -48,7 +53,12 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         self.tagType = tagType
         self.dataOrigin = dataOrigin
         self.note = note
+        self.archivedAt = archivedAt
+        self.archived = archived
     }
+
+    /// Whether the spool is in Bambuddy's archive.
+    public var isArchived: Bool { archived ?? (archivedAt != nil) }
 
     /// Grams of filament left, never negative.
     public var remaining: Int { WeightMath.remaining(label: labelWeight, used: weightUsed) }

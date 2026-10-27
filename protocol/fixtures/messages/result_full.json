@@ -1,0 +1,17 @@
+{
+  "t": "result",
+  "v": 2,
+  "id": "i-000008",
+  "ok": true,
+  "lines": ["Marked as new", "1000 g left"],
+  "spool": {
+    "id": 42,
+    "material": "PLA",
+    "subtype": "Basic",
+    "color_name": "Jade White",
+    "rgba": "FFFFFFFF",
+    "remaining": 1000,
+    "label": 1000,
+    "core": 250
+  }
+}

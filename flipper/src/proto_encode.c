@@ -101,7 +101,12 @@ size_t proto_encode_hello(const char* app, const char* fw, char* buf, size_t cap
     return json_len(&w);
 }
 
-size_t proto_encode_scan(const TagDump* dump, const char* scan_id, char* buf, size_t cap) {
+size_t proto_encode_scan(
+    const TagDump* dump,
+    const char* scan_id,
+    bool autosave,
+    char* buf,
+    size_t cap) {
     if(!proto_id_valid(scan_id)) return 0;
     JsonWriter w;
     json_init(&w, buf, proto_line_cap(cap));
@@ -109,6 +114,8 @@ size_t proto_encode_scan(const TagDump* dump, const char* scan_id, char* buf, si
     proto_write_header(&w, "scan");
     json_key(&w, "scan_id");
     json_string(&w, scan_id);
+    json_key(&w, "autosave");
+    json_bool(&w, autosave);
     json_key(&w, "tag");
     if(!proto_write_tag(&w, dump)) return 0;
     json_object_close(&w);

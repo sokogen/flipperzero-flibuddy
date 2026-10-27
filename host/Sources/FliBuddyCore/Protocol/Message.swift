@@ -12,7 +12,7 @@ public enum ProtocolError: Error, Equatable, Sendable {
     case lineTooLong(Int)
 }
 
-/// One NDJSON line between the Flipper and the host (protocol v1), keyed by `t`.
+/// One NDJSON line between the Flipper and the host (protocol v2), keyed by `t`.
 public enum Message: Equatable, Sendable {
     case hello(Hello)
     case scan(Scan)
@@ -20,7 +20,7 @@ public enum Message: Equatable, Sendable {
     case intent(Intent)
     case result(IntentResult)
 
-    public static let version = 1
+    public static let version = 2
     /// A line including its terminating "\n" is at most this long.
     public static let maxLineBytes = 8192
 
@@ -71,12 +71,13 @@ extension Message: Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(String.self, forKey: .t)
+        // `v` first: a peer of another version is ignored whatever it sends.
         let version = try container.decode(Int.self, forKey: .v)
+        guard version == Self.version else { throw ProtocolError.unsupportedVersion(version) }
+        let type = try container.decode(String.self, forKey: .t)
         guard ["hello", "scan", "lookup", "intent", "result"].contains(type) else {
             throw ProtocolError.unknownType(type)
         }
-        guard version == Self.version else { throw ProtocolError.unsupportedVersion(version) }
         switch type {
         case "hello": self = .hello(try Hello(from: decoder))
         case "scan": self = .scan(try Scan(from: decoder))
@@ -143,16 +144,20 @@ public struct Hello: Codable, Equatable, Sendable {
 /// Flipper -> host: a tag was read.
 public struct Scan: Codable, Equatable, Sendable {
     public var scanId: String
+    /// The Flipper's Auto-save new: create an unknown tag with material at once.
+    public var autosave: Bool
     public var tag: TagDump
 
-    public init(scanId: String, tag: TagDump) {
+    public init(scanId: String, autosave: Bool = false, tag: TagDump) {
         self.scanId = scanId
+        self.autosave = autosave
         self.tag = tag
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         scanId = try container.decode(String.self, forKey: .scanId)
+        autosave = try container.decode(Bool.self, forKey: .autosave)
         tag = try container.decode(TagDump.self, forKey: .tag)
         try Field.checkId(scanId, "scan_id")
     }
@@ -161,11 +166,135 @@ public struct Scan: Codable, Equatable, Sendable {
         try Field.checkId(scanId, "scan_id")
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(scanId, forKey: .scanId)
+        try container.encode(autosave, forKey: .autosave)
         try container.encode(tag, forKey: .tag)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case scanId = "scan_id", tag
+        case scanId = "scan_id", autosave, tag
+    }
+}
+
+/// A Bambuddy spool as the Flipper lays it out (`lookup.spool`, `result.spool`).
+public struct SpoolSummary: Codable, Equatable, Sendable {
+    public var id: Int
+    public var material: String
+    public var subtype: String?
+    public var colorName: String?
+    /// `RRGGBBAA`, upper-case hex.
+    public var rgba: String?
+    /// Grams of filament left.
+    public var remaining: Int
+    /// Filament weight per label (a full spool).
+    public var label: Int
+    /// Empty spool weight.
+    public var core: Int
+    /// `true` for a spool in Bambuddy's archive; encoded only when true.
+    public var archived: Bool
+
+    public init(
+        id: Int, material: String, subtype: String? = nil, colorName: String? = nil, rgba: String? = nil,
+        remaining: Int, label: Int, core: Int, archived: Bool = false
+    ) {
+        self.id = id
+        self.material = material
+        self.subtype = subtype
+        self.colorName = colorName
+        self.rgba = rgba
+        self.remaining = remaining
+        self.label = label
+        self.core = core
+        self.archived = archived
+    }
+
+    public func validate() throws {
+        if id < 1 { throw ProtocolError.invalid("spool.id") }
+        try Field.checkText(material, "spool.material", max: Field.maxName)
+        try subtype.map { try Field.checkText($0, "spool.subtype", max: Field.maxName) }
+        try colorName.map { try Field.checkText($0, "spool.color_name", max: Field.maxName) }
+        try rgba.map { try Field.checkRGBA($0, "spool.rgba") }
+        try Field.checkGrams(remaining, "spool.remaining")
+        try Field.checkGrams(label, "spool.label")
+        try Field.checkGrams(core, "spool.core")
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        material = try container.decode(String.self, forKey: .material)
+        subtype = try container.decodeIfPresent(String.self, forKey: .subtype)
+        colorName = try container.decodeIfPresent(String.self, forKey: .colorName)
+        rgba = try container.decodeIfPresent(String.self, forKey: .rgba)
+        remaining = try container.decode(Int.self, forKey: .remaining)
+        label = try container.decode(Int.self, forKey: .label)
+        core = try container.decode(Int.self, forKey: .core)
+        archived = try container.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        try validate()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        try validate()
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(material, forKey: .material)
+        try container.encodeIfPresent(subtype, forKey: .subtype)
+        try container.encodeIfPresent(colorName, forKey: .colorName)
+        try container.encodeIfPresent(rgba, forKey: .rgba)
+        try container.encode(remaining, forKey: .remaining)
+        try container.encode(label, forKey: .label)
+        try container.encode(core, forKey: .core)
+        if archived { try container.encode(true, forKey: .archived) }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, material, subtype, colorName = "color_name", rgba, remaining, label, core, archived
+    }
+}
+
+/// What the host parsed from an unknown tag (`lookup.tag_info`); each field
+/// only when the tag carries it.
+public struct TagInfo: Codable, Equatable, Sendable {
+    public var material: String?
+    public var subtype: String?
+    public var rgba: String?
+    public var label: Int?
+
+    public init(material: String? = nil, subtype: String? = nil, rgba: String? = nil, label: Int? = nil) {
+        self.material = material
+        self.subtype = subtype
+        self.rgba = rgba
+        self.label = label
+    }
+
+    public var isEmpty: Bool { material == nil && subtype == nil && rgba == nil && label == nil }
+
+    public func validate() throws {
+        try material.map { try Field.checkText($0, "tag_info.material", max: Field.maxName) }
+        try subtype.map { try Field.checkText($0, "tag_info.subtype", max: Field.maxName) }
+        try rgba.map { try Field.checkRGBA($0, "tag_info.rgba") }
+        try Field.checkGrams(label, "tag_info.label")
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        material = try container.decodeIfPresent(String.self, forKey: .material)
+        subtype = try container.decodeIfPresent(String.self, forKey: .subtype)
+        rgba = try container.decodeIfPresent(String.self, forKey: .rgba)
+        label = try container.decodeIfPresent(Int.self, forKey: .label)
+        try validate()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        try validate()
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(material, forKey: .material)
+        try container.encodeIfPresent(subtype, forKey: .subtype)
+        try container.encodeIfPresent(rgba, forKey: .rgba)
+        try container.encodeIfPresent(label, forKey: .label)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case material, subtype, rgba, label
     }
 }
 
@@ -199,33 +328,60 @@ public struct Lookup: Codable, Equatable, Sendable {
     public var scanId: String
     public var status: Status
     public var spoolId: Int?
+    /// `found` only: the spool, whose `id` is `spoolId`.
+    public var spool: SpoolSummary?
+    /// `found` only: the host created the spool from this scan (autosave).
+    /// Encoded only when true.
+    public var created: Bool
     /// `unknown` only: the tag has enough data (material) for the Flipper to offer New.
     public var prefill: Bool?
+    /// `unknown` only: what the tag carries.
+    public var tagInfo: TagInfo?
     public var lines: [String]
     public var defaults: Defaults?
     public var error: String?
 
     public init(
-        scanId: String, status: Status, spoolId: Int? = nil, prefill: Bool? = nil,
-        lines: [String], defaults: Defaults? = nil, error: String? = nil
+        scanId: String, status: Status, spoolId: Int? = nil, spool: SpoolSummary? = nil, created: Bool = false,
+        prefill: Bool? = nil, tagInfo: TagInfo? = nil, lines: [String], defaults: Defaults? = nil,
+        error: String? = nil
     ) {
         self.scanId = scanId
         self.status = status
         self.spoolId = spoolId
+        self.spool = spool
+        self.created = created
         self.prefill = prefill
+        self.tagInfo = tagInfo
         self.lines = lines
         self.defaults = defaults
         self.error = error
     }
 
+    /// The schema's rules, including which fields each status allows.
     public func validate() throws {
         try Field.checkId(scanId, "scan_id")
         try Field.checkLines(lines)
         try defaults?.validate()
+        try spool?.validate()
+        try tagInfo?.validate()
         try error.map { try Field.checkText($0, "error", max: 200) }
         if let spoolId, spoolId < 1 { throw ProtocolError.invalid("spool_id") }
-        if status == .found, spoolId == nil { throw ProtocolError.invalid("found lookup needs spool_id") }
-        if status == .error, error == nil { throw ProtocolError.invalid("error lookup needs error") }
+        switch status {
+        case .found:
+            guard let spoolId else { throw ProtocolError.invalid("found lookup needs spool_id") }
+            if let spool, spool.id != spoolId { throw ProtocolError.invalid("spool.id differs from spool_id") }
+            if prefill != nil || tagInfo != nil { throw ProtocolError.invalid("found lookup with prefill or tag_info") }
+        case .unknown:
+            if spoolId != nil || spool != nil || created {
+                throw ProtocolError.invalid("unknown lookup with spool_id, spool or created")
+            }
+        case .error:
+            if error == nil { throw ProtocolError.invalid("error lookup needs error") }
+            if spoolId != nil || spool != nil || created || prefill != nil || tagInfo != nil {
+                throw ProtocolError.invalid("error lookup with spool or tag fields")
+            }
+        }
     }
 
     public init(from decoder: Decoder) throws {
@@ -233,10 +389,16 @@ public struct Lookup: Codable, Equatable, Sendable {
         scanId = try container.decode(String.self, forKey: .scanId)
         status = try container.decode(Status.self, forKey: .status)
         spoolId = try container.decodeIfPresent(Int.self, forKey: .spoolId)
+        spool = try container.decodeIfPresent(SpoolSummary.self, forKey: .spool)
+        // A `created: false` sent explicitly is allowed only where `created` is.
+        let sentCreated = try container.decodeIfPresent(Bool.self, forKey: .created)
+        created = sentCreated ?? false
         prefill = try container.decodeIfPresent(Bool.self, forKey: .prefill)
+        tagInfo = try container.decodeIfPresent(TagInfo.self, forKey: .tagInfo)
         lines = try container.decode([String].self, forKey: .lines)
         defaults = try container.decodeIfPresent(Defaults.self, forKey: .defaults)
         error = try container.decodeIfPresent(String.self, forKey: .error)
+        if sentCreated != nil, status != .found { throw ProtocolError.invalid("created outside a found lookup") }
         try validate()
     }
 
@@ -246,14 +408,18 @@ public struct Lookup: Codable, Equatable, Sendable {
         try container.encode(scanId, forKey: .scanId)
         try container.encode(status, forKey: .status)
         try container.encodeIfPresent(spoolId, forKey: .spoolId)
+        try container.encodeIfPresent(spool, forKey: .spool)
+        if created { try container.encode(true, forKey: .created) }
         try container.encodeIfPresent(prefill, forKey: .prefill)
+        try container.encodeIfPresent(tagInfo, forKey: .tagInfo)
         try container.encode(lines, forKey: .lines)
         try container.encodeIfPresent(defaults, forKey: .defaults)
         try container.encodeIfPresent(error, forKey: .error)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case scanId = "scan_id", status, spoolId = "spool_id", prefill, lines, defaults, error
+        case scanId = "scan_id", status, spoolId = "spool_id", spool, created, prefill, tagInfo = "tag_info", lines,
+             defaults, error
     }
 }
 
@@ -262,20 +428,25 @@ public struct IntentResult: Codable, Equatable, Sendable {
     public var id: String
     public var ok: Bool
     public var lines: [String]
+    /// `ok` only: the spool after the action.
+    public var spool: SpoolSummary?
     public var error: String?
 
-    public init(id: String, ok: Bool, lines: [String], error: String? = nil) {
+    public init(id: String, ok: Bool, lines: [String], spool: SpoolSummary? = nil, error: String? = nil) {
         self.id = id
         self.ok = ok
         self.lines = lines
+        self.spool = spool
         self.error = error
     }
 
     public func validate() throws {
         try Field.checkId(id, "id")
         try Field.checkLines(lines)
+        try spool?.validate()
         try error.map { try Field.checkText($0, "error", max: 200) }
         if !ok, error == nil { throw ProtocolError.invalid("failed result needs error") }
+        if !ok, spool != nil { throw ProtocolError.invalid("failed result with spool") }
     }
 
     public init(from decoder: Decoder) throws {
@@ -283,6 +454,7 @@ public struct IntentResult: Codable, Equatable, Sendable {
         id = try container.decode(String.self, forKey: .id)
         ok = try container.decode(Bool.self, forKey: .ok)
         lines = try container.decode([String].self, forKey: .lines)
+        spool = try container.decodeIfPresent(SpoolSummary.self, forKey: .spool)
         error = try container.decodeIfPresent(String.self, forKey: .error)
         try validate()
     }
@@ -293,11 +465,12 @@ public struct IntentResult: Codable, Equatable, Sendable {
         try container.encode(id, forKey: .id)
         try container.encode(ok, forKey: .ok)
         try container.encode(lines, forKey: .lines)
+        try container.encodeIfPresent(spool, forKey: .spool)
         try container.encodeIfPresent(error, forKey: .error)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, ok, lines, error
+        case id, ok, lines, spool, error
     }
 }
 
@@ -305,6 +478,8 @@ public struct IntentResult: Codable, Equatable, Sendable {
 enum Field {
     static let maxLines = 4
     static let maxLineLength = 40
+    /// Material, subtype and colour name in `spool` / `tag_info`.
+    static let maxName = 40
 
     /// `^[A-Za-z0-9_.:-]{1,32}$`
     static func checkId(_ id: String, _ name: String) throws {
@@ -312,6 +487,15 @@ enum Field {
             $0.isASCII && (CharacterSet.alphanumerics.contains($0) || "_.:-".unicodeScalars.contains($0))
         }
         guard allowed, (1...32).contains(id.unicodeScalars.count) else { throw ProtocolError.invalid(name) }
+    }
+
+    /// `^[0-9A-F]{8}$`
+    static func checkRGBA(_ rgba: String, _ name: String) throws {
+        guard isRGBA(rgba) else { throw ProtocolError.invalid(name) }
+    }
+
+    static func isRGBA(_ text: String) -> Bool {
+        text.utf8.count == 8 && text.utf8.allSatisfy { (0x30...0x39).contains($0) || (0x41...0x46).contains($0) }
     }
 
     static func checkGrams(_ grams: Int?, _ name: String) throws {

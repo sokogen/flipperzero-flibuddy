@@ -1,6 +1,6 @@
 {
   "t": "intent",
-  "v": 1,
+  "v": 2,
   "id": "i-000003",
   "scan_id": "s-000012",
   "action": "weigh",

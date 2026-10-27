@@ -35,8 +35,13 @@ action, no weight entry":
 
 - **Main flow is one spool at a time.** Scan, the row for that spool takes
   focus with a suggested weight, type the scale reading, Save sends it.
-- **Unknown Bambu tags are created on scan.** When the lookup finds nothing
-  for a Bambu tag, the host creates the spool at once with the defaults
+- **Unknown Bambu tags are created on scan** when the Flipper's **Auto-save
+  new** is on (amended by the Flipper UI plan, 2026-10-26; the flag travels
+  in every `scan`, default off). Off, the row reads `Not in Bambuddy` with
+  the weight entry pre-filled to label + core, and **New** and **Link to
+  existing…** under it; nothing reaches Bambuddy until New, Link or a Save,
+  which creates the spool and then records the weight. On, when the lookup
+  finds nothing for a Bambu tag, the host creates the spool at once with the defaults
   (material, subtype, colour and label weight from the tag; core weight and
   catalog entry from Settings) and the row opens as `Created in Bambuddy`
   with the field pre-filled to label + core and focused. Save sends the
@@ -129,7 +134,13 @@ left of 1000, Enter weight".
 | Timeout | `Saved 590 g left · by host` + note | `checkmark.circle.fill` | green | no; reopenable |
 | Created | `Created in Bambuddy` | `plus.circle.fill` | green | yes, pre-filled label + core, focused; secondary **Link to existing…** (moves the tag, deletes the created spool) |
 | Error | `Error: Bambuddy unreachable` | `exclamationmark.triangle.fill` | red text | yes, value kept for retry |
+| Not in Bambuddy (Bambu tag, Auto-save new off) | `Not in Bambuddy` | `questionmark.circle` | secondary | yes, pre-filled label + core (Settings), focused; Save creates the spool, then records the weight; **New** · **Link to existing…** under the field |
 | Not in Bambuddy (no material) | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (form) · **Link to existing…** |
+| Updating | `Updating…` (Mark as new / empty or Delete from the Flipper) | `ProgressView` | secondary | yes, disabled |
+| Marked as new | `Marked as new · 1000 g left · by Flipper` | `arrow.counterclockwise.circle.fill` | green | no; reopenable |
+| Marked as empty | `Marked as empty · archived · by Flipper`; the colour column reads `Jade White · archived` | `archivebox` | secondary | no; reopenable (a Save restores the spool) |
+| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | **New** · **Link to existing…** |
+| Archived spool scanned again | `Enter weight`; the colour column reads `… · archived` | `scalemass` | blue | yes; Save restores the spool, then records the weight |
 | Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | **New** prominent · Link |
 | Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | **Link to existing…** prominent · New |
 
@@ -296,9 +307,10 @@ All twelve are implemented (plan `docs/plans/20261026-macos-ui-from-design.md`).
 10. Settings: "Server URL" label, test result phrases, Weighing footer,
     "Unsaved changes / All changes saved" row with Revert, Forget
     (destructive).
-11. Unknown Bambu tags are created on scan with the defaults; the row opens
-    as `Created in Bambuddy` with label + core pre-filled; Save sends the
-    weight separately; no New button for them.
+11. Unknown Bambu tags are created on scan with the defaults when the
+    Flipper's Auto-save new is on; the row opens as `Created in Bambuddy`
+    with label + core pre-filled; Save sends the weight separately. With
+    Auto-save new off the row reads `Not in Bambuddy` (see the row table).
 12. Rescanning a tag moves its row to the top and reopens it; newest first.
 
 ## Implemented differently (2026-10-26)
@@ -336,11 +348,11 @@ Feed row
   create returns, rather than flashing "Not in Bambuddy" with New and Link.
   A failed create shows "Error: <reason>" with **New** (one step, from the
   tag) and **Link to existing…** as the retry.
-- Two states the row table does not list: "Not in Bambuddy" (a tag with
-  material that has no spool any more, e.g. the link after deleting the
-  created spool failed) offers the one-step **New** and **Link to
-  existing…**; "Error: <reason>" carries the session's message, of which
-  "Bambuddy unreachable" is one.
+- "Not in Bambuddy" also covers a tag with material that has no spool any
+  more (e.g. the link after deleting the created spool failed): the same
+  weight entry with the one-step **New** and **Link to existing…**.
+  "Error: <reason>" carries the session's message, of which "Bambuddy
+  unreachable" is one.
 - **Link to existing…** on a Created row deletes the spool created on scan
   first and then links the tag to the chosen spool. The other order cannot
   work: Bambuddy answers `PATCH /inventory/spools/{id}/link-tag` with 409
@@ -371,6 +383,23 @@ Status bar
   host does not scan for advertising Flippers while disconnected, so
   "nearby" is not probed, and nothing stops the link today (Forget does
   not), so the state has no trigger yet.
+
+- Flipper UI plan (2026-10-26): on a `Not in Bambuddy` Bambu row, **New**
+  and **Link to existing…** are link-style buttons right of the readout,
+  where Created's Link sits, so the 360 pt entry block keeps its width; the
+  one the Flipper asked for is semibold rather than prominent. By eye: the
+  readout may be cut short beside them. The row takes focus like Enter
+  weight and keeps the entry through Saving and an error. Save's tooltip
+  says it creates the spool. A deleted row offers New and Link, no weight.
+- After New, Link, or a Save that created the spool, the host sends the
+  Flipper a fresh `lookup` for the row's scan (PROTOCOL.md, Session), so a
+  Flipper still showing that tag shows the spool.
+- `Marked as empty` and `Deleted` say which side did it, as `Saved` and
+  `Marked as new` do; the host has no buttons for Mark or Delete, so it is
+  the Flipper.
+- The watch (`FliBuddyUI/Watch`) shows the weight entry on a `Not in
+  Bambuddy` Bambu row and no New / Link there; its own spec will settle
+  it.
 
 Sheets
 - New spool: no Core weight or Tag UID rows; the spec lists five fields and

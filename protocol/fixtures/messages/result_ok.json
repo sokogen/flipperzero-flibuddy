@@ -1,7 +1,17 @@
 {
   "t": "result",
-  "v": 1,
+  "v": 2,
   "id": "i-000003",
   "ok": true,
-  "lines": ["Saved", "484 g left"]
+  "lines": ["Saved", "484 g left"],
+  "spool": {
+    "id": 42,
+    "material": "PLA",
+    "subtype": "Basic",
+    "color_name": "Jade White",
+    "rgba": "FFFFFFFF",
+    "remaining": 484,
+    "label": 1000,
+    "core": 250
+  }
 }

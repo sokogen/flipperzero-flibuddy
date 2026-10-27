@@ -5,12 +5,16 @@
  *
  *   ProtoDecodeOk         a valid hello, lookup or result
  *   ProtoDecodeIgnored    valid JSON whose `t` the Flipper does not consume
- *                         (unknown, scan, intent) or whose `v` is not 1
+ *                         (unknown, scan, intent) or whose `v` is not
+ *                         PROTO_VERSION
  *   ProtoDecodeMalformed  not JSON, or a known `t` with missing, ill-typed
  *                         or out-of-range fields (per the schema), too many
- *                         or too long `lines`
+ *                         or too long `lines`, a `spool` / `created` /
+ *                         `tag_info` the message's status does not allow,
+ *                         or a `lookup.spool.id` other than `spool_id`
  *
- * Fields may come in any order; unknown fields are skipped. Strings are
+ * Fields may come in any order; unknown fields are skipped, also inside
+ * `spool` and `tag_info`. Strings are
  * ASCII as the Flipper renders them (see json_reader.h). Unless the status
  * is ProtoDecodeOk the message is left zeroed with type ProtoMsgNone.
  */
@@ -25,6 +29,7 @@
 #define PROTO_LINE_CHARS 40
 #define PROTO_ERROR_MAX 200
 #define PROTO_HELLO_FIELD_MAX 40
+#define PROTO_NAME_MAX 40 /* material, subtype, colour name */
 
 typedef enum {
     ProtoDecodeOk,
@@ -65,11 +70,40 @@ typedef struct {
     uint16_t core;
 } ProtoDefaults;
 
+/* A Bambuddy spool (`lookup.spool`, `result.spool`). */
+typedef struct {
+    int32_t id; /* >= 1 */
+    char material[PROTO_NAME_MAX + 1];
+    char subtype[PROTO_NAME_MAX + 1]; /* "" when absent */
+    char color_name[PROTO_NAME_MAX + 1]; /* "" when absent */
+    bool has_rgba;
+    uint32_t rgba; /* 0xRRGGBBAA */
+    uint16_t remaining;
+    uint16_t label;
+    uint16_t core;
+    bool archived;
+} ProtoSpool;
+
+/* What the host parsed from an unknown tag (`lookup.tag_info`). */
+typedef struct {
+    char material[PROTO_NAME_MAX + 1]; /* "" when absent */
+    char subtype[PROTO_NAME_MAX + 1]; /* "" when absent */
+    bool has_rgba;
+    uint32_t rgba; /* 0xRRGGBBAA */
+    bool has_label;
+    uint16_t label;
+} ProtoTagInfo;
+
 typedef struct {
     char scan_id[PROTO_ID_MAX + 1];
     ProtoLookupStatus status;
     int32_t spool_id; /* >= 1 when found, 0 otherwise */
     bool prefill;
+    bool has_spool; /* found only */
+    ProtoSpool spool;
+    bool created; /* found only: created on scan (autosave) */
+    bool has_tag_info; /* unknown only */
+    ProtoTagInfo tag_info;
     ProtoLines lines;
     ProtoDefaults defaults;
     char error[PROTO_ERROR_MAX + 1]; /* "" when absent */
@@ -78,6 +112,8 @@ typedef struct {
 typedef struct {
     char id[PROTO_ID_MAX + 1];
     bool ok;
+    bool has_spool; /* ok only */
+    ProtoSpool spool;
     ProtoLines lines;
     char error[PROTO_ERROR_MAX + 1]; /* "" when absent */
 } ProtoResult;

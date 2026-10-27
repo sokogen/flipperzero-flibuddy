@@ -5,6 +5,11 @@ public struct Intent: Equatable, Sendable {
     public enum Action: String, Codable, Sendable {
         case weigh
         case new
+        /// Mark as new: remaining = label, restoring an archived spool.
+        case full
+        /// Mark as empty: remaining 0, then archive.
+        case empty
+        case delete
         case createOnHost = "create_on_host"
         case linkOnHost = "link_on_host"
     }
@@ -37,6 +42,9 @@ public struct Intent: Equatable, Sendable {
         try Field.checkGrams(grams, "grams")
         if action == .weigh, grams == nil || mode == nil {
             throw ProtocolError.invalid("weigh intent needs grams and mode")
+        }
+        if action != .weigh, grams != nil || mode != nil {
+            throw ProtocolError.invalid("grams and mode belong to weigh only")
         }
         try tag.validate()
     }

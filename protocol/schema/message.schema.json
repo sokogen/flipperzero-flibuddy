@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:flipper-flibuddy:protocol:v1:message",
-  "title": "flipper-flibuddy wire message (protocol v1)",
+  "$id": "urn:flipper-flibuddy:protocol:v2:message",
+  "title": "flipper-flibuddy wire message (protocol v2)",
   "description": "One NDJSON line between the Flipper and the host. The `t` field selects the message type. See protocol/PROTOCOL.md.",
   "type": "object",
   "required": ["t", "v"],
   "properties": {
     "t": { "enum": ["hello", "scan", "lookup", "intent", "result"] },
-    "v": { "const": 1 }
+    "v": { "const": 2 }
   },
   "allOf": [
     { "if": { "properties": { "t": { "const": "hello" } }, "required": ["t"] }, "then": { "$ref": "#/$defs/hello" } },
@@ -32,6 +32,38 @@
     },
     "hexBlock": { "type": "string", "pattern": "^[0-9A-F]{32}$" },
     "hexPage": { "type": "string", "pattern": "^[0-9A-F]{8}$" },
+    "rgba": { "type": "string", "pattern": "^[0-9A-F]{8}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+
+    "spool": {
+      "description": "A Bambuddy spool as the Flipper lays it out: material, subtype and colour as Bambuddy stores them, grams of filament left, label (full) and core (empty spool) weight.",
+      "type": "object",
+      "required": ["id", "material", "remaining", "label", "core"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "material": { "$ref": "#/$defs/name" },
+        "subtype": { "$ref": "#/$defs/name" },
+        "color_name": { "$ref": "#/$defs/name" },
+        "rgba": { "$ref": "#/$defs/rgba" },
+        "remaining": { "$ref": "#/$defs/grams" },
+        "label": { "$ref": "#/$defs/grams" },
+        "core": { "$ref": "#/$defs/grams" },
+        "archived": { "type": "boolean" }
+      }
+    },
+
+    "tagInfo": {
+      "description": "What the host parsed from an unknown tag; each field present only when the tag carries it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "material": { "$ref": "#/$defs/name" },
+        "subtype": { "$ref": "#/$defs/name" },
+        "rgba": { "$ref": "#/$defs/rgba" },
+        "label": { "$ref": "#/$defs/grams" }
+      }
+    },
 
     "tag": {
       "description": "Raw tag dump as read by the Flipper. Hex is upper-case.",
@@ -88,7 +120,7 @@
       "additionalProperties": false,
       "properties": {
         "t": { "const": "hello" },
-        "v": { "const": 1 },
+        "v": { "const": 2 },
         "app": { "type": "string", "minLength": 1, "maxLength": 40 },
         "fw": { "type": "string", "minLength": 1, "maxLength": 40 },
         "os": { "type": "string", "minLength": 1, "maxLength": 40 }
@@ -99,12 +131,16 @@
     "scan": {
       "description": "Flipper -> host: a tag was read.",
       "type": "object",
-      "required": ["t", "v", "scan_id", "tag"],
+      "required": ["t", "v", "scan_id", "autosave", "tag"],
       "additionalProperties": false,
       "properties": {
         "t": { "const": "scan" },
-        "v": { "const": 1 },
+        "v": { "const": 2 },
         "scan_id": { "$ref": "#/$defs/id" },
+        "autosave": {
+          "description": "The Flipper's Auto-save new setting: when true the host creates an unknown spool from the tag at once.",
+          "type": "boolean"
+        },
         "tag": { "$ref": "#/$defs/tag" }
       }
     },
@@ -116,7 +152,7 @@
       "additionalProperties": false,
       "properties": {
         "t": { "const": "lookup" },
-        "v": { "const": 1 },
+        "v": { "const": 2 },
         "scan_id": { "$ref": "#/$defs/id" },
         "status": { "enum": ["found", "unknown", "error"] },
         "spool_id": { "type": "integer", "minimum": 1 },
@@ -124,6 +160,12 @@
           "description": "unknown only: the tag carries enough data (material) for the Flipper to offer New.",
           "type": "boolean"
         },
+        "spool": { "$ref": "#/$defs/spool" },
+        "created": {
+          "description": "found only: the host created this spool from the scan (autosave).",
+          "type": "boolean"
+        },
+        "tag_info": { "$ref": "#/$defs/tagInfo" },
         "lines": { "$ref": "#/$defs/lines" },
         "defaults": {
           "description": "Weights for the Enter weight screen: last gross weight, label (filament) weight and core (empty spool) weight.",
@@ -140,11 +182,36 @@
       "allOf": [
         {
           "if": { "properties": { "status": { "const": "found" } } },
-          "then": { "required": ["spool_id"] }
+          "then": {
+            "required": ["spool_id"],
+            "allOf": [
+              { "not": { "required": ["prefill"] } },
+              { "not": { "required": ["tag_info"] } }
+            ]
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "unknown" } } },
+          "then": {
+            "allOf": [
+              { "not": { "required": ["spool_id"] } },
+              { "not": { "required": ["spool"] } },
+              { "not": { "required": ["created"] } }
+            ]
+          }
         },
         {
           "if": { "properties": { "status": { "const": "error" } } },
-          "then": { "required": ["error"] }
+          "then": {
+            "required": ["error"],
+            "allOf": [
+              { "not": { "required": ["spool_id"] } },
+              { "not": { "required": ["spool"] } },
+              { "not": { "required": ["created"] } },
+              { "not": { "required": ["prefill"] } },
+              { "not": { "required": ["tag_info"] } }
+            ]
+          }
         }
       ]
     },
@@ -156,16 +223,22 @@
       "additionalProperties": false,
       "properties": {
         "t": { "const": "intent" },
-        "v": { "const": 1 },
+        "v": { "const": 2 },
         "id": { "$ref": "#/$defs/id" },
         "scan_id": { "$ref": "#/$defs/id" },
-        "action": { "enum": ["weigh", "new", "create_on_host", "link_on_host"] },
+        "action": { "enum": ["weigh", "new", "full", "empty", "delete", "create_on_host", "link_on_host"] },
         "grams": { "$ref": "#/$defs/grams" },
         "mode": { "enum": ["net", "gross"] },
         "tag": { "$ref": "#/$defs/tag" }
       },
       "if": { "properties": { "action": { "const": "weigh" } } },
-      "then": { "required": ["grams", "mode"] }
+      "then": { "required": ["grams", "mode"] },
+      "else": {
+        "allOf": [
+          { "not": { "required": ["grams"] } },
+          { "not": { "required": ["mode"] } }
+        ]
+      }
     },
 
     "result": {
@@ -175,14 +248,15 @@
       "additionalProperties": false,
       "properties": {
         "t": { "const": "result" },
-        "v": { "const": 1 },
+        "v": { "const": 2 },
         "id": { "$ref": "#/$defs/id" },
         "ok": { "type": "boolean" },
         "lines": { "$ref": "#/$defs/lines" },
+        "spool": { "$ref": "#/$defs/spool" },
         "error": { "type": "string", "minLength": 1, "maxLength": 200 }
       },
       "if": { "properties": { "ok": { "const": false } } },
-      "then": { "required": ["error"] }
+      "then": { "required": ["error"], "not": { "required": ["spool"] } }
     }
   }
 }

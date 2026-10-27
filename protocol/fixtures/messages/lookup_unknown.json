@@ -1,9 +1,10 @@
 {
   "t": "lookup",
-  "v": 1,
+  "v": 2,
   "scan_id": "s-000012",
   "status": "unknown",
   "prefill": true,
+  "tag_info": { "material": "PLA", "subtype": "Basic", "rgba": "FFFFFFFF", "label": 1000 },
   "lines": ["PLA Basic", "#FFFFFFFF", "label 1000 g"],
   "defaults": { "label": 1000, "core": 250 }
 }

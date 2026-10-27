@@ -1,0 +1,18 @@
+{
+  "t": "result",
+  "v": 2,
+  "id": "i-000009",
+  "ok": true,
+  "lines": ["Marked as empty", "archived"],
+  "spool": {
+    "id": 42,
+    "material": "PLA",
+    "subtype": "Basic",
+    "color_name": "Jade White",
+    "rgba": "FFFFFFFF",
+    "remaining": 0,
+    "label": 1000,
+    "core": 250,
+    "archived": true
+  }
+}

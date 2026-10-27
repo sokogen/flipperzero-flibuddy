@@ -73,6 +73,16 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         #expect(!text.contains("\": ") && !text.contains(", \"") && !text.contains("{ "))
     }
 
+    /// Every valid fixture encodes back to the same JSON object, so absent
+    /// `archived` / `created` stay absent and every v2 field survives.
+    @Test(arguments: Fixtures.validNames)
+    func validFixtureEncodesBackToTheSameObject(name: String) throws {
+        let line = try Message.decode(line: Fixtures.message(name)).encodedLine()
+        let encoded = try JSONSerialization.jsonObject(with: line) as! NSDictionary
+        let fixture = try JSONSerialization.jsonObject(with: Fixtures.message(name)) as! NSDictionary
+        #expect(encoded == fixture)
+    }
+
     @Test func mfcTagEncodesLikeTheFixture() throws {
         let line = try Message.decode(line: Fixtures.message("scan_mfc")).encodedLine()
         let encoded = try JSONSerialization.jsonObject(with: line) as! NSDictionary
@@ -87,6 +97,7 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
             Issue.record("not a scan"); return
         }
         #expect(scan.scanId == "s-000012")
+        #expect(scan.autosave == false)
         #expect(scan.tag.type == .mfc)
         #expect(scan.tag.uid == "5A3C9E21")
         #expect(scan.tag.sak == 8)
@@ -135,12 +146,61 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         #expect(intent.tag.uid == "5A3C9E21")
     }
 
+    @Test func scanCarriesAutosave() throws {
+        guard case .scan(let scan) = try Message.decode(line: Fixtures.message("scan_mfc_autosave")) else {
+            Issue.record("not a scan"); return
+        }
+        #expect(scan.autosave == true)
+        #expect(throws: ProtocolError.self) { try Message.decode(line: Fixtures.message("invalid_scan_no_autosave")) }
+    }
+
     @Test func intentActionsDecode() throws {
-        let actions = try ["intent_new", "intent_create_on_host", "intent_link_on_host"].map { name -> Intent.Action in
+        let names = ["intent_new", "intent_full", "intent_empty", "intent_delete", "intent_create_on_host", "intent_link_on_host"]
+        let actions = try names.map { name -> Intent.Action in
             guard case .intent(let intent) = try Message.decode(line: Fixtures.message(name)) else { throw ProtocolError.invalid(name) }
+            #expect(intent.grams == nil && intent.mode == nil)
             return intent.action
         }
-        #expect(actions == [.new, .createOnHost, .linkOnHost])
+        #expect(actions == [.new, .full, .empty, .delete, .createOnHost, .linkOnHost])
+    }
+
+    @Test func lookupSpoolAndTagInfoFields() throws {
+        guard case .lookup(let found) = try Message.decode(line: Fixtures.message("lookup_found")) else {
+            Issue.record("not a lookup"); return
+        }
+        #expect(found.spool == SpoolSummary(
+            id: 42, material: "PLA", subtype: "Basic", colorName: "Jade White", rgba: "FFFFFFFF",
+            remaining: 484, label: 1000, core: 250
+        ))
+        #expect(found.created == false)
+        guard case .lookup(let archived) = try Message.decode(line: Fixtures.message("lookup_found_archived")) else {
+            Issue.record("not a lookup"); return
+        }
+        #expect(archived.spool?.archived == true)
+        guard case .lookup(let created) = try Message.decode(line: Fixtures.message("lookup_created")) else {
+            Issue.record("not a lookup"); return
+        }
+        #expect(created.created == true)
+        guard case .lookup(let unknown) = try Message.decode(line: Fixtures.message("lookup_unknown")) else {
+            Issue.record("not a lookup"); return
+        }
+        #expect(unknown.tagInfo == TagInfo(material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000))
+        guard case .lookup(let blank) = try Message.decode(line: Fixtures.message("lookup_unknown_blank")) else {
+            Issue.record("not a lookup"); return
+        }
+        #expect(blank.tagInfo == nil)
+    }
+
+    @Test func resultSpoolFields() throws {
+        guard case .result(let empty) = try Message.decode(line: Fixtures.message("result_empty")) else {
+            Issue.record("not a result"); return
+        }
+        #expect(empty.spool?.remaining == 0)
+        #expect(empty.spool?.archived == true)
+        guard case .result(let deleted) = try Message.decode(line: Fixtures.message("result_delete")) else {
+            Issue.record("not a result"); return
+        }
+        #expect(deleted.spool == nil)
     }
 
     @Test func lookupAndResultFields() throws {
@@ -165,18 +225,23 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
     }
 
     @Test func acceptsWhitespaceAndAnyKeyOrder() throws {
-        let message = try Message.decode(line: #"{ "v" : 1 , "t" : "result", "id":"i-1","ok":true,"lines":[] }"#)
+        let message = try Message.decode(line: #"{ "v" : 2 , "t" : "result", "id":"i-1","ok":true,"lines":[] }"#)
         #expect(message == .result(IntentResult(id: "i-1", ok: true, lines: [])))
     }
 
     @Test func unknownTypeIsReportedSeparately() throws {
-        #expect(throws: ProtocolError.unknownType("ping")) { try Message.decode(line: #"{"t":"ping","v":1}"#) }
+        #expect(throws: ProtocolError.unknownType("ping")) { try Message.decode(line: #"{"t":"ping","v":2}"#) }
     }
 
     @Test func otherVersionIsRejected() throws {
-        #expect(throws: ProtocolError.unsupportedVersion(2)) {
-            try decodePatched("result_ok") { $0["v"] = 2 }
+        #expect(throws: ProtocolError.unsupportedVersion(1)) {
+            try decodePatched("result_ok") { $0["v"] = 1 }
         }
+    }
+
+    @Test func theVersionIsReadBeforeAnythingElse() {
+        #expect(throws: ProtocolError.unsupportedVersion(1)) { try Message.decode(line: #"{"t":"ping","v":1}"#) }
+        #expect(throws: ProtocolError.unsupportedVersion(1)) { try Message.decode(line: #"{"v":1,"id":"i-1"}"#) }
     }
 
     @Test func notJSONIsMalformed() {
@@ -197,8 +262,45 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         #expect(throws: ProtocolError.self) { try decodePatched("lookup_found") { $0["spool_id"] = nil } }
         #expect(throws: ProtocolError.self) { try decodePatched("lookup_found") { $0["spool_id"] = 0 } }
         #expect(throws: ProtocolError.self) { try decodePatched("lookup_error") { $0["error"] = nil } }
-        // result ok:false needs error
+        // result ok:false needs error and carries no spool
         #expect(throws: ProtocolError.self) { try decodePatched("result_error") { $0["error"] = nil } }
+        #expect(throws: ProtocolError.self) {
+            try decodePatched("result_ok") { $0["ok"] = false; $0["error"] = "boom" }
+        }
+        // grams and mode only with weigh
+        #expect(throws: ProtocolError.self) { try decodePatched("intent_full") { $0["grams"] = 10 } }
+        #expect(throws: ProtocolError.self) { try decodePatched("intent_delete") { $0["mode"] = "net" } }
+        // scan needs autosave as a boolean
+        #expect(throws: ProtocolError.self) { try decodePatched("scan_mfc") { $0["autosave"] = "yes" } }
+        // which lookup fields each status allows
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_found") { $0["prefill"] = true } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_found") { $0["tag_info"] = ["material": "PLA"] } }
+        #expect(throws: ProtocolError.self) {
+            try decodePatched("lookup_found") { $0["spool_id"] = 43 }
+        }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_unknown") { $0["created"] = true } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_unknown") { $0["created"] = false } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_unknown") { $0["spool_id"] = 4 } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_error") { $0["prefill"] = true } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_error") { $0["tag_info"] = [String: Any]() } }
+        // spool and tag_info fields
+        func patchSpool(_ patch: @escaping (inout [String: Any]) -> Void) throws -> Message {
+            try decodePatched("lookup_found") { object in
+                var spool = object["spool"] as! [String: Any]
+                patch(&spool)
+                object["spool"] = spool
+            }
+        }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["material"] = "" } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["subtype"] = String(repeating: "x", count: 41) } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["rgba"] = "ffffffff" } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["rgba"] = "FFFFFF" } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["remaining"] = -1 } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["label"] = 10000 } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["core"] = nil } }
+        #expect(throws: ProtocolError.self) { try patchSpool { $0["archived"] = "no" } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_unknown") { $0["tag_info"] = ["label": 10000] } }
+        #expect(throws: ProtocolError.self) { try decodePatched("lookup_unknown") { $0["tag_info"] = ["rgba": "#FFFFFF"] } }
         // lines: at most 4, each at most 40 characters
         #expect(throws: ProtocolError.self) { try decodePatched("result_ok") { $0["lines"] = ["1", "2", "3", "4", "5"] } }
         #expect(throws: ProtocolError.self) { try decodePatched("result_ok") { $0["lines"] = [String(repeating: "x", count: 41)] } }
@@ -242,7 +344,7 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
                                              defaults: .init(label: 1000, core: 250))).encodedLine()
         let object = try JSONSerialization.jsonObject(with: line) as! [String: Any]
         #expect(object["t"] as? String == "lookup")
-        #expect(object["v"] as? Int == 1)
+        #expect(object["v"] as? Int == 2)
         #expect(object["scan_id"] as? String == "s-1")
         #expect(object["status"] as? String == "unknown")
         #expect(object["prefill"] as? Bool == true)
@@ -257,6 +359,13 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         }
         #expect(throws: ProtocolError.self) {
             try Message.lookup(Lookup(scanId: "s-1", status: .found, lines: [])).encodedLine()
+        }
+        #expect(throws: ProtocolError.self) {
+            try Message.lookup(Lookup(scanId: "s-1", status: .unknown, created: true, lines: [])).encodedLine()
+        }
+        #expect(throws: ProtocolError.self) {
+            let spool = SpoolSummary(id: 1, material: "PLA", rgba: "#FFFFFF", remaining: 1, label: 1, core: 1)
+            try Message.result(IntentResult(id: "i-1", ok: true, lines: [], spool: spool)).encodedLine()
         }
     }
 
@@ -276,9 +385,10 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
 
     @Test func tagEncodesUppercaseHexAndOmitsEmptyFields() throws {
         let tag = TagDump(type: .ntag, uid: "04112233445566", sak: 0, atqa: "0044", pages: [0: [0xde, 0xad, 0xbe, 0xef]])
-        let line = try Message.scan(Scan(scanId: "s-2", tag: tag)).encodedLine()
+        let line = try Message.scan(Scan(scanId: "s-2", autosave: true, tag: tag)).encodedLine()
         let object = try JSONSerialization.jsonObject(with: line) as! [String: Any]
         let encodedTag = object["tag"] as! [String: Any]
+        #expect(object["autosave"] as? Bool == true)
         #expect(encodedTag["pages"] as? [String: String] == ["0": "DEADBEEF"])
         #expect(encodedTag["blocks"] == nil)
         #expect(encodedTag["missing"] == nil)

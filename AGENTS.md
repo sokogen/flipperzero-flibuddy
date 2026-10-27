@@ -36,11 +36,13 @@ Instructions for coding agents (and humans) working in this repository.
 ```
 AGENTS.md, README.md
 docs/superpowers/specs/   design docs
+docs/design/              UI specs (Flipper, Mac) and the Flipper icon table
 docs/plans/               implementation plans
 protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
                           sample messages) shared by all test suites
-flipper/                  the FAP: application.fam, src/, host-compiled
-                          unit tests in tests/
+flipper/                  the FAP: application.fam, src/, images/
+                          (generated XBM icons, see tools/README.md),
+                          host-compiled unit tests in tests/
 host/                     Swift package: FliBuddyCore library,
                           FliBuddyUI shared SwiftUI views,
                           FliBuddyMac SwiftUI executable, tests

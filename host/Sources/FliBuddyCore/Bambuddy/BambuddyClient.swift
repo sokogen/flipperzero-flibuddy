@@ -32,12 +32,14 @@ public struct BambuddyClient: Sendable {
     // MARK: Inventory
 
     /// The spool carrying this tag: the tray UUID when there is one, then the
-    /// UID. `nil` when every query answers 404.
+    /// UID. Archived spools count, so a spool marked empty is found again
+    /// rather than added twice. `nil` when every query answers 404.
     public func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
         let queries = (trayUuid.map { [URLQueryItem(name: "tray_uuid", value: $0)] } ?? [])
             + [URLQueryItem(name: "tag_uid", value: uid)]
+        let archived = URLQueryItem(name: "include_archived", value: "true")
         for query in queries {
-            let (data, status) = try await send("GET", "/inventory/spools/by-tag", query: [query])
+            let (data, status) = try await send("GET", "/inventory/spools/by-tag", query: [query, archived])
             if status == 404 { continue }
             try check(status, data, permission: "inventory:read")
             return try decode(Spool.self, data)
@@ -83,6 +85,34 @@ public struct BambuddyClient: Sendable {
         if status == 404 { throw BambuddyError.spoolNotFound(spoolId) }
         try check(status, data, permission: "inventory:update")
         return try decode(WeightUpdate.self, data)
+    }
+
+    /// Set the grams used (`PATCH /inventory/spools/{id}`): 0 marks the spool
+    /// full, the label weight marks it empty.
+    public func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
+        struct Body: Encodable {
+            var weightUsed: Int
+        }
+        let (data, status) = try await send("PATCH", "/inventory/spools/\(spoolId)", body: Body(weightUsed: grams))
+        if status == 404 { throw BambuddyError.spoolNotFound(spoolId) }
+        try check(status, data, permission: "inventory:update")
+        return try decode(Spool.self, data)
+    }
+
+    /// Move the spool to Bambuddy's archive. The answer's body is not read.
+    public func archiveSpool(id: Int) async throws {
+        try await post("/inventory/spools/\(id)/archive", spoolId: id)
+    }
+
+    /// Bring an archived spool back. The answer's body is not read.
+    public func restoreSpool(id: Int) async throws {
+        try await post("/inventory/spools/\(id)/restore", spoolId: id)
+    }
+
+    private func post(_ path: String, spoolId: Int) async throws {
+        let (data, status) = try await send("POST", path)
+        if status == 404 { throw BambuddyError.spoolNotFound(spoolId) }
+        try check(status, data, permission: "inventory:update")
     }
 
     /// Create a new item. Refuses a body without `material` before any request.

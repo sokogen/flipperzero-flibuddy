@@ -1,7 +1,8 @@
 {
   "t": "scan",
-  "v": 1,
+  "v": 2,
   "scan_id": "s-000014",
+  "autosave": false,
   "tag": {
     "type": "mfc",
     "uid": "5A3C9E21",

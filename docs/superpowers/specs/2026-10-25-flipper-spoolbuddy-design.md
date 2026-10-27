@@ -12,6 +12,11 @@ remaining ones are listed in README, "Phase 0 results". Phase 2 (BLE,
 iPhone, iPad and Apple Watch apps) is implemented
 (`docs/plans/20261026-phase2-ble-ios.md`); its hardware checks are listed
 in that plan's Post-Completion.
+The Flipper UI rework and Auto-save (`docs/plans/20261026-flipper-ui-autosave.md`)
+replaced the Flipper screens, the Settings and the protocol (now v2): where
+"The Flipper app" and the sections below describe the Phase 1 screens (Idle,
+the Idle OK menu, Enter weight), `docs/design/flipper-ui-spec.md` and
+`protocol/PROTOCOL.md` are current.
 
 ## Intent
 

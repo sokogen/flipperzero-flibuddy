@@ -116,6 +116,12 @@ final class FakeTransport: Transport, @unchecked Sendable {
     var connectError: Error?
     /// Thrown by the next `send`, once.
     var nextSendError: Error?
+    /// What the Flipper's dropped lines said their version was.
+    var otherVersion: Int?
+
+    var peerVersion: Int? {
+        lock.withLock { otherVersion }
+    }
 
     var state: TransportState {
         lock.withLock { continuation == nil ? .closed : .open }
