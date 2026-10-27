@@ -488,7 +488,7 @@ static void test_weight_digits_and_cursor(void) {
     CHECK(in_flight() == NULL);
 }
 
-static void test_mode_chip_refills_only_untouched_digits(void) {
+static void test_mode_chip_converts_the_number(void) {
     setup();
     scan_found();
     press(AppKeyOk);
@@ -501,16 +501,33 @@ static void test_mode_chip_refills_only_untouched_digits(void) {
     press(AppKeyDown);
     CHECK(app.mode == WeightModeGross);
     CHECK_EQ_INT(app_weight_grams(&app), 734);
-    /* a changed digit keeps the number across the toggle */
+    /* a typed number is converted too: gross - core, net + core */
     press(AppKeyRight);
     press(AppKeyUp); /* 1734 */
     press(AppKeyLeft);
     press(AppKeyUp);
     CHECK(app.mode == WeightModeNet);
+    CHECK_EQ_INT(app_weight_grams(&app), 1484);
+    press(AppKeyUp);
+    CHECK(app.mode == WeightModeGross);
     CHECK_EQ_INT(app_weight_grams(&app), 1734);
+    press(AppKeyUp);
     CHECK(press(AppKeyOk) == AppEffectSendIntent);
     CHECK(in_flight()->mode == WeightModeNet);
-    CHECK_EQ_INT(in_flight()->grams, 1734);
+    CHECK_EQ_INT(in_flight()->grams, 1484);
+}
+
+static void test_mode_chip_floors_net_at_zero(void) {
+    setup();
+    scan_found();
+    press(AppKeyOk);
+    /* the cursor opens on the hundreds */
+    for(int i = 0; i < 7; i++) press(AppKeyDown); /* 734 -> 034, below the 250 g core */
+    press(AppKeyLeft);
+    press(AppKeyLeft); /* cursor 0 */
+    press(AppKeyUp);
+    CHECK(app.mode == WeightModeNet);
+    CHECK_EQ_INT(app_weight_grams(&app), 0);
 }
 
 static void test_mode_is_kept_for_the_session(void) {
@@ -1492,7 +1509,8 @@ int main(void) {
     RUN_TEST(test_result_known_keys);
     RUN_TEST(test_archived_spool_is_known);
     RUN_TEST(test_weight_digits_and_cursor);
-    RUN_TEST(test_mode_chip_refills_only_untouched_digits);
+    RUN_TEST(test_mode_chip_converts_the_number);
+    RUN_TEST(test_mode_chip_floors_net_at_zero);
     RUN_TEST(test_mode_is_kept_for_the_session);
     RUN_TEST(test_save_below_core_is_refused);
     RUN_TEST(test_net_or_unknown_core_never_refuses);

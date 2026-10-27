@@ -43,7 +43,8 @@
  * reader finds it again on the next screen that reads.
  *
  * The net/gross mode belongs to the session; the Weight screen's mode chip
- * toggles it. The pre-fill follows it while the digits are untouched:
+ * toggles it and converts the number on screen, typed or not (gross -
+ * core, floored at 0, or net + core). The pre-fill on opening Weight is
  * gross = remaining + core, net = remaining of the spool on screen, falling
  * back to the lookup defaults (gross: last gross, else label + core; net:
  * gross - core, else label).
@@ -211,7 +212,7 @@ typedef enum {
 typedef struct {
     uint8_t digit[APP_WEIGHT_DIGITS]; /* most significant first */
     uint8_t cursor; /* 0: the mode chip, 1..4: a digit */
-    bool touched; /* a digit was changed: the mode no longer re-fills */
+    bool touched; /* a digit was changed */
 } AppWeight;
 
 typedef struct {

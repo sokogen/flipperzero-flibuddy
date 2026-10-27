@@ -156,16 +156,16 @@ static void spool(Canvas* c, int32_t cx, int32_t cy, int32_t r) {
     canvas_draw_disc(c, cx, cy, axle < 1 ? 1 : axle);
 }
 
-/* An arc of radius r over ±0.6 rad to the right (dir 1) or left (-1). */
+/* An arc of radius r over ±0.5 rad to the right (dir 1) or left (-1). */
 static void arc(Canvas* c, int32_t cx, int32_t cy, int32_t r, int32_t dir) {
-    int32_t reach = r * 565 / 1000; /* r sin 0.6 */
+    int32_t reach = r * 479 / 1000; /* r sin 0.5 */
     for(int32_t dy = -reach; dy <= reach; dy++)
         canvas_draw_dot(c, cx + dir * (int32_t)isqrt((uint32_t)(r * r - dy * dy)), cy + dy);
 }
 
 static void waves(Canvas* c, int32_t cx, int32_t cy, int32_t r0, uint32_t t) {
     for(uint32_t i = 0; i < 3; i++)
-        if(t % 4 > i) arc(c, cx, cy, r0 + (int32_t)i * 4, 1);
+        if(t % 4 > i) arc(c, cx, cy, r0 + (int32_t)i * 5, 1);
 }
 
 static void bouncing_dots(Canvas* c, int32_t x, int32_t y, uint8_t anim) {
@@ -198,14 +198,14 @@ static void draw_ready(Canvas* c, const UiFrame* f) {
         bitmap(c, 3, 14, &ui_icon_check);
         text_fit(c, 13, 13, W - 15, f->bar);
         canvas_set_color(c, ColorBlack);
-        spool(c, 17, 37, 11);
-        waves(c, 17, 37, 14, f->anim);
+        spool(c, 12, 37, 11);
+        waves(c, 12, 37, 14, f->anim);
         canvas_set_font(c, FontPrimary);
         text_at(c, 40, 25, f->line[0]);
         canvas_set_font(c, FontSecondary);
     } else {
-        spool(c, 17, 31, 13);
-        waves(c, 17, 31, 16, f->anim);
+        spool(c, 14, 31, 13);
+        waves(c, 14, 31, 16, f->anim);
         canvas_set_font(c, FontPrimary);
         text_at(c, 42, 16, f->line[0]);
         canvas_set_font(c, FontSecondary);

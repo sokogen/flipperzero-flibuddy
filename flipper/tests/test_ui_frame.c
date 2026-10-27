@@ -517,14 +517,14 @@ static void test_weight(void) {
     CHECK_STR_EQ(frame.bar, "Below core weight");
     CHECK_STR_EQ(frame.line[0], "");
 
-    /* net */
+    /* net: the toggle converts 100 g gross below the core to 0 g net */
     press(AppKeyLeft); /* the mode chip */
     press(AppKeyUp);
     build();
     CHECK_EQ_INT(frame.cursor, 0);
     CHECK(frame.net);
     CHECK(!frame.refused);
-    CHECK_STR_EQ(frame.line[0], "Saves 100 g left");
+    CHECK_STR_EQ(frame.line[0], "Saves 0 g left");
 }
 
 static void test_weight_without_a_core(void) {

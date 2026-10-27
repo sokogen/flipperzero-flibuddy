@@ -115,12 +115,15 @@ static uint16_t weight_prefill(const AppState* s) {
     return has_label ? cap_grams(label + core) : 0;
 }
 
-static void weight_fill(AppState* s) {
-    unsigned grams = weight_prefill(s);
+static void weight_set(AppState* s, unsigned grams) {
     for(int i = APP_WEIGHT_DIGITS - 1; i >= 0; i--) {
         s->weight.digit[i] = (uint8_t)(grams % 10);
         grams /= 10;
     }
+}
+
+static void weight_fill(AppState* s) {
+    weight_set(s, weight_prefill(s));
 }
 
 uint16_t app_weight_grams(const AppState* s) {
@@ -501,8 +504,16 @@ static AppEffect key_confirm_delete(AppState* s, AppKey key, uint32_t now_ms) {
 static void weight_turn(AppState* s, AppKey key) {
     AppWeight* w = &s->weight;
     if(w->cursor == 0) {
-        s->mode = s->mode == WeightModeGross ? WeightModeNet : WeightModeGross;
-        if(!w->touched) weight_fill(s);
+        /* The number on screen is converted, typed or not: gross - core
+         * is the net of the same spool, net + core its gross. */
+        unsigned grams = app_weight_grams(s), core = app_weight_core(s);
+        if(s->mode == WeightModeGross) {
+            s->mode = WeightModeNet;
+            weight_set(s, grams > core ? grams - core : 0);
+        } else {
+            s->mode = WeightModeGross;
+            weight_set(s, cap_grams(grams + core));
+        }
         return;
     }
     uint8_t* d = &w->digit[w->cursor - 1];
