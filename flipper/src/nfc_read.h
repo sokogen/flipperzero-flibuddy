@@ -41,6 +41,12 @@ void tag_reader_start(TagReader* reader, TagDump* out, TagReaderCallback callbac
 
 void tag_reader_stop(TagReader* reader);
 
+/* Forgets the tag read last, so the next worker reads it again even if it
+ * is still in the field. For a result the caller dropped (a read that
+ * finished after the screen moved on). Call it after stop(), from the GUI
+ * thread. */
+void tag_reader_forget(TagReader* reader);
+
 /* Call start, stop and is_started from one thread (the GUI thread). */
 bool tag_reader_is_started(const TagReader* reader);
 

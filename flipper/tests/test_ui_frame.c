@@ -279,6 +279,42 @@ static void test_result_known(void) {
     CHECK(frame.mark == UiMarkBlank);
 }
 
+static void test_result_known_without_spool_shows_host_lines(void) {
+    setup();
+    send_tag(&mfc);
+    ProtoLookup l = fixture_message("lookup_found.json")->lookup;
+    strcpy(l.scan_id, app.scan.id);
+    l.has_spool = false;
+    send_lookup(&l);
+    CHECK(app.screen == AppScreenResult);
+    build();
+    CHECK(frame.kind == AppResultKnown);
+    CHECK_STR_EQ(frame.title, "PLA Basic");
+    CHECK_STR_EQ(frame.line[0], "Jade White");
+    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+    CHECK_STR_EQ(frame.line[2], "484 g left of 1000");
+    check_chips("Menu", "Weigh", "New");
+
+    /* no lines either: the tag itself */
+    l.lines.count = 0;
+    send_lookup(&l);
+    build();
+    CHECK_STR_EQ(frame.line[0], "MIFARE Classic 1K");
+    CHECK_STR_EQ(frame.line[2], "");
+
+    /* the host dropped the empty material and subtype: the lines shift up and
+     * are shown as they come, not taken for a name, a colour and a weight */
+    l.lines.count = 3;
+    strcpy(l.lines.line[0], "Jade White");
+    strcpy(l.lines.line[1], "484 g left of 1000");
+    strcpy(l.lines.line[2], "core 250 g");
+    send_lookup(&l);
+    build();
+    CHECK_STR_EQ(frame.title, "Jade White");
+    CHECK_STR_EQ(frame.line[0], "484 g left of 1000");
+    CHECK_STR_EQ(frame.line[2], "core 250 g");
+}
+
 static void test_result_archived(void) {
     setup();
     send_tag(&mfc);
@@ -791,6 +827,7 @@ int main(void) {
     RUN_TEST(test_ready_names_the_last_outcome);
     RUN_TEST(test_reading_and_looking_up);
     RUN_TEST(test_result_known);
+    RUN_TEST(test_result_known_without_spool_shows_host_lines);
     RUN_TEST(test_result_archived);
     RUN_TEST(test_result_unknown);
     RUN_TEST(test_result_unknown_without_material);

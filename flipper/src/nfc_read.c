@@ -192,6 +192,10 @@ void tag_reader_stop(TagReader* r) {
     r->started = false;
 }
 
+void tag_reader_forget(TagReader* r) {
+    if(!r->started) tag_watch_clear(&r->watch);
+}
+
 bool tag_reader_is_started(const TagReader* r) {
     return r->started;
 }

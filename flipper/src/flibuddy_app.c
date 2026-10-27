@@ -270,6 +270,14 @@ static void on_rx_line(const char* line, size_t len, void* ctx) {
     }
 }
 
+/* The reducer takes a read only on Reading. The worker can finish a tag
+ * before the screen leaves for another one (a Mark toast committed by the
+ * detection of that same tag); that tag must be read again when the reader
+ * restarts, not waited out. */
+static void forget_dropped_read(FliBuddyApp* app) {
+    if(app->state.screen != AppScreenReading) tag_reader_forget(app->reader);
+}
+
 static bool on_custom_event(void* ctx, uint32_t event) {
     FliBuddyApp* app = ctx;
     switch(event) {
@@ -283,10 +291,12 @@ static bool on_custom_event(void* ctx, uint32_t event) {
         return true;
     case FliBuddyEventTagRead:
         tag_reader_stop(app->reader); /* its worker has ended */
+        forget_dropped_read(app);
         flibuddy_reduce(app, &(AppEvent){.type = AppEventTagRead, .tag = app->read_dump});
         return true;
     case FliBuddyEventReadFailed:
         tag_reader_stop(app->reader);
+        forget_dropped_read(app);
         flibuddy_reduce_type(app, AppEventReadFailed);
         return true;
     default:

@@ -64,6 +64,14 @@ static bool rgba_of(const AppState* s, uint32_t* rgba) {
     return s->lookup.has_tag_info && s->lookup.tag_info.has_rgba;
 }
 
+/* Line `i` the host sent for a found spool it gave no `spool` for (the
+ * protocol's fallback), else NULL. The lines are shown verbatim in order,
+ * with no meaning given to a position: the host drops the empty ones. */
+static const char* host_line(const AppState* s, uint8_t i) {
+    if(s->has_spool || s->lookup.status != ProtoLookupFound) return NULL;
+    return i < s->lookup.lines.count && i < PROTO_LINES_MAX ? s->lookup.lines.line[i] : NULL;
+}
+
 /* What the tag itself says: the detailed type, else the material. */
 static bool local_name(const AppState* s, char out[TAG_BLOCK_TEXT_MAX]) {
     return tag_block_text(&s->scan.tag, TAG_BLOCK_DETAILED_TYPE, out) ||
@@ -71,7 +79,8 @@ static bool local_name(const AppState* s, char out[TAG_BLOCK_TEXT_MAX]) {
 }
 
 /* The spool's name from Bambuddy, the host's reading of the tag or the tag
- * itself; "Spool" when none says. */
+ * itself; "Spool" when none says. The host's `lines` are never a name: the
+ * host drops empty ones, so what comes first is not always the name. */
 static void put_name(Text* t, const AppState* s) {
     char name[UI_TEXT_MAX];
     name[0] = '\0';
@@ -110,6 +119,12 @@ static void result_title(const AppState* s, char* out, size_t cap) {
     char local[TAG_BLOCK_TEXT_MAX];
     switch(s->result_kind) {
     case AppResultKnown:
+        if(host_line(s, 0)) {
+            put(&t, host_line(s, 0));
+            break;
+        }
+        put_name(&t, s);
+        break;
     case AppResultUnknownPrefill:
         put_name(&t, s);
         break;
@@ -220,6 +235,8 @@ static void build_result(UiFrame* f, const AppState* s) {
     Text t = TEXT(f->line[0]);
     if(s->result_kind == AppResultNoHost) {
         put(&t, ui_tag_type_name(&s->scan.tag));
+    } else if(host_line(s, 1)) {
+        put(&t, host_line(s, 1));
     } else {
         put_colour(&t, s);
     }
@@ -238,6 +255,8 @@ static void build_result(UiFrame* f, const AppState* s) {
             put_uint(&t, s->spool.remaining);
             put(&t, " g left of ");
             put_uint(&t, s->spool.label);
+        } else if(host_line(s, 2)) {
+            put(&t, host_line(s, 2));
         }
         SET(f->center, "Weigh");
         SET(f->right, "New");
