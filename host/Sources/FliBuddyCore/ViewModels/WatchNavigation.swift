@@ -1,13 +1,14 @@
 import Foundation
 
 /// The watch's one navigation stack: the feed at the root, a row's detail or
-/// Settings on top. A row that starts waiting for a weight opens its detail
+/// Settings (and over it Scan for Flipper) on top. A row that starts waiting for a weight opens its detail
 /// on its own while the feed is the screen showing; a detail pops back to the
 /// feed a second after its save, and the newest row still waiting opens next.
 public struct WatchNavigation: Equatable, Sendable {
     public enum Screen: Hashable, Sendable {
         case row(FeedRow.ID)
         case settings
+        case scan
     }
 
     public struct Row: Equatable, Sendable {
@@ -64,6 +65,17 @@ public struct WatchNavigation: Equatable, Sendable {
     /// The tap on the connection glyph.
     public mutating func openSettings() {
         path = [.settings]
+    }
+
+    /// Scan for Flipper, from Settings.
+    public mutating func openScan() {
+        path = [.settings, .scan]
+    }
+
+    /// A Flipper was picked: back to Settings. Leaves any other screen alone.
+    public mutating func closeScan() {
+        guard path.last == .scan else { return }
+        path.removeLast()
     }
 
     /// `popDelay` after `id` saved: its detail pops back to the feed and

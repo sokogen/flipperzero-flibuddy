@@ -117,13 +117,13 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 7
 
 ### Task 7: Watch detail, crown, haptics, settings
-- [ ] entry: 50 pt rounded value + 20 pt unit, readout line (`Saves … g left` / `Turn the crown` / errors in red), Net / Gross pills (converting), 40 pt blue Save
-- [ ] crown: `.low` sensitivity, 5 g per detent above about 6 detents/s (`CrownWeight`)
-- [ ] haptics `.success` / `.failure`
-- [ ] saved screen: icon, 34 pt remaining, status, `Weigh again`; unknown screen: one-tap New only for tags with material, hints `Create it on iPhone or Mac.` / `Link it on iPhone or Mac.`; a Not-in-Bambuddy Bambu row keeps the entry (Save creates and weighs); busy screen
-- [ ] settings read-only (Server, Core weight, Weight as, `Received … Change these on iPhone.`), Flipper platter, separate Scan for Flipper screen with `Searching…` and signal words
-- [ ] write tests for the crown rate, screen-state selection and settings texts
-- [ ] run `make test` and `make apple-build` — must pass before Task 8
+- [x] entry: 50 pt rounded value + 20 pt unit, readout line (`Saves … g left` / `Turn the crown` / errors in red), Net / Gross pills (converting), 40 pt blue Save
+- [x] crown: `.low` sensitivity, 5 g per detent above about 6 detents/s (`CrownWeight`)
+- [x] haptics `.success` / `.failure`
+- [x] saved screen: icon, 34 pt remaining, status, `Weigh again`; unknown screen: one-tap New only for tags with material, hints `Create it on iPhone or Mac.` / `Link it on iPhone or Mac.`; a Not-in-Bambuddy Bambu row keeps the entry (Save creates and weighs); busy screen
+- [x] settings read-only (Server, Core weight, Weight as, `Received … Change these on iPhone.`), Flipper platter, separate Scan for Flipper screen with `Searching…` and signal words
+- [x] write tests for the crown rate, screen-state selection and settings texts
+- [x] run `make test` and `make apple-build` — must pass before Task 8
 
 ### Task 8: Verify acceptance criteria
 - [ ] walk each spec's "Differences from what ships" list: every item done or recorded under "Implemented differently"

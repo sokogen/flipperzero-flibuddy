@@ -267,8 +267,8 @@ why. Items marked "by eye" still wait for the owner's check on screen.
 Navigation and glyph
 - `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
   holds the one `NavigationStack`; its path is `WatchNavigation`
-  (`FliBuddyCore`), whose screens are a row's detail and Settings. The
-  Scan for Flipper screen joins it with the settings rework.
+  (`FliBuddyCore`), whose screens are a row's detail, Settings and Scan
+  for Flipper (over Settings).
 - The glyph comes from `WatchGlyph` (`FliBuddyCore`), built from the same
   two `StatusItem`s as the macOS status bar and the iPhone banner, in the
   iPhone's short phrase. States the table leaves out keep their status-bar
@@ -295,6 +295,47 @@ Feed list
   page's gray `#8E8E93`.
 - Always-On: rows are plain (no button), with no swatch, glyph or platter;
   the toolbar glyph is hidden.
+
+Row detail
+- `WatchRowScreen` (`FliBuddyCore`) picks the body. While New from the
+  watch runs, the busy body reads `Creating in Bambuddy…`; Looking up shows
+  its own phrase. The header line stands in for a navigation title.
+- Unknown hints: a Flipper link request wins (`Link it on iPhone or
+  Mac.`); a tag without material otherwise reads `Create it on iPhone or
+  Mac.`, also under a Flipper create request; a deleted spool has no hint
+  and offers New when the tag has material. A failed New shows
+  `Error: <message>` in red under the phrase.
+- Entry: with no value the number reads a dimmed `0`, the line `Turn the
+  crown`, and Save stays dimmed; the crown starts at 0. The line drops the
+  gross sum (`Saves 590 g left`, as the iPad's short readout) to stay on
+  one line. A host error outranks the row's own error. The weight takes
+  focus when the entry appears, so Weigh again lands on it. The pills are
+  Net then Gross.
+- The saved body's big number is what is left on a known spool; without
+  one it is left out.
+- Details sit under a 12 pt `Details` caption; ids and UIDs are monospaced.
+
+Crown and haptics
+- `CrownWeight.fastVelocity` is 6 crown units per second; with one unit
+  per detent that is the page's 6 detents per second.
+- The haptics follow `FeedViewModel.haptic` on the root view
+  (`WKInterfaceDevice.current().play`), so any failed host action (also a
+  failed New) plays `.failure`, on any screen.
+
+Settings and Scan for Flipper
+- Texts come from `WatchSettingsTexts` (`FliBuddyCore`). Settings that
+  have not arrived since launch drop the `Received …` sentence; the age
+  reads `just now`, `N min ago`, `N h ago` or `N d ago`. Before any
+  settings arrive the section reads `Open FliBuddy on the iPhone to send
+  its settings.`; a rejected payload shows its error in red there.
+- The Flipper platter shows the Flipper half of the status only, not the
+  merged glyph (the page's `replace('Flipper ', '')` on the glyph text
+  would put Bambuddy's problems under the Flipper's name); a nameless
+  Flipper reads `Flipper`. Bambuddy's status leaves Settings: the glyph
+  has it.
+- The scan runs while its screen shows and stops on leaving it. After the
+  15 s scan ends the spinner gives way to `Scan again`; a Bluetooth
+  problem shows in red. `Nearby · strong` from −60 dBm up, else `Nearby`.
 
 ## Open questions for the owner
 

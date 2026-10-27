@@ -1,11 +1,12 @@
 import FliBuddyCore
 import SwiftUI
-
 #if os(watchOS)
+import WatchKit
 /// The watch app: one navigation stack, the feed at its root, a row's detail
 /// or Settings (behind the connection glyph) on top. A row that starts
 /// waiting for a weight opens on its own while the feed shows; a detail pops
-/// back a second after its save (`WatchNavigation`).
+/// back a second after its save (`WatchNavigation`). A save plays the
+/// success haptic, a failed action the failure one, on any screen.
 public struct WatchRootView: View {
     let host: HostModel
     let receiver: WatchSettingsReceiver?
@@ -34,11 +35,20 @@ public struct WatchRootView: View {
                         }
                     }
                 case .settings:
-                    WatchSettingsView(host: host, receiver: receiver)
+                    WatchSettingsView(host: host, receiver: receiver) { navigation.openScan() }
+                case .scan:
+                    WatchScanView(host: host) { navigation.closeScan() }
                 }
             }
         }
         .onChange(of: feed.items) { _, items in navigation.update(items) }
+        .onChange(of: feed.haptic) { _, haptic in
+            switch haptic?.kind {
+            case .success: WKInterfaceDevice.current().play(.success)
+            case .error: WKInterfaceDevice.current().play(.failure)
+            case nil: break
+            }
+        }
     }
 }
 

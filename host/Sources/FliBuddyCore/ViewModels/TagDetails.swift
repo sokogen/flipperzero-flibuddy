@@ -48,6 +48,14 @@ public struct TagDetails: Equatable, Sendable {
         self.facts = facts
     }
 
+    /// The watch's Details section: colour name, colour code, UID, filament
+    /// id, diameter, nozzle range and spool, in that order, each when known.
+    public var watchFacts: [Fact] {
+        Self.watchLabels.compactMap { label in facts.first { $0.label == label } }
+    }
+
+    static let watchLabels = ["Colour", "Colour code", "UID", "Filament ID", "Diameter", "Nozzle", "Spool"]
+
     /// The value of the fact labelled `label`, if the row has it.
     public func value(_ label: String) -> String? {
         facts.first { $0.label == label }?.value

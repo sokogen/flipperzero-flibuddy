@@ -70,6 +70,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// Created in Bambuddy and not weighed yet (also after a failed save or
     /// delete): Link to existing… moves the tag and deletes this spool.
     public let offersLinkExisting: Bool
+    /// The spool was deleted from Bambuddy (here or on the Flipper).
+    public let isDeleted: Bool
     /// Under the status of a save the Flipper gave up waiting for.
     public let timeoutNote: String?
     public let statusSymbol: StatusSymbol
@@ -157,6 +159,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
         offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
             && (row.status == .created || isError)
+        isDeleted = row.status == .deleted
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
