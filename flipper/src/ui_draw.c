@@ -258,6 +258,7 @@ static void draw_result(Canvas* c, const UiFrame* f) {
     } else {
         text_at(c, 2, 13 + 2 * LINE_H, f->line[2]);
     }
+    if(f->line[3][0]) text_at(c, 2, 42, f->line[3]);
     chips(c, f);
 }
 

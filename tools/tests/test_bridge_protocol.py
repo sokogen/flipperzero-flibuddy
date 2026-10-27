@@ -193,11 +193,30 @@ def test_hellos_never_ping_pong():
 # --- scan -> lookup ------------------------------------------------------------
 
 
+JADE_WHITE = {"colors": {}, "by_material": {"pla basic|ffffff": "Jade White"}}
+
+
+def named_bridge(fake, **kwargs) -> session.Bridge:
+    """A bridge that has loaded a colour map naming the fixture's colour; the
+    load is not one of the calls a test then checks."""
+    b = bridge(fake, **kwargs)
+    b.load_color_map()
+    fake.calls.clear()
+    return b
+
+
+def test_unknown_lookup_without_colour_names_leaves_the_name_out():
+    (reply,) = replies(bridge(FakeBambuddy(), core_weight=250), load("scan_mfc.json"))
+    assert "color_name" not in reply["tag_info"]
+    assert reply["tag_info"]["code"] == "GFA00"
+
+
 def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
-    fake = FakeBambuddy()
+    fake = FakeBambuddy(color_map=JADE_WHITE)
     # The fixture was written with a 250 g core; the wire format does not depend on it.
-    (reply,) = replies(bridge(fake, core_weight=250), load("scan_mfc.json"))
+    (reply,) = replies(named_bridge(fake, core_weight=250), load("scan_mfc.json"))
     assert reply == load("lookup_unknown.json")
+
     tag = load("scan_mfc.json")["tag"]
     tray_uuid = bambu_tag.parse_tag(tag).tray_uuid
     assert tray_uuid == tag["blocks"]["9"]
@@ -369,9 +388,9 @@ def test_a_rescan_of_a_tag_created_on_scan_creates_nothing():
 
 
 def test_a_failed_create_on_scan_answers_unknown():
-    fake = FakeBambuddy(fail_on={"create_spool"})
+    fake = FakeBambuddy(fail_on={"create_spool"}, color_map=JADE_WHITE)
     logged = []
-    (reply,) = replies(bridge(fake, core_weight=250, log=logged.append), load("scan_mfc_autosave.json"))
+    (reply,) = replies(named_bridge(fake, core_weight=250, log=logged.append), load("scan_mfc_autosave.json"))
     assert reply == {**load("lookup_unknown.json"), "scan_id": "s-000015"}
     assert any("create on scan failed" in entry for entry in logged)
 

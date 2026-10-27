@@ -30,6 +30,9 @@
 #define PROTO_ERROR_MAX 200
 #define PROTO_HELLO_FIELD_MAX 40
 #define PROTO_NAME_MAX 40 /* material, subtype, colour name */
+#define PROTO_CODE_MAX     16 /* tag_info.code */
+#define PROTO_DIAMETER_MAX 5 /* tag_info.diameter, "99.99" */
+#define PROTO_TEMP_MAX     999 /* tag_info.nozzle_min / nozzle_max */
 
 typedef enum {
     ProtoDecodeOk,
@@ -92,6 +95,13 @@ typedef struct {
     uint32_t rgba; /* 0xRRGGBBAA */
     bool has_label;
     uint16_t label;
+    char color_name[PROTO_NAME_MAX + 1]; /* "" when absent */
+    char code[PROTO_CODE_MAX + 1]; /* filament code, "" when absent */
+    char diameter[PROTO_DIAMETER_MAX + 1]; /* "1.75", "" when absent */
+    bool has_nozzle_min;
+    uint16_t nozzle_min; /* °C */
+    bool has_nozzle_max;
+    uint16_t nozzle_max;
 } ProtoTagInfo;
 
 typedef struct {

@@ -62,8 +62,17 @@ struct LookupBuilderTests {
 
     @Test func anUnknownBambuTagCarriesWhatTheTagSays() throws {
         let tag = TagParser.parse(try fixtureScan().tag)
-        let lookup = LookupBuilder.unknown(scanId: "s-1", tag: tag, core: 250)
-        #expect(lookup.tagInfo == TagInfo(material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000))
+        let lookup = LookupBuilder.unknown(scanId: "s-1", tag: tag, core: 250, colorName: "Jade White")
+        #expect(
+            lookup.tagInfo == TagInfo(
+            material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000, colorName: "Jade White",
+            code: "GFA00", diameter: "1.75", nozzleMin: 190, nozzleMax: 230
+        )
+        )
+        // without a colour name the rest is still there
+        let unnamed = LookupBuilder.unknown(scanId: "s-1", tag: tag, core: 250)
+        #expect(unnamed.tagInfo?.colorName == nil)
+        #expect(unnamed.tagInfo?.code == "GFA00")
     }
 
     @Test func aBlankTagHasNoTagInfo() throws {

@@ -258,21 +258,55 @@ public struct TagInfo: Codable, Equatable, Sendable {
     public var subtype: String?
     public var rgba: String?
     public var label: Int?
+    /// Bambuddy's name for the colour.
+    public var colorName: String?
+    /// The filament code from block 1, e.g. `GFA00`.
+    public var code: String?
+    /// Millimetres as text, e.g. `1.75`.
+    public var diameter: String?
+    public var nozzleMin: Int?
+    public var nozzleMax: Int?
 
-    public init(material: String? = nil, subtype: String? = nil, rgba: String? = nil, label: Int? = nil) {
+    public init(
+        material: String? = nil, subtype: String? = nil, rgba: String? = nil, label: Int? = nil,
+        colorName: String? = nil, code: String? = nil, diameter: String? = nil,
+        nozzleMin: Int? = nil, nozzleMax: Int? = nil
+    ) {
         self.material = material
         self.subtype = subtype
         self.rgba = rgba
         self.label = label
+        self.colorName = colorName
+        self.code = code
+        self.diameter = diameter
+        self.nozzleMin = nozzleMin
+        self.nozzleMax = nozzleMax
     }
 
-    public var isEmpty: Bool { material == nil && subtype == nil && rgba == nil && label == nil }
+    public var isEmpty: Bool {
+        material == nil && subtype == nil && rgba == nil && label == nil && colorName == nil && code == nil
+            && diameter == nil && nozzleMin == nil && nozzleMax == nil
+    }
+
+    static let maxCode = 16
 
     public func validate() throws {
         try material.map { try Field.checkText($0, "tag_info.material", max: Field.maxName) }
         try subtype.map { try Field.checkText($0, "tag_info.subtype", max: Field.maxName) }
         try rgba.map { try Field.checkRGBA($0, "tag_info.rgba") }
         try Field.checkGrams(label, "tag_info.label")
+        try colorName.map { try Field.checkText($0, "tag_info.color_name", max: Field.maxName) }
+        try code.map { try Field.checkText($0, "tag_info.code", max: Self.maxCode) }
+        if let diameter, !Self.isDiameter(diameter) { throw ProtocolError.invalid("tag_info.diameter") }
+        for (value, name) in [(nozzleMin, "tag_info.nozzle_min"), (nozzleMax, "tag_info.nozzle_max")] {
+            if let value, !(0...999).contains(value) { throw ProtocolError.invalid(name) }
+        }
+    }
+
+    /// `^[0-9]{1,2}\.[0-9]{1,2}$`, as in the schema.
+    static func isDiameter(_ text: String) -> Bool {
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        return parts.count == 2 && parts.allSatisfy { (1...2).contains($0.count) && $0.allSatisfy(\.isASCII) && $0.allSatisfy(\.isNumber) }
     }
 
     public init(from decoder: Decoder) throws {
@@ -281,6 +315,11 @@ public struct TagInfo: Codable, Equatable, Sendable {
         subtype = try container.decodeIfPresent(String.self, forKey: .subtype)
         rgba = try container.decodeIfPresent(String.self, forKey: .rgba)
         label = try container.decodeIfPresent(Int.self, forKey: .label)
+        colorName = try container.decodeIfPresent(String.self, forKey: .colorName)
+        code = try container.decodeIfPresent(String.self, forKey: .code)
+        diameter = try container.decodeIfPresent(String.self, forKey: .diameter)
+        nozzleMin = try container.decodeIfPresent(Int.self, forKey: .nozzleMin)
+        nozzleMax = try container.decodeIfPresent(Int.self, forKey: .nozzleMax)
         try validate()
     }
 
@@ -291,10 +330,16 @@ public struct TagInfo: Codable, Equatable, Sendable {
         try container.encodeIfPresent(subtype, forKey: .subtype)
         try container.encodeIfPresent(rgba, forKey: .rgba)
         try container.encodeIfPresent(label, forKey: .label)
+        try container.encodeIfPresent(colorName, forKey: .colorName)
+        try container.encodeIfPresent(code, forKey: .code)
+        try container.encodeIfPresent(diameter, forKey: .diameter)
+        try container.encodeIfPresent(nozzleMin, forKey: .nozzleMin)
+        try container.encodeIfPresent(nozzleMax, forKey: .nozzleMax)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case material, subtype, rgba, label
+        case material, subtype, rgba, label, colorName = "color_name", code, diameter
+        case nozzleMin = "nozzle_min", nozzleMax = "nozzle_max"
     }
 }
 

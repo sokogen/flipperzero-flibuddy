@@ -184,7 +184,12 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         guard case .lookup(let unknown) = try Message.decode(line: Fixtures.message("lookup_unknown")) else {
             Issue.record("not a lookup"); return
         }
-        #expect(unknown.tagInfo == TagInfo(material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000))
+        #expect(
+            unknown.tagInfo == TagInfo(
+            material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000, colorName: "Jade White",
+            code: "GFA00", diameter: "1.75", nozzleMin: 190, nozzleMax: 230
+        )
+        )
         guard case .lookup(let blank) = try Message.decode(line: Fixtures.message("lookup_unknown_blank")) else {
             Issue.record("not a lookup"); return
         }

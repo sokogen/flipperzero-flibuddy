@@ -4,7 +4,10 @@
   "scan_id": "s-000012",
   "status": "unknown",
   "prefill": true,
-  "tag_info": { "material": "PLA", "subtype": "Basic", "rgba": "FFFFFFFF", "label": 1000 },
+  "tag_info": {
+    "material": "PLA", "subtype": "Basic", "rgba": "FFFFFFFF", "label": 1000,
+    "color_name": "Jade White", "code": "GFA00", "diameter": "1.75", "nozzle_min": 190, "nozzle_max": 230
+  },
   "lines": ["PLA Basic", "#FFFFFFFF", "label 1000 g"],
   "defaults": { "label": 1000, "core": 250 }
 }

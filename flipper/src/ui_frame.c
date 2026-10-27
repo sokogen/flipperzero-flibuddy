@@ -106,6 +106,8 @@ static void put_colour(Text* t, const AppState* s) {
     uint32_t rgba;
     if(s->has_spool && s->spool.color_name[0]) {
         put(t, s->spool.color_name);
+    } else if(!s->has_spool && s->lookup.has_tag_info && s->lookup.tag_info.color_name[0]) {
+        put(t, s->lookup.tag_info.color_name);
     } else if(rgba_of(s, &rgba)) {
         put(t, "Color #");
         put_hex(t, rgba >> 8, 6);
@@ -225,6 +227,39 @@ static void build_ready(UiFrame* f, const AppState* s) {
     SET(f->right, "Settings");
 }
 
+/* An unknown tag's own facts in place of its UID: `GFA00 - 1.75 mm -
+ * 1000 g` and, in line[3], `Nozzle 190-230 C`. False when it has none. */
+static bool put_tag_specs(Text* t, UiFrame* f, const AppState* s) {
+    if(s->has_spool || !s->lookup.has_tag_info) return false;
+    const ProtoTagInfo* i = &s->lookup.tag_info;
+    bool any = false;
+    if(i->code[0]) {
+        put(t, i->code);
+        any = true;
+    }
+    if(i->diameter[0]) {
+        if(any) put(t, " - ");
+        put(t, i->diameter);
+        put(t, " mm");
+        any = true;
+    }
+    if(i->has_label) {
+        if(any) put(t, " - ");
+        put_uint(t, i->label);
+        put(t, " g");
+        any = true;
+    }
+    if(i->has_nozzle_min || i->has_nozzle_max) {
+        Text n = TEXT(f->line[3]);
+        put(&n, "Nozzle ");
+        if(i->has_nozzle_min) put_uint(&n, i->nozzle_min);
+        if(i->has_nozzle_min && i->has_nozzle_max) put(&n, "-");
+        if(i->has_nozzle_max) put_uint(&n, i->nozzle_max);
+        put(&n, " C");
+    }
+    return any;
+}
+
 static void build_result(UiFrame* f, const AppState* s) {
     result_title(s, f->title, sizeof(f->title));
     uint32_t rgba;
@@ -247,7 +282,7 @@ static void build_result(UiFrame* f, const AppState* s) {
         f->in_base = true;
         put(&t, "In Bambuddy #");
         put_uint(&t, (uint32_t)s->spool.id);
-    } else {
+    } else if(!put_tag_specs(&t, f, s)) {
         put(&t, "Tag ");
         char uid[2 * TAG_DUMP_MAX_UID + 1];
         ui_uid_short(s->scan.tag.uid, s->scan.tag.uid_len, uid, sizeof(uid));

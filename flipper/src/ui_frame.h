@@ -15,7 +15,8 @@
  *   Ready       bar (last outcome, "" none), line[0..2], right
  *   Reading     line[0]
  *   LookingUp   line[0] (material from the tag, "" when unknown), line[1]
- *   Result      kind, mark + lum, line[0..2], in_base (a check before
+ *   Result      kind, mark + lum, line[0..3] (line[3]: an unknown tag's
+ *               nozzle range, "" none), in_base (a check before
  *               line[1]), level (remaining bar, -1 none) or bar, chips
  *   Menu        item[], count, sel, top
  *   Details     key[] / line[] rows (count)

@@ -177,7 +177,12 @@ Spool object (also in `result`):
 
 Tag info object, each field present only when the tag carries it: `material`
 and `subtype` (strings 1–40, `subtype` without the material as for new
-items), `rgba` (hex, 4 bytes) and `label` (integer 0–9999, label weight).
+items), `rgba` (hex, 4 bytes), `label` (integer 0–9999, label weight),
+`color_name` (string 1–40, Bambuddy's name for the colour, resolved as for
+new items), `code` (string 1–16, the filament code from block 1, e.g.
+`GFA00`), `diameter` (string such as `1.75`, millimetres) and `nozzle_min` /
+`nozzle_max` (integers 0–999, °C). The Flipper shows the colour name, then
+code, diameter and label weight on one line, and the nozzle range.
 
 The host looks a tag up with `GET /inventory/spools/by-tag`, first by the
 tray UUID and then by the UID. The tray UUID of a Bambu tag is block 9 as
@@ -210,7 +215,7 @@ last gross weight Bambuddy recorded.
 {"t":"lookup","v":2,"scan_id":"s-000012","status":"found","spool_id":42,"spool":{"id":42,"material":"PLA","subtype":"Basic","color_name":"Jade White","rgba":"FFFFFFFF","remaining":484,"label":1000,"core":250},"lines":["PLA Basic","Jade White","484 g left of 1000","core 250 g"],"defaults":{"gross":734,"label":1000,"core":250}}
 {"t":"lookup","v":2,"scan_id":"s-000012","status":"found","spool_id":42,"spool":{"id":42,"material":"PLA","subtype":"Basic","color_name":"Jade White","rgba":"FFFFFFFF","remaining":0,"label":1000,"core":250,"archived":true},"lines":["PLA Basic","Jade White","archived","core 250 g"],"defaults":{"gross":250,"label":1000,"core":250}}
 {"t":"lookup","v":2,"scan_id":"s-000015","status":"found","spool_id":31,"spool":{"id":31,"material":"PLA","subtype":"Basic","color_name":"Jade White","rgba":"FFFFFFFF","remaining":1000,"label":1000,"core":250},"created":true,"lines":["PLA Basic","Jade White","1000 g left of 1000","core 250 g"],"defaults":{"gross":1250,"label":1000,"core":250}}
-{"t":"lookup","v":2,"scan_id":"s-000012","status":"unknown","prefill":true,"tag_info":{"material":"PLA","subtype":"Basic","rgba":"FFFFFFFF","label":1000},"lines":["PLA Basic","#FFFFFFFF","label 1000 g"],"defaults":{"label":1000,"core":250}}
+{"t":"lookup","v":2,"scan_id":"s-000012","status":"unknown","prefill":true,"tag_info":{"material":"PLA","subtype":"Basic","rgba":"FFFFFFFF","label":1000,"color_name":"Jade White","code":"GFA00","diameter":"1.75","nozzle_min":190,"nozzle_max":230},"lines":["PLA Basic","#FFFFFFFF","label 1000 g"],"defaults":{"label":1000,"core":250}}
 {"t":"lookup","v":2,"scan_id":"s-000013","status":"unknown","lines":["NTAG","UID 04112233445566"],"defaults":{"label":1000,"core":250}}
 {"t":"lookup","v":2,"scan_id":"s-000012","status":"error","lines":["Bambuddy unreachable"],"error":"connection timed out"}
 ```

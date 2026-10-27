@@ -25,9 +25,11 @@ public enum LookupBuilder {
     }
 
     /// A tag no spool carries. `core` is the configured catalog entry's weight.
-    public static func unknown(scanId: String, tag: ParsedTag, core: Int) -> Lookup {
+    /// `colorName` is Bambuddy's name for the tag's colour, when known.
+    public static func unknown(scanId: String, tag: ParsedTag, core: Int, colorName: String? = nil) -> Lookup {
         Lookup(
-            scanId: scanId, status: .unknown, prefill: tag.hasPrefill ? true : nil, tagInfo: tagInfo(tag),
+            scanId: scanId, status: .unknown, prefill: tag.hasPrefill ? true : nil,
+            tagInfo: tagInfo(tag, colorName: colorName),
             lines: lines(tag.displayLines),
             defaults: Lookup.Defaults(
                 label: grams(tag.labelWeight ?? NewSpool.defaultLabelWeight), core: grams(core)
@@ -60,12 +62,25 @@ public enum LookupBuilder {
     }
 
     /// The wire `tag_info` object; `nil` for a tag without spool data.
-    public static func tagInfo(_ tag: ParsedTag) -> TagInfo? {
+    public static func tagInfo(_ tag: ParsedTag, colorName: String? = nil) -> TagInfo? {
         let info = TagInfo(
             material: name(tag.material), subtype: name(tag.bambuddySubtype), rgba: rgba(tag.rgba),
-            label: tag.labelWeight.map(grams)
+            label: tag.labelWeight.map(grams), colorName: name(colorName),
+            code: name(tag.materialId).map { clip($0, TagInfo.maxCode) },
+            diameter: tag.diameter.flatMap(diameter), nozzleMin: tag.nozzleMin.flatMap(temperature),
+            nozzleMax: tag.nozzleMax.flatMap(temperature)
         )
         return info.isEmpty ? nil : info
+    }
+
+    /// `1.75` for 1.75 mm; `nil` for a value the wire cannot carry.
+    static func diameter(_ millimetres: Double) -> String? {
+        guard millimetres > 0, millimetres < 100 else { return nil }
+        return String(format: "%.2f", millimetres)
+    }
+
+    static func temperature(_ celsius: Int) -> Int? {
+        (1...999).contains(celsius) ? celsius : nil
     }
 
     /// Non-empty lines, at most four, each cut to 40 characters.

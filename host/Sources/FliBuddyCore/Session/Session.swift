@@ -434,7 +434,12 @@ public actor Session {
             if let created = await createOnScan(id, handler, startedUnder: started) {
                 return (LookupBuilder.found(scanId: row.scanId, spool: created, created: true), .created(created.id))
             }
-            return (LookupBuilder.unknown(scanId: row.scanId, tag: row.tag, core: settings.coreWeight), .notFound)
+            return (
+                LookupBuilder.unknown(
+                    scanId: row.scanId, tag: row.tag, core: settings.coreWeight,
+                    colorName: colorNames?.name(for: row.tag)
+                ), .notFound
+            )
         } catch {
             let message = Self.describe(error)
             updateRow(id) { $0.status = .error(message) }

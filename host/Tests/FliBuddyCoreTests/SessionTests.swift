@@ -162,6 +162,7 @@ struct SessionScanTests {
 
     @Test func withoutAutosaveAnUnknownTagStaysUnknownAndNothingIsCreated() async throws {
         let inventory = FakeInventory()
+        inventory.colorMapAnswer = ColorMap(colors: ["ffffff": "Jade White"], byMaterial: [:])
         let session = makeSession(inventory)
 
         let lookup = await session.handleScan(try fixtureScan())
@@ -230,6 +231,7 @@ struct SessionScanTests {
     @Test func anUnknownTagWhoseCreateFailsOffersPrefill() async throws {
         let inventory = FakeInventory()
         inventory.createError = .network("timed out")
+        inventory.colorMapAnswer = ColorMap(colors: ["ffffff": "Jade White"], byMaterial: [:])
         let session = makeSession(inventory)
 
         let lookup = await session.handleScan(try autosaveScan())

@@ -347,11 +347,26 @@ static void test_result_unknown(void) {
     CHECK(frame.kind == AppResultUnknownPrefill);
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK(frame.mark == UiMarkSwatch);
-    CHECK_STR_EQ(frame.line[0], "Color #FFFFFF");
-    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+    CHECK_STR_EQ(frame.line[0], "Jade White");
+    CHECK_STR_EQ(frame.line[1], "GFA00 - 1.75 mm - 1000 g");
     CHECK_STR_EQ(frame.line[2], "");
+    CHECK_STR_EQ(frame.line[3], "Nozzle 190-230 C");
     CHECK_STR_EQ(frame.bar, "New spool");
     check_chips("Menu", "Save", "Weigh");
+    /* without a colour name or specs: the hex colour and the UID */
+    ProtoLookup l = fixture_message("lookup_unknown.json")->lookup;
+    strcpy(l.scan_id, app.scan.id);
+    l.tag_info.color_name[0] = '\0';
+    l.tag_info.code[0] = '\0';
+    l.tag_info.diameter[0] = '\0';
+    l.tag_info.has_label = false;
+    l.tag_info.has_nozzle_min = l.tag_info.has_nozzle_max = false;
+    send_lookup(&l);
+    build();
+    CHECK_STR_EQ(frame.line[0], "Color #FFFFFF");
+    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+    CHECK_STR_EQ(frame.line[3], "");
+
     /* ▶ Weigh opens Weight: saved as new with that weight */
     press(AppKeyRight);
     CHECK(app.screen == AppScreenWeight);

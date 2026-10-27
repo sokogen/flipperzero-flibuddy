@@ -28,6 +28,14 @@ static bool read_grams(JsonReader* r, bool* has, uint16_t* out) {
     return true;
 }
 
+static bool read_temp(JsonReader* r, bool* has, uint16_t* out) {
+    long v;
+    if(!json_read_int(r, &v) || v < 0 || v > PROTO_TEMP_MAX) return false;
+    *has = true;
+    *out = (uint16_t)v;
+    return true;
+}
+
 /* Exactly eight upper-case hex digits, RRGGBBAA. */
 static bool read_rgba(JsonReader* r, bool* has, uint32_t* out) {
     char s[9];
@@ -148,6 +156,16 @@ static bool read_tag_info(JsonReader* r, ProtoTagInfo* t) {
             ok = read_rgba(r, &t->has_rgba, &t->rgba);
         else if(key_is(key, "label"))
             ok = read_grams(r, &t->has_label, &t->label);
+        else if(key_is(key, "color_name"))
+            ok = read_text(r, t->color_name, sizeof(t->color_name));
+        else if(key_is(key, "code"))
+            ok = read_text(r, t->code, sizeof(t->code));
+        else if(key_is(key, "diameter"))
+            ok = read_text(r, t->diameter, sizeof(t->diameter));
+        else if(key_is(key, "nozzle_min"))
+            ok = read_temp(r, &t->has_nozzle_min, &t->nozzle_min);
+        else if(key_is(key, "nozzle_max"))
+            ok = read_temp(r, &t->has_nozzle_max, &t->nozzle_max);
         else
             ok = json_skip(r);
         if(!ok) return false;

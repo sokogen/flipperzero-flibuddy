@@ -123,14 +123,24 @@ def spool_fields(spool: dict) -> dict | None:
     )
 
 
-def tag_info(parsed: bambu_tag.ParsedTag) -> dict:
+def tag_info(parsed: bambu_tag.ParsedTag, color_map: dict | None = None) -> dict:
     """The `tag_info` object of an `unknown` lookup: what the tag carries."""
+    diameter = f"{parsed.diameter:.2f}" if parsed.diameter and 0 < parsed.diameter < 100 else None
     return _fields(
         material=parsed.material,
         subtype=parsed.bambuddy_subtype,
         rgba=parsed.rgba,
         label=_grams(parsed.label_weight) if parsed.label_weight is not None else None,
+        color_name=color_name(color_map, parsed.rgba, parsed.detailed_type),
+        code=(parsed.material_id or None) and parsed.material_id[:16],
+        diameter=diameter,
+        nozzle_min=_temp(parsed.nozzle_min),
+        nozzle_max=_temp(parsed.nozzle_max),
     )
+
+
+def _temp(value: int | None) -> int | None:
+    return value if value is not None and 0 < value <= 999 else None
 
 
 class LineFramer:
@@ -306,7 +316,7 @@ class Bridge:
             lookup = {**base, "status": "unknown"}
             if parsed.has_prefill:
                 lookup["prefill"] = True
-            info = tag_info(parsed)
+            info = tag_info(parsed, self.color_map)
             if info:
                 lookup["tag_info"] = info
             lookup["lines"] = parsed.display_lines()
