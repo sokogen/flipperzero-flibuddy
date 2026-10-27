@@ -51,21 +51,28 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    home. Not in the design.
 5. **Result · known**: colour swatch (Bayer-dithered by the luminance of the
    spool's RGBA) and the spool as title; the colour name (or
-   `Color #RRGGBB`); `Tag 04B7...3C80` (a 4-byte UID is shown whole);
-   `590 g left of 1000`, or `Archived` for a spool marked empty. OK Weigh,
-   ▶ New (Mark as new), ◀ Menu, Back home.
+   `Color #RRGGBB`); a check and `In Bambuddy #67` (the UID is in Tag
+   details); a remaining bar against the label with `590 / 1000 g`, or
+   inverted `Unused - 1000 g` when nothing was printed from it yet
+   (remaining = label), or inverted `Archived` for a spool marked empty.
+   OK Weigh, ◀ Menu, Back home; ▶ does nothing (the rare actions are in
+   the menu). Without the host's spool fields: `Tag 04B7...3C80` (a 4-byte
+   UID is shown whole) and the host's lines.
 6. **Result · unknown Bambu tag** (Auto-save new off): swatch and the tag's
-   material as title; colour; UID; inverted `Not in Bambuddy`. OK Add, ▶
-   Link, ◀ Menu, Back home. A tag with data but no material is titled
-   `Spool tag` with OK Create (asks the host to create it).
+   material as title; colour; UID; inverted `New spool`. OK Save (saves
+   this spool as new and full), ▶ Weigh (Weight, whose Save saves it as new
+   with that weight, for a started spool), ◀ Menu, Back home (nothing is
+   saved). Link is in the menu. A tag with data but no material is titled
+   `Spool tag`, inverted `Not in Bambuddy`, OK Create (asks the host to
+   create it), ▶ Link.
 7. **Result · blank tag**: `Blank tag`; the tag type; UID; inverted
    `No spool data`. OK Link (asks the host), ◀ Menu, Back home.
 8. **Result · no host**: the tag's own text or type as title, the type, UID,
    inverted `No host`. ◀ Menu (Tag details only), Back home.
 9. **Menu** (▲▼ wrap, OK chooses, Back to the result; four rows visible):
-   known: Weigh, Mark as new, Mark as empty, Relink on host, Tag details,
-   Delete spool. Unknown Bambu: Add new, Add and weigh, Link on host, Tag
-   details. No material: Create on host, Link on host, Tag details. Blank:
+   known: Weigh, Reset to full, Mark as empty, Relink on host, Tag details,
+   Delete spool. Unknown Bambu: Save as new, Save with weight, Link on
+   host, Tag details. No material: Create on host, Link on host, Tag details. Blank:
    Link on host, Tag details. No host: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
     `135 pages`), RGBA, Label (`1000 g`) when known. OK / Back to the menu.
@@ -75,8 +82,9 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
 12. **Weight**: title "Weight", a net/gross chip top right, four big digits
     with dimmed leading zeros and a cursor bar under the active digit; the
     cursor starts on the hundreds. ◀▶ move (wrapping); the position left of
-    the first digit is the mode chip, where ▲▼ toggle net / gross and an
-    untouched pre-fill is recomputed. ▲▼ on a digit change it (wrapping;
+    the first digit is the mode chip, where ▲▼ toggle net / gross and
+    convert the number on screen, typed or not (gross - core, floored at 0;
+    net + core). ▲▼ on a digit change it (wrapping;
     held, they repeat). OK Save, Back to the result. The line under the
     digits: gross `Net 590 g - core 325`, gross without a known core
     `Core weight unknown`, net `Saves 590 g left`; gross below the core
@@ -84,18 +92,18 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     Pre-fill: gross = remaining + core, net = remaining; without a spool
     the lookup defaults (gross: the last gross, else label + core; net:
     gross - core, else label). The mode starts gross and is kept for the
-    session. After Add and weigh on an unknown tag, Save creates the spool
-    and records the weight.
-13. **Saving / Adding / Deleting / Updating** (title per action): the spool
+    session. After ▶ Weigh or Save with weight on a new spool, Save creates
+    the spool and records the weight.
+13. **Saving / Deleting / Updating** (title per action): the spool
     (`- 590 g` net when saving), an indeterminate bar, "Waiting for
     Bambuddy". No keys; Error · No host reply after 10 s.
 14. **Saved**: big check, "Saved", `PLA Basic - 590 g left`; after 1.3 s
     (or OK / Back) Ready with the Saved bar.
-15. **Added to Bambuddy**: the spool and colour, `Spool #31 - 1000 g`. OK
-    Weigh, ▶ Next (Ready with the Added bar), Back Ready. No time limit.
-    Shown after Add, and at once after a scan when Auto-save new is on and
-    the host created the spool.
-16. **Marked as new**: `1000 g left - full`, a 3 s progress bar and
+15. **Saved as new**: the spool and colour, `Spool #31 - 1000 g`. OK
+    Weigh, ▶ Next (Ready with the `Saved new ...` bar), Back Ready. No time
+    limit. Shown after Save on a new spool, and at once after a scan when
+    Auto-save new is on and the host created the spool.
+16. **Reset to full** (menu item of the same name): `1000 g left`, a 3 s progress bar and
     "Next spool in 3 s". ◀ Undo, OK Weigh, Back Ready.
 17. **Marked as empty**: `0 g left - archived`, the same bar. ◀ Undo; OK and
     Back go to Ready.
@@ -112,7 +120,9 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     host's `lines` and `error` when present). Titles follow the failed
     action (`Not saved`, `Not added`, `Not deleted`, `Not updated`,
     `Not linked`) or the case (`Lookup failed`, `No host reply`, `Host
-    lost`, `Not sent`, `Tag not read`). After a failed intent, while the
+    lost`, `Not sent`, `Tag not read`). `Tag not read` has no chips: it
+    says "Hold the tag still against the back. Reading again...", runs a
+    1.5 s countdown bar and returns to Ready by itself (Back sooner). After a failed intent, while the
     host is there, ◀ Back and Back return to the result and ▶ Retry
     resends the same intent under its id; otherwise there is no Retry chip
     and ◀, ▶ and Back go home.

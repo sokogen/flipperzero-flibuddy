@@ -184,11 +184,11 @@ static void put_outcome(Text* t, const AppState* s) {
         }
         break;
     case AppOutcomeAdded:
-        put(t, "Added ");
+        put(t, "Saved new ");
         put_name(t, s);
         break;
     case AppOutcomeMarkedNew:
-        put(t, "New ");
+        put(t, "Full ");
         put_name(t, s);
         if(s->has_spool) {
             put(t, " ");
@@ -241,30 +241,51 @@ static void build_result(UiFrame* f, const AppState* s) {
         put_colour(&t, s);
     }
     t = TEXT(f->line[1]);
-    put(&t, "Tag ");
-    char uid[2 * TAG_DUMP_MAX_UID + 1];
-    ui_uid_short(s->scan.tag.uid, s->scan.tag.uid_len, uid, sizeof(uid));
-    put(&t, uid);
+    f->level = -1;
+    if(s->result_kind == AppResultKnown && s->has_spool) {
+        /* A known spool says so; its UID is in Tag details. */
+        f->in_base = true;
+        put(&t, "In Bambuddy #");
+        put_uint(&t, (uint32_t)s->spool.id);
+    } else {
+        put(&t, "Tag ");
+        char uid[2 * TAG_DUMP_MAX_UID + 1];
+        ui_uid_short(s->scan.tag.uid, s->scan.tag.uid_len, uid, sizeof(uid));
+        put(&t, uid);
+    }
     SET(f->left, "Menu");
     switch(s->result_kind) {
     case AppResultKnown:
         t = TEXT(f->line[2]);
         if(s->has_spool && s->spool.archived) {
-            put(&t, "Archived");
+            SET(f->bar, "Archived");
+        } else if(s->has_spool && s->spool.label > 0 && s->spool.remaining >= s->spool.label) {
+            Text b = TEXT(f->bar);
+            put(&b, "Unused - ");
+            put_uint(&b, s->spool.label);
+            put(&b, " g");
         } else if(s->has_spool) {
+            unsigned label = s->spool.label;
+            f->level = (int16_t)(label ? s->spool.remaining * 1000u / label : 0);
             put_uint(&t, s->spool.remaining);
-            put(&t, " g left of ");
-            put_uint(&t, s->spool.label);
+            if(label) {
+                put(&t, " / ");
+                put_uint(&t, label);
+            }
+            put(&t, " g");
         } else if(host_line(s, 2)) {
             put(&t, host_line(s, 2));
         }
         SET(f->center, "Weigh");
-        SET(f->right, "New");
         break;
     case AppResultUnknownPrefill:
+        SET(f->bar, "New spool");
+        SET(f->center, "Save");
+        SET(f->right, "Weigh");
+        break;
     case AppResultUnknownBare:
         SET(f->bar, "Not in Bambuddy");
-        SET(f->center, s->result_kind == AppResultUnknownPrefill ? "Add" : "Create");
+        SET(f->center, "Create");
         SET(f->right, "Link");
         break;
     case AppResultBlank:
@@ -282,7 +303,7 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuWeigh:
         return "Weigh";
     case AppMenuMarkNew:
-        return "Mark as new";
+        return "Reset to full";
     case AppMenuMarkEmpty:
         return "Mark as empty";
     case AppMenuRelink:
@@ -292,9 +313,9 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuDelete:
         return "Delete spool";
     case AppMenuAddNew:
-        return "Add new";
+        return "Save as new";
     case AppMenuAddAndWeigh:
-        return "Add and weigh";
+        return "Save with weight";
     case AppMenuCreateOnHost:
         return "Create on host";
     case AppMenuLinkOnHost:
@@ -389,7 +410,7 @@ static void build_busy(UiFrame* f, const AppState* s) {
         SET(f->title, "Saving");
         break;
     case IntentActionNew:
-        SET(f->title, "Adding");
+        SET(f->title, "Saving");
         break;
     case IntentActionDelete:
         SET(f->title, "Deleting");
@@ -429,7 +450,7 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
     t = TEXT(f->line[1]);
     switch(s->toast) {
     case AppToastAdded:
-        SET(f->title, "Added to Bambuddy");
+        SET(f->title, "Saved as new");
         if(s->has_spool) {
             put(&t, "Spool #");
             put_uint(&t, (uint32_t)s->spool.id);
@@ -441,9 +462,9 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
         SET(f->right, "Next");
         return; /* no deadline */
     case AppToastMarkedNew:
-        SET(f->title, "Marked as new");
+        SET(f->title, "Reset to full");
         put_uint(&t, s->spool.label);
-        put(&t, " g left - full");
+        put(&t, " g left");
         SET(f->left, "Undo");
         SET(f->center, "Weigh");
         break;
@@ -504,13 +525,15 @@ static void put_host_text(Text* t, const ProtoLines* lines, const char* error, c
     if(t->len == 0) put(t, fallback);
 }
 
-static void build_error(UiFrame* f, const AppState* s) {
+static void build_error(UiFrame* f, const AppState* s, const UiEnv* env) {
     Text t = TEXT(f->body);
     switch(s->error) {
     case AppErrorReadFailed:
         SET(f->title, "Tag not read");
-        put(&t, "Hold the tag still against the back and try again.");
-        break;
+        put(&t, "Hold the tag still against the back. Reading again...");
+        f->progress =
+            (uint16_t)(app_timer_left_ms(s, env->now_ms) * UI_TOAST_MAX / APP_READ_RETRY_MS);
+        return; /* no keys needed */
     case AppErrorLookup:
         SET(f->title, "Lookup failed");
         put_host_text(
@@ -653,7 +676,7 @@ void ui_frame_build(UiFrame* f, const AppState* s, const UiEnv* env) {
         build_link(f, s);
         break;
     case AppScreenError:
-        build_error(f, s);
+        build_error(f, s, env);
         break;
     case AppScreenSettings:
         build_settings(f, s, env);

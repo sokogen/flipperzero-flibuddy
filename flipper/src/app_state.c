@@ -205,14 +205,20 @@ size_t app_encode_intent(const AppState* s, char* buf, size_t cap) {
 
 /* ---- inbound ---- */
 
-static AppEffect on_tag_read(AppState* s, const TagDump* tag) {
+/* A failed read shows for a moment, then the reader is back on Ready. */
+static void read_failed(AppState* s, uint32_t now_ms) {
+    go_error(s, AppErrorReadFailed, false);
+    timer_start(s, now_ms, APP_READ_RETRY_MS);
+}
+
+static AppEffect on_tag_read(AppState* s, const TagDump* tag, uint32_t now_ms) {
     memset(&s->lookup, 0, sizeof(s->lookup));
     memset(&s->result, 0, sizeof(s->result));
     s->has_spool = false;
     s->last = AppOutcomeNone;
     s->scan.tag = *tag;
     if(!id_seq_next(&s->scan_ids, s->scan.id)) {
-        go_error(s, AppErrorReadFailed, false);
+        read_failed(s, now_ms);
         return AppEffectNone;
     }
     s->cue = AppCueRead;
@@ -358,6 +364,9 @@ static void on_tick(AppState* s, uint32_t now_ms, AppEffect* effect) {
     case AppScreenSaved:
         go_home(s, AppOutcomeSaved);
         break;
+    case AppScreenError: /* only a failed read runs a timer here */
+        go_home(s, AppOutcomeNone);
+        break;
     case AppScreenToast:
         if(s->toast == AppToastDeleted) {
             go_home(s, AppOutcomeDeleted);
@@ -394,11 +403,10 @@ static AppEffect key_result(AppState* s, AppKey key, uint32_t now_ms) {
     switch(s->result_kind) {
     case AppResultKnown:
         if(key == AppKeyOk && s->connected) open_weight(s);
-        if(key == AppKeyRight) mark(s, IntentActionFull, now_ms);
         break;
     case AppResultUnknownPrefill:
         if(key == AppKeyOk) return act(s, IntentActionNew, now_ms);
-        if(key == AppKeyRight) return act(s, IntentActionLinkOnHost, now_ms);
+        if(key == AppKeyRight && s->connected) open_weight(s); /* save with a weight */
         break;
     case AppResultUnknownBare:
         if(key == AppKeyOk) return act(s, IntentActionCreateOnHost, now_ms);
@@ -720,10 +728,10 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         effect = on_tag_detected(s, e->now_ms);
         break;
     case AppEventTagRead:
-        if(s->screen == AppScreenReading) effect = on_tag_read(s, e->tag);
+        if(s->screen == AppScreenReading) effect = on_tag_read(s, e->tag, e->now_ms);
         break;
     case AppEventReadFailed:
-        if(s->screen == AppScreenReading) go_error(s, AppErrorReadFailed, false);
+        if(s->screen == AppScreenReading) read_failed(s, e->now_ms);
         break;
     case AppEventLookupReceived:
         if(accepts_lookup(s->screen)) on_lookup(s, e->lookup, e->now_ms);

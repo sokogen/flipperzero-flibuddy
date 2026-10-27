@@ -241,9 +241,20 @@ static void draw_result(Canvas* c, const UiFrame* f) {
     }
     header_at(c, f, 14);
     text_at(c, 2, 13, f->line[0]);
-    text_at(c, 2, 13 + LINE_H, f->line[1]);
+    if(f->in_base) {
+        bitmap(c, 2, 14 + LINE_H, &ui_icon_check);
+        text_at(c, 11, 13 + LINE_H, f->line[1]);
+    } else {
+        text_at(c, 2, 13 + LINE_H, f->line[1]);
+    }
     if(f->bar[0]) {
         inverted(c, 0, 31, f->bar);
+    } else if(f->level >= 0) {
+        /* Remaining against the label: filled part left, frame for the rest. */
+        canvas_draw_rframe(c, 0, 32, 58, 8, 2);
+        size_t fill = (size_t)54 * (size_t)(f->level > 1000 ? 1000 : f->level) / 1000;
+        if(fill > 0) canvas_draw_box(c, 2, 34, fill, 4);
+        text_at(c, 62, 31, f->line[2]);
     } else {
         text_at(c, 2, 13 + 2 * LINE_H, f->line[2]);
     }
@@ -396,6 +407,7 @@ static void draw_error(Canvas* c, const UiFrame* f) {
         if(!ui_text_wrap(f->body, &pos, line, sizeof(line), W - 19, measure, c)) break;
         canvas_draw_str_aligned(c, 17, 14 + i * LINE_H, AlignLeft, AlignTop, line);
     }
+    if(f->progress > 0) canvas_draw_box(c, 0, 50, (size_t)W * f->progress / UI_TOAST_MAX, 2);
     chips(c, f);
 }
 

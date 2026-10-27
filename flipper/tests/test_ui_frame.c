@@ -101,16 +101,20 @@ static void scan_found(void) {
     CHECK(app.screen == AppScreenResult);
 }
 
-static AppEffect choose(AppMenuItem item) {
-    press(AppKeyLeft);
+static AppEffect choose_at(AppMenuItem item, uint32_t now_ms) {
+    press_at(AppKeyLeft, now_ms);
     AppMenuItem items[APP_MENU_MAX];
     uint8_t n = app_menu_items(&app, items);
     for(uint8_t i = 0; i < n; i++) {
-        if(items[app.sel] == item) return press(AppKeyOk);
+        if(items[app.sel] == item) return press_at(AppKeyOk, now_ms);
         press(AppKeyDown);
     }
     CHECK(!"menu item not offered");
     return AppEffectNone;
+}
+
+static AppEffect choose(AppMenuItem item) {
+    return choose_at(item, 0);
 }
 
 static void check_chips(const char* left, const char* center, const char* right) {
@@ -217,10 +221,10 @@ static void test_ready_names_the_last_outcome(void) {
 
     app.last = AppOutcomeAdded;
     build();
-    CHECK_STR_EQ(frame.bar, "Added PLA Basic");
+    CHECK_STR_EQ(frame.bar, "Saved new PLA Basic");
     app.last = AppOutcomeMarkedNew;
     build();
-    CHECK_STR_EQ(frame.bar, "New PLA Basic 1000 g");
+    CHECK_STR_EQ(frame.bar, "Full PLA Basic 1000 g");
     app.last = AppOutcomeMarkedEmpty;
     build();
     CHECK_STR_EQ(frame.bar, "Empty PLA Basic");
@@ -261,10 +265,19 @@ static void test_result_known(void) {
     CHECK(frame.mark == UiMarkSwatch);
     CHECK_EQ_INT(frame.lum, 255);
     CHECK_STR_EQ(frame.line[0], "Jade White");
-    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
-    CHECK_STR_EQ(frame.line[2], "484 g left of 1000");
+    CHECK(frame.in_base);
+    CHECK_STR_EQ(frame.line[1], "In Bambuddy #42");
+    CHECK_STR_EQ(frame.line[2], "484 / 1000 g");
+    CHECK_EQ_INT(frame.level, 484);
     CHECK_STR_EQ(frame.bar, "");
-    check_chips("Menu", "Weigh", "New");
+    check_chips("Menu", "Weigh", "");
+
+    /* never printed from: Unused in place of the level */
+    app.spool.remaining = app.spool.label;
+    build();
+    CHECK_STR_EQ(frame.bar, "Unused - 1000 g");
+    CHECK_EQ_INT(frame.level, -1);
+    app.spool.remaining = 484;
 
     /* no colour name: the colour as hex */
     app.spool.color_name[0] = '\0';
@@ -291,9 +304,11 @@ static void test_result_known_without_spool_shows_host_lines(void) {
     CHECK(frame.kind == AppResultKnown);
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK_STR_EQ(frame.line[0], "Jade White");
+    CHECK(!frame.in_base);
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
     CHECK_STR_EQ(frame.line[2], "484 g left of 1000");
-    check_chips("Menu", "Weigh", "New");
+    CHECK_EQ_INT(frame.level, -1);
+    check_chips("Menu", "Weigh", "");
 
     /* no lines either: the tag itself */
     l.lines.count = 0;
@@ -320,7 +335,8 @@ static void test_result_archived(void) {
     send_tag(&mfc);
     send_fixture_lookup("lookup_found_archived.json");
     build();
-    CHECK_STR_EQ(frame.line[2], "Archived");
+    CHECK_STR_EQ(frame.bar, "Archived");
+    CHECK_EQ_INT(frame.level, -1);
 }
 
 static void test_result_unknown(void) {
@@ -334,8 +350,11 @@ static void test_result_unknown(void) {
     CHECK_STR_EQ(frame.line[0], "Color #FFFFFF");
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
     CHECK_STR_EQ(frame.line[2], "");
-    CHECK_STR_EQ(frame.bar, "Not in Bambuddy");
-    check_chips("Menu", "Add", "Link");
+    CHECK_STR_EQ(frame.bar, "New spool");
+    check_chips("Menu", "Save", "Weigh");
+    /* ▶ Weigh opens Weight: saved as new with that weight */
+    press(AppKeyRight);
+    CHECK(app.screen == AppScreenWeight);
 }
 
 static void test_result_unknown_without_material(void) {
@@ -397,7 +416,7 @@ static void test_menu_lists_the_actions(void) {
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK_EQ_INT(frame.count, 6);
     CHECK_STR_EQ(frame.item[0], "Weigh");
-    CHECK_STR_EQ(frame.item[1], "Mark as new");
+    CHECK_STR_EQ(frame.item[1], "Reset to full");
     CHECK_STR_EQ(frame.item[2], "Mark as empty");
     CHECK_STR_EQ(frame.item[3], "Relink on host");
     CHECK_STR_EQ(frame.item[4], "Tag details");
@@ -415,8 +434,8 @@ static void test_menu_lists_the_actions(void) {
     press(AppKeyLeft);
     build();
     CHECK_EQ_INT(frame.count, 4);
-    CHECK_STR_EQ(frame.item[0], "Add new");
-    CHECK_STR_EQ(frame.item[1], "Add and weigh");
+    CHECK_STR_EQ(frame.item[0], "Save as new");
+    CHECK_STR_EQ(frame.item[1], "Save with weight");
     CHECK_STR_EQ(frame.item[2], "Link on host");
     CHECK_STR_EQ(frame.item[3], "Tag details");
 
@@ -572,7 +591,7 @@ static void test_busy_says_what_is_sent(void) {
     send_fixture_lookup("lookup_unknown.json");
     press(AppKeyOk);
     build();
-    CHECK_STR_EQ(frame.title, "Adding");
+    CHECK_STR_EQ(frame.title, "Saving");
     CHECK_STR_EQ(frame.line[0], "PLA Basic");
 
     setup();
@@ -584,7 +603,7 @@ static void test_busy_says_what_is_sent(void) {
 
     setup();
     scan_found();
-    press(AppKeyRight);
+    choose(AppMenuMarkNew);
     press(AppKeyBack); /* commits the mark */
     build();
     CHECK_STR_EQ(frame.title, "Updating");
@@ -597,7 +616,7 @@ static void test_toast_added(void) {
     CHECK(app.screen == AppScreenToast);
     build();
     CHECK(frame.toast == AppToastAdded);
-    CHECK_STR_EQ(frame.title, "Added to Bambuddy");
+    CHECK_STR_EQ(frame.title, "Saved as new");
     CHECK_STR_EQ(frame.line[0], "PLA Basic Jade White");
     CHECK_STR_EQ(frame.line[1], "Spool #31 - 1000 g");
     CHECK_STR_EQ(frame.line[2], "");
@@ -607,13 +626,13 @@ static void test_toast_added(void) {
 static void test_toast_marks_count_down(void) {
     setup();
     scan_found();
-    press_at(AppKeyRight, 1000);
+    choose_at(AppMenuMarkNew, 1000);
     CHECK(app.screen == AppScreenToast);
     env.now_ms = 1000;
     build();
-    CHECK_STR_EQ(frame.title, "Marked as new");
+    CHECK_STR_EQ(frame.title, "Reset to full");
     CHECK_STR_EQ(frame.line[0], "PLA Basic Jade White");
-    CHECK_STR_EQ(frame.line[1], "1000 g left - full");
+    CHECK_STR_EQ(frame.line[1], "1000 g left");
     CHECK_STR_EQ(frame.line[2], "Next spool in 3 s");
     CHECK_EQ_INT(frame.progress, UI_TOAST_MAX);
     check_chips("Undo", "Weigh", "");
@@ -652,7 +671,7 @@ static void test_link_on_host(void) {
     setup();
     send_tag(&mfc);
     send_fixture_lookup("lookup_unknown.json");
-    press(AppKeyRight);
+    choose(AppMenuLinkOnHost);
     build();
     CHECK(frame.screen == AppScreenLinkOnHost);
     CHECK_STR_EQ(frame.title, "Link tag");
@@ -706,7 +725,9 @@ static void test_errors(void) {
     send(AppEventReadFailed);
     build();
     CHECK_STR_EQ(frame.title, "Tag not read");
-    CHECK_STR_EQ(frame.body, "Hold the tag still against the back and try again.");
+    CHECK_STR_EQ(frame.body, "Hold the tag still against the back. Reading again...");
+    CHECK_EQ_INT(frame.progress, UI_TOAST_MAX);
+    check_chips("", "", "");
 }
 
 static void test_error_titles_follow_the_action(void) {
@@ -812,7 +833,7 @@ static void test_fields_of_another_screen_are_cleared(void) {
     setup();
     scan_found();
     build();
-    CHECK_STR_EQ(frame.line[2], "484 g left of 1000");
+    CHECK_STR_EQ(frame.line[2], "484 / 1000 g");
     press(AppKeyBack);
     build();
     CHECK_STR_EQ(frame.left, "");

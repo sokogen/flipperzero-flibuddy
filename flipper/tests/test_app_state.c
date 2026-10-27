@@ -153,17 +153,21 @@ static void scan_unknown(void) {
 }
 
 /* Opens the Menu and chooses `item`. */
-static AppEffect choose(AppMenuItem item) {
-    CHECK(press(AppKeyLeft) == AppEffectNone);
+static AppEffect choose_at(AppMenuItem item, uint32_t now_ms) {
+    CHECK(press_at(AppKeyLeft, now_ms) == AppEffectNone);
     CHECK(app.screen == AppScreenMenu);
     AppMenuItem items[APP_MENU_MAX];
     uint8_t n = app_menu_items(&app, items);
     for(uint8_t i = 0; i < n; i++) {
-        if(items[app.sel] == item) return press(AppKeyOk);
+        if(items[app.sel] == item) return press_at(AppKeyOk, now_ms);
         press(AppKeyDown);
     }
     CHECK(!"menu item not offered");
     return AppEffectNone;
+}
+
+static AppEffect choose(AppMenuItem item) {
+    return choose_at(item, 0);
 }
 
 /* ---- start, connection, scanning ---- */
@@ -235,6 +239,35 @@ static void test_scan_carries_the_autosave_setting(void) {
     CHECK(app_encode_scan(&app, line, sizeof(line)) > 0);
     CHECK(strstr(line, "\"autosave\":true,") != NULL);
     CHECK_EQ_INT(app_encode_intent(&app, line, sizeof(line)), 0); /* none in flight */
+}
+
+static void test_read_failed_returns_to_ready_by_itself(void) {
+    setup();
+    send_at(AppEventTagDetected, 1000);
+    send_at(AppEventReadFailed, 1000);
+    CHECK(app.screen == AppScreenError);
+    CHECK_EQ_INT(app_timer_left_ms(&app, 1000), APP_READ_RETRY_MS);
+    CHECK(tick(1000 + APP_READ_RETRY_MS - 1) == AppEffectNone);
+    CHECK(app.screen == AppScreenError);
+    CHECK(tick(1000 + APP_READ_RETRY_MS) == AppEffectNone);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.last == AppOutcomeNone);
+    CHECK(app_reader_wanted(&app));
+}
+
+static void test_unknown_right_opens_weight_and_known_right_does_nothing(void) {
+    setup();
+    scan_unknown();
+    CHECK(press(AppKeyRight) == AppEffectNone);
+    CHECK(app.screen == AppScreenWeight);
+    CHECK(press(AppKeyOk) == AppEffectSendIntent);
+    CHECK(in_flight_action() == IntentActionWeigh);
+
+    setup();
+    scan_found();
+    CHECK(press(AppKeyRight) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(in_flight() == NULL);
 }
 
 static void test_read_failed_and_back_while_reading(void) {
@@ -773,7 +806,7 @@ static void test_deleted_toast_back_clears_the_bar(void) {
 static void test_mark_as_new_undo_sends_nothing(void) {
     setup();
     scan_found();
-    CHECK(press_at(AppKeyRight, 1000) == AppEffectNone);
+    CHECK(choose_at(AppMenuMarkNew, 1000) == AppEffectNone);
     CHECK(app.screen == AppScreenToast);
     CHECK(app.toast == AppToastMarkedNew);
     CHECK(app.cue == AppCueSuccess);
@@ -793,7 +826,7 @@ static void test_mark_as_new_undo_sends_nothing(void) {
 static void test_mark_as_new_commits_when_the_bar_runs_out(void) {
     setup();
     scan_found();
-    press_at(AppKeyRight, 500);
+    choose_at(AppMenuMarkNew, 500);
     CHECK(tick(500 + APP_TOAST_MS - 1) == AppEffectNone);
     CHECK(in_flight() == NULL);
     CHECK(tick(500 + APP_TOAST_MS) == AppEffectSendIntent);
@@ -826,7 +859,7 @@ static void test_mark_as_new_ok_commits_then_weighs(void) {
 static void test_mark_as_new_back_commits(void) {
     setup();
     scan_found();
-    press(AppKeyRight);
+    choose(AppMenuMarkNew);
     CHECK(press(AppKeyBack) == AppEffectSendIntent);
     CHECK(in_flight_action() == IntentActionFull);
     send_fixture_result("result_full.json");
@@ -957,7 +990,7 @@ static void test_add_and_weigh_sends_weigh_on_the_unknown_scan(void) {
 static void test_link_on_host_then_fresh_lookup(void) {
     setup();
     scan_unknown();
-    CHECK(press_at(AppKeyRight, 100) == AppEffectSendIntent);
+    CHECK(choose_at(AppMenuLinkOnHost, 100) == AppEffectSendIntent);
     CHECK(app.screen == AppScreenLinkOnHost);
     CHECK(in_flight_action() == IntentActionLinkOnHost);
     ProtoResult ok = fixture_result("result_ok.json");
@@ -1217,7 +1250,7 @@ static void test_host_lost_mid_intent_retries_after_reconnect(void) {
 static void test_failed_commit_of_mark_as_new_retries_then_weighs(void) {
     setup();
     scan_found();
-    press(AppKeyRight);
+    choose(AppMenuMarkNew);
     press(AppKeyOk);
     send_fixture_result("result_error.json");
     CHECK(app.screen == AppScreenError);
@@ -1497,6 +1530,8 @@ int main(void) {
     RUN_TEST(test_waiting_and_ready_keys);
     RUN_TEST(test_scan_gets_a_new_id_and_a_copy_of_the_tag);
     RUN_TEST(test_scan_carries_the_autosave_setting);
+    RUN_TEST(test_read_failed_returns_to_ready_by_itself);
+    RUN_TEST(test_unknown_right_opens_weight_and_known_right_does_nothing);
     RUN_TEST(test_read_failed_and_back_while_reading);
     RUN_TEST(test_looking_up_back_and_stale_lookups);
     RUN_TEST(test_no_host_scan_shows_local_facts);

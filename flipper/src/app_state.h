@@ -36,6 +36,8 @@
  * (AppCueNone when none); the caller maps it to LED / vibro / sound per the
  * Feedback and Sound settings.
  *
+ * A failed read shows Error{ReadFailed} for APP_READ_RETRY_MS, then Ready.
+ *
  * Mark as new / Mark as empty send nothing at first: their toast holds the
  * intent for 3 s, ◀ Undo drops it, and the deadline, OK, Back or a new tag
  * commit it (OK on Mark as new then opens Weight). Only one intent is ever
@@ -69,6 +71,7 @@
 #define APP_RESULT_TIMEOUT_MS 10000u
 #define APP_SAVED_MS          1300u
 #define APP_TOAST_MS          3000u
+#define APP_READ_RETRY_MS     1500u /* Error{ReadFailed} returns to Ready */
 #define APP_LIST_ROWS         4 /* visible rows of Menu and Settings */
 #define APP_MENU_MAX          6
 #define APP_WEIGHT_DIGITS     4

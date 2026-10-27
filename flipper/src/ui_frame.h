@@ -15,7 +15,8 @@
  *   Ready       bar (last outcome, "" none), line[0..2], right
  *   Reading     line[0]
  *   LookingUp   line[0] (material from the tag, "" when unknown), line[1]
- *   Result      kind, mark + lum, line[0..2], bar, left / center / right
+ *   Result      kind, mark + lum, line[0..2], in_base (a check before
+ *               line[1]), level (remaining bar, -1 none) or bar, chips
  *   Menu        item[], count, sel, top
  *   Details     key[] / line[] rows (count)
  *   Confirm     line[0..2], left / right
@@ -24,7 +25,8 @@
  *   Saved       line[0]
  *   Toast       toast, line[0..2], progress, left / center / right
  *   LinkOnHost  line[0..1], left
- *   Error       body (wrapped, at most three lines), left / right
+ *   Error       body (wrapped, at most three lines), left / right,
+ *               progress (a failed read's countdown, 0 none)
  *   Settings    item[] / value[] / fixed[], count, sel, top
  *   About       line[0..3]
  */
@@ -94,6 +96,8 @@ typedef struct {
     bool net;
     bool refused; /* gross below the core: Save does nothing */
     uint16_t progress; /* 0..UI_TOAST_MAX */
+    bool in_base; /* Result: the spool is in Bambuddy */
+    int16_t level; /* Result: remaining per mille of the label, -1 none */
 } UiFrame;
 
 void ui_frame_build(UiFrame* frame, const AppState* s, const UiEnv* env);
