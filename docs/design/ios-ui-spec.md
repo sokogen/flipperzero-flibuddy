@@ -544,6 +544,40 @@ Feed row, number pad and focus
 - Tag details opens from the card's context menu and the VoiceOver action
   shared with the Mac, as a sheet with medium and large detents.
 
+Settings, QR, sheets and Clear
+- Apply on change lives in `SettingsViewModel` (`appliesOnChange`, which
+  only the iPhone and iPad set). Each change applies on top of the settings
+  applied last, one after another, so a picker change leaves a field that
+  is still being typed out of it. A text field commits on Return, when
+  another field takes the focus, and when the Settings tab goes away.
+- A core weight out of range is not applied (its red line stays under the
+  field) while a URL or key committed with it is. A failed apply shows a
+  red line at the bottom of the form; the edit stays and the next commit
+  tries again.
+- URL and API key are labelled rows with the field trailing. By eye.
+- The Flipper row reads `Searching…` while a scan runs (it wins over a
+  connection), `Bluetooth` when connected, and `Not connected` with
+  `antenna.radiowaves.left.and.right.slash` otherwise, which the spec does
+  not name. A Flipper connected without a chosen one is titled `Flipper`.
+  The scan button reads `Stop scanning` while it runs, as shipped.
+- The watch gets the settings 0.5 s after the last applied change
+  (`WatchSettingsSender.defaultDebounce`), so a quick run of changes sends
+  once, the latest.
+- The QR footer shows a failed read in red, in place of the hint. The
+  close button is an `xmark` in a material circle; the bracket frame is
+  240 pt, white. By eye.
+- New spool: the colour picker has no opacity; with no colour on the tag
+  it shows grey and stores nothing until a colour is picked. The title and
+  `NTAG 7-byte · <uid>` sit in the navigation bar's centre. The material
+  menu's empty entry reads `Choose` (the Mac keeps `Choose…`).
+- Link to existing: the rows are buttons with the `checkmark` on the
+  pick; the search field is always shown; no match is a
+  `ContentUnavailableView` with `magnifyingglass`. Link with a pick that
+  carries another tag asks with the alert; the iPad shows the same alert
+  until Task 5 of `docs/plans/20261027-apple-ui-from-design.md` gives it the
+  inline warning.
+- Clear keeps ⌘⌫ on a hardware keyboard.
+
 ## Open questions for the owner
 
 None. Decided 2026-10-27: Net/Gross below the core clamps to 0, as on the

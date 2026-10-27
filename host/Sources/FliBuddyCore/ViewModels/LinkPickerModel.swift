@@ -6,6 +6,17 @@ import Foundation
 public struct LinkPickerModel: Equatable, Sendable {
     public static let title = "Link to existing spool"
     public static let placeholder = "material, colour, brand or note"
+    /// The iPhone sheet's title and search prompt.
+    public static let phoneTitle = "Link to existing"
+    public static let phonePlaceholder = "Material, colour, brand or note"
+    /// The iPhone alert's confirming button.
+    public static let moveButton = "Move link"
+
+    /// The iPhone's question before a link moves away from another tag.
+    public struct MoveAlert: Equatable, Sendable {
+        public let title: String
+        public let message: String
+    }
 
     /// The row's UID as shown under its title.
     public let uid: String
@@ -72,16 +83,29 @@ public struct LinkPickerModel: Equatable, Sendable {
 
     /// The pick carries a different tag, which the link moves to this one.
     public var warning: String? {
+        movedLink.map { "\($0). Linking moves it to \(uid)." }
+    }
+
+    /// The iPhone asks before Link moves another tag's link here.
+    public var moveAlert: MoveAlert? {
+        movedLink.map {
+            MoveAlert(title: $0, message: "Move the link to \(uid)? The old tag will no longer identify this spool.")
+        }
+    }
+
+    /// "<title> <colour> is linked to tag <tag>" when the pick carries a
+    /// different tag.
+    private var movedLink: String? {
         guard let spool = selectedSpool, let other = Self.tag(of: spool), !carriesThisTag(spool) else { return nil }
         let name = [FeedItem.title(material: spool.material, subtype: spool.subtype), spool.colorName]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-        return "\(name) is linked to tag \(other). Linking moves it to \(uid)."
+        return "\(name) is linked to tag \(other)"
     }
 
     public var linkTitle: String {
-        warning == nil ? "Link" : "Move link"
+        warning == nil ? "Link" : Self.moveButton
     }
 
     /// Link needs a pick the filter still shows.

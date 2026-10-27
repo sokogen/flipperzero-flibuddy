@@ -55,4 +55,35 @@ struct NewSpoolFormTests {
         #expect(form.labelWeight == String(try #require(bambu.labelWeight)))
         #expect(form.canCreate)
     }
+
+    @Test func theiPhoneFooterSaysWhatHappensNext() {
+        #expect(NewSpoolForm.phoneFooter == "FliBuddy creates the spool in Bambuddy, then asks for its weight.")
+    }
+
+    @Test func theColourStartsAsTheTagsAndGoesIntoTheSpool() throws {
+        var form = NewSpoolForm(tag: try tag("scan_ntag"), settings: testSettings)
+        #expect(form.swatch == nil)
+        form.material = "PLA"
+        #expect(form.newSpool?.rgba == nil)
+
+        form.swatch = Swatch(red: 0.8, green: 0.6, blue: 1, alpha: 1)
+        #expect(form.newSpool?.rgba == "CC99FFFF")
+
+        let bambu = NewSpoolForm(tag: try tag("scan_mfc"), settings: testSettings)
+        #expect(bambu.swatch == Swatch(rgba: "FFFFFFFF"))
+        #expect(bambu.newSpool?.rgba == "FFFFFFFF")
+    }
+}
+
+@Suite("Swatch")
+struct SwatchTests {
+    @Test func aSwatchWritesBackTheRGBAItWasReadFrom() throws {
+        for hex in ["00AE42FF", "FFFFFFFF", "00000000", "1A2B3C80"] {
+            #expect(try #require(Swatch(rgba: hex)).rgba == hex)
+        }
+    }
+
+    @Test func componentsAreClampedAndRounded() {
+        #expect(Swatch(red: 1.2, green: -0.1, blue: 0.5, alpha: 1).rgba == "FF0080FF")
+    }
 }

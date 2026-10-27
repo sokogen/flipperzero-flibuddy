@@ -102,4 +102,26 @@ struct LinkPickerModelTests {
         #expect(!LinkPickerModel(item: row, spools: spools(), query: "tpu", selection: 1).canLink)
         #expect(LinkPickerModel(item: row, spools: spools(), query: "tpu", selection: 1).warning == nil)
     }
+
+    @Test func theiPhoneSheetHasItsOwnTitleAndSearchPrompt() {
+        #expect(LinkPickerModel.phoneTitle == "Link to existing")
+        #expect(LinkPickerModel.phonePlaceholder == "Material, colour, brand or note")
+    }
+
+    @Test func movingAnotherTagsLinkAsksFirstOnTheiPhone() throws {
+        let picker = LinkPickerModel(item: try item(), spools: spools(), selection: 2)
+        #expect(
+            picker.moveAlert
+                == LinkPickerModel.MoveAlert(
+                    title: "PETG Translucent Teal is linked to tag 04AABBCCDDEEFF",
+                    message: "Move the link to 04112233445566? The old tag will no longer identify this spool."
+                )
+        )
+        #expect(LinkPickerModel.moveButton == "Move link")
+    }
+
+    @Test func aPickWithoutAnotherTagAsksNothing() throws {
+        #expect(LinkPickerModel(item: try item(), spools: spools(), selection: 1).moveAlert == nil)
+        #expect(LinkPickerModel(item: try item(), spools: spools()).moveAlert == nil)
+    }
 }

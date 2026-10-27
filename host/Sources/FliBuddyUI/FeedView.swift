@@ -58,7 +58,7 @@ public struct FeedView: View {
             }
             #endif
             .confirmationDialog("Clear the feed?", isPresented: $confirmingClear, titleVisibility: .visible) {
-                Button("Clear", role: .destructive) {
+                Button(Self.clearButton, role: .destructive) {
                     Task { await feed.clear() }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -66,12 +66,22 @@ public struct FeedView: View {
                 Text("This clears the session log only. Nothing changes in Bambuddy.")
             }
             .toolbar {
+                #if os(iOS)
+                // Icon only, at the leading end of the bar.
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Clear feed", systemImage: "trash") { confirmingClear = true }
+                        .labelStyle(.iconOnly)
+                        .keyboardShortcut(.delete, modifiers: .command)
+                        .disabled(feed.items.isEmpty)
+                }
+                #else
                 ToolbarItem {
                     Button("Clear", systemImage: "trash") { confirmingClear = true }
                         .keyboardShortcut(.delete, modifiers: .command)
                         .help("Remove all rows from the feed")
                         .disabled(feed.items.isEmpty)
                 }
+                #endif
                 #if os(macOS)
                 ToolbarItem {
                     SettingsLink {
@@ -81,6 +91,13 @@ public struct FeedView: View {
                 #endif
             }
     }
+
+    /// The Clear dialog's destructive button.
+    #if os(iOS)
+    private static let clearButton = "Clear feed"
+    #else
+    private static let clearButton = "Clear"
+    #endif
 
     @ViewBuilder private var content: some View {
         if feed.isBlocked {

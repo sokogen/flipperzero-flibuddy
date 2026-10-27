@@ -14,25 +14,46 @@ public protocol SessionMessaging: AnyObject, Sendable {
     func updateApplicationContext(_ context: [String: Any]) throws
 }
 
-/// iPhone side: sends the settings to the watch after each save. A save the
-/// session cannot send yet (not activated, no watch app, a failed send) is
-/// held and sent on the next `sessionStateChanged()`; only the latest counts.
+/// iPhone side: sends the settings to the watch after each save. Saves that
+/// follow each other within `debounce` (the iPhone applies every change as
+/// it is made) send once, the latest. A save the session cannot send yet
+/// (not activated, no watch app, a failed send) is held and sent on the next
+/// `sessionStateChanged()`; only the latest counts.
 @MainActor
 @Observable
 public final class WatchSettingsSender {
+    /// How long `start(for:)` waits for further changes before it sends.
+    public static let defaultDebounce: Duration = .milliseconds(500)
+
     /// Why the last send failed, until one succeeds.
     public private(set) var lastError: String?
 
     private let session: any SessionMessaging
+    private let debounce: Duration
     private var pending: SettingsSyncPayload?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
-    public init(session: any SessionMessaging) {
+    /// `debounce` zero sends each save at once.
+    public init(session: any SessionMessaging, debounce: Duration = .zero) {
         self.session = session
+        self.debounce = debounce
     }
 
     public func settingsSaved(_ settings: Settings) {
         pending = SettingsSyncPayload(settings)
-        flush()
+        guard debounce > .zero else { return flush() }
+        debounceTask?.cancel()
+        let delay = debounce
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.flush()
+        }
+    }
+
+    /// Returns once a debounced send has run.
+    public func settled() async {
+        await debounceTask?.value
     }
 
     /// The session activated or the watch app was installed.
@@ -197,7 +218,7 @@ extension WatchSettingsSender {
     /// Keep the returned sender alive as long as `host`.
     public static func start(for host: HostModel) -> WatchSettingsSender {
         let session = WatchConnectivitySession()
-        let sender = WatchSettingsSender(session: session)
+        let sender = WatchSettingsSender(session: session, debounce: defaultDebounce)
         host.onSettingsSaved = { [weak sender] in sender?.settingsSaved($0) }
         session.activate(
             onStateChange: { [weak sender] in Task { @MainActor in sender?.sessionStateChanged() } },

@@ -96,12 +96,15 @@ public final class HostModel {
         try await apply(new)
     }
 
-    public func makeSettingsViewModel() -> SettingsViewModel {
+    /// The Settings screen's model; the iPhone and iPad pass
+    /// `appliesOnChange`, the Mac keeps its Save.
+    public func makeSettingsViewModel(appliesOnChange: Bool = false) -> SettingsViewModel {
         SettingsViewModel(
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
             connectedTransport: { [link] in link.connectedTransport },
+            appliesOnChange: appliesOnChange,
             apply: { [weak self] in try await self?.apply($0) }
         )
     }

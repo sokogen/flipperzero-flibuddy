@@ -323,4 +323,18 @@ public struct Swatch: Equatable, Sendable {
         blue = Double((value >> 8) & 0xFF) / 255
         alpha = Double(value & 0xFF) / 255
     }
+
+    public init(red: Double, green: Double, blue: Double, alpha: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = alpha
+    }
+
+    /// The colour as Bambuddy stores it: 8 upper-case hex digits, RRGGBBAA.
+    public var rgba: String {
+        [red, green, blue, alpha]
+            .map { String(format: "%02X", Int((min(max($0, 0), 1) * 255).rounded())) }
+            .joined()
+    }
 }

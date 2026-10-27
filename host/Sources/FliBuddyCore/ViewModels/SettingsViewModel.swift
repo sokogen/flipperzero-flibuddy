@@ -12,6 +12,12 @@ public protocol QRScanning {
 /// picker, the transport settings (USB port, Bluetooth Flipper scan) and the
 /// connection test. `save()` hands the draft to `apply`, which stores it and
 /// reconfigures the session; `revert()` goes back to what was saved.
+///
+/// With `appliesOnChange` (iPhone, iPad) there is no Save: a picker change,
+/// a chosen or forgotten Flipper and a read QR code apply at once, the text
+/// fields (URL, API key, core weight) on `commit()`. Each change applies on
+/// top of the settings applied last, in order, so a field still being typed
+/// is left out of a picker's change.
 @MainActor
 @Observable
 public final class SettingsViewModel {
@@ -44,16 +50,39 @@ public final class SettingsViewModel {
     /// weight into `coreWeight` once.
     public var catalogEntryId: Int? {
         didSet {
-            guard catalogEntryId != oldValue, let entry = catalog.first(where: { $0.id == catalogEntryId }) else { return }
+            guard catalogEntryId != oldValue else { return }
+            let id = catalogEntryId
+            guard let entry = catalog.first(where: { $0.id == id }) else {
+                return applyChange { $0.catalogEntryId = id }
+            }
             coreWeight = entry.weight
+            applyChange {
+                $0.catalogEntryId = id
+                $0.coreWeight = entry.weight
+            }
         }
     }
     /// Grams; editable, saved as is.
     public var coreWeight: Int
-    public var defaultMode: Intent.WeightMode
-    public var transport: TransportKind
+    public var defaultMode: Intent.WeightMode {
+        didSet {
+            guard defaultMode != oldValue else { return }
+            applyChange { [defaultMode] in $0.defaultMode = defaultMode }
+        }
+    }
+    public var transport: TransportKind {
+        didSet {
+            guard transport != oldValue else { return }
+            applyChange { [transport] in $0.transport = transport }
+        }
+    }
     /// `nil` uses the first Flipper found.
-    public var port: String?
+    public var port: String? {
+        didSet {
+            guard port != oldValue else { return }
+            applyChange { [port] in $0.port = port }
+        }
+    }
     /// The chosen Bluetooth Flipper; `nil` uses the first one found.
     public private(set) var peripheralId: UUID?
     public private(set) var peripheralName: String?
@@ -70,6 +99,9 @@ public final class SettingsViewModel {
     public private(set) var saveError: String?
     public private(set) var qrStatus: QRStatus?
 
+    /// Changes apply as they are made; there is no Save.
+    public let appliesOnChange: Bool
+
     private var saved: Settings
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
@@ -78,6 +110,10 @@ public final class SettingsViewModel {
     private let scanDuration: Duration
     private let connectedTransport: @MainActor () -> TransportKind?
     private let apply: @MainActor (Settings) async throws -> Void
+    /// The last applied change; each one waits for the one before it.
+    private var applying: Task<Void, Never>?
+    /// Set while one edit sets several fields that apply as one change.
+    private var holdsApply = false
     private var scanTask: Task<Void, Never>?
     private var scanTimer: Task<Void, Never>?
     /// Bumped by every scan start and stop; a stale scan changes nothing.
@@ -99,6 +135,7 @@ public final class SettingsViewModel {
         bluetoothPower: @escaping @MainActor () async -> BLEPowerState = { await FlipperLink.defaultPowerState() },
         scanDuration: Duration = .seconds(15),
         connectedTransport: @escaping @MainActor () -> TransportKind? = { nil },
+        appliesOnChange: Bool = false,
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
         saved = settings
@@ -117,6 +154,7 @@ public final class SettingsViewModel {
         self.bluetoothPower = bluetoothPower
         self.scanDuration = scanDuration
         self.connectedTransport = connectedTransport
+        self.appliesOnChange = appliesOnChange
         self.apply = apply
     }
 
@@ -297,16 +335,24 @@ public final class SettingsViewModel {
             baseURL = payload.baseURL
             apiKey = payload.apiKey
             connection = nil
-            qrStatus = .applied("URL and API key read from the QR code; Save to keep them")
+            qrStatus = .applied(Self.qrApplied)
+            applyChange {
+                $0.baseURL = payload.baseURL
+                $0.apiKey = payload.apiKey
+            }
         } catch {
             qrStatus = .failed(error.localizedDescription)
         }
     }
 
-    /// Scans a QR code and applies it; a cancelled scan changes nothing.
+    static let qrApplied = "Filled from the QR code."
+
+    /// Scans a QR code, applies it and tests the connection it names; a
+    /// cancelled scan changes nothing.
     public func scanQRCode(with scanner: any QRScanning) async {
         do {
             applyQRPayload(try await scanner.scan())
+            if case .applied = qrStatus { await testConnection() }
         } catch is CancellationError {
             qrStatus = nil
         } catch {
@@ -378,10 +424,17 @@ public final class SettingsViewModel {
 
     /// Remembers `peripheral` as the Bluetooth Flipper and ends the scan.
     public func choosePeripheral(_ peripheral: DiscoveredPeripheral) {
+        holdsApply = true
         transport = .bluetooth
+        holdsApply = false
         peripheralId = peripheral.id
         peripheralName = peripheral.name
         stopScanning()
+        applyChange {
+            $0.transport = .bluetooth
+            $0.peripheralId = peripheral.id
+            $0.peripheralName = peripheral.name
+        }
     }
 
     /// The Flipper section's status line.
@@ -416,6 +469,10 @@ public final class SettingsViewModel {
         case .bluetooth:
             peripheralId = nil
             peripheralName = nil
+            applyChange {
+                $0.peripheralId = nil
+                $0.peripheralName = nil
+            }
         }
     }
 
@@ -425,7 +482,10 @@ public final class SettingsViewModel {
             saveError = error
             return false
         }
-        let settings = draft
+        return await store(draft)
+    }
+
+    private func store(_ settings: Settings) async -> Bool {
         do {
             try await apply(settings)
             saved = settings
@@ -434,6 +494,74 @@ public final class SettingsViewModel {
         } catch {
             saveError = Session.describe(error)
             return false
+        }
+    }
+
+    /// The text fields (URL, API key, core weight) were committed: Return,
+    /// or leaving the field. Applies them with `appliesOnChange`; a core
+    /// weight out of range stays unapplied and shows `coreWeightError`.
+    public func commit() {
+        let url = baseURL
+        let key = apiKey
+        let weight = coreWeightError == nil ? coreWeight : nil
+        applyChange {
+            $0.baseURL = url
+            $0.apiKey = key
+            if let weight { $0.coreWeight = weight }
+        }
+    }
+
+    /// Returns once every change made so far has been applied.
+    public func settled() async {
+        await applying?.value
+    }
+
+    /// With `appliesOnChange`, queues `change` to apply on top of the
+    /// settings applied last; a change that changes nothing is skipped.
+    private func applyChange(_ change: @escaping @MainActor (inout Settings) -> Void) {
+        guard appliesOnChange, !holdsApply else { return }
+        let previous = applying
+        applying = Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
+            var settings = self.saved
+            change(&settings)
+            guard settings != self.saved else { return }
+            if await self.store(settings) {
+                Log.info(.settings, "applied on change")
+            } else {
+                Log.error(.settings, "apply on change failed: error=\(self.saveError ?? "")")
+            }
+        }
+    }
+
+    // MARK: iPhone and iPad texts
+
+    /// The Bambuddy section's footer on the iPhone: what Scan QR code does,
+    /// the last read, or why there is no Scan.
+    public static func qrFooter(cameraAvailable: Bool, status: QRStatus?) -> (text: String, tint: StatusTint) {
+        guard cameraAvailable else { return ("This device has no camera. Type the URL and API key instead.", .gray) }
+        return switch status {
+        case nil: ("Scan the QR code Bambuddy shows when you create an API key.", .gray)
+        case .applied(let message): (message, .green)
+        case .failed(let message): (message, .red)
+        }
+    }
+
+    /// The iPhone's Flipper row: the chosen Flipper's name.
+    public var flipperRowTitle: String {
+        peripheralName ?? (connectedTransport() == nil ? "No Flipper paired" : "Flipper")
+    }
+
+    /// The iPhone's Flipper row value: the scan, else the link.
+    public var flipperRowState: StatusItem {
+        if isScanning { return StatusItem(text: "Searching\u{2026}", symbol: .progress, tint: .gray) }
+        return switch connectedTransport() {
+        case .bluetooth:
+            StatusItem(text: "Bluetooth", symbol: .symbol("antenna.radiowaves.left.and.right"), tint: .green)
+        case .usb: StatusItem(text: "USB", symbol: .symbol("cable.connector"), tint: .green)
+        case nil:
+            StatusItem(text: "Not connected", symbol: .symbol("antenna.radiowaves.left.and.right.slash"), tint: .gray)
         }
     }
 }

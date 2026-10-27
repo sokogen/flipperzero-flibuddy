@@ -5,7 +5,7 @@ import SwiftUI
 @main
 struct FliBuddyiOSApp: App {
     @ViewState private var host: HostModel
-    /// Sends the settings to the Apple Watch after each save (not on iPad).
+    /// Sends the settings to the Apple Watch after each applied change (not on iPad).
     @ViewState private var watchSync: WatchSettingsSender?
 
     init() {
@@ -77,8 +77,9 @@ struct RootView: View {
     }
 }
 
-/// Edits a copy of the saved settings. The copy is made once, so unsaved edits
-/// (a scanned QR code too) survive switching tabs.
+/// The settings, applied as they change (no Save on iPhone and iPad). The
+/// model is made once, so a field being typed survives switching tabs; leaving
+/// the tab commits it.
 struct SettingsScreen: View {
     let host: HostModel
     @ViewState private var model: SettingsViewModel?
@@ -93,7 +94,7 @@ struct SettingsScreen: View {
         }
         .onAppear {
             guard model == nil else { return }
-            let model = host.makeSettingsViewModel()
+            let model = host.makeSettingsViewModel(appliesOnChange: true)
             self.model = model
             Task { await model.loadCatalog() }
         }

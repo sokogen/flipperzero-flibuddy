@@ -91,13 +91,13 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 4
 
 ### Task 4: iPhone settings, QR, sheets, Clear
-- [ ] Settings apply on change (no Save / Revert on iOS); labels, rows and footers per ios spec; keep Reload catalog; Connection picker stays hidden with one transport
-- [ ] watch settings sync after each applied change (`WatchSettingsSender`), debounced
-- [ ] QR scanner as a full-screen cover with the bracket frame and hint; Scan row dimmed with its footer without a camera; a read applies and starts Test connection; messages updated
-- [ ] New spool sheet: colour picker, Required / Optional sections, `xmark` / `checkmark` toolbar buttons, iOS footer; Link picker: `.searchable`, confirmation alert for moving a tag, toolbar buttons, wording per spec
-- [ ] Clear: `trash` icon button, dialog button `Clear feed`
-- [ ] write tests for apply-on-change, sync cadence, QR apply flow, form/picker models
-- [ ] run `make test` and `make apple-build` — must pass before Task 5
+- [x] Settings apply on change (no Save / Revert on iOS); labels, rows and footers per ios spec; keep Reload catalog; Connection picker stays hidden with one transport
+- [x] watch settings sync after each applied change (`WatchSettingsSender`), debounced
+- [x] QR scanner as a full-screen cover with the bracket frame and hint; Scan row dimmed with its footer without a camera; a read applies and starts Test connection; messages updated
+- [x] New spool sheet: colour picker, Required / Optional sections, `xmark` / `checkmark` toolbar buttons, iOS footer; Link picker: `.searchable`, confirmation alert for moving a tag, toolbar buttons, wording per spec
+- [x] Clear: `trash` icon button, dialog button `Clear feed`
+- [x] write tests for apply-on-change, sync cadence, QR apply flow, form/picker models
+- [x] run `make test` and `make apple-build` — must pass before Task 5
 
 ### Task 5: iPad layout
 - [ ] layout switch by width (≥ 900 pt detail → one-line table, else iPhone cards), not size class alone (`host/Apple/iOS/App.swift`)

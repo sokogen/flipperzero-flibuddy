@@ -451,5 +451,6 @@ Settings
   the link.
 - The disconnected connection line reads "No Flipper paired" for both
   transports, although neither pairs.
-- The iPhone keeps the same form with the Save row until its own spec
-  lands (assumption 4 has the iPhone apply on change).
+- The iPhone and iPad form has no Save row: it applies each change as it
+  is made (`SettingsViewModel.appliesOnChange`, see `ios-ui-spec.md`); the
+  Mac keeps the explicit Save.
