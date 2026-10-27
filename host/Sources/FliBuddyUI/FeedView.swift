@@ -126,13 +126,15 @@ struct FeedKeyboardShortcuts: View {
 }
 
 /// One feed row. On macOS a single line with fixed columns: swatch · title
-/// and UID · colour and remaining · status · weight entry. Rows outside
-/// weight entry keep the entry block's space empty so the columns line up.
-/// iOS stacks the entry block under the header until its own spec lands.
+/// · colour line · status · weight entry. Rows outside weight entry keep the
+/// entry block's space empty so the columns line up. iOS stacks the entry
+/// block under the header until its own spec lands. The UID and the other
+/// tag facts are in Tag details (context menu, VoiceOver action).
 struct FeedRowView: View {
     let feed: FeedViewModel
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
+    @ViewState private var showingDetails = false
 
     /// Field 96 + unit + segmented 150 + Save, with 8 pt between them.
     static let entryWidth: CGFloat = 360
@@ -144,6 +146,15 @@ struct FeedRowView: View {
             .accessibilityActions {
                 if item.isReopenable {
                     Button("Re-weigh") { reopenIfSaved() }
+                }
+                Button("Tag details") { showingDetails = true }
+            }
+            .contextMenu {
+                Button("Tag details", systemImage: "info.circle") { showingDetails = true }
+            }
+            .sheet(isPresented: $showingDetails) {
+                if let details = feed.tagDetails(for: item.id) {
+                    TagDetailsSheet(details: details)
                 }
             }
             .help(Text("Scanned \(item.scannedAt, style: .time)"))
@@ -172,17 +183,14 @@ struct FeedRowView: View {
         #endif
     }
 
-    /// Swatch, title and UID, colour and remaining, status: one element for
-    /// VoiceOver.
+    /// Swatch, title, colour line, status: one element for VoiceOver.
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
             SwatchView(swatch: item.swatch, size: 28)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title).font(.headline)
-                Text(item.uid).font(.caption.monospaced()).foregroundStyle(.tertiary)
-            }
-            .lineLimit(1)
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            Text(item.title)
+                .font(.headline)
+                .lineLimit(1)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             Text(item.detailText)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

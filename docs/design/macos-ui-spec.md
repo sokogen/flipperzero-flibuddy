@@ -19,6 +19,8 @@ designer proposed.
 1. Answered: see "Owner decisions".
 2. The suggestion is gross (remaining + core). Switching Net/Gross converts
    an untouched suggestion and keeps a number the user typed.
+   **Overridden (2026-10-27):** switching converts the number whether typed
+   or not (see "Weight rules").
 3. Saved rows reopen on click for a re-weigh. Last save wins; the status
    says who saved.
 4. macOS keeps the explicit Save section in Settings; iPhone and iPad apply
@@ -102,8 +104,8 @@ minimum height 600 (already shipped).
 
 ## Feed row (macOS: one line, `.controlSize(.large)`, row height 60)
 
-Left to right: swatch · title + UID · colour · remaining · status · weight
-field 96 × 34 · Net/Gross segmented (≈150) · Save. Rows that are not in an
+Left to right: swatch · title · colour line · status · weight field 96 × 34
+· Net/Gross segmented (≈150) · Save. Rows that are not in an
 entry state have no field, mode or Save; the space stays empty so columns
 line up.
 
@@ -111,8 +113,7 @@ line up.
 |---|---|
 | Swatch | 28 pt `Circle()` filled with the tag RGBA, 0.5 pt `.separator` stroke. No colour: dashed `.tertiary` outline. Hidden from VoiceOver; the colour name is read instead. |
 | Title | material + subtype, `.headline` (15 sb). Blank tags: "NTAG 7-byte UID 04A2…". |
-| UID | `.caption.monospaced()`, `.tertiary` (10), under the title. |
-| Colour · remaining | `.subheadline`, `.secondary` (13): "Bambu Green · 590 g left of 1000", or "label 1000 g" for unknown tags with prefill, empty otherwise. Never the hex as a name. |
+| Colour line | `.subheadline`, `.secondary` (13): colour name, Bambu colour code, amount, joined by ` · `: "Bambu Green · 10501 · 590 g left of 1000", "Bambu Green · 10501 · label 1000 g" for unknown tags with prefill, empty for a blank tag. Unknown parts are left out; never the hex as a name. The code is the spool's `material_number`, else the one the tag's filament and variant ids name. |
 | Status | symbol + phrase, `.subheadline` (12) `.secondary`; `.red` only for errors. |
 | Weight field | `TextField` 96 × 34, value `.system(.largeTitle, design: .rounded).bold().monospacedDigit()` scaled to 22 pt via `@ScaledMetric(relativeTo: .largeTitle)`, digits only, 0…9999; unit "g" `.title2.weight(.semibold)` `.secondary` (15) after it. Focus ring on focus. Accessibility label "Gross weight, grams" / "Net weight, grams". |
 | Net / Gross | segmented picker; ← → switch when focused. |
@@ -121,7 +122,16 @@ line up.
 | Timeout note | `.footnote` under the status: "Flipper timed out after 10 s and showed an error; the save went through." |
 
 VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590 grams
-left of 1000, Enter weight".
+left of 1000, Enter weight" (the colour code is not read).
+
+**Tag details** (owner decision, 2026-10-27): the UID left the row. A
+right-click on a row (context menu, `info.circle`) or the VoiceOver action
+"Tag details" opens a sheet titled with the row title: UID, Bambuddy tag
+UID (Bambu tags, with the `00000100` suffix), tray UUID, colour, colour
+code, filament ID, RGBA, diameter (`1.75 mm`), nozzle (`190–230 °C`), label
+weight, core weight and spool (`#42`, `· archived`), each only when known;
+identifiers monospaced and selectable. Done closes it. The same
+`TagDetails` model feeds the iPhone, iPad and watch.
 
 ### Row states and copy
 
@@ -149,8 +159,11 @@ left of 1000, Enter weight".
 - Suggestion = `base + (mode == gross ? core : 0)` where `base` is the spool's
   remaining grams (for a new spool: the label weight). Shown selected; the
   first keystroke replaces it.
-- Switching Net/Gross converts an untouched suggestion and keeps a typed
-  number as is.
+- Switching Net/Gross converts the number on screen, typed or not (owner,
+  2026-10-27): to net `n − core`, clamped at 0 as on the Flipper; to gross
+  `n + core`, at most 9999. An untouched suggestion stays untouched (still
+  selected, the first key replaces it); a typed number stays typed; an
+  empty field stays empty.
 - `net = gross − core` in gross mode; Save sends gross to Bambuddy as today.
 - After a successful save the row shows `Saved n g left · by host`, keeps the
   value as the new base, and focus moves to the next newest row that still
@@ -265,8 +278,7 @@ field `.rect(cornerRadius: 8)` on macOS). Never hard-code the 27 vs 14 look.
 
 Type roles (macOS sizes at default content size): weight 22 sb rounded
 monospaced digits · row title `.headline` 15 sb · colour/remaining
-`.subheadline` 13 · status `.subheadline` 12 · UID `.caption.monospaced()`
-10 · readout `.footnote.monospacedDigit()` 11 · status bar
+`.subheadline` 13 · status `.subheadline` 12 · readout `.footnote.monospacedDigit()` 11 · status bar
 `.footnote.weight(.medium)` 11 · Save `.headline` on `.borderedProminent` ·
 unit "g" `.title2.weight(.semibold)` 15.
 
@@ -287,6 +299,10 @@ SF Symbols: `scalemass`, `checkmark.circle.fill`, `plus.circle.fill`,
 ## Differences from the shipped macOS app
 
 All twelve are implemented (plan `docs/plans/20261026-macos-ui-from-design.md`).
+Since then (plan `docs/plans/20261027-apple-ui-from-design.md`, shared with
+the iPhone, iPad and watch) the UID moved from under the title to Tag
+details, the colour line gained Bambu's colour code, and Net/Gross converts
+a typed number too (items 1 and 3 below are superseded there).
 
 
 1. Row layout on one line with fixed column widths; UID under the title;

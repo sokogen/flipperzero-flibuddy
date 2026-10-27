@@ -6,7 +6,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let id: FeedRow.ID
     public let scanId: String
     public let scannedAt: Date
-    /// Upper-case hex, shown under the title.
+    /// Upper-case hex, as read; the row leaves it to Tag details.
     public let uid: String
     /// The tag as Bambuddy keeps it (`ParsedTag.bambuddyTagUid`), and a
     /// Bambu tag's tray UUID: what the Link picker compares spools against.
@@ -18,11 +18,16 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// Bambuddy's or the resolved colour name; never the hex, which the
     /// swatch shows instead.
     public let colorName: String?
+    /// Bambu's colour code (`10501`): the spool's `material_number`, else
+    /// the one the tag names.
+    public let colorCode: String?
+    /// The colour name and code, "Bambu Green · 10501"; either alone, or empty.
+    public let colorLine: String
     public let swatch: Swatch?
     /// "484 g left of 1000" for a known spool, "label 1000 g" for a tag.
     public let remainingText: String
-    /// The colour column: "Bambu Green · 590 g left of 1000", "label 1000 g",
-    /// or empty.
+    /// The colour line: "Bambu Green · 10501 · 590 g left of 1000",
+    /// "label 1000 g", or empty.
     public let detailText: String
     public let statusText: String
     public let isError: Bool
@@ -111,7 +116,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             base = row.tag.hasPrefill ? row.tag.labelWeight ?? NewSpool.defaultLabelWeight : nil
             core = row.tag.hasPrefill ? coreWeight : nil
         }
-        detailText = [colorName, remainingText].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        colorCode = Self.colorCode(row)
+        colorLine = [colorName, colorCode].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        detailText = [colorLine, remainingText].filter { !$0.isEmpty }.joined(separator: " · ")
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
@@ -165,8 +172,15 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         Self.readout(value: value, mode: mode, core: core)
     }
 
+    /// Bambu's colour code for the row: the spool's `material_number`, else
+    /// the code the tag's filament and variant ids name.
+    public static func colorCode(_ row: FeedRow) -> String? {
+        if let number = row.spool?.materialNumber, !number.isEmpty { return number }
+        return row.tag.bambuColor?.code
+    }
+
     /// A tag without material, by UID length and the first two bytes:
-    /// "NTAG 7-byte UID 04A2…"; the full UID sits under the title.
+    /// "NTAG 7-byte UID 04A2…"; the full UID is in Tag details.
     public static func blankTitle(uid: String) -> String {
         let prefix = uid.count > 4 ? "\(uid.prefix(4))\u{2026}" : uid
         return "NTAG \(uid.count / 2)-byte UID \(prefix)"

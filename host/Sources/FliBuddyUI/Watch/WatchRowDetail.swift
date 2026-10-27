@@ -70,7 +70,14 @@ struct WatchWeightEntry: View {
                 )
             Toggle(
                 "Gross",
-                isOn: Binding(get: { feed.mode(for: id) == .gross }, set: { feed.setMode($0 ? .gross : .net, for: id) })
+                isOn: Binding(
+                    get: { feed.mode(for: id) == .gross },
+                    set: {
+                        // The switch converts the crowned value; the crown follows it.
+                        feed.setMode($0 ? .gross : .net, for: id)
+                        weight = CrownWeight(grams: FeedViewModel.grams(from: feed.weightText(for: id)) ?? 0)
+                    }
+                )
             )
             Button("Save") {
                 Task { await feed.save(id) }

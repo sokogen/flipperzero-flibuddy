@@ -95,6 +95,11 @@ public final class FeedViewModel {
         itemsByID[id]
     }
 
+    /// What Tag details lists for the row.
+    public func tagDetails(for id: FeedRow.ID) -> TagDetails? {
+        rows[id].map(TagDetails.init)
+    }
+
     /// The Bambuddy half of the status bar.
     public var bambuddyStatus: StatusItem {
         bambuddy.statusItem(colorNamesProblem: colorNamesProblem, isChecking: isCheckingBambuddy)
@@ -152,10 +157,21 @@ public final class FeedViewModel {
         modes[id] ?? rows[id]?.weight?.mode ?? settings.defaultMode
     }
 
-    /// An untouched suggestion follows the mode (it is derived from it); a
-    /// typed value stays as it is.
+    /// Switching converts the number on screen. An untouched suggestion
+    /// follows the mode (it is derived from it) and stays untouched; a typed
+    /// value is converted and stays typed; an empty field stays empty.
     public func setMode(_ mode: Intent.WeightMode, for id: FeedRow.ID) {
+        let old = self.mode(for: id)
         modes[id] = mode
+        guard mode != old, let typed = weightTexts[id], let grams = Self.grams(from: typed) else { return }
+        weightTexts[id] = String(Self.convert(grams, to: mode, core: itemsByID[id]?.core))
+    }
+
+    /// A weight in the other mode: to net `grams − core`, not below 0 (as on
+    /// the Flipper); to gross `grams + core`, not above 9999.
+    public nonisolated static func convert(_ grams: Int, to mode: Intent.WeightMode, core: Int?) -> Int {
+        let core = max(0, core ?? 0)
+        return mode == .net ? max(0, grams - core) : min(CrownWeight.range.upperBound, grams + core)
     }
 
     public func isBusy(_ id: FeedRow.ID) -> Bool {

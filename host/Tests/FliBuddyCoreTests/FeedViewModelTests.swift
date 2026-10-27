@@ -101,8 +101,8 @@ struct FeedViewModelTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
-        model.setWeightText("484", for: id)
         model.setMode(.net, for: id)
+        model.setWeightText("484", for: id)
         await model.save(id)
 
         #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
@@ -203,6 +203,35 @@ struct FeedViewModelTests {
         #expect(!item.offersUnknownActions)
     }
 
+    @Test func theColourLineCarriesBambusColourCode() throws {
+        // the spool's material_number wins over the tag's code
+        var coded = knownSpool()
+        coded.materialNumber = "10501"
+        let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
+        #expect(known.colorCode == "10501")
+        #expect(known.colorLine == "Jade White · 10501")
+        #expect(known.detailText == "Jade White · 10501 · 484 g left of 1000")
+        // without one, the tag's code (GFA00 + A00-W1: Jade White, 10100)
+        let fromTag = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
+        #expect(fromTag.colorCode == "10100")
+        #expect(fromTag.detailText == "Jade White · 10100 · 484 g left of 1000")
+        // VoiceOver does not read the code
+        #expect(fromTag.accessibilityHeader == "PLA Basic, Jade White, 484 grams left of 1000, Enter weight")
+        var unknown = try row(status: .unknown(prefill: true))
+        unknown.colorName = "Jade White"
+        #expect(FeedItem(unknown).detailText == "Jade White · 10100 · label 1000 g")
+        // no name: the code alone, never the hex
+        #expect(FeedItem(try row(status: .unknown(prefill: true))).colorLine == "10100")
+        // an empty material_number is no code
+        coded.materialNumber = ""
+        #expect(FeedItem(try row(status: .awaitingWeight, spool: coded)).colorCode == "10100")
+        // a blank NTAG has neither
+        let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
+        #expect(blank.colorCode == nil)
+        #expect(blank.colorLine == "")
+        #expect(blank.detailText == "")
+    }
+
     @Test func theSuggestionIsRemainingPlusCoreInGrossAndRemainingInNet() throws {
         let weighed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(lastScaleWeight: 734)))
         #expect(weighed.suggestion(mode: .gross) == 734)
@@ -283,7 +312,7 @@ struct FeedViewModelTests {
             #expect(FeedItem(row).statusText == text)
         }
         #expect(FeedItem(markedEmpty).remainingText == "archived")
-        #expect(FeedItem(markedEmpty).detailText == "Jade White · archived")
+        #expect(FeedItem(markedEmpty).detailText == "Jade White · 10100 · archived")
         #expect(FeedItem(markedEmpty).accessibilityHeader == "PLA Basic, Jade White, archived, Marked as empty · archived · by Flipper")
         #expect(FeedItem(markedEmpty).isReopenable)
         #expect(FeedItem(deleted).offersUnknownActions)

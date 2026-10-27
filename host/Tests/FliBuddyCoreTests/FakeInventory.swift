@@ -128,7 +128,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
                 rgba: spool.rgba, brand: spool.brand, labelWeight: spool.labelWeight,
                 coreWeight: spool.coreWeight, coreWeightCatalogId: spool.coreWeightCatalogId,
                 weightUsed: 0, tagUid: spool.tagUid, trayUuid: spool.trayUuid, tagType: spool.tagType,
-                dataOrigin: spool.dataOrigin
+                materialNumber: spool.materialNumber, dataOrigin: spool.dataOrigin
             )
             nextId += 1
             stored.append(created)

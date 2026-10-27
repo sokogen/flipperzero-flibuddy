@@ -67,12 +67,13 @@
 ## Implementation Steps
 
 ### Task 1: Shared view-model changes
-- [ ] `FeedViewModel.setMode` converts the number on screen (gross − core floored at 0 / net + core), typed or not; macOS gets it too
-- [ ] `FeedItem`: colour line `<colour name> · <code>` when the spool or tag has a Bambu colour code (`Spool.materialNumber`, else `ParsedTag.bambuColor`); UID leaves the row
-- [ ] Tag details model (UID, tray UUID, filament id, colour code, RGBA, label, diameter, nozzle range) for a row, used by all platforms
-- [ ] update `docs/design/macos-ui-spec.md` for the Mac-visible parts (conversion, colour code, Tag details entry point)
-- [ ] write tests for conversion (both directions, clamp, untouched pre-fill), colour line, details model
-- [ ] run `make test` — must pass before Task 2
+- [x] `FeedViewModel.setMode` converts the number on screen (gross − core floored at 0 / net + core), typed or not; macOS gets it too
+- [x] `FeedItem`: colour line `<colour name> · <code>` when the spool or tag has a Bambu colour code (`Spool.materialNumber`, else `ParsedTag.bambuColor`); UID leaves the row
+- [x] Tag details model (UID, tray UUID, filament id, colour code, RGBA, label, diameter, nozzle range) for a row, used by all platforms
+- [x] ➕ `Spool.materialNumber` decoded from Bambuddy; shared `TagDetailsSheet` behind a row context menu / VoiceOver action (Mac now; iOS gets it from the shared row, Task 3 checks it); the watch crown follows a converted value
+- [x] update `docs/design/macos-ui-spec.md` for the Mac-visible parts (conversion, colour code, Tag details entry point)
+- [x] write tests for conversion (both directions, clamp, untouched pre-fill), colour line, details model
+- [x] run `make test` — must pass before Task 2
 
 ### Task 2: iPhone connection banner
 - [ ] banner view model: healthy line, or one line per side in trouble with the iPhone short phrases, symbols, tints and actions (ios spec, "Connection banner"), including the extra `StatusItem` states

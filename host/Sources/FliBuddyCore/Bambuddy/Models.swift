@@ -22,6 +22,8 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
     public var tagUid: String?
     public var trayUuid: String?
     public var tagType: String?
+    /// Bambu's colour code (`11803`), as `NewSpool.materialNumber` stored it.
+    public var materialNumber: String?
     public var dataOrigin: String?
     public var note: String?
     /// When the spool went to Bambuddy's archive (marked empty); `nil` while active.
@@ -34,7 +36,7 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         id: Int, material: String, subtype: String? = nil, colorName: String? = nil,
         rgba: String? = nil, brand: String? = nil, labelWeight: Int, coreWeight: Int,
         coreWeightCatalogId: Int? = nil, weightUsed: Double, lastScaleWeight: Int? = nil,
-        tagUid: String? = nil, trayUuid: String? = nil, tagType: String? = nil,
+        tagUid: String? = nil, trayUuid: String? = nil, tagType: String? = nil, materialNumber: String? = nil,
         dataOrigin: String? = nil, note: String? = nil, archivedAt: String? = nil, archived: Bool? = nil
     ) {
         self.id = id
@@ -51,6 +53,7 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         self.tagUid = tagUid
         self.trayUuid = trayUuid
         self.tagType = tagType
+        self.materialNumber = materialNumber
         self.dataOrigin = dataOrigin
         self.note = note
         self.archivedAt = archivedAt
