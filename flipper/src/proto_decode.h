@@ -96,7 +96,8 @@ typedef struct {
     bool has_label;
     uint16_t label;
     char color_name[PROTO_NAME_MAX + 1]; /* "" when absent */
-    char code[PROTO_CODE_MAX + 1]; /* filament code, "" when absent */
+    char code[PROTO_CODE_MAX + 1]; /* Bambu's colour code, "11803"; "" when absent */
+    char filament_id[PROTO_CODE_MAX + 1]; /* "GFA01", "" when absent */
     char diameter[PROTO_DIAMETER_MAX + 1]; /* "1.75", "" when absent */
     bool has_nozzle_min;
     uint16_t nozzle_min; /* °C */

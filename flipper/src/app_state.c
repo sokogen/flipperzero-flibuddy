@@ -471,6 +471,7 @@ static AppEffect menu_choose(AppState* s, AppMenuItem item, uint32_t now_ms) {
         return act(s, IntentActionLinkOnHost, now_ms);
     case AppMenuDetails:
         go(s, AppScreenDetails);
+        s->details_top = 0;
         break;
     case AppMenuDelete:
         go(s, AppScreenConfirmDelete);
@@ -662,6 +663,8 @@ static AppEffect on_key(AppState* s, AppKey key, uint32_t now_ms) {
         return key_menu(s, key, now_ms);
     case AppScreenDetails:
         if(key == AppKeyOk || key == AppKeyBack) go(s, AppScreenMenu);
+        if(key == AppKeyUp && s->details_top > 0) s->details_top--;
+        if(key == AppKeyDown && s->details_top < APP_DETAILS_TOP_MAX) s->details_top++;
         break;
     case AppScreenConfirmDelete:
         return key_confirm_delete(s, key, now_ms);

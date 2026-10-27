@@ -113,6 +113,8 @@ public struct NewSpool: Encodable, Equatable, Sendable {
     public var tagUid: String?
     public var trayUuid: String?
     public var tagType: String?
+    /// Bambu's colour code (`11803`); Bambuddy groups stock by it.
+    public var materialNumber: String?
     public var dataOrigin: String = NewSpool.dataOrigin
 
     public init(
@@ -156,6 +158,7 @@ public struct NewSpool: Encodable, Equatable, Sendable {
             trayUuid: tag.trayUuid,
             tagType: tag.kind.bambuddyTagType
         )
+        materialNumber = tag.bambuColor?.code
     }
 }
 

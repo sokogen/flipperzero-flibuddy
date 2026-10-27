@@ -59,7 +59,9 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    the menu). Without the host's spool fields: `Tag 04B7...3C80` (a 4-byte
    UID is shown whole) and the host's lines.
 6. **Result · unknown Bambu tag** (Auto-save new off): swatch and the tag's
-   material as title; colour; UID; inverted `New spool`. OK Save (saves
+   material as title; the colour name (Bambuddy's, else Bambu's own);
+   `11803 - 1.75 mm - 1000 g` (Bambu's colour code, diameter, label weight;
+   the UID when the tag has none of them); inverted `New spool`. OK Save (saves
    this spool as new and full), ▶ Weigh (Weight, whose Save saves it as new
    with that weight, for a started spool), ◀ Menu, Back home (nothing is
    saved). Link is in the menu. A tag with data but no material is titled
@@ -75,7 +77,10 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    host, Tag details. No material: Create on host, Link on host, Tag details. Blank:
    Link on host, Tag details. No host: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
-    `135 pages`), RGBA, Label (`1000 g`) when known. OK / Back to the menu.
+    `135 pages`), then what is known: Code (`11803`), Fila (filament id
+    `GFA01`), RGBA, Label (`1000 g`), Diam (`1.75 mm`), Nozzle (`190-230 C`).
+    Five rows show; ▲▼ scroll, with arrows at the right when there is more.
+    OK / Back to the menu.
 11. **Delete spool?**: warning icon, the spool and colour, "Removes it from
     Bambuddy for good." ◀ Cancel and Back to the menu, ▶ Delete (far from
     OK); OK does nothing.

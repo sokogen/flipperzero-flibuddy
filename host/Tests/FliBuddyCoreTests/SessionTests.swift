@@ -501,19 +501,20 @@ struct SessionColorNameTests {
     @Test func rowsRecordedBeforeTheMapArrivesAreNamedWhenItDoes() async throws {
         let session = makeSession(namingInventory())
         _ = await session.record(try fixtureScan())
-        #expect(await session.rows.first?.colorName == nil)
+        // Bambu's own name until Bambuddy's map arrives
+        #expect(await session.rows.first?.colorName == "Jade White")
         _ = await session.checkBambuddy()
         #expect(await session.rows.first?.colorName == "Jade White")
     }
 
-    @Test func aColourWithoutANameStaysUnnamed() async throws {
+    @Test func aColourBambuddyDoesNotNameTakesBambusName() async throws {
         let session = makeSession(namingInventory())
         _ = await session.checkBambuddy()
         _ = await session.record(Scan(scanId: "s-000020", tag: try TagFixtures.bambuReal()))
         let row = try #require(await session.rows.first)
-        #expect(row.colorName == nil)
-        // the swatch shows the colour; the hex is never used as its name
-        #expect(FeedItem(row).colorName == nil)
+        #expect(row.colorName == "Baby Blue")
+        #expect(row.tag.bambuColor?.code == "17600")
+        #expect(FeedItem(row).colorName == "Baby Blue")
         #expect(FeedItem(row).swatch == Swatch(rgba: "A4DBE8FF"))
     }
 
@@ -571,8 +572,10 @@ struct SessionColorNameTests {
         #expect(problem.contains("inventory:read"))
 
         guard case .create(let sent) = try #require(inventory.creates.first) else { return }
-        #expect(sent.colorName == nil)
-        #expect(await session.rows.first?.colorName == nil)
+        // Bambu's table still names it, with its code
+        #expect(sent.colorName == "Jade White")
+        #expect(sent.materialNumber == "10100")
+        #expect(await session.rows.first?.colorName == "Jade White")
     }
 
     @Test func aFailedLoadIsRetriedByTheNextCheck() async throws {

@@ -258,7 +258,6 @@ static void draw_result(Canvas* c, const UiFrame* f) {
     } else {
         text_at(c, 2, 13 + 2 * LINE_H, f->line[2]);
     }
-    if(f->line[3][0]) text_at(c, 2, 42, f->line[3]);
     chips(c, f);
 }
 
@@ -269,6 +268,8 @@ static void draw_details(Canvas* c, const UiFrame* f) {
         canvas_draw_str_aligned(c, 2, y, AlignLeft, AlignTop, f->key[i]);
         text_at(c, 30, y, f->line[i]);
     }
+    if(f->more_up) bitmap(c, W - 6, 13, &ui_icon_arrow_up);
+    if(f->more_down) bitmap(c, W - 6, H - 4, &ui_icon_arrow_down);
 }
 
 static void draw_confirm_delete(Canvas* c, const UiFrame* f) {

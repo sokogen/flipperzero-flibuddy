@@ -66,7 +66,8 @@ public enum LookupBuilder {
         let info = TagInfo(
             material: name(tag.material), subtype: name(tag.bambuddySubtype), rgba: rgba(tag.rgba),
             label: tag.labelWeight.map(grams), colorName: name(colorName),
-            code: name(tag.materialId).map { clip($0, TagInfo.maxCode) },
+            code: tag.bambuColor.map { clip($0.code, TagInfo.maxCode) },
+            filamentId: name(tag.materialId).map { clip($0, TagInfo.maxCode) },
             diameter: tag.diameter.flatMap(diameter), nozzleMin: tag.nozzleMin.flatMap(temperature),
             nozzleMax: tag.nozzleMax.flatMap(temperature)
         )

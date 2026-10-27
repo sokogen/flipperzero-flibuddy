@@ -160,6 +160,8 @@ static bool read_tag_info(JsonReader* r, ProtoTagInfo* t) {
             ok = read_text(r, t->color_name, sizeof(t->color_name));
         else if(key_is(key, "code"))
             ok = read_text(r, t->code, sizeof(t->code));
+        else if(key_is(key, "filament_id"))
+            ok = read_text(r, t->filament_id, sizeof(t->filament_id));
         else if(key_is(key, "diameter"))
             ok = read_text(r, t->diameter, sizeof(t->diameter));
         else if(key_is(key, "nozzle_min"))

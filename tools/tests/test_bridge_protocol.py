@@ -205,10 +205,11 @@ def named_bridge(fake, **kwargs) -> session.Bridge:
     return b
 
 
-def test_unknown_lookup_without_colour_names_leaves_the_name_out():
+def test_unknown_lookup_without_colour_names_takes_bambus_name():
     (reply,) = replies(bridge(FakeBambuddy(), core_weight=250), load("scan_mfc.json"))
-    assert "color_name" not in reply["tag_info"]
-    assert reply["tag_info"]["code"] == "GFA00"
+    assert reply["tag_info"]["color_name"] == "Jade White"
+    assert reply["tag_info"]["code"] == "10100"
+    assert reply["tag_info"]["filament_id"] == "GFA00"
 
 
 def test_scan_of_an_unknown_bambu_tag_yields_the_unknown_lookup():
@@ -625,6 +626,8 @@ def test_new_creates_a_full_spool_from_the_tag():
     assert body == {
         "material": "PLA",
         "subtype": "Basic",
+        "color_name": "Jade White",  # Bambu's name: the empty map names nothing
+        "material_number": "10100",
         "rgba": "FFFFFFFF",
         "brand": "Bambu Lab",
         "label_weight": 1000,
@@ -661,7 +664,7 @@ def test_new_sends_the_name_from_the_colour_map():
     assert body["color_name"] == "Jade White"
 
 
-def test_new_omits_a_colour_without_a_name():
+def test_new_names_a_colour_bambuddy_does_not_know_from_bambus_table():
     fake = FakeBambuddy(color_map=COLOR_MAP)
     b = bridge(fake)
     b.load_color_map()
@@ -671,7 +674,9 @@ def test_new_omits_a_colour_without_a_name():
     assert reply["ok"] is True
     (_, body) = fake.calls[-1]
     assert body["rgba"] == "A4DBE8FF"
-    assert "color_name" not in body
+    # Bambuddy's map does not name it; Bambu's table does, with its code
+    assert body["color_name"] == "Baby Blue"
+    assert body["material_number"] == "17600"
 
 
 def test_the_colour_map_is_loaded_once():
@@ -691,7 +696,7 @@ def test_a_failed_colour_map_is_logged_and_never_blocks_a_create():
     (reply,) = replies(b, load("intent_new.json"))
     assert reply["ok"] is True
     (_, body) = fake.calls[-1]
-    assert "color_name" not in body
+    assert body["color_name"] == "Jade White"  # from Bambu's table
 
 
 def test_loading_the_colour_map_without_bambuddy_does_nothing():

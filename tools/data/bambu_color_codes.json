@@ -1,0 +1,2228 @@
+[
+ {
+  "filament_id": "GFA00",
+  "color_id": "A0",
+  "code": "10300",
+  "name": "Orange",
+  "rgb": "FF6A13"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "A1",
+  "code": "10301",
+  "name": "Pumpkin Orange",
+  "rgb": "FF9016"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "B1",
+  "code": "10602",
+  "name": "Blue Gray",
+  "rgb": "5B6579"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "B3",
+  "code": "10604",
+  "name": "Cobalt Blue",
+  "rgb": "0056B8"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "B5",
+  "code": "10605",
+  "name": "Turquoise",
+  "rgb": "00B1B7"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "B8",
+  "code": "10603",
+  "name": "Cyan",
+  "rgb": "0086D6"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "B9",
+  "code": "10601",
+  "name": "Blue",
+  "rgb": "0A2989"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "D0",
+  "code": "10103",
+  "name": "Gray",
+  "rgb": "8E9089"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "D1",
+  "code": "10102",
+  "name": "Silver",
+  "rgb": "A6A9AA"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "D2",
+  "code": "10104",
+  "name": "Light Gray",
+  "rgb": "D1D3D5"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "D3",
+  "code": "10105",
+  "name": "Dark Gray",
+  "rgb": "545454"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "G2",
+  "code": "10502",
+  "name": "Mistletoe Green",
+  "rgb": "3F8E43"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "G3",
+  "code": "10503",
+  "name": "Bright Green",
+  "rgb": "BECF00"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "G6",
+  "code": "10501",
+  "name": "Bambu Green",
+  "rgb": "00AE42"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "K0",
+  "code": "10101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M0",
+  "code": "10900",
+  "name": "Arctic Whisper",
+  "rgb": "9CDBD9"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M1",
+  "code": "10901",
+  "name": "Solar Breeze",
+  "rgb": "E94B3C"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M2",
+  "code": "10902",
+  "name": "Ocean to Meadow",
+  "rgb": "307FE2"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M3",
+  "code": "10903",
+  "name": "Pink Citrus",
+  "rgb": "F78F77"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M4",
+  "code": "10904",
+  "name": "Mint Lime",
+  "rgb": "B6FF43"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M5",
+  "code": "10905",
+  "name": "Blueberry Bubblegum",
+  "rgb": "6FCAEF"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M6",
+  "code": "10906",
+  "name": "Dusk Glare",
+  "rgb": "CE4406"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "M7",
+  "code": "10907",
+  "name": "Cotton Candy Cloud",
+  "rgb": "E7C1D5"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "N0",
+  "code": "10800",
+  "name": "Brown",
+  "rgb": "9D432C"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "N1",
+  "code": "10802",
+  "name": "Cocoa Brown",
+  "rgb": "6F5034"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "P0",
+  "code": "10201",
+  "name": "Beige",
+  "rgb": "F7E6DE"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "P1",
+  "code": "10203",
+  "name": "Pink",
+  "rgb": "F55A74"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "P2",
+  "code": "10701",
+  "name": "Indigo Purple",
+  "rgb": "482960"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "P5",
+  "code": "10700",
+  "name": "Purple",
+  "rgb": "5E43B7"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "P6",
+  "code": "10202",
+  "name": "Magenta",
+  "rgb": "EC008C"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "R0",
+  "code": "10200",
+  "name": "Red",
+  "rgb": "C12E1F"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "R2",
+  "code": "10205",
+  "name": "Maroon Red",
+  "rgb": "9D2235"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "R3",
+  "code": "10204",
+  "name": "Hot Pink",
+  "rgb": "F5547C"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "W1",
+  "code": "10100",
+  "name": "Jade White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "Y0",
+  "code": "10400",
+  "name": "Yellow",
+  "rgb": "F4EE2A"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "Y2",
+  "code": "10402",
+  "name": "Sunflower Yellow",
+  "rgb": "FEC600"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "Y3",
+  "code": "10801",
+  "name": "Bronze",
+  "rgb": "847D48"
+ },
+ {
+  "filament_id": "GFA00",
+  "color_id": "Y4",
+  "code": "10401",
+  "name": "Gold",
+  "rgb": "E4BD68"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "A2",
+  "code": "11300",
+  "name": "Mandarin Orange",
+  "rgb": "F99963"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "B0",
+  "code": "11603",
+  "name": "Sky Blue",
+  "rgb": "56B7E6"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "B3",
+  "code": "11600",
+  "name": "Marine Blue",
+  "rgb": "0078BF"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "B4",
+  "code": "11601",
+  "name": "Ice Blue",
+  "rgb": "A3D8E1"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "B6",
+  "code": "11602",
+  "name": "Dark Blue",
+  "rgb": "042F56"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "D0",
+  "code": "11104",
+  "name": "Nardo Gray",
+  "rgb": "757575"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "D3",
+  "code": "11102",
+  "name": "Ash Gray",
+  "rgb": "9B9EA0"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "G0",
+  "code": "11502",
+  "name": "Apple Green",
+  "rgb": "C2E189"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "G1",
+  "code": "11500",
+  "name": "Grass Green",
+  "rgb": "61C680"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "G7",
+  "code": "11501",
+  "name": "Dark Green",
+  "rgb": "68724D"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "K1",
+  "code": "11101",
+  "name": "Charcoal",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "N0",
+  "code": "11802",
+  "name": "Dark Chocolate",
+  "rgb": "4D3324"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "N1",
+  "code": "11800",
+  "name": "Latte Brown",
+  "rgb": "D3B7A7"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "N2",
+  "code": "11801",
+  "name": "Dark Brown",
+  "rgb": "7D6556"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "N3",
+  "code": "11803",
+  "name": "Caramel",
+  "rgb": "AE835B"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "P3",
+  "code": "11201",
+  "name": "Sakura Pink",
+  "rgb": "E8AFCF"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "P4",
+  "code": "11700",
+  "name": "Lilac Purple",
+  "rgb": "AE96D4"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "R1",
+  "code": "11200",
+  "name": "Scarlet Red",
+  "rgb": "DE4343"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "R2",
+  "code": "11203",
+  "name": "Terracotta",
+  "rgb": "B15533"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "R3",
+  "code": "11204",
+  "name": "Plum",
+  "rgb": "950051"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "R4",
+  "code": "11202",
+  "name": "Dark Red",
+  "rgb": "BB3D43"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "W2",
+  "code": "11100",
+  "name": "Ivory White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "W3",
+  "code": "11103",
+  "name": "Bone White",
+  "rgb": "CBC6B8"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "Y2",
+  "code": "11400",
+  "name": "Lemon Yellow",
+  "rgb": "F7D959"
+ },
+ {
+  "filament_id": "GFA01",
+  "color_id": "Y3",
+  "code": "11401",
+  "name": "Desert Tan",
+  "rgb": "E8DBB7"
+ },
+ {
+  "filament_id": "GFA02",
+  "color_id": "B2",
+  "code": "13600",
+  "name": "Cobalt Blue Metallic",
+  "rgb": "39699E"
+ },
+ {
+  "filament_id": "GFA02",
+  "color_id": "D2",
+  "code": "13100",
+  "name": "Iron Gray Metallic",
+  "rgb": "43403D"
+ },
+ {
+  "filament_id": "GFA02",
+  "color_id": "G2",
+  "code": "13500",
+  "name": "Oxide Green Metallic",
+  "rgb": "1D7C6A"
+ },
+ {
+  "filament_id": "GFA02",
+  "color_id": "N3",
+  "code": "13800",
+  "name": "Copper Brown Metallic",
+  "rgb": "AA6443"
+ },
+ {
+  "filament_id": "GFA02",
+  "color_id": "Y1",
+  "code": "13400",
+  "name": "Iridium Gold Metallic",
+  "rgb": "B39B84"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "B0",
+  "code": "13601",
+  "name": "Blue",
+  "rgb": "147BD1"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "D1",
+  "code": "13104",
+  "name": "Silver",
+  "rgb": "EAECEB"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "G1",
+  "code": "13502",
+  "name": "Green",
+  "rgb": "4CE4A0"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "M1",
+  "code": "13906",
+  "name": "South Beach",
+  "rgb": "F772A4"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "M4",
+  "code": "13909",
+  "name": "Aurora Purple",
+  "rgb": "7F3696"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "M8",
+  "code": "13912",
+  "name": "Dawn Radiance",
+  "rgb": "EC984C"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "N4",
+  "code": "13300",
+  "name": "Copper",
+  "rgb": "5E4B3C"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "P3",
+  "code": "13202",
+  "name": "Pink",
+  "rgb": "EEB1C1"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "P5",
+  "code": "13701",
+  "name": "Purple",
+  "rgb": "854CE4"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T1",
+  "code": "13901",
+  "name": "Gilded Rose",
+  "rgb": "FF9425"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T2",
+  "code": "13902",
+  "name": "Midnight Blaze",
+  "rgb": "0047BB"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T3",
+  "code": "13903",
+  "name": "Neon City",
+  "rgb": "0047BB"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T4",
+  "code": "13904",
+  "name": "Blue Hawaii",
+  "rgb": "418FDE"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T5",
+  "code": "13905",
+  "name": "Velvet Eclipse (Black-Red)",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T7",
+  "code": "13913",
+  "name": "Mystic Magenta",
+  "rgb": "720062"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "T9",
+  "code": "13916",
+  "name": "Phantom Blue",
+  "rgb": "00629B"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "W0",
+  "code": "13105",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA05",
+  "color_id": "Y4",
+  "code": "13401",
+  "name": "Gold",
+  "rgb": "E5B03D"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "B0",
+  "code": "13603",
+  "name": "Baby Blue",
+  "rgb": "A8C6EE"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "B1",
+  "code": "13604",
+  "name": "Blue",
+  "rgb": "008BDA"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "D0",
+  "code": "13108",
+  "name": "Titan Gray",
+  "rgb": "5F6367"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "D1",
+  "code": "13109",
+  "name": "Silver",
+  "rgb": "C8C8C8"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "G0",
+  "code": "13506",
+  "name": "Candy Green",
+  "rgb": "018814"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "G1",
+  "code": "13507",
+  "name": "Mint",
+  "rgb": "96DCB9"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "P0",
+  "code": "13702",
+  "name": "Purple",
+  "rgb": "8671CB"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "R0",
+  "code": "13205",
+  "name": "Candy Red",
+  "rgb": "D02727"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "R1",
+  "code": "13206",
+  "name": "Rose Gold",
+  "rgb": "BA9594"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "R2",
+  "code": "13207",
+  "name": "Pink",
+  "rgb": "F7ADA6"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "W0",
+  "code": "13110",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "Y0",
+  "code": "13404",
+  "name": "Champagne",
+  "rgb": "F3CFB2"
+ },
+ {
+  "filament_id": "GFA06",
+  "color_id": "Y1",
+  "code": "13405",
+  "name": "Gold",
+  "rgb": "F4A925"
+ },
+ {
+  "filament_id": "GFA07",
+  "color_id": "D4",
+  "code": "13103",
+  "name": "White Marble",
+  "rgb": "F7F3F0"
+ },
+ {
+  "filament_id": "GFA07",
+  "color_id": "R5",
+  "code": "13201",
+  "name": "Red Granite",
+  "rgb": "AD4E38"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "B7",
+  "code": "13700",
+  "name": "Royal Purple Sparkle",
+  "rgb": "483D8B"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "D5",
+  "code": "13102",
+  "name": "Slate Gray Sparkle",
+  "rgb": "8E9089"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "G3",
+  "code": "13501",
+  "name": "Alpine Green Sparkle",
+  "rgb": "3F5443"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "K2",
+  "code": "13101",
+  "name": "Onyx Black Sparkle",
+  "rgb": "2D2B28"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "R2",
+  "code": "13200",
+  "name": "Crimson Red Sparkle",
+  "rgb": "792B36"
+ },
+ {
+  "filament_id": "GFA08",
+  "color_id": "Y1",
+  "code": "13402",
+  "name": "Classic Gold Sparkle",
+  "rgb": "CEA629"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "A0",
+  "code": "12300",
+  "name": "Orange",
+  "rgb": "FF7F41"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "B4",
+  "code": "12600",
+  "name": "Light Blue",
+  "rgb": "0085AD"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "B5",
+  "code": "12700",
+  "name": "Lavender Blue",
+  "rgb": "6667AB"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "D0",
+  "code": "12102",
+  "name": "Gray",
+  "rgb": "515A6C"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "D1",
+  "code": "12103",
+  "name": "Silver",
+  "rgb": "898D8D"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "G4",
+  "code": "12500",
+  "name": "Pine Green",
+  "rgb": "00482B"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "K0",
+  "code": "12101",
+  "name": "Black",
+  "rgb": "25282A"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "R3",
+  "code": "12200",
+  "name": "Vermilion Red",
+  "rgb": "DD3C22"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "W3",
+  "code": "12100",
+  "name": "White",
+  "rgb": "F9F7F4"
+ },
+ {
+  "filament_id": "GFA09",
+  "color_id": "Y0",
+  "code": "12400",
+  "name": "Yellow",
+  "rgb": "FEDB00"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "A0",
+  "code": "12301",
+  "name": "Orange",
+  "rgb": "DC3A27"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "B0",
+  "code": "12601",
+  "name": "Cyan",
+  "rgb": "009BD8"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "D0",
+  "code": "12105",
+  "name": "Gray",
+  "rgb": "AFB1AE"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "D1",
+  "code": "12106",
+  "name": "Silver",
+  "rgb": "959698"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "K0",
+  "code": "12104",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "W0",
+  "code": "12107",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA10",
+  "color_id": "Y0",
+  "code": "12401",
+  "name": "Yellow",
+  "rgb": "F4D53F"
+ },
+ {
+  "filament_id": "GFA11",
+  "color_id": "D0",
+  "code": "14104",
+  "name": "Gray",
+  "rgb": "CDCECA"
+ },
+ {
+  "filament_id": "GFA11",
+  "color_id": "K0",
+  "code": "14103",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA11",
+  "color_id": "W0",
+  "code": "14102",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA12",
+  "color_id": "A0",
+  "code": "15300",
+  "name": "Glow Orange",
+  "rgb": "FF9D5B"
+ },
+ {
+  "filament_id": "GFA12",
+  "color_id": "B0",
+  "code": "15600",
+  "name": "Glow Blue",
+  "rgb": "7AC0E9"
+ },
+ {
+  "filament_id": "GFA12",
+  "color_id": "G0",
+  "code": "15500",
+  "name": "Glow Green",
+  "rgb": "A1FFAC"
+ },
+ {
+  "filament_id": "GFA12",
+  "color_id": "R0",
+  "code": "15200",
+  "name": "Glow Pink",
+  "rgb": "F17B8F"
+ },
+ {
+  "filament_id": "GFA12",
+  "color_id": "Y0",
+  "code": "15400",
+  "name": "Glow Yellow",
+  "rgb": "F8FF80"
+ },
+ {
+  "filament_id": "GFA13",
+  "color_id": "W0",
+  "code": "15100",
+  "name": "UV Color Changing - White to Coral",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA15",
+  "color_id": "B0",
+  "code": "13602",
+  "name": "Purple",
+  "rgb": "594177"
+ },
+ {
+  "filament_id": "GFA15",
+  "color_id": "G0",
+  "code": "13503",
+  "name": "Green",
+  "rgb": "3B665E"
+ },
+ {
+  "filament_id": "GFA15",
+  "color_id": "G1",
+  "code": "13504",
+  "name": "Nebulae",
+  "rgb": "424379"
+ },
+ {
+  "filament_id": "GFA15",
+  "color_id": "R0",
+  "code": "13203",
+  "name": "Brown",
+  "rgb": "684A43"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "G0",
+  "code": "13505",
+  "name": "Classic Birch",
+  "rgb": "918669"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "K0",
+  "code": "13107",
+  "name": "Black Walnut",
+  "rgb": "4F3F24"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "N0",
+  "code": "13801",
+  "name": "Clay Brown",
+  "rgb": "995F11"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "R0",
+  "code": "13204",
+  "name": "Rosewood",
+  "rgb": "4C241C"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "W0",
+  "code": "13106",
+  "name": "White Oak",
+  "rgb": "D6CCA3"
+ },
+ {
+  "filament_id": "GFA16",
+  "color_id": "Y0",
+  "code": "13403",
+  "name": "Ochre Yellow",
+  "rgb": "C98935"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "A0",
+  "code": "13301",
+  "name": "Orange",
+  "rgb": "F74E02"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "B0",
+  "code": "13610",
+  "name": "Ice Blue",
+  "rgb": "B8CDE9"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "B1",
+  "code": "13611",
+  "name": "Blue",
+  "rgb": "0047BB"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "B2",
+  "code": "13612",
+  "name": "Teal",
+  "rgb": "009FA1"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "G0",
+  "code": "13510",
+  "name": "Light Jade",
+  "rgb": "96D8AF"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "P0",
+  "code": "13710",
+  "name": "Purple",
+  "rgb": "8344B0"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "P1",
+  "code": "13711",
+  "name": "Lavender",
+  "rgb": "B8ACD6"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "R0",
+  "code": "13210",
+  "name": "Red",
+  "rgb": "B50011"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "R1",
+  "code": "13211",
+  "name": "Cherry Pink",
+  "rgb": "F5B6CD"
+ },
+ {
+  "filament_id": "GFA17",
+  "color_id": "Y0",
+  "code": "13410",
+  "name": "Mellow Yellow",
+  "rgb": "F5DBAB"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "A1",
+  "code": "16301",
+  "name": "Orange",
+  "rgb": "FF671F"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "B0",
+  "code": "16600",
+  "name": "Cyan",
+  "rgb": "4DAFDA"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "B1",
+  "code": "16601",
+  "name": "Blue",
+  "rgb": "004EA8"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "D0",
+  "code": "16101",
+  "name": "Gray",
+  "rgb": "999D9D"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "D1",
+  "code": "16102",
+  "name": "Dark Gray",
+  "rgb": "8C8B8C"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "G1",
+  "code": "16501",
+  "name": "Green",
+  "rgb": "00BB31"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "K0",
+  "code": "16100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "N0",
+  "code": "16800",
+  "name": "Cocoa Brown",
+  "rgb": "745335"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "P0",
+  "code": "16700",
+  "name": "Matte Beige",
+  "rgb": "ECC3B2"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "R0",
+  "code": "16200",
+  "name": "Red",
+  "rgb": "C6001A"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "W0",
+  "code": "16103",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "Y0",
+  "code": "16400",
+  "name": "Yellow",
+  "rgb": "EFE255"
+ },
+ {
+  "filament_id": "GFA18",
+  "color_id": "Y1",
+  "code": "16401",
+  "name": "Sunflower Yellow",
+  "rgb": "FFB549"
+ },
+ {
+  "filament_id": "GFA19",
+  "color_id": "A00",
+  "code": "17300",
+  "name": "Apricot",
+  "rgb": "FFB673"
+ },
+ {
+  "filament_id": "GFA19",
+  "color_id": "B00",
+  "code": "17600",
+  "name": "Baby Blue",
+  "rgb": "A4DBE8"
+ },
+ {
+  "filament_id": "GFA19",
+  "color_id": "K00",
+  "code": "17101",
+  "name": "Absolute Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA19",
+  "color_id": "P00",
+  "code": "17200",
+  "name": "Milky Pink",
+  "rgb": "F7CED7"
+ },
+ {
+  "filament_id": "GFA19",
+  "color_id": "W00",
+  "code": "17100",
+  "name": "Pure White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "B6",
+  "code": "14601",
+  "name": "Royal Blue",
+  "rgb": "2842AD"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "B9",
+  "code": "14600",
+  "name": "Jeans Blue",
+  "rgb": "6E88BC"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "D6",
+  "code": "14101",
+  "name": "Lava Gray",
+  "rgb": "4D5054"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "G7",
+  "code": "14500",
+  "name": "Matcha Green",
+  "rgb": "5C9748"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "K0",
+  "code": "14100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "P7",
+  "code": "14700",
+  "name": "Iris Purple",
+  "rgb": "69398E"
+ },
+ {
+  "filament_id": "GFA50",
+  "color_id": "R4",
+  "code": "14200",
+  "name": "Burgundy Red",
+  "rgb": "951E23"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "A0",
+  "code": "40300",
+  "name": "Orange",
+  "rgb": "FF6A13"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "B0",
+  "code": "40600",
+  "name": "Blue",
+  "rgb": "0A2CA5"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "B4",
+  "code": "40601",
+  "name": "Azure",
+  "rgb": "489FDF"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "B6",
+  "code": "40602",
+  "name": "Navy Blue",
+  "rgb": "0C2340"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "B8",
+  "code": "40501",
+  "name": "Mint",
+  "rgb": "7AE1BF"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "D1",
+  "code": "40102",
+  "name": "Silver",
+  "rgb": "87909A"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "G6",
+  "code": "40500",
+  "name": "Bambu Green",
+  "rgb": "00AE42"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "G7",
+  "code": "40502",
+  "name": "Olive",
+  "rgb": "789D4A"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "K0",
+  "code": "40101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "P4",
+  "code": "40701",
+  "name": "Lavender",
+  "rgb": "7248BD"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "P6",
+  "code": "40700",
+  "name": "Purple",
+  "rgb": "AF1685"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "R0",
+  "code": "40200",
+  "name": "Red",
+  "rgb": "D32941"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "W0",
+  "code": "40100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "Y0",
+  "code": "40400",
+  "name": "Yellow",
+  "rgb": "FCE900"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "Y1",
+  "code": "40402",
+  "name": "Tangerine Yellow",
+  "rgb": "FFC72C"
+ },
+ {
+  "filament_id": "GFB00",
+  "color_id": "Y2",
+  "code": "40401",
+  "name": "Beige",
+  "rgb": "DFD1A7"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "B0",
+  "code": "45600",
+  "name": "Blue",
+  "rgb": "2140B4"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "D0",
+  "code": "45102",
+  "name": "Gray",
+  "rgb": "8A949E"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "G0",
+  "code": "45500",
+  "name": "Green",
+  "rgb": "00A6A0"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "K0",
+  "code": "45101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "R0",
+  "code": "45200",
+  "name": "Red",
+  "rgb": "E02928"
+ },
+ {
+  "filament_id": "GFB01",
+  "color_id": "W0",
+  "code": "45100",
+  "name": "White",
+  "rgb": "FFFAF2"
+ },
+ {
+  "filament_id": "GFB02",
+  "color_id": "W0",
+  "code": "46100",
+  "name": "White",
+  "rgb": "F5F1DD"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "A0",
+  "code": "41300",
+  "name": "Orange",
+  "rgb": "F48438"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "B0",
+  "code": "41600",
+  "name": "Blue",
+  "rgb": "0C3B95"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "D0",
+  "code": "41102",
+  "name": "Gray",
+  "rgb": "C6C6C6"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "G0",
+  "code": "41500",
+  "name": "Green",
+  "rgb": "61BF36"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "K0",
+  "code": "41101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "R0",
+  "code": "41200",
+  "name": "Red",
+  "rgb": "E83100"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "W0",
+  "code": "41100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFB50",
+  "color_id": "Y0",
+  "code": "41400",
+  "name": "Yellow",
+  "rgb": "FFE133"
+ },
+ {
+  "filament_id": "GFB51",
+  "color_id": "K0",
+  "code": "46101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFC00",
+  "color_id": "C0",
+  "code": "60102",
+  "name": "Clear Black",
+  "rgb": "686865"
+ },
+ {
+  "filament_id": "GFC00",
+  "color_id": "C1",
+  "code": "60103",
+  "name": "Transparent",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFC00",
+  "color_id": "K0",
+  "code": "60101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFC00",
+  "color_id": "W0",
+  "code": "60100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFC01",
+  "color_id": "D0",
+  "code": "63102",
+  "name": "Gray",
+  "rgb": "A8A8AA"
+ },
+ {
+  "filament_id": "GFC01",
+  "color_id": "K0",
+  "code": "63100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFC01",
+  "color_id": "W0",
+  "code": "63101",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "A00",
+  "code": "30301",
+  "name": "Orange",
+  "rgb": "FF671F"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "B00",
+  "code": "30603",
+  "name": "Reflex Blue",
+  "rgb": "001489"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "B01",
+  "code": "30604",
+  "name": "Navy Blue",
+  "rgb": "0086D6"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "D00",
+  "code": "30107",
+  "name": "Gray",
+  "rgb": "7F7E83"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "D01",
+  "code": "30108",
+  "name": "Misty Blue",
+  "rgb": "688197"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "G00",
+  "code": "30502",
+  "name": "Green",
+  "rgb": "009639"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "G01",
+  "code": "30503",
+  "name": "Pine Green",
+  "rgb": "034638"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "G04",
+  "code": "30504",
+  "name": "Bright Green",
+  "rgb": "97D700"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "K00",
+  "code": "30105",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "N00",
+  "code": "30800",
+  "name": "Dark Brown",
+  "rgb": "4F2C1D"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "P01",
+  "code": "30701",
+  "name": "Purple",
+  "rgb": "8A75D1"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "P02",
+  "code": "30702",
+  "name": "Hot Pink",
+  "rgb": "F277C6"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "R00",
+  "code": "30201",
+  "name": "Red",
+  "rgb": "D6001C"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "W00",
+  "code": "30106",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "Y00",
+  "code": "30402",
+  "name": "Yellow",
+  "rgb": "FCE300"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "Y01",
+  "code": "30403",
+  "name": "Dark Beige",
+  "rgb": "DBC8B6"
+ },
+ {
+  "filament_id": "GFG00",
+  "color_id": "Y04",
+  "code": "30404",
+  "name": "Sunflower Yellow",
+  "rgb": "FFB81C"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "A0",
+  "code": "32300",
+  "name": "Translucent Orange",
+  "rgb": "FF911A"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "B0",
+  "code": "32600",
+  "name": "Translucent Light Blue",
+  "rgb": "61B0FF"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "C0",
+  "code": "32101",
+  "name": "Clear",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "D0",
+  "code": "32100",
+  "name": "Translucent Gray",
+  "rgb": "8E8E8E"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "G0",
+  "code": "32500",
+  "name": "Translucent Olive",
+  "rgb": "748C45"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "G1",
+  "code": "32501",
+  "name": "Translucent Teal",
+  "rgb": "77EDD7"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "N0",
+  "code": "32800",
+  "name": "Translucent Brown",
+  "rgb": "C9A381"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "P0",
+  "code": "32700",
+  "name": "Translucent Purple",
+  "rgb": "D6ABFF"
+ },
+ {
+  "filament_id": "GFG01",
+  "color_id": "P1",
+  "code": "32200",
+  "name": "Translucent Pink",
+  "rgb": "F9C1BD"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "A0",
+  "code": "33300",
+  "name": "Orange",
+  "rgb": "F75403"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "B0",
+  "code": "33600",
+  "name": "Blue",
+  "rgb": "002E96"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "B1",
+  "code": "33601",
+  "name": "Lake Blue",
+  "rgb": "1F79E5"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "D0",
+  "code": "33101",
+  "name": "Gray",
+  "rgb": "ADB1B2"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "D1",
+  "code": "33103",
+  "name": "Dark Gray",
+  "rgb": "515151"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "G0",
+  "code": "33500",
+  "name": "Green",
+  "rgb": "00AE42"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "G1",
+  "code": "33501",
+  "name": "Lime Green",
+  "rgb": "6EE53C"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "G2",
+  "code": "33502",
+  "name": "Forest Green",
+  "rgb": "39541A"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "K0",
+  "code": "33102",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "N1",
+  "code": "33801",
+  "name": "Peanut Brown",
+  "rgb": "875718"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "R0",
+  "code": "33200",
+  "name": "Red",
+  "rgb": "BC0900"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "W0",
+  "code": "33100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "Y0",
+  "code": "33400",
+  "name": "Yellow",
+  "rgb": "FFD00B"
+ },
+ {
+  "filament_id": "GFG02",
+  "color_id": "Y1",
+  "code": "33401",
+  "name": "Cream",
+  "rgb": "F9DFB9"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "B00",
+  "code": "35600",
+  "name": "Baby Blue",
+  "rgb": "B9D9EB"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "D00",
+  "code": "35102",
+  "name": "Gray",
+  "rgb": "7F7E83"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "G00",
+  "code": "35500",
+  "name": "Lime",
+  "rgb": "C0DF16"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "G01",
+  "code": "35501",
+  "name": "Avocado Green",
+  "rgb": "BCE194"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "K00",
+  "code": "35101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "P00",
+  "code": "35700",
+  "name": "Pink",
+  "rgb": "FABBCB"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "P02",
+  "code": "35702",
+  "name": "Violet",
+  "rgb": "A7A4E0"
+ },
+ {
+  "filament_id": "GFG03",
+  "color_id": "W00",
+  "code": "35100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "B6",
+  "code": "31600",
+  "name": "Indigo Blue",
+  "rgb": "324585"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "D6",
+  "code": "31101",
+  "name": "Titan Gray",
+  "rgb": "565656"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "G7",
+  "code": "31500",
+  "name": "Malachite Green",
+  "rgb": "16B08E"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "K0",
+  "code": "31100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "P7",
+  "code": "31700",
+  "name": "Violet Purple",
+  "rgb": "583061"
+ },
+ {
+  "filament_id": "GFG50",
+  "color_id": "R4",
+  "code": "31200",
+  "name": "Brick Red",
+  "rgb": "9F332A"
+ },
+ {
+  "filament_id": "GFN04",
+  "color_id": "K0",
+  "code": "70100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFN05",
+  "color_id": "K0",
+  "code": "72100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFN06",
+  "color_id": "K0",
+  "code": "73100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "B0",
+  "code": "72600",
+  "name": "Blue",
+  "rgb": "75AED8"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "D0",
+  "code": "72102",
+  "name": "White",
+  "rgb": "EAEAE4"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "D1",
+  "code": "72103",
+  "name": "Gray",
+  "rgb": "353533"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "G0",
+  "code": "72500",
+  "name": "Lime",
+  "rgb": "C5ED48"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "K0",
+  "code": "72104",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "N0",
+  "code": "72800",
+  "name": "Brown",
+  "rgb": "5B492F"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "R0",
+  "code": "72200",
+  "name": "Orange",
+  "rgb": "FF4800"
+ },
+ {
+  "filament_id": "GFN08",
+  "color_id": "Y0",
+  "code": "72400",
+  "name": "Yellow",
+  "rgb": "FFCE00"
+ },
+ {
+  "filament_id": "GFS02",
+  "color_id": "W1",
+  "code": "65104",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFS03",
+  "color_id": "G1",
+  "code": "65500",
+  "name": "Green",
+  "rgb": "C0DF16"
+ },
+ {
+  "filament_id": "GFS04",
+  "color_id": "Y0",
+  "code": "66400",
+  "name": "Clear",
+  "rgb": "F0F1A8"
+ },
+ {
+  "filament_id": "GFS05",
+  "color_id": "C0",
+  "code": "65102",
+  "name": "Nature",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFS05",
+  "color_id": "K0",
+  "code": "65103",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFS06",
+  "color_id": "W0",
+  "code": "66100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFT01",
+  "color_id": "K0",
+  "code": "71100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFT02",
+  "color_id": "K0",
+  "code": "76100",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "B0",
+  "code": "51600",
+  "name": "Blue",
+  "rgb": "0072CE"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "D0",
+  "code": "51101",
+  "name": "Gray",
+  "rgb": "898D8D"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "K0",
+  "code": "51100",
+  "name": "Black",
+  "rgb": "101820"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "R0",
+  "code": "51200",
+  "name": "Red",
+  "rgb": "C8102E"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "W0",
+  "code": "51102",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFU00",
+  "color_id": "Y0",
+  "code": "51400",
+  "name": "Yellow",
+  "rgb": "F3E600"
+ },
+ {
+  "filament_id": "GFU01",
+  "color_id": "K0",
+  "code": "50101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFU01",
+  "color_id": "W0",
+  "code": "50100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "B0",
+  "code": "53600",
+  "name": "Blue",
+  "rgb": "5898DD"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "D0",
+  "code": "53102",
+  "name": "Gray",
+  "rgb": "939393"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "G0",
+  "code": "53500",
+  "name": "Neon Green",
+  "rgb": "90FF1A"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "K0",
+  "code": "53101",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "R0",
+  "code": "53200",
+  "name": "Red",
+  "rgb": "ED0000"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "W0",
+  "code": "53100",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFU02",
+  "color_id": "Y0",
+  "code": "53400",
+  "name": "Yellow",
+  "rgb": "F9EF41"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "B1",
+  "code": "51601",
+  "name": "Crystal Blue",
+  "rgb": "7EB4E1"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "D0",
+  "code": "51106",
+  "name": "Quicksilver",
+  "rgb": "9EA2A2"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "K0",
+  "code": "51103",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "M0",
+  "code": "51900",
+  "name": "Frozen",
+  "rgb": "40B6E4"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "M1",
+  "code": "51901",
+  "name": "Blaze",
+  "rgb": "D21B3C"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "N0",
+  "code": "51800",
+  "name": "Cocoa Brown",
+  "rgb": "5C4738"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "P1",
+  "code": "51700",
+  "name": "Grape Jelly",
+  "rgb": "D6ABFF"
+ },
+ {
+  "filament_id": "GFU03",
+  "color_id": "W1",
+  "code": "51105",
+  "name": "White",
+  "rgb": "FFFFFF"
+ },
+ {
+  "filament_id": "GFU04",
+  "color_id": "A1",
+  "code": "51305",
+  "name": "Neon Orange",
+  "rgb": "F68B1B"
+ },
+ {
+  "filament_id": "GFU04",
+  "color_id": "G0",
+  "code": "51500",
+  "name": "Light Cyan",
+  "rgb": "C3E2D6"
+ },
+ {
+  "filament_id": "GFU04",
+  "color_id": "G1",
+  "code": "51501",
+  "name": "Lime Green",
+  "rgb": "CDEA80"
+ },
+ {
+  "filament_id": "GFU04",
+  "color_id": "K0",
+  "code": "51107",
+  "name": "Black",
+  "rgb": "000000"
+ },
+ {
+  "filament_id": "GFU04",
+  "color_id": "P0",
+  "code": "51201",
+  "name": "Rose Beige/Flesh",
+  "rgb": "F3CFB2"
+ }
+]

@@ -95,7 +95,8 @@ static void test_lookup_unknown_fixture(void) {
     CHECK(msg.lookup.tag_info.has_label);
     CHECK_EQ_INT(msg.lookup.tag_info.label, 1000);
     CHECK_STR_EQ(msg.lookup.tag_info.color_name, "Jade White");
-    CHECK_STR_EQ(msg.lookup.tag_info.code, "GFA00");
+    CHECK_STR_EQ(msg.lookup.tag_info.code, "10100");
+    CHECK_STR_EQ(msg.lookup.tag_info.filament_id, "GFA00");
     CHECK_STR_EQ(msg.lookup.tag_info.diameter, "1.75");
     CHECK(msg.lookup.tag_info.has_nozzle_min);
     CHECK_EQ_INT(msg.lookup.tag_info.nozzle_min, 190);

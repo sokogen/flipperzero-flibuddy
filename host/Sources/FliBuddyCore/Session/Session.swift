@@ -358,7 +358,7 @@ public actor Session {
             known.request = nil
             row = known
         }
-        row.colorName = colorNames?.name(for: row.tag)
+        row.colorName = colorNames?.name(for: row.tag) ?? row.tag.bambuColor?.name
         rows.append(row)
         publish()
         return row.id
@@ -437,7 +437,7 @@ public actor Session {
             return (
                 LookupBuilder.unknown(
                     scanId: row.scanId, tag: row.tag, core: settings.coreWeight,
-                    colorName: colorNames?.name(for: row.tag)
+                    colorName: row.colorName
                 ), .notFound
             )
         } catch {

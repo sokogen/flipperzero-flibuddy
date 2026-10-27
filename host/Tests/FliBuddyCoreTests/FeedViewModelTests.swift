@@ -556,10 +556,14 @@ struct FeedViewModelUnknownTests {
 
         #expect(form.material == tag.material)
         #expect(form.subtype == "Basic")
-        #expect(form.colorName == "")
+        // no colour map: Bambu's own name for the colour
+        #expect(form.colorName == "Jade White")
         #expect(form.brand == "Bambu Lab")
         #expect(form.labelWeight == String(tag.labelWeight ?? 1000))
-        #expect(form.newSpool == NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3))
+        #expect(
+            form.newSpool == NewSpool(tag: tag, coreWeight: 250, coreWeightCatalogId: 3, colorName: "Jade White")
+        )
+        #expect(form.newSpool?.materialNumber == "10100")
     }
 
     @Test func theNewFormCarriesTheResolvedColourName() async throws {

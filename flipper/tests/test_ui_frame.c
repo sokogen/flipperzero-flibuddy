@@ -348,9 +348,8 @@ static void test_result_unknown(void) {
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK(frame.mark == UiMarkSwatch);
     CHECK_STR_EQ(frame.line[0], "Jade White");
-    CHECK_STR_EQ(frame.line[1], "GFA00 - 1.75 mm - 1000 g");
+    CHECK_STR_EQ(frame.line[1], "10100 - 1.75 mm - 1000 g");
     CHECK_STR_EQ(frame.line[2], "");
-    CHECK_STR_EQ(frame.line[3], "Nozzle 190-230 C");
     CHECK_STR_EQ(frame.bar, "New spool");
     check_chips("Menu", "Save", "Weigh");
     /* without a colour name or specs: the hex colour and the UID */
@@ -358,6 +357,7 @@ static void test_result_unknown(void) {
     strcpy(l.scan_id, app.scan.id);
     l.tag_info.color_name[0] = '\0';
     l.tag_info.code[0] = '\0';
+    l.tag_info.filament_id[0] = '\0';
     l.tag_info.diameter[0] = '\0';
     l.tag_info.has_label = false;
     l.tag_info.has_nozzle_min = l.tag_info.has_nozzle_max = false;
@@ -365,7 +365,6 @@ static void test_result_unknown(void) {
     build();
     CHECK_STR_EQ(frame.line[0], "Color #FFFFFF");
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
-    CHECK_STR_EQ(frame.line[3], "");
 
     /* ▶ Weigh opens Weight: saved as new with that weight */
     press(AppKeyRight);
@@ -484,6 +483,34 @@ static void test_tag_details(void) {
     CHECK_STR_EQ(frame.line[3], "FFFFFFFF");
     CHECK_STR_EQ(frame.key[4], "Label");
     CHECK_STR_EQ(frame.line[4], "1000 g");
+    CHECK(!frame.more_up);
+    CHECK(!frame.more_down);
+
+    /* a new tag has more rows than fit: ▲▼ scroll them */
+    setup();
+    send_tag(&mfc);
+    send_fixture_lookup("lookup_unknown.json");
+    choose(AppMenuDetails);
+    build();
+    CHECK_EQ_INT(frame.count, 5);
+    CHECK_STR_EQ(frame.key[3], "Code");
+    CHECK_STR_EQ(frame.line[3], "10100");
+    CHECK_STR_EQ(frame.key[4], "Fila");
+    CHECK_STR_EQ(frame.line[4], "GFA00");
+    CHECK(!frame.more_up);
+    CHECK(frame.more_down);
+    for(int i = 0; i < 8; i++)
+        press(AppKeyDown); /* past the end: clamped */
+    build();
+    CHECK(frame.more_up);
+    CHECK(!frame.more_down);
+    CHECK_STR_EQ(frame.key[2], "Label");
+    CHECK_STR_EQ(frame.key[3], "Diam");
+    CHECK_STR_EQ(frame.line[3], "1.75 mm");
+    CHECK_STR_EQ(frame.key[4], "Nozzle");
+    CHECK_STR_EQ(frame.line[4], "190-230 C");
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenMenu);
 
     setup();
     send_tag(&ntag);

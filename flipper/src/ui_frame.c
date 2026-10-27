@@ -227,9 +227,10 @@ static void build_ready(UiFrame* f, const AppState* s) {
     SET(f->right, "Settings");
 }
 
-/* An unknown tag's own facts in place of its UID: `GFA00 - 1.75 mm -
- * 1000 g` and, in line[3], `Nozzle 190-230 C`. False when it has none. */
-static bool put_tag_specs(Text* t, UiFrame* f, const AppState* s) {
+/* An unknown tag's own facts in place of its UID: `11803 - 1.75 mm -
+ * 1000 g` (Bambu's colour code, diameter, label weight). False when it
+ * has none. */
+static bool put_tag_specs(Text* t, const AppState* s) {
     if(s->has_spool || !s->lookup.has_tag_info) return false;
     const ProtoTagInfo* i = &s->lookup.tag_info;
     bool any = false;
@@ -248,14 +249,6 @@ static bool put_tag_specs(Text* t, UiFrame* f, const AppState* s) {
         put_uint(t, i->label);
         put(t, " g");
         any = true;
-    }
-    if(i->has_nozzle_min || i->has_nozzle_max) {
-        Text n = TEXT(f->line[3]);
-        put(&n, "Nozzle ");
-        if(i->has_nozzle_min) put_uint(&n, i->nozzle_min);
-        if(i->has_nozzle_min && i->has_nozzle_max) put(&n, "-");
-        if(i->has_nozzle_max) put_uint(&n, i->nozzle_max);
-        put(&n, " C");
     }
     return any;
 }
@@ -282,7 +275,7 @@ static void build_result(UiFrame* f, const AppState* s) {
         f->in_base = true;
         put(&t, "In Bambuddy #");
         put_uint(&t, (uint32_t)s->spool.id);
-    } else if(!put_tag_specs(&t, f, s)) {
+    } else if(!put_tag_specs(&t, s)) {
         put(&t, "Tag ");
         char uid[2 * TAG_DUMP_MAX_UID + 1];
         ui_uid_short(s->scan.tag.uid, s->scan.tag.uid_len, uid, sizeof(uid));
@@ -369,16 +362,32 @@ static void build_menu(UiFrame* f, const AppState* s) {
     f->top = s->top;
 }
 
+/* One Tag details row. */
+typedef struct {
+    char key[UI_KEY_MAX];
+    char value[UI_TEXT_MAX];
+} DetailRow;
+
+static Text detail(DetailRow* rows, uint8_t* n, const char* key) {
+    DetailRow* row = &rows[(*n)++];
+    SET(row->key, key);
+    return TEXT(row->value);
+}
+
 static void build_details(UiFrame* f, const AppState* s) {
     const TagDump* tag = &s->scan.tag;
+    const ProtoTagInfo* info = s->lookup.has_tag_info && !s->has_spool ? &s->lookup.tag_info : NULL;
     SET(f->title, "Tag details");
+    DetailRow rows[UI_DETAILS_ROWS];
+    memset(rows, 0, sizeof(rows));
     uint8_t n = 0;
-    SET(f->key[n], "Type");
-    SET(f->line[n++], ui_tag_type_name(tag));
-    SET(f->key[n], "UID");
-    ui_uid_colons(tag->uid, tag->uid_len, f->line[n++], UI_TEXT_MAX);
-    SET(f->key[n], "Data");
-    Text t = TEXT(f->line[n++]);
+    Text t = detail(rows, &n, "Type");
+    put(&t, ui_tag_type_name(tag));
+    t = detail(rows, &n, "UID");
+    char uid[UI_TEXT_MAX];
+    ui_uid_colons(tag->uid, tag->uid_len, uid, sizeof(uid));
+    put(&t, uid);
+    t = detail(rows, &n, "Data");
     if(tag->type == TagTypeMfc) {
         put_uint(&t, tag_sectors_read(tag));
         put(&t, "/16 sectors");
@@ -386,20 +395,47 @@ static void build_details(UiFrame* f, const AppState* s) {
         put_uint(&t, tag->page_count);
         put(&t, " pages");
     }
+    if(info && info->code[0]) {
+        t = detail(rows, &n, "Code");
+        put(&t, info->code);
+    }
+    if(info && info->filament_id[0]) {
+        t = detail(rows, &n, "Fila");
+        put(&t, info->filament_id);
+    }
     uint32_t rgba;
     if(rgba_of(s, &rgba)) {
-        SET(f->key[n], "RGBA");
-        t = TEXT(f->line[n++]);
+        t = detail(rows, &n, "RGBA");
         put_hex(&t, rgba, 8);
     }
-    bool has_label = s->has_spool || (s->lookup.has_tag_info && s->lookup.tag_info.has_label);
+    bool has_label = s->has_spool || (info && info->has_label);
     if(has_label) {
-        SET(f->key[n], "Label");
-        t = TEXT(f->line[n++]);
-        put_uint(&t, s->has_spool ? s->spool.label : s->lookup.tag_info.label);
+        t = detail(rows, &n, "Label");
+        put_uint(&t, s->has_spool ? s->spool.label : info->label);
         put(&t, " g");
     }
-    f->count = n;
+    if(info && info->diameter[0]) {
+        t = detail(rows, &n, "Diam");
+        put(&t, info->diameter);
+        put(&t, " mm");
+    }
+    if(info && (info->has_nozzle_min || info->has_nozzle_max)) {
+        t = detail(rows, &n, "Nozzle");
+        if(info->has_nozzle_min) put_uint(&t, info->nozzle_min);
+        if(info->has_nozzle_min && info->has_nozzle_max) put(&t, "-");
+        if(info->has_nozzle_max) put_uint(&t, info->nozzle_max);
+        put(&t, " C");
+    }
+    uint8_t top = n > UI_LINES ? (uint8_t)(n - UI_LINES) : 0;
+    if(s->details_top < top) top = s->details_top;
+    uint8_t shown = 0;
+    for(uint8_t i = top; i < n && shown < UI_LINES; i++, shown++) {
+        SET(f->key[shown], rows[i].key);
+        SET(f->line[shown], rows[i].value);
+    }
+    f->count = shown;
+    f->more_up = top > 0;
+    f->more_down = top + shown < n;
 }
 
 static void build_confirm_delete(UiFrame* f, const AppState* s) {

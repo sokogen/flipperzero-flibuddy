@@ -15,7 +15,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 import bambu_keys
-from bridge import APP, bambu_tag
+from bridge import APP, bambu_tag, color_codes
 from bridge.bambuddy import (
     BambuddyError,
     SpoolNotFound,
@@ -126,13 +126,15 @@ def spool_fields(spool: dict) -> dict | None:
 def tag_info(parsed: bambu_tag.ParsedTag, color_map: dict | None = None) -> dict:
     """The `tag_info` object of an `unknown` lookup: what the tag carries."""
     diameter = f"{parsed.diameter:.2f}" if parsed.diameter and 0 < parsed.diameter < 100 else None
+    bambu = color_codes.for_tag(parsed)
     return _fields(
         material=parsed.material,
         subtype=parsed.bambuddy_subtype,
         rgba=parsed.rgba,
         label=_grams(parsed.label_weight) if parsed.label_weight is not None else None,
-        color_name=color_name(color_map, parsed.rgba, parsed.detailed_type),
-        code=(parsed.material_id or None) and parsed.material_id[:16],
+        color_name=color_name(color_map, parsed.rgba, parsed.detailed_type) or (bambu and bambu["name"]),
+        code=bambu and bambu["code"][:16],
+        filament_id=(parsed.material_id or None) and parsed.material_id[:16],
         diameter=diameter,
         nozzle_min=_temp(parsed.nozzle_min),
         nozzle_max=_temp(parsed.nozzle_max),
@@ -476,10 +478,13 @@ class Bridge:
         return self._result(intent_id, True, ["Deleted", f"spool #{spool['id']}"])
 
     def _new_spool(self, parsed: bambu_tag.ParsedTag) -> dict:
+        bambu = color_codes.for_tag(parsed)
         body = {
             "material": parsed.material,
             "subtype": parsed.bambuddy_subtype,
-            "color_name": color_name(self.color_map, parsed.rgba, parsed.detailed_type),
+            "color_name": color_name(self.color_map, parsed.rgba, parsed.detailed_type)
+            or (bambu and bambu["name"]),
+            "material_number": bambu and bambu["code"],
             "rgba": parsed.rgba,
             "brand": BRAND if parsed.kind == "bambu" else None,
             "label_weight": parsed.label_weight or DEFAULT_LABEL,

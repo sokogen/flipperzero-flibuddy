@@ -66,13 +66,14 @@ struct LookupBuilderTests {
         #expect(
             lookup.tagInfo == TagInfo(
             material: "PLA", subtype: "Basic", rgba: "FFFFFFFF", label: 1000, colorName: "Jade White",
-            code: "GFA00", diameter: "1.75", nozzleMin: 190, nozzleMax: 230
+            code: "10100", filamentId: "GFA00", diameter: "1.75", nozzleMin: 190, nozzleMax: 230
         )
         )
         // without a colour name the rest is still there
         let unnamed = LookupBuilder.unknown(scanId: "s-1", tag: tag, core: 250)
         #expect(unnamed.tagInfo?.colorName == nil)
-        #expect(unnamed.tagInfo?.code == "GFA00")
+        #expect(unnamed.tagInfo?.code == "10100")
+        #expect(unnamed.tagInfo?.filamentId == "GFA00")
     }
 
     @Test func aBlankTagHasNoTagInfo() throws {

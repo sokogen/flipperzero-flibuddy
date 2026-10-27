@@ -15,11 +15,10 @@
  *   Ready       bar (last outcome, "" none), line[0..2], right
  *   Reading     line[0]
  *   LookingUp   line[0] (material from the tag, "" when unknown), line[1]
- *   Result      kind, mark + lum, line[0..3] (line[3]: an unknown tag's
- *               nozzle range, "" none), in_base (a check before
+ *   Result      kind, mark + lum, line[0..2], in_base (a check before
  *               line[1]), level (remaining bar, -1 none) or bar, chips
  *   Menu        item[], count, sel, top
- *   Details     key[] / line[] rows (count)
+ *   Details     key[] / line[] visible rows (count), more_up / more_down
  *   Confirm     line[0..2], left / right
  *   Weight      digit[], cursor, net, refused, line[0] or bar, center
  *   Busy        line[0..1]
@@ -42,6 +41,7 @@
 #define UI_ITEM_MAX  24
 #define UI_KEY_MAX   8
 #define UI_LINES     5
+#define UI_DETAILS_ROWS 9 /* every Tag details row; UI_LINES of them show */
 #define UI_LIST_MAX  6 /* APP_MENU_MAX and AppSettingCount */
 #define UI_BODY_MAX  (PROTO_LINES_MAX * (PROTO_LINE_CHARS + 1) + PROTO_ERROR_MAX + 1)
 #define UI_TOAST_MAX 1000 /* progress when the whole toast time is left */
@@ -98,6 +98,8 @@ typedef struct {
     bool refused; /* gross below the core: Save does nothing */
     uint16_t progress; /* 0..UI_TOAST_MAX */
     bool in_base; /* Result: the spool is in Bambuddy */
+    bool more_up; /* Details: rows above / below the visible ones */
+    bool more_down;
     int16_t level; /* Result: remaining per mille of the label, -1 none */
 } UiFrame;
 
