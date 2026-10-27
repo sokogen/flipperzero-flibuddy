@@ -28,7 +28,8 @@ import Testing
     @Test func aReceivedLineIsDecodedAndLoggedAtDebug() async throws {
         let line = try Message.flipperHello.encodedLine().dropLast()
         var message: Message?
-        let sink = await capturingLog(level: .debug) { message = WireLog.received(Data(line)) }
+        var otherVersion: Int?
+        let sink = await capturingLog(level: .debug) { message = WireLog.received(Data(line), otherVersion: &otherVersion) }
 
         #expect(message == .flipperHello)
         #expect(sink.events == ["wire rx: \(String(decoding: line, as: UTF8.self))"])
@@ -36,12 +37,13 @@ import Testing
 
     @Test func aLineThatDoesNotDecodeIsDroppedAtErrorWithTheReasonAndItsStart() async {
         var messages: [Message?] = []
+        var otherVersion: Int?
         let long = #"{"t":"ping","v":2,"pad":""# + String(repeating: "x", count: 200) + #""}"#
         let sink = await capturingLog {
-            messages.append(WireLog.received(Data(#"{"t":"ping","v":2}"#.utf8)))
-            messages.append(WireLog.received(Data(#"{"t":"hello","v":2,"app":"x"}"#.utf8)))
-            messages.append(WireLog.received(Data(long.utf8)))
-            messages.append(WireLog.received(Data("not json".utf8)))
+            messages.append(WireLog.received(Data(#"{"t":"ping","v":2}"#.utf8), otherVersion: &otherVersion))
+            messages.append(WireLog.received(Data(#"{"t":"hello","v":2,"app":"x"}"#.utf8), otherVersion: &otherVersion))
+            messages.append(WireLog.received(Data(long.utf8), otherVersion: &otherVersion))
+            messages.append(WireLog.received(Data("not json".utf8), otherVersion: &otherVersion))
         }
 
         #expect(messages == [nil, nil, nil, nil])

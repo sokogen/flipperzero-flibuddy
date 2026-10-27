@@ -236,11 +236,6 @@ public final class FlipperLink {
         }
     }
 
-    /// "Flipper speaks protocol 1, host speaks 2".
-    public static func versionMismatchText(_ version: Int) -> String {
-        WireLog.versionMismatch(version)
-    }
-
     /// What to update when the two sides speak different protocol versions.
     public static func versionMismatchAdvice(_ version: Int) -> String {
         version < Message.version

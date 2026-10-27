@@ -62,7 +62,7 @@ extension FlipperLink {
             return StatusItem(text: "Open FliBuddy on the Flipper", symbol: .symbol("app.dashed"), tint: .orange)
         case .otherVersion(let version):
             return StatusItem(
-                text: versionMismatchText(version), symbol: .symbol("exclamationmark.triangle"), tint: .orange,
+                text: WireLog.versionMismatch(version), symbol: .symbol("exclamationmark.triangle"), tint: .orange,
                 detail: versionMismatchAdvice(version)
             )
         case .connected(let hello):

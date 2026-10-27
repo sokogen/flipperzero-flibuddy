@@ -1010,6 +1010,20 @@ static void test_relink_and_create_on_host(void) {
     CHECK(press(AppKeyRight) == AppEffectSendIntent);
     CHECK(app.screen == AppScreenLinkOnHost);
     CHECK(in_flight_action() == IntentActionCreateOnHost);
+
+    /* ▶ links the tag on the host, and the menu offers Create on host too */
+    setup();
+    scan_mfc();
+    send_lookup(&bare);
+    CHECK(press(AppKeyRight) == AppEffectSendIntent);
+    CHECK(in_flight_action() == IntentActionLinkOnHost);
+
+    setup();
+    scan_mfc();
+    send_lookup(&bare);
+    CHECK(choose(AppMenuCreateOnHost) == AppEffectSendIntent);
+    CHECK(in_flight_action() == IntentActionCreateOnHost);
+    CHECK(app.screen == AppScreenLinkOnHost);
 }
 
 static void test_stale_lookups_on_other_screens_are_ignored(void) {

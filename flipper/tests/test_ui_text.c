@@ -63,6 +63,27 @@ static void test_wrap_keeps_line_breaks_and_cuts_long_words(void) {
     CHECK(!ui_text_wrap("", &pos, out, sizeof(out), 60, mono, NULL));
 }
 
+static void test_wrap_takes_a_character_even_when_none_fits(void) {
+    const char* text = "abc";
+    size_t pos = 0;
+    for(const char* want = "abc"; *want; want++) {
+        CHECK(ui_text_wrap(text, &pos, out, sizeof(out), 3, mono, NULL));
+        CHECK(out[0] == *want);
+        CHECK(out[1] == '\0');
+    }
+    CHECK(!ui_text_wrap(text, &pos, out, sizeof(out), 3, mono, NULL));
+}
+
+static void test_wrap_line_that_fits_exactly_ends_at_the_space(void) {
+    const char* text = "abcdef gh";
+    size_t pos = 0;
+    CHECK(ui_text_wrap(text, &pos, out, sizeof(out), 36, mono, NULL));
+    CHECK_STR_EQ(out, "abcdef");
+    CHECK(ui_text_wrap(text, &pos, out, sizeof(out), 36, mono, NULL));
+    CHECK_STR_EQ(out, "gh");
+    CHECK(!ui_text_wrap(text, &pos, out, sizeof(out), 36, mono, NULL));
+}
+
 static void test_wrap_respects_the_buffer(void) {
     char small[6];
     size_t pos = 0;
@@ -152,6 +173,8 @@ int main(void) {
     RUN_TEST(test_text_cut_to_nothing_keeps_what_fits);
     RUN_TEST(test_wrap_breaks_between_words);
     RUN_TEST(test_wrap_keeps_line_breaks_and_cuts_long_words);
+    RUN_TEST(test_wrap_takes_a_character_even_when_none_fits);
+    RUN_TEST(test_wrap_line_that_fits_exactly_ends_at_the_space);
     RUN_TEST(test_wrap_respects_the_buffer);
     RUN_TEST(test_short_uid_keeps_four_bytes_whole);
     RUN_TEST(test_uid_with_colons);

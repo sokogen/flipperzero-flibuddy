@@ -245,6 +245,27 @@ def test_found_lookup_truncates_long_names():
     assert reply["lines"][1] == "X" * 40
 
 
+def test_found_lookup_truncates_the_color_name_of_the_spool_object():
+    fake = FakeBambuddy([spool_42_on_tag(color_name="X" * 60)])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply["spool"]["color_name"] == "X" * 40
+
+
+@pytest.mark.parametrize("rgba", ["#FFFFFF", "ffffffff", "FFFFFF", "FFFFFFFFFF", "GGGGGGGG"])
+def test_found_lookup_leaves_out_a_color_that_is_not_rrggbbaa_hex(rgba):
+    fake = FakeBambuddy([spool_42_on_tag(rgba=rgba)])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    expected = "FFFFFFFF" if rgba == "ffffffff" else None
+    assert reply["spool"].get("rgba") == expected
+
+
+def test_found_lookup_of_a_spool_without_material_has_no_spool_object():
+    fake = FakeBambuddy([spool_42_on_tag(material=None)])
+    (reply,) = replies(bridge(fake), load("scan_mfc.json"))
+    assert reply["t"] == "lookup"
+    assert "spool" not in reply
+
+
 def test_found_lines_show_the_full_type_for_a_subtype_without_the_material():
     (reply,) = replies(bridge(FakeBambuddy([spool_42_on_tag(subtype="Basic")])), load("scan_mfc.json"))
     assert reply["lines"][0] == "PLA Basic"

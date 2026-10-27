@@ -148,8 +148,10 @@ static int32_t reader_worker(void* ctx) {
     if(!wait_gone(r) || !wait_for_tag(r)) return 0;
     report(r, TagReaderEventDetected);
     bool ok = tag_reader_read(r, r->out);
-    /* also a tag that failed: it would fail again at once */
-    tag_watch_set(&r->watch, r->out->uid, r->out->uid_len);
+    /* also a tag that failed: it would fail again at once. A result nobody
+     * gets (the reader was stopped during the read) is not remembered: the
+     * next reader reads that tag. */
+    if(!r->stopping) tag_watch_set(&r->watch, r->out->uid, r->out->uid_len);
     report(r, ok ? TagReaderEventRead : TagReaderEventFailed);
     return 0;
 }

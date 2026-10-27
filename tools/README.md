@@ -22,6 +22,12 @@ writes the tag dump fixtures as C arrays to `flipper/tests/vectors/tag_dumps.h`
 for the C `scan` encoder test; `tests/test_tag_vectors.py` fails when it is
 stale.
 
+`uv run python -m fixtures.make_flipper_icons` writes the Flipper app's XBM
+icons to `flipper/images/` from the icon table of
+`docs/design/flipper/flipper-ui.js` (`flipper/src/ui_icons.c` includes them).
+Edit the table and regenerate; do not edit the `.xbm` files.
+`tests/test_flipper_icons.py` fails when a file is stale.
+
 `tests/test_fixtures.py` fails when a committed synthetic fixture differs
 from what its generator produces.
 

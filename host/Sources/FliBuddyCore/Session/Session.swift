@@ -420,7 +420,7 @@ public actor Session {
             let spool = try found.get()
             // A tag about to be created on scan stays Looking up until the
             // create returns, rather than offering New and Link meanwhile.
-            let createsOnScan = spool == nil && newSpoolOnScan(id) != nil
+            let createsOnScan = spool == nil && newSpoolOnScan(id, handler) != nil
             updateRow(id) {
                 $0.spool = spool
                 if spool != nil {
@@ -451,7 +451,7 @@ public actor Session {
     /// then waits for a weight. A failed create marks the row and leaves New
     /// as the retry; the Flipper gets `unknown` and keeps its own Add.
     private func createOnScan(_ id: FeedRow.ID, _ handler: IntentHandler, startedUnder started: Int) async -> Spool? {
-        guard let newSpool = newSpoolOnScan(id) else { return nil }
+        guard let newSpool = newSpoolOnScan(id, handler) else { return nil }
         let scanId = scanId(of: id)
         do {
             let created = try await handler.inventory.createSpool(newSpool)
@@ -469,12 +469,9 @@ public actor Session {
 
     /// The spool a scan creates for the row's tag: the New form's defaults;
     /// nil when the scan's autosave is off or the tag has no material.
-    private func newSpoolOnScan(_ id: FeedRow.ID) -> NewSpool? {
+    private func newSpoolOnScan(_ id: FeedRow.ID, _ handler: IntentHandler) -> NewSpool? {
         guard let row = rows.first(where: { $0.id == id }), row.autosave else { return nil }
-        return NewSpool(
-            tag: row.tag, coreWeight: settings.coreWeight, coreWeightCatalogId: settings.catalogEntryId,
-            colorName: row.colorName
-        )
+        return handler.newSpool(for: row)
     }
 
     /// Performs the intent once per `id`: a repeat (also while the first is

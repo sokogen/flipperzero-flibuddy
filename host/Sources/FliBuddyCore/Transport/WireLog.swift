@@ -47,11 +47,6 @@ enum WireLog {
         }
     }
 
-    static func received(_ line: Data) -> Message? {
-        var otherVersion: Int?
-        return received(line, otherVersion: &otherVersion)
-    }
-
     /// "Flipper speaks protocol 1, host speaks 2".
     static func versionMismatch(_ version: Int) -> String {
         "Flipper speaks protocol \(version), host speaks \(Message.version)"
