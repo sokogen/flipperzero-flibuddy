@@ -24,14 +24,20 @@ The eight assumptions and their answers are in `ios-ui-spec.md`. For the
 watch:
 
 - **Assumption 4:** the watch creates Bambu tags in one tap and cannot fill
-  the form. The page: **New** only for a tag with prefill (material); a
-  tag without material reads `Create it on iPhone or Mac.`; a Flipper
-  request to link reads `Link it on iPhone or Mac.`. There is no Link to
-  existing on the watch.
-- **Auto-save new off (owner):** a `Not in Bambuddy` Bambu row also gets
-  the weight entry (Save creates the spool, then records the weight), with
-  **New** under Save. The page shows New alone there; the owner rule adds
-  the entry.
+  the form. The page: **New** (now **Save as new**, owner 2026-10-27)
+  only for a tag with prefill (material); a tag without material reads
+  `Create it on iPhone or Mac.`; a Flipper request to link reads `Link it
+  on iPhone or Mac.`. There is no Link to existing on the watch.
+- **New spool card (owner, 2026-10-27, plan
+  `docs/plans/20261027-new-spool-card.md`; replaces the earlier "a Not in
+  Bambuddy Bambu row also gets the weight entry"):** with Auto-save new off
+  an unknown Bambu tag reads `New spool` and opens a card, not the crown
+  entry: **Save as new** (blue) creates the spool from the tag, full;
+  **With weight** opens the crown entry, whose Save creates the spool, then
+  records the weight. With Auto-save new on the `Created in Bambuddy` row
+  opens a card too, with **Set weight** (opens the crown entry; Save
+  records the weight). Neither waits for a weight, so neither opens on its
+  own.
 - **Assumption 7:** dark only.
 - **Net/Gross (owner):** switching converts the number, crowned or not: to
   net `n − core`, to gross `n + core`, clamped at 0. The core's `setMode`
@@ -105,23 +111,25 @@ height 52, padding 9 × 12, 5 apart), a grid of swatch 16 · text · glyph 22:
 | Swatch | 16 pt `Circle()`, 0.5 pt light stroke; dashed outline without colour |
 | Title | 15 sb, one line, tail truncation: `PLA Basic`; blank tags shortened to `NTAG 04A2…` |
 | Sub line | 13 `.secondary`: `590 g left` (known), `label 1000 g` (tag with prefill), `Unknown tag` (no material); `archived` for an archived spool (owner) |
-| Status glyph | 19 pt, centred in its 22 pt column: `scalemass` blue `#0A84FF` (Enter weight), `checkmark.circle.fill` green (Saved, Timeout), `plus.circle.fill` green (Created), `questionmark.circle` gray (Not in Bambuddy, both kinds), `exclamationmark.triangle.fill` red (Error), `dot.radiowaves.left.and.right` blue (Flipper asks); a 14 pt spinner for Looking up, Saving, Creating and Updating. The marked and deleted states use their iPhone symbols. Accessibility label: the status phrase. |
+| Status glyph | 19 pt, centred in its 22 pt column: `scalemass` blue `#0A84FF` (Enter weight), `checkmark.circle.fill` green (Saved, Timeout), `plus.circle.fill` green (Created), `plus.circle` gray (New spool), `questionmark.circle` gray (Not in Bambuddy; tag has no material), `exclamationmark.triangle.fill` red (Error), `dot.radiowaves.left.and.right` blue (Flipper asks); a 14 pt spinner for Looking up, Saving, Creating and Updating. The marked and deleted states use their iPhone symbols. Accessibility label: the status phrase. |
 
 Empty feed: only a centred line, 14 `.secondary`: `Hold a spool’s tag to
 the Flipper running FliBuddy.`
 
 **Auto-open (core `onFocus`):** when a row starts waiting for a weight
-(scan, rescan, Created, a reopen) and the feed list is the screen showing,
-its detail opens on its own. If a detail, Settings or the scan screen is
-showing, nothing opens; the row only moves to the top.
+(scan or rescan of a known spool, a reopen) and the feed list is the
+screen showing, its detail opens on its own. New spool and Created rows do
+not wait for a weight, so they never open on their own. If a detail,
+Settings or the scan screen is showing, nothing opens; the row only moves
+to the top.
 
 ## Row detail
 
-A header line: swatch 12 · title 15 sb (one line). Then one of four bodies,
+A header line: swatch 12 · title 15 sb (one line). Then one of five bodies,
 by state:
 
-**Entry** (Enter weight, Saving, Created, Error; and Not in Bambuddy for a
-Bambu tag, owner):
+**Entry** (Enter weight, Saving, Error on a known spool; and a New spool or
+Created entry that With weight / Set weight opened):
 
 | Part | Spec |
 |---|---|
@@ -129,7 +137,7 @@ Bambu tag, owner):
 | Line | 13, centred, one line: `Saves 590 g left`; `Turn the crown` when empty; red `Below the core weight (325 g)`; red `Error: <message>` in the error state |
 | Net / Gross | two pills side by side, 30 high, 4 apart, 13 sb; the selected one white with black text, the other white 16 % with white text |
 | Save | full width, 40 high capsule, `#0A84FF`, white 16 sb: `Save` / `Saving…`; 45 % when it cannot save |
-| New | Not in Bambuddy, Bambu tag only: under Save, same size, white 16 % fill (Save is the prominent action here) |
+| Cancel | an entry With weight / Set weight opened only: under Save, same size, white 16 % fill; hides the entry without saving and returns to the card |
 | Crown indicator | the page's 4 × 40 green-thumb bar on the right edge stands in for the system's crown indicator; use the system one |
 
 **Saved** (Saved, Timeout; also Marked as new / Marked as empty): the state
@@ -138,13 +146,24 @@ the status phrase 13 `.secondary` centred (`Saved 590 g left · by host`),
 and at the bottom **Weigh again** (40 high, white 16 % fill, 16 sb), which
 reopens the entry and focuses it.
 
+**Card** (owner, 2026-10-27: New spool, Created, also while a Flipper
+asks to create or link a tag with material): the colour line and the
+weight line (`label 1000 g`; `1000 g left of 1000` once created) in 13
+`.secondary`, the status symbol 17 pt + phrase 15 (`New spool`, `Created
+in Bambuddy`), a hint 13 `.secondary` (`Link it on iPhone or Mac.` for a
+link request), a red `Error: <message>` after a failed action, then 40 pt
+capsules: New spool **Save as new** (`#0A84FF`) and **With weight**
+(white 16 %); Created **Set weight** (`#0A84FF`). Save as new creates the
+spool from the tag in one tap (`Creating in Bambuddy…`, then the Created
+card); With weight and Set weight open the crown entry.
+
 **Unknown** (Not in Bambuddy without material, Flipper asks to create /
-link, Deleted): the sub line (13 `.secondary`), the status symbol 17 pt +
+link it, Deleted): the sub line (13 `.secondary`), the status symbol 17 pt +
 phrase 15, a hint 13 `.secondary`: `Create it on iPhone or Mac.` for a tag
 without material, `Link it on iPhone or Mac.` for a link request, none
-otherwise; at the bottom **New** (40 high, `#0A84FF`) when the tag has
-prefill. New creates the spool from the tag in one tap (`Creating in
-Bambuddy…`, then the Created entry).
+otherwise; at the bottom **Save as new** (40 high, `#0A84FF`) when the tag
+has prefill (a deleted spool), which creates the spool from the tag in one
+tap (`Creating in Bambuddy…`, then the Created card).
 
 **Busy** (Looking up, Creating): a 26 pt spinner and the phrase 15
 `.secondary`, centred.
@@ -169,6 +188,7 @@ UID, filament id, diameter, nozzle range, spool id, each when known, as
   them.
 - Save fails: `.play(.failure)`, the red error line, the value stays for a
   retry.
+- Save as new from the card pops back to the feed one second later too.
 - After a save, focus moves to the newest waiting row; with the feed
   showing again, that row's detail auto-opens.
 
@@ -230,7 +250,8 @@ departs from this file, the next section says how and why. What changed:
 8. Haptics `.success` / `.failure`.
 9. Saved screen with `Weigh again`; unknown screen with one-tap New for
    tags with material and the two hints; a Not-in-Bambuddy Bambu row keeps
-   the entry.
+   the entry. Superseded on 2026-10-27 by the New spool card (plan
+   `docs/plans/20261027-new-spool-card.md`): see "Row detail".
 10. Details (colour code, UID, filament id, diameter, nozzle range) in the
     row detail.
 11. Always-On: title and remaining only, no taps.
@@ -244,9 +265,9 @@ Where the app departs from this file or fills in what it leaves open, and
 why. Items marked "by eye" still wait for the owner's check on screen.
 
 Navigation and glyph
-- A Flipper link request on a tag with material still shows the crown
-  entry (`WatchRowScreen`), as on the iPhone and the Mac: Save creates a new
-  spool, and the link hint shows only on an Unknown body.
+- A Flipper link request on a tag with material shows the card with the
+  hint `Link it on iPhone or Mac.`; Save as new and With weight are both
+  white 16 %, since the asked action (Link) is not on the watch.
 - `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
   holds the one `NavigationStack`; its path is `WatchNavigation`
   (`FliBuddyCore`), whose screens are a row's detail, Settings and Scan
@@ -273,26 +294,35 @@ Feed list
 - A row that is busy on the host (Creating) shows the 14 pt spinner too.
 - The row platter is the list row background; its 12 pt side padding is
   the list's own inset. By eye.
-- Secondary glyph tints (Not in Bambuddy, marked empty, deleted) use the
+- Secondary glyph tints (New spool, Not in Bambuddy, marked empty, deleted) use the
   page's gray `#8E8E93`.
 - Always-On: rows are plain (no button), with no swatch, glyph or platter;
   the toolbar glyph is hidden.
 
 Row detail
-- `WatchRowScreen` (`FliBuddyCore`) picks the body. While New from the
-  watch runs, the busy body reads `Creating in Bambuddy…`; Looking up shows
-  its own phrase. The header line stands in for a navigation title.
+- `WatchRowScreen` (`FliBuddyCore`) picks the body. While Save as new
+  from the watch runs, the busy body reads `Creating in Bambuddy…`;
+  Looking up shows its own phrase. The header line stands in for a
+  navigation title.
+- Leaving the detail (back) hides an entry With weight / Set weight
+  opened and drops its weight draft; otherwise the row would stay waiting
+  and could open on its own after another row's save.
+- The Created card's weight line is the spool's `1000 g left of 1000`
+  rather than `label 1000 g` (see "Open questions"). By eye: whether the
+  three lines and two buttons fit a 40 mm watch, and where Cancel sits
+  under Save.
 - Unknown hints: a Flipper link request wins (`Link it on iPhone or
   Mac.`); a tag without material otherwise reads `Create it on iPhone or
   Mac.`, also under a Flipper create request; a deleted spool has no hint
-  and offers New when the tag has material. A failed New shows
-  `Error: <message>` in red under the phrase.
+  and offers Save as new when the tag has material. A failed Save as new
+  shows `Error: <message>` in red under the phrase.
 - Entry: with no value the number reads a dimmed `0`, the line `Turn the
   crown`, and Save stays dimmed; the crown starts at 0. The line drops the
   gross sum (`Saves 590 g left`, as the iPad's short readout) to stay on
   one line. A host error outranks the row's own error. The weight takes
-  focus when the entry appears, so Weigh again lands on it. The pills are
-  Net then Gross.
+  focus when the entry appears, so Weigh again, With weight and Set
+  weight land on it (by eye for the last two). The pills are Net then
+  Gross.
 - The saved body's big number is what is left on a known spool; without
   one it is left out.
 - Details sit under a 12 pt `Details` caption; ids and UIDs are monospaced.
@@ -302,7 +332,7 @@ Crown and haptics
   per detent that is the page's 6 detents per second.
 - The haptics follow `FeedViewModel.haptic` on the root view
   (`WKInterfaceDevice.current().play`), so any failed host action (also a
-  failed New) plays `.failure`, on any screen.
+  failed Save as new) plays `.failure`, on any screen.
 
 Settings and Scan for Flipper
 - Texts come from `WatchSettingsTexts` (`FliBuddyCore`). Settings that
@@ -321,4 +351,6 @@ Settings and Scan for Flipper
 
 ## Open questions for the owner
 
-None: the watch page and the owner decisions settle the watch.
+- The Created card shows the spool's `1000 g left of 1000`; the plan
+  (`docs/plans/20261027-new-spool-card.md`) says `label 1000 g`, the New
+  spool card's line. Keep the spool's line, or show the label weight?

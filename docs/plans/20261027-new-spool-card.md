@@ -82,5 +82,5 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 4
 
 ### Task 4: Verify and document
-- [ ] update the four specs' row-states tables and actions; note the change under "Implemented differently" where it departs from the design
-- [ ] run `make test`, `make lint`, `make coverage`, `make apple-build`; fix all issues
+- [x] update the four specs' row-states tables and actions; note the change under "Implemented differently" where it departs from the design
+- [x] run `make test`, `make lint`, `make coverage`, `make apple-build`; fix all issues
