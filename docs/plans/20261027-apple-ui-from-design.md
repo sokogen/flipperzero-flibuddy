@@ -76,10 +76,10 @@
 - [x] run `make test` — must pass before Task 2
 
 ### Task 2: iPhone connection banner
-- [ ] banner view model: healthy line, or one line per side in trouble with the iPhone short phrases, symbols, tints and actions (ios spec, "Connection banner"), including the extra `StatusItem` states
-- [ ] top glass capsule in `FeedView` on iOS (replaces the bottom `StatusBar` there); actions Connect / Check / Retry / Settings wired
-- [ ] write tests for every phrase/action and the two-line case
-- [ ] run `make test` and `make apple-build` — must pass before Task 3
+- [x] banner view model: healthy line, or one line per side in trouble with the iPhone short phrases, symbols, tints and actions (ios spec, "Connection banner"), including the extra `StatusItem` states
+- [x] top glass capsule in `FeedView` on iOS (replaces the bottom `StatusBar` there); actions Connect / Check / Retry / Settings wired
+- [x] write tests for every phrase/action and the two-line case
+- [x] run `make test` and `make apple-build` — must pass before Task 3
 
 ### Task 3: iPhone row card, number pad and focus
 - [ ] stacked card per ios spec "Feed row": status under the colour line, 64 pt field with the mode word, 34 pt value, full-width segmented, readout, full-width 50 pt Save, 44 pt New / Link capsules; one `Section` per row, compact spacing

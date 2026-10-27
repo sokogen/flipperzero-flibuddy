@@ -56,6 +56,11 @@ public final class HostModel {
         await session.checkBambuddy()
     }
 
+    /// The iPhone's banner over the feed, from both halves of the status bar.
+    public var connectionBanner: ConnectionBanner {
+        ConnectionBanner(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
+    }
+
     /// A status bar button. Settings is the view's to open, so it does
     /// nothing here.
     public func perform(_ action: StatusItem.Action) async {

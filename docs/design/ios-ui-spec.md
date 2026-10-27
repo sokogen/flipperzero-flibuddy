@@ -491,6 +491,26 @@ Checked against the code on 2026-10-27.
     draws New / Link as small footnote buttons beside the readout (the
     macOS placement); the iPhone wants the two 44 pt capsules under Save.
 
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Connection banner
+- The banner is `ConnectionBanner` (`FliBuddyCore`), built from the same
+  two `StatusItem`s as the macOS status bar; each item carries its iPhone
+  phrase in `short` where it differs. A side counts as healthy when its
+  tint is green (Flipper connected, Bambuddy ready), so the colour-names
+  warning is a problem line of its own.
+- The shape is a rounded rectangle with a 20 pt continuous corner rather
+  than `Capsule()`: at one line (40 pt) it is the capsule, and at two
+  lines the corners stay the same instead of rounding into the text. By
+  eye.
+- The chip fills with the app tint, not the state's tint. The healthy
+  line's accessibility hint is the firmware version. By eye.
+- iPad gets the same banner over the feed until Task 5 of
+  `docs/plans/20261027-apple-ui-from-design.md` gives it the sidebar status rows.
+
 ## Open questions for the owner
 
 None. Decided 2026-10-27: Net/Gross below the core clamps to 0, as on the

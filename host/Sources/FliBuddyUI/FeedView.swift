@@ -3,12 +3,13 @@ import SwiftUI
 
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
-/// The session feed: one row per scanned tag, newest first, and the status
-/// bar. In Spoolman mode an explanation replaces the feed.
+/// The session feed: one row per scanned tag, newest first, with the status
+/// bar under it on macOS and the connection banner over it on iOS. In
+/// Spoolman mode an explanation replaces the feed.
 public struct FeedView: View {
     let host: HostModel
-    /// Opens the settings for the status bar's Settings button; macOS uses
-    /// its Settings scene instead.
+    /// Opens the settings for the banner's Settings chip; macOS uses its
+    /// Settings scene instead.
     let openSettings: (() -> Void)?
     /// The weight field with the keyboard, kept in step with `feed.focusedRow`.
     @FocusState private var focusedField: FeedRow.ID?
@@ -23,13 +24,19 @@ public struct FeedView: View {
 
     public var body: some View {
         content
+            #if os(macOS)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                StatusBar(
-                    flipper: host.link.statusItem, bambuddy: feed.bambuddyStatus, openSettings: openSettings
-                ) { action in
+                StatusBar(flipper: host.link.statusItem, bambuddy: feed.bambuddyStatus) { action in
                     Task { await host.perform(action) }
                 }
             }
+            #else
+            .safeAreaInset(edge: .top, spacing: 0) {
+                ConnectionBannerView(banner: host.connectionBanner, openSettings: openSettings) { action in
+                    Task { await host.perform(action) }
+                }
+            }
+            #endif
             .background { FeedKeyboardShortcuts(feed: feed) }
             // The field of a row in weight entry takes the keyboard; AppKit
             // selects its text, so the first keystroke replaces the suggestion.
@@ -369,12 +376,12 @@ struct WeightEntry: View {
     }
 }
 
+#if os(macOS)
 /// The Flipper item and the Bambuddy item, each a symbol and a phrase with
 /// its reason in the tooltip, and the button the state offers.
 struct StatusBar: View {
     let flipper: StatusItem
     let bambuddy: StatusItem
-    let openSettings: (() -> Void)?
     let perform: (StatusItem.Action) -> Void
 
     var body: some View {
@@ -409,14 +416,11 @@ struct StatusBar: View {
 
     @ViewBuilder private func button(_ action: StatusItem.Action) -> some View {
         if action == .settings {
-            #if os(macOS)
             SettingsLink { Text(action.title) }
-            #else
-            if let openSettings { Button(action.title, action: openSettings) }
-            #endif
         } else {
             Button(action.title) { perform(action) }
         }
     }
 }
+#endif
 #endif
