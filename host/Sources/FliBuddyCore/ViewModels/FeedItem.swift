@@ -35,6 +35,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The iPad table's remaining column: "590 g left of 1000", "label
     /// 1000 g"; empty for an archived spool, which says so in the colour column.
     public let tableRemainingText: String
+    /// The watch's list title: `title`, a blank tag shortened to "NTAG 04A2…".
+    public let watchTitle: String
+    /// The watch's list sub line: "590 g left" for a known spool,
+    /// "archived" for an archived one, "label 1000 g" for a tag with
+    /// material, "Unknown tag" for a tag without.
+    public let watchSubText: String
     public let statusText: String
     public let isError: Bool
     public let spoolId: Int?
@@ -107,18 +113,26 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         let spool = row.spool
         if let spool {
             title = Self.title(material: spool.material, subtype: spool.subtype)
+            watchTitle = title
             colorName = spool.colorName
             remainingText = spool.isArchived ? "archived" : "\(spool.remaining) g left of \(spool.labelWeight)"
+            watchSubText = spool.isArchived ? "archived" : "\(spool.remaining) g left"
             base = spool.remaining
             core = spool.coreWeight
         } else {
             if let material = row.tag.material {
                 title = Self.title(material: material, subtype: row.tag.detailedType)
+                watchTitle = title
+            } else if row.tag.kind == .ntag {
+                title = Self.blankTitle(uid: row.tag.uid)
+                watchTitle = Self.shortBlankTitle(uid: row.tag.uid)
             } else {
-                title = row.tag.kind == .ntag ? Self.blankTitle(uid: row.tag.uid) : "Bambu tag"
+                title = "Bambu tag"
+                watchTitle = title
             }
             colorName = row.colorName
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
+            watchSubText = row.tag.hasPrefill ? remainingText : "Unknown tag"
             base = row.tag.hasPrefill ? row.tag.labelWeight ?? NewSpool.defaultLabelWeight : nil
             core = row.tag.hasPrefill ? coreWeight : nil
         }
@@ -199,6 +213,11 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public static func blankTitle(uid: String) -> String {
         let prefix = uid.count > 4 ? "\(uid.prefix(4))\u{2026}" : uid
         return "NTAG \(uid.count / 2)-byte UID \(prefix)"
+    }
+
+    /// The watch's shorter blank title: "NTAG 04A2…".
+    public static func shortBlankTitle(uid: String) -> String {
+        uid.count > 4 ? "NTAG \(uid.prefix(4))\u{2026}" : "NTAG \(uid)"
     }
 
     /// The weight field's VoiceOver label.

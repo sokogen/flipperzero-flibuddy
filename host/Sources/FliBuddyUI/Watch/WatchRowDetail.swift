@@ -3,10 +3,12 @@ import SwiftUI
 
 #if os(watchOS)
 /// One row on the watch: the weight on the Digital Crown with the net/gross
-/// toggle and Save for a known spool, New for an unknown tag.
+/// toggle and Save for a known spool, New for an unknown tag. `onSaved`
+/// follows a save Bambuddy took.
 struct WatchRowDetail: View {
     let feed: FeedViewModel
     let id: FeedRow.ID
+    let onSaved: (FeedRow.ID) -> Void
 
     var body: some View {
         if let item = feed.items.first(where: { $0.id == id }) {
@@ -27,7 +29,7 @@ struct WatchRowDetail: View {
                         .font(.footnote)
                         .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     if item.isEntry {
-                        WatchWeightEntry(feed: feed, item: item)
+                        WatchWeightEntry(feed: feed, item: item, onSaved: onSaved)
                     } else if item.isReopenable {
                         Button("Re-weigh") { Task { await feed.reopen(id) } }
                     } else if item.offersUnknownActions {
@@ -51,6 +53,7 @@ struct WatchRowDetail: View {
 struct WatchWeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
+    let onSaved: (FeedRow.ID) -> Void
     @ViewState private var weight = CrownWeight(grams: 0)
     @ViewState private var velocity = 0.0
     @ViewState private var seeded = false
@@ -80,7 +83,9 @@ struct WatchWeightEntry: View {
                 )
             )
             Button("Save") {
-                Task { await feed.save(id) }
+                Task {
+                    if await feed.save(id) { onSaved(id) }
+                }
             }
             .disabled(!feed.canSave(id))
             if feed.isBusy(id) {

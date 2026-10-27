@@ -61,6 +61,11 @@ public final class HostModel {
         ConnectionBanner(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
     }
 
+    /// The watch's connection glyph, from both halves of the status bar.
+    public var watchGlyph: StatusItem {
+        WatchGlyph.status(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
+    }
+
     /// The iPad sidebar: both connection rows, the feed's count, Clear.
     public var sidebar: Sidebar {
         Sidebar(

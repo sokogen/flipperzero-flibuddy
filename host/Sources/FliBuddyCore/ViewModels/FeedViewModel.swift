@@ -228,14 +228,16 @@ public final class FeedViewModel {
         apply(await session.snapshot)
     }
 
-    public func save(_ id: FeedRow.ID) async {
-        guard canSave(id), let grams = Self.grams(from: weightText(for: id)) else { return }
+    /// Records the row's weight; true when Bambuddy took it.
+    @discardableResult
+    public func save(_ id: FeedRow.ID) async -> Bool {
+        guard canSave(id), let grams = Self.grams(from: weightText(for: id)) else { return false }
         let mode = mode(for: id)
-        if await perform(id, { try await $0.saveWeight(row: id, grams: grams, mode: mode) }) {
-            weightTexts[id] = nil
-            modes[id] = nil
-            play(.success)
-        }
+        guard await perform(id, { try await $0.saveWeight(row: id, grams: grams, mode: mode) }) else { return false }
+        weightTexts[id] = nil
+        modes[id] = nil
+        play(.success)
+        return true
     }
 
     // MARK: Focus

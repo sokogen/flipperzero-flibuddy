@@ -109,12 +109,12 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 6
 
 ### Task 6: Watch feed, navigation and status
-- [ ] one `NavigationStack` with Settings behind the leading connection glyph (watchos spec); glyph from the merged status
-- [ ] feed row: 16 pt swatch, 15 sb title, short sub line (`590 g left`, `label 1000 g`, `Unknown tag`), 19 pt trailing glyph; empty text per spec
-- [ ] auto-open the detail of a new row that waits for a weight only while the feed list shows; pop back to the feed 1 s after a successful save
-- [ ] Always-On (`isLuminanceReduced`): title and remaining only, no taps
-- [ ] write tests for auto-open/pop rules and row texts
-- [ ] run `make test` and `make apple-build` — must pass before Task 7
+- [x] one `NavigationStack` with Settings behind the leading connection glyph (watchos spec); glyph from the merged status
+- [x] feed row: 16 pt swatch, 15 sb title, short sub line (`590 g left`, `label 1000 g`, `Unknown tag`), 19 pt trailing glyph; empty text per spec
+- [x] auto-open the detail of a new row that waits for a weight only while the feed list shows; pop back to the feed 1 s after a successful save
+- [x] Always-On (`isLuminanceReduced`): title and remaining only, no taps
+- [x] write tests for auto-open/pop rules and row texts
+- [x] run `make test` and `make apple-build` — must pass before Task 7
 
 ### Task 7: Watch detail, crown, haptics, settings
 - [ ] entry: 50 pt rounded value + 20 pt unit, readout line (`Saves … g left` / `Turn the crown` / errors in red), Net / Gross pills (converting), 40 pt blue Save

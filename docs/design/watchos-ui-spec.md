@@ -259,6 +259,43 @@ Checked against the code on 2026-10-27.
     the iPhone (`host/Sources/FliBuddyCore/Session/WatchSettingsSync.swift`);
     with apply-on-change it must send after each applied change.
 
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Navigation and glyph
+- `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
+  holds the one `NavigationStack`; its path is `WatchNavigation`
+  (`FliBuddyCore`), whose screens are a row's detail and Settings. The
+  Scan for Flipper screen joins it with the settings rework.
+- The glyph comes from `WatchGlyph` (`FliBuddyCore`), built from the same
+  two `StatusItem`s as the macOS status bar and the iPhone banner, in the
+  iPhone's short phrase. States the table leaves out keep their status-bar
+  phrase and look: `Bambuddy not set up`, `Bambuddy rejected the API key`,
+  `Checking Bambuddy…` (spinner), a version mismatch, a Bluetooth problem.
+
+Auto-open and pop
+- Auto-open follows the rows rather than the core's focus: the newest row
+  that started waiting since the last snapshot opens while the feed shows.
+  On the watch no field is touched on the feed, so the iPhone's "never
+  steal from a touched field" rule cannot hold it back. A row that started
+  waiting while a detail or Settings showed does not open later on its
+  own.
+- The pop runs one second after a save Bambuddy took
+  (`FeedViewModel.save` now reports it). It leaves any other screen alone;
+  if the user went back first, the newest waiting row still opens. A save
+  from the Flipper while a detail shows does not pop it.
+
+Feed list
+- A row that is busy on the host (Creating) shows the 14 pt spinner too.
+- The row platter is the list row background; its 12 pt side padding is
+  the list's own inset. By eye.
+- Secondary glyph tints (Not in Bambuddy, marked empty, deleted) use the
+  page's gray `#8E8E93`.
+- Always-On: rows are plain (no button), with no swatch, glyph or platter;
+  the toolbar glyph is hidden.
+
 ## Open questions for the owner
 
 None: the watch page and the owner decisions settle the watch.
