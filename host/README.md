@@ -252,6 +252,26 @@ Command Line Tools. To run on a device, fill in `Signing.xcconfig` with a
 team (a free personal team works; the install lasts 7 days), regenerate,
 and run `FliBuddyiOS` from Xcode; the watch app installs with it.
 
+### iPhone and iPad feed
+
+The iPhone and the portrait iPad show a glass banner over the feed
+(`ConnectionBanner`) in place of the Mac's status bar: one line when one
+side is in trouble, two when both are (the Flipper first), each with its
+action chip. A landscape iPad shows both states in the sidebar. A save plays
+the success haptic and a failed host action the error one, on the iPhone and
+on the watch. The iPad table layout has the Mac's shortcuts above as menu
+commands (`FeedCommands`).
+
+### Settings on iPhone and iPad
+
+`makeSettingsViewModel(appliesOnChange: true)` removes Save and Revert.
+Picker changes, Forget and a QR read apply at once; the text fields (URL, API
+key, core weight) apply on `commit()`, that is Return or leaving the field,
+and leaving the Settings tab commits the field being typed. Each change
+applies on top of the last applied settings, in order. A core weight out of
+range stays unapplied and sets `coreWeightError`; the field can be emptied
+while it is edited.
+
 ### Settings sync to the watch
 
 `Session/SettingsSync.swift`: `SettingsSyncPayload` is the Bambuddy URL,

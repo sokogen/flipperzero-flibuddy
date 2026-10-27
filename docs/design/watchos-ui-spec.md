@@ -244,6 +244,9 @@ Where the app departs from this file or fills in what it leaves open, and
 why. Items marked "by eye" still wait for the owner's check on screen.
 
 Navigation and glyph
+- A Flipper link request on a tag with material still shows the crown
+  entry (`WatchRowScreen`), as on the iPhone and the Mac: Save creates a new
+  spool, and the link hint shows only on an Unknown body.
 - `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
   holds the one `NavigationStack`; its path is `WatchNavigation`
   (`FliBuddyCore`), whose screens are a row's detail, Settings and Scan

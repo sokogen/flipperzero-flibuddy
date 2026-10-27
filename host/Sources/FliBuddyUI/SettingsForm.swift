@@ -126,7 +126,10 @@ public struct SettingsForm: View {
             } header: {
                 Text("Flipper")
             } footer: {
-                Text("Bluetooth only on iPhone. The Flipper must be running FliBuddy.")
+                // The iPad draws no footer under the Flipper rows (iPadOS spec).
+                if UIDevice.current.userInterfaceIdiom != .pad {
+                    Text("Bluetooth only on iPhone. The Flipper must be running FliBuddy.")
+                }
             }
             if let error = model.saveError {
                 Section {

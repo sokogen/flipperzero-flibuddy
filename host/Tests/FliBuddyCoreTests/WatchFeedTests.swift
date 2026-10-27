@@ -168,6 +168,14 @@ struct WatchNavigationTests {
         #expect(navigation.path == [.row(b)])
     }
 
+    @Test func aRowWeighedAgainIsNotPopped() {
+        var navigation = WatchNavigation(path: [.row(a)], rows: [Row(id: a, isWaiting: true)])
+
+        navigation.popAfterSave(a)
+
+        #expect(navigation.path == [.row(a)])
+    }
+
     @Test func thePopLeavesAnotherScreenAlone() {
         var settings = WatchNavigation(path: [.settings], rows: [Row(id: b, isWaiting: true)])
         settings.popAfterSave(a)

@@ -595,12 +595,15 @@ Phase 2, decided by the builder (2026-10-26; the plan is
   iPhone/iPad app and the watch app embedded as its companion; generated
   Info.plists; signing from a git‑ignored `Signing.xcconfig` included by
   the tracked `Base.xcconfig`; placeholder bundle id
-  `com.sokolachko.flibuddy`. iPad gets a split view, iPhone a tab view.
+  `com.sokolachko.flibuddy`. iPad gets a sidebar and one-line table when
+  the window leaves 900 pt beside the sidebar (`FeedLayout`), else the
+  iPhone's cards in a tab view.
 - Watch sync: the application context (`v: 1`) carries the Bambuddy URL,
-  API key, core weight, catalog entry and default mode, sent after every
-  save and once at launch; the watch keeps its own transport and Flipper.
-  The watch offers New with the tag's prefill; Link to existing stays on
-  the phone and the Mac. Crown steps: 1 g, 5 g from 20 g/s.
+  API key, core weight, catalog entry and default mode, sent 0.5 s after
+  the last change applied on the iPhone and once at launch; the watch keeps
+  its own transport and Flipper. The watch offers New with the tag's
+  prefill; Link to existing stays on the phone and the Mac. Crown steps:
+  1 g per detent, 5 g from about 6 detents/s.
 - QR scanning uses VisionKit's `DataScannerViewController`; the button
   only shows where the scanner is available. Repeated query fields take
   the first value; the URL keeps any path prefix and drops credentials,

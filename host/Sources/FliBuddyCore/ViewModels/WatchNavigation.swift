@@ -80,10 +80,11 @@ public struct WatchNavigation: Equatable, Sendable {
 
     /// `popDelay` after `id` saved: its detail pops back to the feed and
     /// the newest row still waiting opens. Nothing happens if another screen
-    /// took its place meanwhile; if the user went back already, the waiting
-    /// row still opens.
+    /// took its place meanwhile or `id` waits again (Weigh again); if the
+    /// user went back already, the waiting row still opens.
     public mutating func popAfterSave(_ id: FeedRow.ID) {
         guard path.isEmpty || path == [.row(id)] else { return }
+        guard rows.first(where: { $0.id == id })?.isWaiting != true else { return }
         path = rows.first { $0.isWaiting && $0.id != id }.map { [.row($0.id)] } ?? []
     }
 

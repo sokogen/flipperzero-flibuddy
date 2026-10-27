@@ -904,6 +904,36 @@ struct SettingsApplyOnChangeTests {
         #expect(!model.hasChanges)
     }
 
+    @Test func theTransportAndPortPickersApplyAtOnce() async {
+        let applied = Applied()
+        var settings = testSettings
+        settings.transport = .usb
+        let model = makeApplying(applied, settings: settings)
+
+        model.transport = .bluetooth
+        await model.settled()
+        model.port = "/dev/cu.usbmodem1"
+        await model.settled()
+        model.port = "/dev/cu.usbmodem1"
+        await model.settled()
+
+        #expect(applied.values.map(\.transport) == [.bluetooth, .bluetooth])
+        #expect(applied.values.map(\.port) == [nil, "/dev/cu.usbmodem1"])
+    }
+
+    @Test func clearingTheCatalogEntryAppliesItWithoutTouchingTheCoreWeight() async {
+        let applied = Applied()
+        var settings = testSettings
+        settings.catalogEntryId = 9
+        let model = makeApplying(applied, settings: settings)
+
+        model.catalogEntryId = nil
+        await model.settled()
+
+        #expect(applied.values.map(\.catalogEntryId) == [nil])
+        #expect(applied.values.map(\.coreWeight) == [settings.coreWeight])
+    }
+
     @Test func choosingACatalogEntryAppliesTheEntryAndItsWeightOnce() async {
         let applied = Applied()
         let inventory = FakeInventory()
@@ -1073,6 +1103,7 @@ struct SettingsApplyOnChangeTests {
         #expect(model.coreWeightText == "1234")
         model.coreWeightText = ""
         #expect(model.coreWeight == 0)
+        #expect(model.coreWeightText == "")
         #expect(model.coreWeightError != nil)
 
         model.coreWeightText = "300"
