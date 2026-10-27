@@ -283,10 +283,46 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         mode == .gross ? "gross" : "net"
     }
 
-    /// New and Link to existing… as the iPhone card lays them out, the
-    /// prominent one first: New, unless the Flipper asked to link.
-    public var cardActions: [UnknownAction] {
-        prominentAction == .link ? [.link, .new] : [.new, .link]
+    /// The iPhone card's full-width button over its capsules: the prominent
+    /// action of a New spool or Created card.
+    public var cardLeadAction: RowAction? {
+        revealsEntry ? prominentRowAction : nil
+    }
+
+    /// The iPhone card's 44 pt capsules: under the lead button, or under
+    /// Save on a revealed entry, or the row's actions as two equal capsules.
+    public var cardCapsuleActions: [RowAction] {
+        rowActions.filter { $0 != cardLeadAction }
+    }
+
+    /// The prominent capsule: the first, on a row with neither a lead button
+    /// nor an entry (New…, or the action the Flipper asked for).
+    public var cardProminentCapsule: RowAction? {
+        cardLeadAction == nil && !isEntry ? cardCapsuleActions.first : nil
+    }
+
+    /// The iPad table's footnote buttons under the status: Link to existing…
+    /// of a New spool or Created row, which has no room beside the pills or
+    /// the entry.
+    public var tableStatusActions: [RowAction] {
+        revealsEntry || isEntry ? rowActions.filter { $0 == .link } : []
+    }
+
+    /// The iPad table's pills in the trailing column, unless the entry is there.
+    public var tableTrailingActions: [RowAction] {
+        isEntry ? [] : rowActions.filter { !tableStatusActions.contains($0) }
+    }
+
+    /// The tinted pill: the prominent action, else the first pill; none when
+    /// the prominent one sits under the status.
+    public var tableProminentAction: RowAction? {
+        guard let prominent = prominentRowAction else { return tableTrailingActions.first }
+        return tableTrailingActions.contains(prominent) ? prominent : nil
+    }
+
+    /// Cancel (Esc on the Mac) beside a revealed entry: hides it without saving.
+    public var offersCancel: Bool {
+        revealsEntry && isEntry
     }
 
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".

@@ -3,21 +3,24 @@ import SwiftUI
 
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
-/// New and Link to existing, for a tag no spool carries. New opens the form
-/// for a tag without material and creates from the tag otherwise; the
-/// action the Flipper asked for is the prominent one.
-struct UnknownRowActions: View {
+/// A row's actions (`FeedItem.rowActions`): Save as new, Save with weight…
+/// and Link to existing… on a New spool; Set weight… and Link on a Created
+/// row; New… (the form) or Save as new and Link on another tag no spool
+/// carries; Cancel beside a revealed entry.
+struct RowActions: View {
     enum Style {
-        /// Bordered buttons, the requested one prominent (macOS).
+        /// Bordered buttons, the prominent one `.borderedProminent` (macOS).
         case buttons
-        /// Link-style buttons under the weight field of a tag with material,
-        /// where the Flipper's request is semibold rather than prominent (macOS).
+        /// Link-style buttons beside the readout of a revealed entry, or
+        /// under the iPad table's status, where the Flipper's request is
+        /// semibold rather than prominent.
         case compact
-        /// Two equal capsules, 44 high and 10 apart, the prominent one first:
-        /// New unless the Flipper asked to link (iPhone card).
-        case capsules
-        /// Two capsules sized to their titles, 44 high and 8 apart, the
-        /// prominent one tinted (iPad table row).
+        /// The lead action full width and 50 pt high over the others as
+        /// equal 44 pt capsules 10 apart; without a lead, the first capsule
+        /// is the prominent one (iPhone card).
+        case card
+        /// Capsules sized to their titles, 44 high and 8 apart, the
+        /// prominent one tinted (iPad table's trailing column).
         case pills
     }
 
@@ -43,26 +46,45 @@ struct UnknownRowActions: View {
     @ViewBuilder private var content: some View {
         switch style {
         case .buttons:
-            buttons
+            // Three buttons fit the entry's column at the regular size.
+            ViewThatFits(in: .horizontal) {
+                buttons
+                buttons.controlSize(.regular)
+                buttons.controlSize(.small)
+            }
         case .compact:
+            HStack(spacing: 12) {
+                cancelButton
+                ForEach(compactActions, id: \.self) { action in
+                    button(action).fontWeight(action == item.prominentRowAction ? .semibold : .regular)
+                }
+            }
             #if os(macOS)
-            buttons.buttonStyle(.link).font(.footnote).controlSize(.small)
+            .buttonStyle(.link).font(.footnote).controlSize(.small)
             #else
             // Borderless: in a list row each button keeps its own tap.
-            buttons.buttonStyle(.borderless).font(.footnote)
+            .buttonStyle(.borderless).font(.footnote)
             #endif
-        case .capsules:
-            // The row's status shows the spinner while New or Link runs.
-            HStack(spacing: 10) {
-                ForEach(item.cardActions, id: \.self) { action in
-                    capsule(action, prominent: action == item.cardActions.first)
+        case .card:
+            // The row's status shows the spinner while an action runs.
+            VStack(spacing: 10) {
+                if let lead = item.cardLeadAction {
+                    capsule(lead, prominent: true, height: 36)
+                }
+                HStack(spacing: 10) {
+                    if item.offersCancel {
+                        capsule(nil, prominent: false, height: 30)
+                    }
+                    ForEach(item.cardCapsuleActions, id: \.self) { action in
+                        capsule(action, prominent: action == item.cardProminentCapsule, height: 30)
+                    }
                 }
             }
         case .pills:
             #if os(iOS)
             HStack(spacing: 8) {
-                ForEach(item.cardActions, id: \.self) { action in
-                    pill(action, prominent: action == item.cardActions.first)
+                ForEach(item.tableTrailingActions, id: \.self) { action in
+                    pill(action, prominent: action == item.tableProminentAction)
                 }
             }
             #else
@@ -71,23 +93,93 @@ struct UnknownRowActions: View {
         }
     }
 
-    private func perform(_ action: FeedItem.UnknownAction) {
+    /// Beside a revealed entry: its Link; under the iPad table's status:
+    /// the Link a New spool or Created row has no room for elsewhere.
+    private var compactActions: [FeedItem.RowAction] {
+        #if os(iOS)
+        item.tableStatusActions
+        #else
+        item.rowActions
+        #endif
+    }
+
+    private func perform(_ action: FeedItem.RowAction) {
         switch action {
-        case .new: new()
+        case .saveAsNew: Task { await feed.saveAsNew(item.id) }
+        case .saveWithWeight, .setWeight: feed.revealEntry(item.id)
+        case .newForm: showingNew = true
         case .link: showingLink = true
         }
     }
 
-    private func title(_ action: FeedItem.UnknownAction) -> String {
-        action == .new ? item.newAction.title : "Link to existing\u{2026}"
+    private func help(_ action: FeedItem.RowAction) -> String {
+        switch action {
+        case .saveAsNew: "Create the spool in Bambuddy from the tag, full"
+        case .saveWithWeight: "Enter a weight; Save creates the spool from the tag and records it"
+        case .setWeight: "Enter the weight of the spool created on scan"
+        case .newForm: "Create a Bambuddy item; enter the material"
+        case .link:
+            item.offersLinkExisting
+                ? "Move this tag to a spool already in Bambuddy and delete the one created on scan"
+                : "Attach this tag to a spool already in Bambuddy"
+        }
+    }
+
+    private func button(_ action: FeedItem.RowAction) -> some View {
+        Button(action.title) { perform(action) }
+            .help(help(action))
+    }
+
+    @ViewBuilder private var cancelButton: some View {
+        if item.offersCancel {
+            Button("Cancel") { feed.hideEntry(item.id) }
+                .help("Hide the weight entry without saving (Esc)")
+                .disabled(feed.isSaving(item.id))
+        }
+    }
+
+    private var buttons: some View {
+        HStack(spacing: 8) {
+            ForEach(item.rowActions, id: \.self) { action in
+                if action == item.prominentRowAction {
+                    button(action).buttonStyle(.borderedProminent)
+                } else {
+                    button(action)
+                }
+            }
+            if feed.isBusy(item.id) {
+                ProgressView().controlSize(.small)
+            }
+        }
+        .fixedSize()
+    }
+
+    /// `action` nil: Cancel.
+    @ViewBuilder private func capsule(_ action: FeedItem.RowAction?, prominent: Bool, height: CGFloat) -> some View {
+        let button = Button {
+            if let action { perform(action) } else { feed.hideEntry(item.id) }
+        } label: {
+            Text(action?.title ?? "Cancel")
+                .font(height > 30 ? .headline : .subheadline.weight(.semibold))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: height)
+        }
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .disabled(action == nil && feed.isSaving(item.id))
+        if prominent {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
+        }
     }
 
     #if os(iOS)
-    private func pill(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
+    private func pill(_ action: FeedItem.RowAction, prominent: Bool) -> some View {
         Button {
             perform(action)
         } label: {
-            Text(title(action))
+            Text(action.title)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
@@ -101,75 +193,6 @@ struct UnknownRowActions: View {
         .buttonStyle(.borderless)
     }
     #endif
-
-    private var buttons: some View {
-        HStack(spacing: 8) {
-            styled(newButton, prominent: item.prominentAction == .new)
-            styled(linkButton, prominent: item.prominentAction == .link)
-            ProgressView().controlSize(.small).opacity(feed.isBusy(item.id) ? 1 : 0)
-        }
-    }
-
-    private var newButton: some View {
-        Button(item.newAction.title) { new() }
-            .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
-    }
-
-    private var linkButton: some View {
-        Button("Link to existing\u{2026}") { showingLink = true }
-            .help("Attach this tag to a spool already in Bambuddy")
-    }
-
-    @ViewBuilder private func capsule(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
-        let button = Button {
-            perform(action)
-        } label: {
-            Text(title(action))
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 30)
-        }
-        .buttonBorderShape(.capsule)
-        .controlSize(.large)
-        if prominent {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button.buttonStyle(.bordered)
-        }
-    }
-
-    private func new() {
-        switch item.newAction {
-        case .form: showingNew = true
-        case .fromTag: Task { await feed.createFromTag(item.id) }
-        }
-    }
-
-    @ViewBuilder private func styled(_ button: some View, prominent: Bool) -> some View {
-        if style == .compact {
-            button.fontWeight(prominent ? .semibold : .regular)
-        } else if prominent {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button
-        }
-    }
-}
-
-/// Link to existing… on a row created on scan: moves the tag to the chosen
-/// spool and deletes the one created.
-struct LinkExistingButton: View {
-    let feed: FeedViewModel
-    let item: FeedItem
-    @ViewState private var showingLink = false
-
-    var body: some View {
-        Button("Link to existing…") { showingLink = true }
-            .help("Move this tag to a spool already in Bambuddy and delete the one created on scan")
-            .sheet(isPresented: $showingLink) {
-                LinkSpoolSheet(feed: feed, item: item).feedSheet(feed)
-            }
-    }
 }
 
 extension View {

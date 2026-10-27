@@ -525,3 +525,87 @@ struct NewSpoolCardModelTests {
         _ = try await pending.value
     }
 }
+
+@Suite("FeedItem: where the card's actions go")
+struct NewSpoolCardLayoutTests {
+    /// iPhone: Save as new full width over Save with weight… and Link as
+    /// capsules; iPad: Link under the status, the other two as pills.
+    @Test func aNewSpoolLeadsWithSaveAsNew() throws {
+        let item = FeedItem(try row(status: .unknown(prefill: true)))
+        #expect(item.cardLeadAction == .saveAsNew)
+        #expect(item.cardCapsuleActions == [.saveWithWeight, .link])
+        #expect(item.cardProminentCapsule == nil)
+        #expect(item.tableTrailingActions == [.saveAsNew, .saveWithWeight])
+        #expect(item.tableStatusActions == [.link])
+        #expect(item.tableProminentAction == .saveAsNew)
+        #expect(!item.offersCancel)
+    }
+
+    @Test func aCreatedRowLeadsWithSetWeight() throws {
+        let item = FeedItem(try createdRow())
+        #expect(item.cardLeadAction == .setWeight)
+        #expect(item.cardCapsuleActions == [.link])
+        #expect(item.cardProminentCapsule == nil)
+        #expect(item.tableTrailingActions == [.setWeight])
+        #expect(item.tableStatusActions == [.link])
+        #expect(item.tableProminentAction == .setWeight)
+    }
+
+    /// The Flipper asked to link: Link leads on the iPhone and stays under
+    /// the status on the iPad, where no pill is prominent then.
+    @Test func aLinkRequestLeadsWithLink() throws {
+        let item = FeedItem(try row(status: .unknown(prefill: true), request: .link))
+        #expect(item.cardLeadAction == .link)
+        #expect(item.cardCapsuleActions == [.saveAsNew, .saveWithWeight])
+        #expect(item.tableTrailingActions == [.saveAsNew, .saveWithWeight])
+        #expect(item.tableStatusActions == [.link])
+        #expect(item.tableProminentAction == nil)
+    }
+
+    /// A revealed entry: Cancel and Link beside it, nothing prominent but Save.
+    @Test func aRevealedEntryOffersCancelAndLink() throws {
+        for revealed in [
+            FeedItem(try row(status: .unknown(prefill: true)), entryRevealed: true),
+            FeedItem(try createdRow(), entryRevealed: true),
+        ] {
+            #expect(revealed.offersCancel)
+            #expect(revealed.cardLeadAction == nil)
+            #expect(revealed.cardCapsuleActions == [.link])
+            #expect(revealed.cardProminentCapsule == nil)
+            #expect(revealed.tableTrailingActions.isEmpty)
+            #expect(revealed.tableStatusActions == [.link])
+        }
+    }
+
+    /// Rows without an optional entry keep the two equal capsules (pills
+    /// on the iPad), the first one prominent.
+    @Test func otherUnknownRowsKeepTwoCapsules() throws {
+        let blank = FeedItem(try row(status: .unknown(prefill: false), "scan_ntag"))
+        #expect(blank.cardLeadAction == nil)
+        #expect(blank.cardCapsuleActions == [.newForm, .link])
+        #expect(blank.cardProminentCapsule == .newForm)
+        #expect(blank.tableTrailingActions == [.newForm, .link])
+        #expect(blank.tableStatusActions.isEmpty)
+        #expect(blank.tableProminentAction == .newForm)
+
+        let link = FeedItem(try row(status: .unknown(prefill: false), request: .link, "scan_ntag"))
+        #expect(link.cardCapsuleActions == [.link, .newForm])
+        #expect(link.cardProminentCapsule == .link)
+        #expect(link.tableProminentAction == .link)
+
+        let deleted = FeedItem(try row(status: .deleted))
+        #expect(deleted.cardCapsuleActions == [.saveAsNew, .link])
+        #expect(deleted.cardProminentCapsule == .saveAsNew)
+        #expect(!deleted.offersCancel)
+    }
+
+    /// Known spools have no actions and no Cancel; Esc leaves their entry.
+    @Test func knownSpoolsOfferNoCancel() throws {
+        let item = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
+        #expect(item.isEntry)
+        #expect(!item.offersCancel)
+        #expect(item.cardCapsuleActions.isEmpty)
+        #expect(item.tableTrailingActions.isEmpty)
+        #expect(item.tableStatusActions.isEmpty)
+    }
+}

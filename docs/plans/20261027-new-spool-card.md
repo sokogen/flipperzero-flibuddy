@@ -71,10 +71,10 @@
 - [x] run `make test` — must pass before Task 2
 
 ### Task 2: macOS, iPhone and iPad rows
-- [ ] macOS row: New spool / Created rows show the actions instead of the field; Save with weight… / Set weight… reveal the entry inline and focus it; Esc hides it
-- [ ] iPhone card and iPad one-line row: same, with the iOS sizes from the specs (Save as new full-width 50 pt prominent; the two secondaries as 44 pt capsules)
-- [ ] write view-model-level tests for anything new the views bind to
-- [ ] run `make test`, `swift build`, `make apple-build` — must pass before Task 3
+- [x] macOS row: New spool / Created rows show the actions instead of the field; Save with weight… / Set weight… reveal the entry inline and focus it; Esc hides it
+- [x] iPhone card and iPad one-line row: same, with the iOS sizes from the specs (Save as new full-width 50 pt prominent; the two secondaries as 44 pt capsules)
+- [x] write view-model-level tests for anything new the views bind to
+- [x] run `make test`, `swift build`, `make apple-build` — must pass before Task 3
 
 ### Task 3: Watch
 - [ ] detail screens per the Behaviour section; auto-open only for waiting rows
