@@ -5,6 +5,8 @@ import Foundation
 public struct NewSpoolForm: Equatable, Sendable {
     public static let title = "New spool"
     public static let footer = "Material is required. The row asks for a weight once Bambuddy has created the spool."
+    /// The iPhone form's footer.
+    public static let phoneFooter = "FliBuddy creates the spool in Bambuddy, then asks for its weight."
     /// The Material menu; "Choose…" is the empty material.
     public static let materials = ["PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC", "PVA"]
 
@@ -14,6 +16,9 @@ public struct NewSpoolForm: Equatable, Sendable {
     public var subtype: String
     public var colorName: String
     public var brand: String
+    /// The colour value, from the tag when it has one; the iPhone form has a
+    /// colour picker for it.
+    public var swatch: Swatch?
     /// Grams, digits only, at most four.
     public var labelWeight: String {
         didSet { labelWeight = FeedViewModel.sanitizeWeight(labelWeight) }
@@ -40,6 +45,7 @@ public struct NewSpoolForm: Equatable, Sendable {
         subtype = base.subtype ?? ""
         self.colorName = base.colorName ?? ""
         brand = base.brand ?? ""
+        swatch = base.rgba.flatMap(Swatch.init(rgba:))
         labelWeight = String(base.labelWeight)
     }
 
@@ -65,6 +71,8 @@ public struct NewSpoolForm: Equatable, Sendable {
         spool.subtype = Self.optional(subtype)
         spool.colorName = Self.optional(colorName)
         spool.brand = Self.optional(brand)
+        // An unchanged colour keeps the tag's text as read.
+        if swatch != base.rgba.flatMap(Swatch.init(rgba:)) { spool.rgba = swatch?.rgba }
         spool.labelWeight = grams
         return spool
     }

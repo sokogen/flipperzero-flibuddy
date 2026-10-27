@@ -11,7 +11,9 @@ linked to a tag; from the Flipper a spool can also be marked new, marked
 empty (archived) or deleted. See
 `docs/superpowers/specs/2026-10-25-flipper-spoolbuddy-design.md`; the
 Flipper screens are in `docs/design/flipper-ui-spec.md`, the Mac window in
-`docs/design/macos-ui-spec.md`.
+`docs/design/macos-ui-spec.md`, the iPhone, iPad and Apple Watch apps in
+`docs/design/ios-ui-spec.md`, `docs/design/ipados-ui-spec.md` and
+`docs/design/watchos-ui-spec.md`.
 
 FliBuddy, not SpoolBuddy: SpoolBuddy is Bambuddy's own kiosk device. The
 project was renamed on 2026-10-26; the design spec keeps its old file name.
@@ -128,8 +130,9 @@ The transport is a setting on both sides; nothing negotiates it.
 - Host: Settings → Connection. The Mac offers USB and Bluetooth (USB stays
   the default); the iPhone, iPad and Watch use Bluetooth only. **Scan for
   Flipper** lists the Flippers nearby by name; the chosen one is
-  remembered and reconnected to directly. **Forget** clears it; like every
-  other Settings change it takes effect on **Save**.
+  remembered and reconnected to directly. **Forget** clears it. On the Mac
+  every Settings change takes effect on **Save**; the iPhone and iPad apply
+  each change at once.
 
 There is no pairing step anywhere. The FAP publishes its own GATT service
 instead of the stock serial profile, whose passkey prompt watchOS cannot
@@ -163,15 +166,27 @@ team may need them changed to something unique.
 
 In the iOS Settings, **Scan QR code** reads the QR code Bambuddy shows when
 an API key is created and fills in the URL and the key (on devices with a
-camera that supports it; typing stays the fallback). The Watch has no
-settings of its own beyond the Flipper: whenever the settings are saved on
-the iPhone (and once at launch), the phone pushes the Bambuddy URL, API key,
-core weight, catalog entry and default mode to the watch over
-WatchConnectivity. The watch keeps them and talks to Bambuddy itself. On
-the watch the weight is entered with the Digital Crown. The watch saves
-weights and creates new items from a tag; linking a tag to an existing
-spool is done on the iPhone, iPad or Mac. The iPad has no watch to sync
-to.
+camera that supports it; typing stays the fallback) and starts **Test
+connection**. The Watch has no settings of its own beyond the Flipper: half
+a second after each change applied on the iPhone (and once at launch), the
+phone pushes the Bambuddy URL, API key, core weight, catalog entry and
+default mode to the watch over WatchConnectivity. The watch keeps them,
+shows them read-only and talks to Bambuddy itself. On the watch the weight
+is entered with the Digital Crown, and a new row waiting for a weight opens
+on its own. The watch saves weights and creates a new item in one tap from
+a tag that carries its material; other tags are created, and tags linked
+to an existing spool, on the iPhone, iPad or Mac. The iPad has no watch to
+sync to.
+
+The iPhone shows the feed as cards with a connection banner at the top; an
+iPad shows the same cards unless the window leaves 900 pt beside a sidebar
+(a 13" iPad in landscape), where it shows a sidebar with both connections
+and a one-line table with ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, as menu commands. On
+every host, Net/Gross converts the number on screen, the colour line
+carries Bambu's colour code, and the technical tag facts (UID, tray UUID,
+filament id, diameter, nozzle range) sit in **Tag details**, a row's
+context menu on the Mac, iPhone and iPad and the row detail on the watch.
+See `host/README.md`.
 
 ### Apple builds
 

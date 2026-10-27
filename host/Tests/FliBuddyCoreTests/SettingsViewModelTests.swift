@@ -15,6 +15,7 @@ private func makeModel(
     scanDuration: Duration = .seconds(15),
     power: @escaping @MainActor () async -> BLEPowerState = { .poweredOn },
     connected: @escaping @MainActor () -> TransportKind? = { nil },
+    appliesOnChange: Bool = false,
     apply: @escaping @MainActor (Settings) async throws -> Void = { _ in }
 ) -> SettingsViewModel {
     SettingsViewModel(
@@ -28,6 +29,7 @@ private func makeModel(
         bluetoothPower: power,
         scanDuration: scanDuration,
         connectedTransport: connected,
+        appliesOnChange: appliesOnChange,
         apply: apply
     )
 }
@@ -607,7 +609,7 @@ struct SettingsViewModelTests {
 
         #expect(model.baseURL == "http://192.168.1.10:8000")
         #expect(model.apiKey == "bb_from_qr")
-        #expect(model.qrStatus == .applied("URL and API key read from the QR code; Save to keep them"))
+        #expect(model.qrStatus == .applied("Filled from the QR code."))
         // The last test was for the old server.
         #expect(model.connection == nil)
         #expect(model.hasChanges)
@@ -635,7 +637,17 @@ struct SettingsViewModelTests {
         #expect(scanner.scans == 1)
         #expect(model.baseURL == "http://192.168.1.10:8000")
         #expect(model.apiKey == "bb_from_qr")
-        #expect(model.qrStatus == .applied("URL and API key read from the QR code; Save to keep them"))
+        #expect(model.qrStatus == .applied("Filled from the QR code."))
+        // A read starts Test connection with what it filled in.
+        #expect(model.connection == .ready)
+    }
+
+    @Test func aWrongQRCodeStartsNoTest() async {
+        let model = makeModel()
+
+        await model.scanQRCode(with: FakeQRScanner(.success("nonsense")))
+
+        #expect(model.connection == nil)
     }
 
     @Test func aFailingScannerLeavesTheFieldsUntouched() async {
@@ -855,6 +867,333 @@ struct SettingsViewModelTests {
 
     @Test func nothingRememberedLeavesNothingToForget() {
         #expect(!makeModel().canForget)
+    }
+}
+
+@MainActor
+@Suite("SettingsViewModel: apply on change")
+struct SettingsApplyOnChangeTests {
+    /// Records every applied settings value.
+    @MainActor
+    final class Applied {
+        var values: [Settings] = []
+        var failure: (any Error)?
+
+        func apply(_ settings: Settings) throws {
+            if let failure { throw failure }
+            values.append(settings)
+        }
+    }
+
+    private func makeApplying(
+        _ applied: Applied, inventory: FakeInventory = FakeInventory(), settings: Settings = testSettings
+    ) -> SettingsViewModel {
+        makeModel(inventory, settings: settings, appliesOnChange: true, apply: { try applied.apply($0) })
+    }
+
+    @Test func pickersApplyAtOnce() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.defaultMode = .net
+        await model.settled()
+
+        var expected = testSettings
+        expected.defaultMode = .net
+        #expect(applied.values == [expected])
+        #expect(!model.hasChanges)
+    }
+
+    @Test func theTransportAndPortPickersApplyAtOnce() async {
+        let applied = Applied()
+        var settings = testSettings
+        settings.transport = .usb
+        let model = makeApplying(applied, settings: settings)
+
+        model.transport = .bluetooth
+        await model.settled()
+        model.port = "/dev/cu.usbmodem1"
+        await model.settled()
+        model.port = "/dev/cu.usbmodem1"
+        await model.settled()
+
+        #expect(applied.values.map(\.transport) == [.bluetooth, .bluetooth])
+        #expect(applied.values.map(\.port) == [nil, "/dev/cu.usbmodem1"])
+    }
+
+    @Test func clearingTheCatalogEntryAppliesItWithoutTouchingTheCoreWeight() async {
+        let applied = Applied()
+        var settings = testSettings
+        settings.catalogEntryId = 9
+        let model = makeApplying(applied, settings: settings)
+
+        model.catalogEntryId = nil
+        await model.settled()
+
+        #expect(applied.values.map(\.catalogEntryId) == [nil])
+        #expect(applied.values.map(\.coreWeight) == [settings.coreWeight])
+    }
+
+    @Test func choosingACatalogEntryAppliesTheEntryAndItsWeightOnce() async {
+        let applied = Applied()
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [CatalogEntry(id: 9, name: "Bambu Lab - Cardboard", weight: 180)]
+        let model = makeApplying(applied, inventory: inventory)
+        await model.loadCatalog()
+
+        model.catalogEntryId = 9
+        await model.settled()
+
+        #expect(applied.values.map(\.catalogEntryId) == [9])
+        #expect(applied.values.map(\.coreWeight) == [180])
+    }
+
+    @Test func textFieldsWaitForTheirCommit() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.baseURL = "http://10.0.0.5"
+        model.baseURL = "http://10.0.0.5:8000"
+        model.apiKey = "bb_new"
+        model.coreWeight = 300
+        await model.settled()
+        #expect(applied.values.isEmpty)
+
+        model.commit()
+        await model.settled()
+
+        var expected = testSettings
+        expected.baseURL = "http://10.0.0.5:8000"
+        expected.apiKey = "bb_new"
+        expected.coreWeight = 300
+        #expect(applied.values == [expected])
+    }
+
+    @Test func aPickerChangeLeavesAnUncommittedFieldAlone() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.baseURL = "http://10.0.0.5:80"
+        model.defaultMode = .net
+        await model.settled()
+
+        #expect(applied.values.map(\.baseURL) == [testSettings.baseURL])
+        #expect(applied.values.map(\.defaultMode) == [.net])
+        #expect(model.baseURL == "http://10.0.0.5:80")
+    }
+
+    @Test func aCommitWithoutChangesAppliesNothing() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.commit()
+        model.defaultMode = .gross
+        await model.settled()
+
+        #expect(applied.values.isEmpty)
+    }
+
+    @Test func anOutOfRangeCoreWeightIsNotAppliedButTheRestIs() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.coreWeight = 0
+        model.apiKey = "bb_new"
+        model.commit()
+        await model.settled()
+
+        #expect(applied.values.map(\.apiKey) == ["bb_new"])
+        #expect(applied.values.map(\.coreWeight) == [testSettings.coreWeight])
+        #expect(model.coreWeightError != nil)
+    }
+
+    @Test func changesApplyInOrderEachOnTheLastApplied() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.defaultMode = .net
+        model.apiKey = "bb_new"
+        model.commit()
+        model.defaultMode = .gross
+        await model.settled()
+
+        #expect(applied.values.map(\.defaultMode) == [.net, .net, .gross])
+        #expect(applied.values.map(\.apiKey) == ["bb_test", "bb_new", "bb_new"])
+    }
+
+    @Test func aFailedApplyIsReportedAndTheEditKept() async {
+        let applied = Applied()
+        applied.failure = SecretStoreError.status(-25300)
+        let model = makeApplying(applied)
+
+        model.apiKey = "bb_new"
+        model.commit()
+        await model.settled()
+
+        #expect(model.saveError != nil)
+        #expect(model.apiKey == "bb_new")
+
+        applied.failure = nil
+        model.commit()
+        await model.settled()
+        #expect(model.saveError == nil)
+        #expect(applied.values.map(\.apiKey) == ["bb_new"])
+    }
+
+    @Test func choosingAFlipperAppliesIt() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        model.choosePeripheral(flipperA)
+        await model.settled()
+
+        #expect(applied.values.map(\.peripheralId) == [flipperA.id])
+        #expect(applied.values.map(\.peripheralName) == [flipperA.name])
+        #expect(applied.values.map(\.transport) == [.bluetooth])
+    }
+
+    @Test func forgettingTheFlipperAppliesIt() async {
+        let applied = Applied()
+        var settings = testSettings
+        settings.transport = .bluetooth
+        settings.peripheralId = flipperA.id
+        settings.peripheralName = flipperA.name
+        let model = makeApplying(applied, settings: settings)
+
+        model.forget()
+        await model.settled()
+
+        #expect(applied.values.count == 1)
+        #expect(applied.values.first?.peripheralId == nil)
+        #expect(applied.values.first?.peripheralName == nil)
+    }
+
+    @Test func aQRCodeAppliesTheURLAndKeyAndTestsThem() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+
+        await model.scanQRCode(with: FakeQRScanner(.success(bambuddyQR)))
+        await model.settled()
+
+        #expect(applied.values.map(\.baseURL) == ["http://192.168.1.10:8000"])
+        #expect(applied.values.map(\.apiKey) == ["bb_from_qr"])
+        #expect(model.connection == .ready)
+        #expect(model.qrStatus == .applied("Filled from the QR code."))
+    }
+
+    @Test func withoutApplyOnChangeNothingAppliesUntilSave() async {
+        var applied: [Settings] = []
+        let model = makeModel(apply: { applied.append($0) })
+
+        model.defaultMode = .net
+        model.commit()
+        await model.settled()
+        #expect(applied.isEmpty)
+        #expect(model.hasChanges)
+    }
+
+    @Test func theCoreWeightFieldTakesDigitsAsTyped() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+        #expect(model.coreWeightText == "250")
+
+        model.coreWeightText = "3x25"
+        #expect(model.coreWeight == 325)
+        model.coreWeightText = "012345"
+        #expect(model.coreWeightText == "1234")
+        model.coreWeightText = ""
+        #expect(model.coreWeight == 0)
+        #expect(model.coreWeightText == "")
+        #expect(model.coreWeightError != nil)
+
+        model.coreWeightText = "300"
+        model.commit()
+        await model.settled()
+        #expect(applied.values.map(\.coreWeight) == [300])
+    }
+
+    /// Holds an apply until the test opens it.
+    @MainActor
+    final class Gate {
+        private var waiting: CheckedContinuation<Void, Never>?
+        private var isOpen = false
+
+        func wait() async {
+            guard !isOpen else { return }
+            await withCheckedContinuation { waiting = $0 }
+        }
+
+        func open() {
+            isOpen = true
+            waiting?.resume()
+            waiting = nil
+        }
+    }
+
+    private func changeThenDrop(_ applied: Applied, gate: Gate) {
+        let model = makeModel(appliesOnChange: true, apply: { settings in
+            if applied.values.isEmpty { await gate.wait() }
+            try applied.apply(settings)
+        })
+        model.defaultMode = .net
+        model.baseURL = "http://10.0.0.5:8000"
+        model.commit()
+    }
+
+    @Test func aModelDroppedWhileApplyingStillAppliesItsQueuedChanges() async throws {
+        let applied = Applied()
+        let gate = Gate()
+
+        changeThenDrop(applied, gate: gate)
+        gate.open()
+        for _ in 0..<200 where applied.values.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+
+        #expect(applied.values.map(\.defaultMode) == [.net, .net])
+        #expect(applied.values.map(\.baseURL) == [testSettings.baseURL, "http://10.0.0.5:8000"])
+    }
+
+    // MARK: iPhone texts
+
+    @Test(arguments: [
+        (true, SettingsViewModel.QRStatus?.none, "Scan the QR code Bambuddy shows when you create an API key.", StatusTint.gray),
+        (true, .applied("Filled from the QR code."), "Filled from the QR code.", .green),
+        (true, .failed("Not a Bambuddy QR code"), "Not a Bambuddy QR code", .red),
+        (false, nil, "This device has no camera. Type the URL and API key instead.", .gray),
+        (false, .failed("x"), "This device has no camera. Type the URL and API key instead.", .gray),
+    ])
+    func theQRFooterFollowsTheCameraAndTheLastRead(
+        camera: Bool, status: SettingsViewModel.QRStatus?, text: String, tint: StatusTint
+    ) {
+        let footer = SettingsViewModel.qrFooter(cameraAvailable: camera, status: status)
+        #expect(footer.text == text)
+        #expect(footer.tint == tint)
+    }
+
+    @Test func theFlipperRowNamesTheFlipperAndItsState() async {
+        let scan = ManualScan()
+        let connected = LockedBox<TransportKind?>(nil)
+        let model = makeModel(scan: scan.start, connected: { connected.value })
+        #expect(model.flipperRowTitle == "No Flipper paired")
+        #expect(model.flipperRowState.text == "Not connected")
+        #expect(model.flipperRowState.symbol == .symbol("antenna.radiowaves.left.and.right.slash"))
+
+        model.scanForFlippers()
+        #expect(model.flipperRowState == StatusItem(text: "Searching\u{2026}", symbol: .progress, tint: .gray))
+
+        scan.continuation?.yield(flipperA)
+        #expect(await eventually { model.discovered == [flipperA] })
+        model.choosePeripheral(flipperA)
+        connected.mutate { $0 = .bluetooth }
+        #expect(model.flipperRowTitle == "Flipper Anmaa1")
+        #expect(
+            model.flipperRowState
+                == StatusItem(text: "Bluetooth", symbol: .symbol("antenna.radiowaves.left.and.right"), tint: .green)
+        )
+    }
+
+    @Test func aFlipperConnectedWithoutAChoiceIsNamedGenerically() {
+        let model = makeModel(connected: { .bluetooth })
+        #expect(model.flipperRowTitle == "Flipper")
     }
 }
 

@@ -27,13 +27,24 @@ public struct StatusItem: Equatable, Sendable {
     public var action: Action?
     /// The reason behind a short phrase (an error, the port, the firmware).
     public var detail: String?
+    /// The iPhone banner's phrase where it is shorter than `text`.
+    public var short: String?
 
-    public init(text: String, symbol: StatusSymbol, tint: StatusTint, action: Action? = nil, detail: String? = nil) {
+    public init(
+        text: String, symbol: StatusSymbol, tint: StatusTint, action: Action? = nil, detail: String? = nil,
+        short: String? = nil
+    ) {
         self.text = text
         self.symbol = symbol
         self.tint = tint
         self.action = action
         self.detail = detail
+        self.short = short
+    }
+
+    /// Green is a side that works: the Flipper connected, Bambuddy ready.
+    public var isHealthy: Bool {
+        tint == .green
     }
 }
 
@@ -47,7 +58,7 @@ extension FlipperLink {
         guard isActive else {
             return StatusItem(
                 text: "Flipper nearby, not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                tint: .orange, action: .connect, detail: problem
+                tint: .orange, action: .connect, detail: problem, short: "Flipper nearby"
             )
         }
         switch state {
@@ -70,7 +81,7 @@ extension FlipperLink {
             if case .bluetooth = choice {
                 return StatusItem(
                     text: "Flipper \u{00B7} Bluetooth", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                    tint: .green, detail: firmware
+                    tint: .green, detail: firmware, short: "Flipper connected"
                 )
             }
             let detail = [port, firmware].compactMap { $0 }.joined(separator: " \u{00B7} ")
@@ -103,7 +114,8 @@ extension BambuddyState {
         switch self {
         case .unchecked:
             return StatusItem(
-                text: "Bambuddy \u{00B7} not checked", symbol: .symbol("server.rack"), tint: .gray, action: .check
+                text: "Bambuddy \u{00B7} not checked", symbol: .symbol("server.rack"), tint: .gray, action: .check,
+                short: "Bambuddy not checked"
             )
         case .notConfigured:
             return StatusItem(
@@ -114,7 +126,7 @@ extension BambuddyState {
             if let colorNamesProblem {
                 return StatusItem(
                     text: "Bambuddy ready \u{00B7} colour names unavailable", symbol: .symbol("paintpalette"),
-                    tint: .orange, detail: colorNamesProblem
+                    tint: .orange, detail: colorNamesProblem, short: "Colour names unavailable"
                 )
             }
             return StatusItem(text: "Bambuddy ready", symbol: .symbol("server.rack"), tint: .green)
@@ -126,7 +138,7 @@ extension BambuddyState {
         case .refused(.permissionMissing):
             return StatusItem(
                 text: "API key lacks inventory permission", symbol: lock, tint: .red, action: .settings,
-                detail: message
+                detail: message, short: "Key lacks inventory permission"
             )
         case .refused(.unauthorized):
             return StatusItem(

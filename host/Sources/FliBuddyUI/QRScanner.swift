@@ -3,9 +3,10 @@ import FliBuddyCore
 import SwiftUI
 import VisionKit
 
-/// Scans a QR code with VisionKit's `DataScannerViewController` in a sheet.
-/// `scan()` raises `isPresenting`; the sheet ends the scan with the first QR
-/// code it reads, or with `CancellationError` when it is dismissed.
+/// Scans a QR code with VisionKit's `DataScannerViewController` in a
+/// full-screen cover. `scan()` raises `isPresenting`; the cover ends the scan
+/// with the first QR code it reads, or with `CancellationError` when it is
+/// closed.
 @MainActor
 @Observable
 final class CameraQRScanner: QRScanning {
@@ -23,7 +24,7 @@ final class CameraQRScanner: QRScanning {
         }
     }
 
-    /// Ends the running scan, if any, and closes the sheet.
+    /// Ends the running scan, if any, and closes the cover.
     func finish(_ result: Result<String, any Error>) {
         isPresenting = false
         continuation?.resume(with: result)
@@ -89,28 +90,59 @@ struct QRScannerView: UIViewControllerRepresentable {
     }
 }
 
-/// The sheet: the camera with a hint and Cancel.
-struct QRScannerSheet: View {
+/// The full-screen cover: the camera edge to edge, close at the top leading
+/// corner, a corner-bracket frame in the middle and the hint under it.
+struct QRScannerCover: View {
     let scanner: CameraQRScanner
 
     var body: some View {
-        NavigationStack {
+        ZStack {
             QRScannerView(
                 onScan: { scanner.finish(.success($0)) },
                 onFailure: { scanner.finish(.failure($0)) }
             )
             .ignoresSafeArea()
-            .navigationTitle("Scan QR code")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { scanner.finish(.failure(CancellationError())) }
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    Text("The QR code from Bambuddy's API key dialog").font(.footnote)
-                }
+            VStack(spacing: 24) {
+                ScanBrackets()
+                    .stroke(.white, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    .frame(width: 240, height: 240)
+                    .accessibilityHidden(true)
+                Text("Point at the QR code Bambuddy shows when you create an API key.")
+                    .font(.footnote.weight(.medium))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: .capsule)
+                    .padding(.horizontal, 32)
             }
         }
+        .overlay(alignment: .topLeading) {
+            Button("Close", systemImage: "xmark") { scanner.finish(.failure(CancellationError())) }
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .background(.regularMaterial, in: .circle)
+                .padding(16)
+        }
+    }
+}
+
+/// Four corner brackets of a square viewfinder.
+private struct ScanBrackets: Shape {
+    func path(in rect: CGRect) -> Path {
+        let arm = min(rect.width, rect.height) * 0.2
+        var path = Path()
+        for (corner, dx, dy) in [
+            (CGPoint(x: rect.minX, y: rect.minY), 1.0, 1.0),
+            (CGPoint(x: rect.maxX, y: rect.minY), -1.0, 1.0),
+            (CGPoint(x: rect.minX, y: rect.maxY), 1.0, -1.0),
+            (CGPoint(x: rect.maxX, y: rect.maxY), -1.0, -1.0),
+        ] {
+            path.move(to: CGPoint(x: corner.x, y: corner.y + dy * arm))
+            path.addLine(to: corner)
+            path.addLine(to: CGPoint(x: corner.x + dx * arm, y: corner.y))
+        }
+        return path
     }
 }
 #endif

@@ -424,72 +424,120 @@ SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27.
+None remain. The fourteen differences found on 2026-10-27 were closed by
+the plan `docs/plans/20261027-apple-ui-from-design.md`; where the app
+departs from this file, the next section says how and why. What changed:
 
-1. **Connection banner.** `FeedView` (`host/Sources/FliBuddyUI/FeedView.swift`)
-   puts the macOS `StatusBar` in a bottom safe-area inset on iOS too; the
-   iPhone needs the top glass capsule showing the healthy line or the one
-   problem that counts (Flipper first) with its action, and the shorter iPhone phrases (`Flipper nearby`, `Flipper
-   connected`, `Key lacks inventory permission`, `Colour names
-   unavailable`, `Bambuddy not checked`).
-2. **Row card layout.** `FeedRowView` on iOS stacks the macOS header (title,
-   detail and status side by side in three equal columns) over a 96 × 34
-   field with an inline segmented picker 150 wide; the iPhone needs the
-   stacked card: status under the colour line, field 64 high full width with
-   the mode word inside, 34 pt value, segmented full width, readout,
-   full-width 50 pt Save, 44 pt action capsules. Rows should be one
-   `Section` each with `.listSectionSpacing(.compact)`.
-3. **Number pad and focus.** No `.keyboardType(.numberPad)`, no
-   select-all on focus (the comment in `FeedView` relies on AppKit), no
-   scroll-to-row on focus, no tab bar hiding, no lowering when no row
-   waits, no tap on the list background to dismiss.
-4. **Haptics.** None on iOS: add `.success` after a save and `.error` on a
-   failure.
-5. **Net/Gross converts typed numbers.** `FeedViewModel.setMode`
-   (`host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift:157`) only
-   stores the mode, so a typed number stays as typed (the macOS rule). The
-   owner decision applies to the Mac as well.
-6. **Colour code and UID.** `FeedItem.detailText`
-   (`host/Sources/FliBuddyCore/ViewModels/FeedItem.swift`) is colour name ·
-   amount without the Bambu code, although the data exists
-   (`Spool.materialNumber`, `TagInfo.code`, `ParsedTag.bambuColor`); the UID
-   is in the row under the title.
-7. **Tag details.** There is no details surface for UID, tray UUID,
-   filament id, diameter and nozzle range.
-8. **Settings apply on change.** `SettingsForm`
-   (`host/Sources/FliBuddyUI/SettingsForm.swift`) keeps the macOS Save /
-   Revert row on iOS (the "Implemented differently" note in the macOS spec
-   says so); the labels differ (`Server URL` → `URL`, `I type the weight as`
-   → `Type weight as`, `Forget` beside the connection line → a `Forget this
-   Flipper` row, `Flipper` value row); the Flipper footer (`No pairing: the
-   Flipper runs FliBuddy with Transport set to Bluetooth.`) and the QR
-   footers differ; the iOS form shows a `Reload catalog` button and a
-   Connection picker the design does not have (keep Reload; the picker
-   only appears with two transports, so it stays hidden on iOS).
-9. **QR scanner.** `QRScannerSheet`
-   (`host/Sources/FliBuddyUI/QRScanner.swift`) is a sheet with a navigation
-   bar, Cancel and the hint `The QR code from Bambuddy's API key dialog`;
-   the design wants a full-screen cover with the bracket frame and its
-   hint. The Scan row is hidden without a camera instead of dimmed with the
-   footer; a read does not start Test connection; the applied message says
-   `Save to keep them`, which apply-on-change makes wrong.
-10. **New spool sheet.** `NewSpoolSheet`
-    (`host/Sources/FliBuddyUI/UnknownRowActions.swift`) has no colour picker
-    (only a colour name), no Required / Optional sections, text Cancel /
-    Create buttons at the bottom instead of `xmark` / `checkmark` in the
-    navigation bar, and the macOS footer text.
-11. **Link picker.** `LinkSpoolSheet` uses a plain filter `TextField` and an
-    inline warning with a `Move link` button title, not `.searchable` and
-    the confirmation alert; Cancel / Link are bottom text buttons.
-12. **Clear.** The dialog's destructive button reads `Clear`, the design
-    `Clear feed`; the toolbar button carries a text label.
-13. **Watch sync cadence.** `WatchSettingsSender.settingsSaved` runs from
-    `HostModel.onSettingsSaved` after an explicit Save
-    (`host/Sources/FliBuddyCore/Session/WatchSettingsSync.swift`); with
-    apply-on-change it has to run after each applied change.
-14. **Not-in-Bambuddy actions.** On iOS `UnknownRowActions(compact: true)`
-    draws New / Link as small footnote buttons beside the readout (the
-    macOS placement); the iPhone wants the two 44 pt capsules under Save.
+1. Connection banner: the top glass banner (`ConnectionBanner`,
+   `ConnectionBannerView`) replaced the bottom macOS status bar on iOS,
+   with the iPhone phrases, one line per side in trouble.
+2. Row card: the stacked card, one `Section` per row.
+3. Number pad and focus: number pad, select-all, scroll to the focused
+   row, tab bar hidden while typing, pad lowered when no row waits.
+4. Haptics: success after a host save, error on a failed host action.
+5. Net/Gross converts the number on screen, typed or not (Mac too).
+6. Colour line `<colour name> · <code>`; the UID left the row.
+7. Tag details sheet from the row's context menu and VoiceOver action.
+8. Settings apply on change, with the labels, rows and footers above.
+9. QR scanner as a full-screen cover; a dimmed Scan row without a camera;
+   a read applies and starts Test connection.
+10. New spool sheet: colour picker, Required / Optional, toolbar buttons.
+11. Link picker: `.searchable`, the move-link alert, toolbar buttons.
+12. Clear: `trash` button, `Clear feed` in the dialog.
+13. Watch sync after each applied change, debounced.
+14. Not-in-Bambuddy rows: New / Link as 44 pt capsules under Save.
+
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Connection banner
+- The banner is `ConnectionBanner` (`FliBuddyCore`), built from the same
+  two `StatusItem`s as the macOS status bar; each item carries its iPhone
+  phrase in `short` where it differs. A side counts as healthy when its
+  tint is green (Flipper connected, Bambuddy ready), so the colour-names
+  warning is a problem line of its own.
+- The shape is a rounded rectangle with a 20 pt continuous corner rather
+  than `Capsule()`: at one line (40 pt) it is the capsule, and at two
+  lines the corners stay the same instead of rounding into the text. By
+  eye.
+- The chip fills with the app tint, not the state's tint. The healthy
+  line's accessibility hint is the firmware version. By eye.
+- A portrait iPad shows the same banner; beside the iPad sidebar the
+  banner gives way to the sidebar's status rows (`ipados-ui-spec.md`).
+
+Feed row, number pad and focus
+- The card is the row of its own inset-grouped `Section` with 16 pt row
+  insets; the waiting-row hint is a 2 pt `.tint` stroke on the card's row
+  background (24 pt continuous corner), not on the field. By eye.
+- Save and the New / Link capsules are stock `.borderedProminent` /
+  `.bordered` buttons with `.buttonBorderShape(.capsule)` at
+  `.controlSize(.large)`; the label's minimum height (36 / 30) gives about
+  50 / 44 pt rather than an exact frame. The non-prominent capsule is the
+  bordered style's tinted fill rather than `tertiarySystemFill`. By eye.
+- The capsules show no spinner of their own: the row's status line shows
+  `Creating in Bambuddy…` with its spinner while New or Link runs.
+- Select-all on focus sets the field's `TextSelection` to the whole value
+  one turn after the field takes the keyboard, so the caret the tap placed
+  does not win; a Net/Gross switch reselects a converted suggestion. A tap
+  anywhere in the 64 pt box focuses the field. By eye.
+- Leading zeros drop as the user types (`FeedViewModel.sanitizeWeight`),
+  which is how a lone `0` is replaced by the next key; the Mac shares it.
+- "Tapping the list background lowers the pad" is a tap on a card's header
+  (swatch, title, colour line, status) plus
+  `.scrollDismissesKeyboard(.immediately)` on a drag: a list-wide tap
+  gesture races the field's own tap and the buttons. A tap between cards
+  does nothing. By eye.
+- No row's field holds the keyboard while a sheet is open: the sheets
+  count themselves in and out (`FeedViewModel.sheetOpened()` /
+  `sheetClosed()`), and the focused row's field takes the pad back when the
+  last one closes.
+- The success haptic plays after a save from the host; the error haptic
+  after any failed host action (save, New, Link), as `FeedViewModel.haptic`
+  events. A save from the Flipper plays nothing on the iPhone.
+- The timeout note's symbol and text are a `Label` 4 pt under the status.
+- Tag details opens from the card's context menu and the VoiceOver action
+  shared with the Mac, as a sheet with medium and large detents.
+
+Settings, QR, sheets and Clear
+- Apply on change lives in `SettingsViewModel` (`appliesOnChange`, which
+  only the iPhone and iPad set). Each change applies on top of the settings
+  applied last, one after another, so a picker change leaves a field that
+  is still being typed out of it. A text field commits on Return, when
+  another field takes the focus, and when the Settings tab goes away.
+- A core weight out of range is not applied (its red line stays under the
+  field) while a URL or key committed with it is. A failed apply shows a
+  red line at the bottom of the form; the edit stays and the next commit
+  tries again.
+- URL and API key are labelled rows with the field trailing. By eye.
+- The core weight field is text, not a number format: digits go into the
+  setting as typed (`SettingsViewModel.coreWeightText`, at most four, an
+  empty field reads 0 and is not applied), so the commit on focus loss
+  never sees a stale number; the number pad has no Return.
+- The Flipper row reads `Searching…` while a scan runs (it wins over a
+  connection), `Bluetooth` when connected, and `Not connected` with
+  `antenna.radiowaves.left.and.right.slash` otherwise, which the spec does
+  not name. A Flipper connected without a chosen one is titled `Flipper`.
+  The scan button reads `Stop scanning` while it runs, as shipped.
+- The watch gets the settings 0.5 s after the last applied change
+  (`WatchSettingsSender.defaultDebounce`), so a quick run of changes sends
+  once, the latest.
+- The QR footer shows a failed read in red, in place of the hint. The
+  close button is an `xmark` in a material circle; the bracket frame is
+  240 pt, white. By eye.
+- New spool: the colour picker has no opacity; with no colour on the tag
+  it shows grey and stores nothing until a colour is picked. The title and
+  `NTAG 7-byte · <uid>` sit in the navigation bar's centre. The material
+  menu's empty entry reads `Choose` (the Mac keeps `Choose…`).
+- Link to existing: the rows are buttons with the `checkmark` on the
+  pick; the search field is always shown; no match is a
+  `ContentUnavailableView` with `magnifyingglass`. Link with a pick that
+  carries another tag asks with the alert; the iPad shows the inline
+  warning instead (`ipados-ui-spec.md`).
+- Clear keeps ⌘⌫ on a hardware keyboard, now a menu command of the app
+  (`FeedCommands`, shared with the iPad) rather than the toolbar button's
+  shortcut; ⌘S and ⌘↑ / ⌘↓ are menu commands too.
 
 ## Open questions for the owner
 

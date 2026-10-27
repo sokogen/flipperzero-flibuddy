@@ -215,49 +215,109 @@ black. Colours: blue `#0A84FF`, red `#FF453A`, green `#30D158`, orange
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27.
+None remain. The thirteen differences found on 2026-10-27 were closed by
+the plan `docs/plans/20261027-apple-ui-from-design.md`; where the app
+departs from this file, the next section says how and why. What changed:
 
-1. **Navigation.** `host/Apple/Watch/App.swift` is a vertical-page
-   `TabView` (feed, settings); the page wants one `NavigationStack` with
-   Settings behind the leading glyph.
-2. **Status.** `WatchStatus` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
-   is a list section with two coloured dots and phrases, not the single
-   glyph button.
-3. **List row.** `WatchFeedRow` uses a 24 pt swatch, `.headline`, and the
-   status as text; the page wants a 16 pt swatch, 15 sb title, the short
-   sub line (`590 g left`, `Unknown tag`) and a 19 pt trailing glyph. The
-   empty state is a `ContentUnavailableView` with a different text.
-4. **Auto-open and pop.** Rows open only on a tap; nothing opens on focus,
-   and the detail does not pop a second after a save.
-5. **Entry.** `WatchWeightEntry`
-   (`host/Sources/FliBuddyUI/Watch/WatchRowDetail.swift`) shows `.title2`
-   (≈ 22 pt) `"\(grams) g"`, a `Toggle("Gross")`, a plain Save and no
-   readout line; the page wants 50 pt + 20 pt unit, the line (`Saves … g
-   left` / `Turn the crown`), the two pills and the 40 pt blue Save.
-6. **Crown.** `CrownWeight` (`host/Sources/FliBuddyCore/ViewModels/CrownWeight.swift`)
-   switches to 5 g at 20 g/s, and the view uses `sensitivity: .medium`;
-   the page says about 6 detents per second and `.low`.
-7. **Net / Gross.** Switching does not convert a crowned value
-   (`FeedViewModel.setMode`,
-   `host/Sources/FliBuddyCore/ViewModels/FeedViewModel.swift:157`).
-8. **Haptics.** Only the crown's detent haptic; no `.success` / `.failure`.
-9. **Saved and unknown screens.** A saved row shows `Re-weigh` under the
-   status, not the 34 pt result and `Weigh again`. `WatchUnknownActions`
-   opens a full `WatchNewSpool` form for every tag without a spool; the
-   page has one-tap New for prefill tags only and the two hints. On a `Not
-   in Bambuddy` Bambu row the detail shows the entry but no New.
-10. **Details.** Colour code, UID, filament id, diameter and nozzle range
-    are shown nowhere.
-11. **AOD.** No `isLuminanceReduced` handling.
-12. **Settings.** `WatchSettingsView` lists URL, `API key Set/Missing`,
-    Core, Weight and the Bambuddy status, and scans inline with RSSI in
-    dBm and Stop scanning; the page has Server / Core weight / Weight as,
-    the `Received … Change these on iPhone.` footer, the Flipper platter,
-    and a separate scan screen with `Searching…` and signal words. The
-    empty text says "save its settings".
-13. **Sync cadence.** `WatchSettingsSender` sends after an explicit Save on
-    the iPhone (`host/Sources/FliBuddyCore/Session/WatchSettingsSync.swift`);
-    with apply-on-change it must send after each applied change.
+1. One `NavigationStack` (`WatchNavigation`) with Settings behind the
+   leading glyph.
+2. The single connection glyph (`WatchGlyph`) from the merged status.
+3. Feed rows: 16 pt swatch, short sub line, trailing glyph; the empty text.
+4. Auto-open of a new row that waits, pop one second after a save.
+5. Entry: 50 pt value, readout line, Net / Gross pills, 40 pt Save.
+6. Crown: `.low` sensitivity, 5 g per detent from 6 detents per second.
+7. Net / Gross converts the crowned value.
+8. Haptics `.success` / `.failure`.
+9. Saved screen with `Weigh again`; unknown screen with one-tap New for
+   tags with material and the two hints; a Not-in-Bambuddy Bambu row keeps
+   the entry.
+10. Details (colour code, UID, filament id, diameter, nozzle range) in the
+    row detail.
+11. Always-On: title and remaining only, no taps.
+12. Read-only Settings (`WatchSettingsTexts`) with the Flipper platter and a
+    separate Scan for Flipper screen.
+13. Settings arrive after each change applied on the iPhone.
+
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Navigation and glyph
+- A Flipper link request on a tag with material still shows the crown
+  entry (`WatchRowScreen`), as on the iPhone and the Mac: Save creates a new
+  spool, and the link hint shows only on an Unknown body.
+- `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
+  holds the one `NavigationStack`; its path is `WatchNavigation`
+  (`FliBuddyCore`), whose screens are a row's detail, Settings and Scan
+  for Flipper (over Settings).
+- The glyph comes from `WatchGlyph` (`FliBuddyCore`), built from the same
+  two `StatusItem`s as the macOS status bar and the iPhone banner, in the
+  iPhone's short phrase. States the table leaves out keep their status-bar
+  phrase and look: `Bambuddy not set up`, `Bambuddy rejected the API key`,
+  `Checking Bambuddy…` (spinner), a version mismatch, a Bluetooth problem.
+
+Auto-open and pop
+- Auto-open follows the rows rather than the core's focus: the newest row
+  that started waiting since the last snapshot opens while the feed shows.
+  On the watch no field is touched on the feed, so the iPhone's "never
+  steal from a touched field" rule cannot hold it back. A row that started
+  waiting while a detail or Settings showed does not open later on its
+  own.
+- The pop runs one second after a save Bambuddy took
+  (`FeedViewModel.save` now reports it). It leaves any other screen alone;
+  if the user went back first, the newest waiting row still opens. A save
+  from the Flipper while a detail shows does not pop it.
+
+Feed list
+- A row that is busy on the host (Creating) shows the 14 pt spinner too.
+- The row platter is the list row background; its 12 pt side padding is
+  the list's own inset. By eye.
+- Secondary glyph tints (Not in Bambuddy, marked empty, deleted) use the
+  page's gray `#8E8E93`.
+- Always-On: rows are plain (no button), with no swatch, glyph or platter;
+  the toolbar glyph is hidden.
+
+Row detail
+- `WatchRowScreen` (`FliBuddyCore`) picks the body. While New from the
+  watch runs, the busy body reads `Creating in Bambuddy…`; Looking up shows
+  its own phrase. The header line stands in for a navigation title.
+- Unknown hints: a Flipper link request wins (`Link it on iPhone or
+  Mac.`); a tag without material otherwise reads `Create it on iPhone or
+  Mac.`, also under a Flipper create request; a deleted spool has no hint
+  and offers New when the tag has material. A failed New shows
+  `Error: <message>` in red under the phrase.
+- Entry: with no value the number reads a dimmed `0`, the line `Turn the
+  crown`, and Save stays dimmed; the crown starts at 0. The line drops the
+  gross sum (`Saves 590 g left`, as the iPad's short readout) to stay on
+  one line. A host error outranks the row's own error. The weight takes
+  focus when the entry appears, so Weigh again lands on it. The pills are
+  Net then Gross.
+- The saved body's big number is what is left on a known spool; without
+  one it is left out.
+- Details sit under a 12 pt `Details` caption; ids and UIDs are monospaced.
+
+Crown and haptics
+- `CrownWeight.fastVelocity` is 6 crown units per second; with one unit
+  per detent that is the page's 6 detents per second.
+- The haptics follow `FeedViewModel.haptic` on the root view
+  (`WKInterfaceDevice.current().play`), so any failed host action (also a
+  failed New) plays `.failure`, on any screen.
+
+Settings and Scan for Flipper
+- Texts come from `WatchSettingsTexts` (`FliBuddyCore`). Settings that
+  have not arrived since launch drop the `Received …` sentence; the age
+  reads `just now`, `N min ago`, `N h ago` or `N d ago`. Before any
+  settings arrive the section reads `Open FliBuddy on the iPhone to send
+  its settings.`; a rejected payload shows its error in red there.
+- The Flipper platter shows the Flipper half of the status only, not the
+  merged glyph (the page's `replace('Flipper ', '')` on the glyph text
+  would put Bambuddy's problems under the Flipper's name); a nameless
+  Flipper reads `Flipper`. Bambuddy's status leaves Settings: the glyph
+  has it.
+- The scan runs while its screen shows and stops on leaving it. After the
+  15 s scan ends the spinner gives way to `Scan again`; a Bluetooth
+  problem shows in red. `Nearby · strong` from −60 dBm up, else `Nearby`.
 
 ## Open questions for the owner
 

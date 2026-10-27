@@ -146,17 +146,17 @@ struct FeedItemRulesTests {
 
 @Suite("FeedItem: row display strings")
 struct FeedItemDisplayTests {
-    @Test func theColourLineJoinsTheColourNameAndWhatIsLeft() throws {
-        #expect(FeedItem(try row(status: .awaitingWeight)).detailText == "Jade White · 484 g left of 1000")
+    @Test func theColourLineJoinsTheColourNameCodeAndWhatIsLeft() throws {
+        #expect(FeedItem(try row(status: .awaitingWeight)).detailText == "Jade White · 10100 · 484 g left of 1000")
         // an unnamed colour is left out, never shown as hex
         let unnamed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(colorName: nil)))
         #expect(unnamed.colorName == nil)
-        #expect(unnamed.detailText == "484 g left of 1000")
+        #expect(unnamed.detailText == "10100 · 484 g left of 1000")
         // an unknown tag with prefill shows its label weight
         var tagged = try row(status: .unknown(prefill: true), spool: nil)
-        #expect(FeedItem(tagged).detailText == "label 1000 g")
+        #expect(FeedItem(tagged).detailText == "10100 · label 1000 g")
         tagged.colorName = "Bambu Green"
-        #expect(FeedItem(tagged).detailText == "Bambu Green · label 1000 g")
+        #expect(FeedItem(tagged).detailText == "Bambu Green · 10100 · label 1000 g")
         // a blank tag has nothing to say
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
         #expect(blank.detailText == "")
@@ -177,6 +177,24 @@ struct FeedItemDisplayTests {
     @Test func theWeightFieldIsLabelledByItsMode() {
         #expect(FeedItem.weightFieldLabel(mode: .gross) == "Gross weight, grams")
         #expect(FeedItem.weightFieldLabel(mode: .net) == "Net weight, grams")
+    }
+
+    @Test func theWeightFieldShowsItsModeWord() {
+        #expect(FeedItem.modeWord(.gross) == "gross")
+        #expect(FeedItem.modeWord(.net) == "net")
+    }
+
+    /// The iPhone card's capsules: New first and prominent, unless the
+    /// Flipper asked to link; then Link to existing… leads.
+    @Test func theCardActionsLeadWithNewUnlessTheFlipperAskedToLink() throws {
+        let plain = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
+        #expect(plain.cardActions == [.new, .link])
+        let create = FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create))
+        #expect(create.cardActions == [.new, .link])
+        let link = FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link))
+        #expect(link.cardActions == [.link, .new])
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.cardActions == [.new, .link])
     }
 
     @Test func everyStateInTheSpecTableReadsAsSpecified() throws {
@@ -274,7 +292,7 @@ struct FeedViewModelSaveButtonTests {
         #expect(model.saveTitle(for: id) == "Saving\u{2026}")
         #expect(model.isSaving(id))
         #expect(!model.canSave(id))
-        await saving.value
+        _ = await saving.value
         #expect(model.saveTitle(for: id) == "Save")
     }
 }
@@ -294,16 +312,67 @@ struct FeedViewModelRulesTests {
         #expect(model.readout(for: id)?.text == "Saves 484 g left")
     }
 
-    @Test func aModeSwitchKeepsATypedValue() async throws {
+    @Test func aModeSwitchConvertsATypedValue() async throws {
         let (model, session) = makeModel()
         let id = await session.record(try scan("s-1"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
+        // gross → net takes the spool's 250 g core off; net → gross adds it back
         model.setWeightText("900", for: id)
         model.setMode(.net, for: id)
+        #expect(model.draft(for: id) == FeedViewModel.Draft(value: "650", touched: true, mode: .net))
+        #expect(model.readout(for: id)?.text == "Saves 650 g left")
+        model.setMode(.gross, for: id)
+        #expect(model.draft(for: id) == FeedViewModel.Draft(value: "900", touched: true, mode: .gross))
+        // the same mode again changes nothing
+        model.setMode(.gross, for: id)
+        #expect(model.weightText(for: id) == "900")
+    }
 
-        #expect(model.draft(for: id) == FeedViewModel.Draft(value: "900", touched: true, mode: .net))
+    @Test func aConversionClampsToTheWeightRange() async throws {
+        let (model, session) = makeModel()
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        // below the core: net 0, as on the Flipper
+        model.setWeightText("200", for: id)
+        model.setMode(.net, for: id)
+        #expect(model.weightText(for: id) == "0")
+        model.setMode(.gross, for: id)
+        #expect(model.weightText(for: id) == "250")
+        // four digits at most
+        model.setMode(.net, for: id)
+        model.setWeightText("9900", for: id)
+        model.setMode(.gross, for: id)
+        #expect(model.weightText(for: id) == "9999")
+        #expect(FeedViewModel.convert(100, to: .net, core: nil) == 100)
+        #expect(FeedViewModel.convert(100, to: .gross, core: -5) == 100)
+    }
+
+    @Test func aModeSwitchLeavesAnEmptyFieldEmpty() async throws {
+        let (model, session) = makeModel()
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        model.setWeightText("", for: id)
+        model.setMode(.net, for: id)
+
+        #expect(model.draft(for: id) == FeedViewModel.Draft(value: "", touched: true, mode: .net))
+    }
+
+    @Test func anUntouchedSuggestionStaysUntouchedThroughASwitch() async throws {
+        let (model, session) = makeModel()
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        model.setMode(.net, for: id)
+        model.setMode(.gross, for: id)
+
+        #expect(model.draft(for: id) == FeedViewModel.Draft(value: "734", touched: false, mode: .gross))
     }
 
     @Test func saveIsDisabledBelowTheCoreInGrossAndWhileSaving() async throws {
@@ -325,7 +394,7 @@ struct FeedViewModelRulesTests {
         model.apply(await session.snapshot)
         #expect(model.items.first?.statusText == "Saving\u{2026}")
         #expect(!model.canSave(id))
-        await saving.value
+        _ = await saving.value
     }
 
     @Test func aSavedRowReopensForAReweighWithTheSavedValueAsBase() async throws {

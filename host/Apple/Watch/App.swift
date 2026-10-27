@@ -20,20 +20,12 @@ struct FliBuddyWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TabView {
-                NavigationStack {
-                    WatchFeedView(feed: host.feed, link: host.link)
+            WatchRootView(host: host, receiver: receiver)
+                .task {
+                    if receiver == nil { receiver = WatchSettingsReceiver.start(for: host) }
+                    host.start()
+                    await host.feed.observe()
                 }
-                NavigationStack {
-                    WatchSettingsView(host: host, receiver: receiver)
-                }
-            }
-            .tabViewStyle(.verticalPage)
-            .task {
-                if receiver == nil { receiver = WatchSettingsReceiver.start(for: host) }
-                host.start()
-                await host.feed.observe()
-            }
         }
     }
 }

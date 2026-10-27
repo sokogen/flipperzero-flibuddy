@@ -14,7 +14,7 @@ func spoolJSON(
      "core_weight":\(coreWeight),"core_weight_catalog_id":3,"weight_used":\(weightUsed),
      "last_scale_weight":\(lastScaleWeight.map(String.init) ?? "null"),
      "tag_uid":"04A1B2C3","tray_uuid":"A1B2C3D4E5F60718293A4B5C6D7E8F90",
-     "tag_type":"bambulab","data_origin":"flipper","note":null,
+     "tag_type":"bambulab","data_origin":"flipper","note":null,"material_number":"10100",
      "created_at":"2026-10-25T12:00:00","updated_at":"2026-10-25T12:00:00","k_profiles":[]}
     """
 }
@@ -72,7 +72,7 @@ struct BambuddyClientTests {
             id: 42, material: "PLA", subtype: "PLA Basic", colorName: "Jade White", rgba: "FFFFFFFF",
             brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
             weightUsed: 516, lastScaleWeight: 734, tagUid: "04A1B2C3", trayUuid: trayA,
-            tagType: "bambulab", dataOrigin: "flipper", note: nil
+            tagType: "bambulab", materialNumber: "10100", dataOrigin: "flipper", note: nil
         ))
         #expect(spool.remaining == 484)
     }
@@ -668,7 +668,7 @@ struct BambuddyClientLogTests {
         let server = StubServer { _ in .json(401, #"{"detail":"invalid key \#(key)"}"#) }
         let client = try server.client(apiKey: key)
 
-        let sink = try await capturingLog(level: .debug) { _ = try? await client.spoolmanEnabled() }
+        let sink = await capturingLog(level: .debug) { _ = try? await client.spoolmanEnabled() }
 
         #expect(server.requests.first?.headers["X-API-Key"] == key)
         #expect(sink.lines.filter { $0.message.contains("«redacted»") }.count == 2)

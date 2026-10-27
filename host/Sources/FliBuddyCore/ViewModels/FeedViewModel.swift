@@ -32,6 +32,24 @@ public final class FeedViewModel {
 
     /// Which row has the keyboard; see `FocusModel`.
     public private(set) var focus = FocusModel()
+    /// Sheets open over the feed (New, Link, Tag details): while any is, no
+    /// weight field takes the keyboard.
+    private var openSheets = 0
+
+    /// The haptic a host action asks for: success after a save, error after
+    /// any failed action. A new value per event, so the same kind twice in a
+    /// row still plays.
+    public struct Haptic: Equatable, Sendable {
+        public enum Kind: Sendable {
+            case success
+            case error
+        }
+
+        public var kind: Kind
+        public var serial: Int
+    }
+
+    public private(set) var haptic: Haptic?
 
     /// A row's weight field: the suggestion until the user types (`touched`),
     /// then what they typed; and the mode it is in.
@@ -95,6 +113,11 @@ public final class FeedViewModel {
         itemsByID[id]
     }
 
+    /// What Tag details lists for the row.
+    public func tagDetails(for id: FeedRow.ID) -> TagDetails? {
+        rows[id].map(TagDetails.init)
+    }
+
     /// The Bambuddy half of the status bar.
     public var bambuddyStatus: StatusItem {
         bambuddy.statusItem(colorNamesProblem: colorNamesProblem, isChecking: isCheckingBambuddy)
@@ -108,9 +131,12 @@ public final class FeedViewModel {
 
     // MARK: Weight entry
 
-    /// Digits only, at most four.
+    /// Digits only, at most four, without leading zeros: a digit typed after
+    /// a lone `0` replaces it.
     public nonisolated static func sanitizeWeight(_ text: String) -> String {
-        String(text.filter { $0.isASCII && $0.isNumber }.prefix(maxWeightDigits))
+        let digits = text.filter { $0.isASCII && $0.isNumber }
+        let significant = digits.drop { $0 == "0" }
+        return String((significant.isEmpty ? digits.prefix(1) : significant).prefix(maxWeightDigits))
     }
 
     public nonisolated static func grams(from text: String) -> Int? {
@@ -152,10 +178,21 @@ public final class FeedViewModel {
         modes[id] ?? rows[id]?.weight?.mode ?? settings.defaultMode
     }
 
-    /// An untouched suggestion follows the mode (it is derived from it); a
-    /// typed value stays as it is.
+    /// Switching converts the number on screen. An untouched suggestion
+    /// follows the mode (it is derived from it) and stays untouched; a typed
+    /// value is converted and stays typed; an empty field stays empty.
     public func setMode(_ mode: Intent.WeightMode, for id: FeedRow.ID) {
+        let old = self.mode(for: id)
         modes[id] = mode
+        guard mode != old, let typed = weightTexts[id], let grams = Self.grams(from: typed) else { return }
+        weightTexts[id] = String(Self.convert(grams, to: mode, core: itemsByID[id]?.core))
+    }
+
+    /// A weight in the other mode: to net `grams − core`, not below 0 (as on
+    /// the Flipper); to gross `grams + core`, not above 9999.
+    public nonisolated static func convert(_ grams: Int, to mode: Intent.WeightMode, core: Int?) -> Int {
+        let core = max(0, core ?? 0)
+        return mode == .net ? max(0, grams - core) : min(CrownWeight.range.upperBound, grams + core)
     }
 
     public func isBusy(_ id: FeedRow.ID) -> Bool {
@@ -191,13 +228,16 @@ public final class FeedViewModel {
         apply(await session.snapshot)
     }
 
-    public func save(_ id: FeedRow.ID) async {
-        guard canSave(id), let grams = Self.grams(from: weightText(for: id)) else { return }
+    /// Records the row's weight; true when Bambuddy took it.
+    @discardableResult
+    public func save(_ id: FeedRow.ID) async -> Bool {
+        guard canSave(id), let grams = Self.grams(from: weightText(for: id)) else { return false }
         let mode = mode(for: id)
-        if await perform(id, { try await $0.saveWeight(row: id, grams: grams, mode: mode) }) {
-            weightTexts[id] = nil
-            modes[id] = nil
-        }
+        guard await perform(id, { try await $0.saveWeight(row: id, grams: grams, mode: mode) }) else { return false }
+        weightTexts[id] = nil
+        modes[id] = nil
+        play(.success)
+        return true
     }
 
     // MARK: Focus
@@ -211,8 +251,19 @@ public final class FeedViewModel {
     /// The weight field that has the keyboard: the focused row's, while it
     /// shows one. A row that turns back into an entry (a re-weigh, a rescan)
     /// gets its field focused again although `focusedRow` did not change.
+    /// None while a sheet is open; the row keeps its focus for when it closes.
     public var focusedField: FeedRow.ID? {
-        focus.focusedRow.flatMap { itemsByID[$0]?.isEntry == true ? $0 : nil }
+        guard openSheets == 0 else { return nil }
+        return focus.focusedRow.flatMap { itemsByID[$0]?.isEntry == true ? $0 : nil }
+    }
+
+    /// A sheet over the feed appeared; pair with `sheetClosed()`.
+    public func sheetOpened() {
+        openSheets += 1
+    }
+
+    public func sheetClosed() {
+        openSheets = max(0, openSheets - 1)
     }
 
     /// ⌘↑ / ⌘↓.
@@ -337,9 +388,14 @@ public final class FeedViewModel {
         } catch {
             errors[id] = Session.describe(error)
             ok = false
+            play(.error)
         }
         apply(await session.snapshot)
         return ok
+    }
+
+    private func play(_ kind: Haptic.Kind) {
+        haptic = Haptic(kind: kind, serial: (haptic?.serial ?? 0) + 1)
     }
 
     private func forget(_ id: FeedRow.ID) {

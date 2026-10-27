@@ -6,7 +6,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let id: FeedRow.ID
     public let scanId: String
     public let scannedAt: Date
-    /// Upper-case hex, shown under the title.
+    /// Upper-case hex, as read; the row leaves it to Tag details.
     public let uid: String
     /// The tag as Bambuddy keeps it (`ParsedTag.bambuddyTagUid`), and a
     /// Bambu tag's tray UUID: what the Link picker compares spools against.
@@ -18,12 +18,29 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// Bambuddy's or the resolved colour name; never the hex, which the
     /// swatch shows instead.
     public let colorName: String?
+    /// Bambu's colour code (`10501`): the spool's `material_number`, else
+    /// the one the tag names.
+    public let colorCode: String?
+    /// The colour name and code, "Bambu Green · 10501"; either alone, or empty.
+    public let colorLine: String
     public let swatch: Swatch?
     /// "484 g left of 1000" for a known spool, "label 1000 g" for a tag.
     public let remainingText: String
-    /// The colour column: "Bambu Green · 590 g left of 1000", "label 1000 g",
-    /// or empty.
+    /// The colour line: "Bambu Green · 10501 · 590 g left of 1000",
+    /// "label 1000 g", or empty.
     public let detailText: String
+    /// The iPad table's colour column: the colour line, with `archived`
+    /// after it for an archived spool ("Jade White · archived").
+    public let tableColorText: String
+    /// The iPad table's remaining column: "590 g left of 1000", "label
+    /// 1000 g"; empty for an archived spool, which says so in the colour column.
+    public let tableRemainingText: String
+    /// The watch's list title: `title`, a blank tag shortened to "NTAG 04A2…".
+    public let watchTitle: String
+    /// The watch's list sub line: "590 g left" for a known spool,
+    /// "archived" for an archived one, "label 1000 g" for a tag with
+    /// material, "Unknown tag" for a tag without.
+    public let watchSubText: String
     public let statusText: String
     public let isError: Bool
     public let spoolId: Int?
@@ -53,6 +70,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// Created in Bambuddy and not weighed yet (also after a failed save or
     /// delete): Link to existing… moves the tag and deletes this spool.
     public let offersLinkExisting: Bool
+    /// The spool was deleted from Bambuddy (here or on the Flipper).
+    public let isDeleted: Bool
     /// Under the status of a save the Flipper gave up waiting for.
     public let timeoutNote: String?
     public let statusSymbol: StatusSymbol
@@ -96,22 +115,35 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         let spool = row.spool
         if let spool {
             title = Self.title(material: spool.material, subtype: spool.subtype)
+            watchTitle = title
             colorName = spool.colorName
             remainingText = spool.isArchived ? "archived" : "\(spool.remaining) g left of \(spool.labelWeight)"
+            watchSubText = spool.isArchived ? "archived" : "\(spool.remaining) g left"
             base = spool.remaining
             core = spool.coreWeight
         } else {
             if let material = row.tag.material {
                 title = Self.title(material: material, subtype: row.tag.detailedType)
+                watchTitle = title
+            } else if row.tag.kind == .ntag {
+                title = Self.blankTitle(uid: row.tag.uid)
+                watchTitle = Self.shortBlankTitle(uid: row.tag.uid)
             } else {
-                title = row.tag.kind == .ntag ? Self.blankTitle(uid: row.tag.uid) : "Bambu tag"
+                title = "Bambu tag"
+                watchTitle = title
             }
             colorName = row.colorName
             remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
+            watchSubText = row.tag.hasPrefill ? remainingText : "Unknown tag"
             base = row.tag.hasPrefill ? row.tag.labelWeight ?? NewSpool.defaultLabelWeight : nil
             core = row.tag.hasPrefill ? coreWeight : nil
         }
-        detailText = [colorName, remainingText].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        colorCode = Self.colorCode(row)
+        colorLine = [colorName, colorCode].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        detailText = [colorLine, remainingText].filter { !$0.isEmpty }.joined(separator: " · ")
+        let archived = spool?.isArchived ?? false
+        tableColorText = archived ? detailText : colorLine
+        tableRemainingText = archived ? "" : remainingText
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
         statusText = Self.statusText(row)
         isError = if case .error = row.status { true } else { false }
@@ -127,6 +159,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
         offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
             && (row.status == .created || isError)
+        isDeleted = row.status == .deleted
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
@@ -147,6 +180,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         public var text: String
         /// Red: the gross value is below the core weight.
         public var isError: Bool
+
+        /// The iPad table's readout under the status, without the gross
+        /// sum: "Saves 590 g left".
+        public var short: String {
+            text.components(separatedBy: " \u{00B7} ").first ?? text
+        }
     }
 
     /// "Saves 590 g left · 915 − 325 g core" in gross, "Saves 590 g left" in
@@ -165,16 +204,39 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         Self.readout(value: value, mode: mode, core: core)
     }
 
+    /// Bambu's colour code for the row: the spool's `material_number`, else
+    /// the code the tag's filament and variant ids name.
+    public static func colorCode(_ row: FeedRow) -> String? {
+        if let number = row.spool?.materialNumber, !number.isEmpty { return number }
+        return row.tag.bambuColor?.code
+    }
+
     /// A tag without material, by UID length and the first two bytes:
-    /// "NTAG 7-byte UID 04A2…"; the full UID sits under the title.
+    /// "NTAG 7-byte UID 04A2…"; the full UID is in Tag details.
     public static func blankTitle(uid: String) -> String {
         let prefix = uid.count > 4 ? "\(uid.prefix(4))\u{2026}" : uid
         return "NTAG \(uid.count / 2)-byte UID \(prefix)"
     }
 
+    /// The watch's shorter blank title: "NTAG 04A2…".
+    public static func shortBlankTitle(uid: String) -> String {
+        uid.count > 4 ? "NTAG \(uid.prefix(4))\u{2026}" : "NTAG \(uid)"
+    }
+
     /// The weight field's VoiceOver label.
     public static func weightFieldLabel(mode: Intent.WeightMode) -> String {
         mode == .gross ? "Gross weight, grams" : "Net weight, grams"
+    }
+
+    /// The word inside the iPhone's weight field, right of the value.
+    public static func modeWord(_ mode: Intent.WeightMode) -> String {
+        mode == .gross ? "gross" : "net"
+    }
+
+    /// New and Link to existing… as the iPhone card lays them out, the
+    /// prominent one first: New, unless the Flipper asked to link.
+    public var cardActions: [UnknownAction] {
+        prominentAction == .link ? [.link, .new] : [.new, .link]
     }
 
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".
@@ -297,5 +359,19 @@ public struct Swatch: Equatable, Sendable {
         green = Double((value >> 16) & 0xFF) / 255
         blue = Double((value >> 8) & 0xFF) / 255
         alpha = Double(value & 0xFF) / 255
+    }
+
+    public init(red: Double, green: Double, blue: Double, alpha: Double) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = alpha
+    }
+
+    /// The colour as Bambuddy stores it: 8 upper-case hex digits, RRGGBBAA.
+    public var rgba: String {
+        [red, green, blue, alpha]
+            .map { String(format: "%02X", Int((min(max($0, 0), 1) * 255).rounded())) }
+            .joined()
     }
 }

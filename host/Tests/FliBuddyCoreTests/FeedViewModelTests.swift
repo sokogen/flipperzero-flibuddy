@@ -65,9 +65,64 @@ struct FeedViewModelTests {
         #expect(model.weightText(for: id) == "1234")
         model.setWeightText("７３４", for: id)
         #expect(model.weightText(for: id) == "")
-        #expect(FeedViewModel.sanitizeWeight("0734") == "0734")
         #expect(FeedViewModel.grams(from: "0734") == 734)
         #expect(FeedViewModel.grams(from: "") == nil)
+    }
+
+    @Test func aLoneZeroIsReplacedByTheNextDigit() {
+        // the number pad appends to a lone 0: the 0 goes
+        #expect(FeedViewModel.sanitizeWeight("07") == "7")
+        #expect(FeedViewModel.sanitizeWeight("0734") == "734")
+        #expect(FeedViewModel.sanitizeWeight("00") == "0")
+        #expect(FeedViewModel.sanitizeWeight("0") == "0")
+        #expect(FeedViewModel.sanitizeWeight("10") == "10")
+        // the cap counts the digits that stay
+        #expect(FeedViewModel.sanitizeWeight("012345") == "1234")
+    }
+
+    @Test func aSavePlaysTheSuccessHapticAndAFailureTheErrorOne() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.haptic == nil)
+
+        inventory.updateError = .network("timed out")
+        model.setWeightText("734", for: id)
+        await model.save(id)
+        let failed = try #require(model.haptic)
+        #expect(failed.kind == .error)
+
+        inventory.updateError = nil
+        await model.save(id)
+        let saved = try #require(model.haptic)
+        #expect(saved.kind == .success)
+        #expect(saved != failed)
+
+        // a second save of the same kind still changes the trigger
+        await model.reopen(id)
+        model.setWeightText("700", for: id)
+        await model.save(id)
+        #expect(model.haptic?.kind == .success)
+        #expect(model.haptic != saved)
+    }
+
+    @Test func aFailedCreateOrLinkPlaysTheErrorHapticAndASuccessfulOneNone() async throws {
+        let inventory = FakeInventory()
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        inventory.createError = .network("timed out")
+        #expect(await !model.createFromTag(id))
+        #expect(model.haptic?.kind == .error)
+        let failed = model.haptic
+
+        inventory.createError = nil
+        #expect(await model.createFromTag(id))
+        #expect(model.haptic == failed)
     }
 
     @Test func saveIsEnabledOnlyWithAValue() async throws {
@@ -101,8 +156,8 @@ struct FeedViewModelTests {
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
 
-        model.setWeightText("484", for: id)
         model.setMode(.net, for: id)
+        model.setWeightText("484", for: id)
         await model.save(id)
 
         #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
@@ -203,6 +258,63 @@ struct FeedViewModelTests {
         #expect(!item.offersUnknownActions)
     }
 
+    @Test func theColourLineCarriesBambusColourCode() throws {
+        // the spool's material_number wins over the tag's code
+        var coded = knownSpool()
+        coded.materialNumber = "10501"
+        let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
+        #expect(known.colorCode == "10501")
+        #expect(known.colorLine == "Jade White · 10501")
+        #expect(known.detailText == "Jade White · 10501 · 484 g left of 1000")
+        // without one, the tag's code (GFA00 + A00-W1: Jade White, 10100)
+        let fromTag = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
+        #expect(fromTag.colorCode == "10100")
+        #expect(fromTag.detailText == "Jade White · 10100 · 484 g left of 1000")
+        // VoiceOver does not read the code
+        #expect(fromTag.accessibilityHeader == "PLA Basic, Jade White, 484 grams left of 1000, Enter weight")
+        var unknown = try row(status: .unknown(prefill: true))
+        unknown.colorName = "Jade White"
+        #expect(FeedItem(unknown).detailText == "Jade White · 10100 · label 1000 g")
+        // no name: the code alone, never the hex
+        #expect(FeedItem(try row(status: .unknown(prefill: true))).colorLine == "10100")
+        // an empty material_number is no code
+        coded.materialNumber = ""
+        #expect(FeedItem(try row(status: .awaitingWeight, spool: coded)).colorCode == "10100")
+        // a blank NTAG has neither
+        let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
+        #expect(blank.colorCode == nil)
+        #expect(blank.colorLine == "")
+        #expect(blank.detailText == "")
+    }
+
+    @Test func theiPadTableSplitsTheColourAndRemainingColumns() throws {
+        var coded = knownSpool()
+        coded.materialNumber = "10501"
+        let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
+        #expect(known.tableColorText == "Jade White · 10501")
+        #expect(known.tableRemainingText == "484 g left of 1000")
+        let unknown = FeedItem(try row(status: .unknown(prefill: true)))
+        #expect(unknown.tableColorText == "10100")
+        #expect(unknown.tableRemainingText == "label 1000 g")
+        // an archived spool says so in the colour column
+        var archived = knownSpool(weightUsed: 1000)
+        archived.archived = true
+        let empty = FeedItem(try row(status: .markedEmpty, spool: archived))
+        #expect(empty.tableColorText == "Jade White · 10100 · archived")
+        #expect(empty.tableRemainingText == "")
+        let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
+        #expect(blank.tableColorText == "")
+    }
+
+    @Test func theiPadReadoutDropsTheGrossSum() {
+        #expect(FeedItem.readout(value: 915, mode: .gross, core: 325).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: 590, mode: .net, core: 325).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: nil, mode: .gross, core: 325).short == "Type the scale reading")
+        let below = FeedItem.readout(value: 200, mode: .gross, core: 325)
+        #expect(below.short == "Below the core weight (325 g)")
+        #expect(below.isError)
+    }
+
     @Test func theSuggestionIsRemainingPlusCoreInGrossAndRemainingInNet() throws {
         let weighed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(lastScaleWeight: 734)))
         #expect(weighed.suggestion(mode: .gross) == 734)
@@ -283,7 +395,7 @@ struct FeedViewModelTests {
             #expect(FeedItem(row).statusText == text)
         }
         #expect(FeedItem(markedEmpty).remainingText == "archived")
-        #expect(FeedItem(markedEmpty).detailText == "Jade White · archived")
+        #expect(FeedItem(markedEmpty).detailText == "Jade White · 10100 · archived")
         #expect(FeedItem(markedEmpty).accessibilityHeader == "PLA Basic, Jade White, archived, Marked as empty · archived · by Flipper")
         #expect(FeedItem(markedEmpty).isReopenable)
         #expect(FeedItem(deleted).offersUnknownActions)
@@ -814,6 +926,55 @@ struct FeedViewModelUnknownTests {
         #expect(model.focusedRow == older.id)
         model.moveFocus(.up)
         #expect(model.focusedRow == newer.id)
+    }
+
+    @Test func noFieldTakesTheKeyboardWhileASheetIsOpen() throws {
+        let (model, _) = makeModel()
+        let older = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([older]))
+        #expect(model.focusedField == older.id)
+
+        model.sheetOpened()
+        #expect(model.focusedField == nil)
+        let newer = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([older, newer]))
+        // the row still takes focus; its field waits for the sheet
+        #expect(model.focusedRow == newer.id)
+        #expect(model.focusedField == nil)
+
+        model.sheetClosed()
+        #expect(model.focusedField == newer.id)
+    }
+
+    @Test func sheetsCountSoTheFirstToCloseDoesNotReleaseTheKeyboard() throws {
+        let (model, _) = makeModel()
+        let row = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([row]))
+
+        model.sheetOpened()
+        model.sheetOpened()
+        model.sheetClosed()
+        #expect(model.focusedField == nil)
+        model.sheetClosed()
+        #expect(model.focusedField == row.id)
+        // an extra close does not go below zero
+        model.sheetClosed()
+        model.sheetOpened()
+        #expect(model.focusedField == nil)
+    }
+
+    @Test func savingTheLastWaitingRowLowersThePad() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.focusedField == id)
+
+        await model.save(id)
+
+        // no other row waits: the field lets go of the keyboard
+        #expect(model.focusedField == nil)
     }
 
     @Test func clearDropsTheFocus() async throws {

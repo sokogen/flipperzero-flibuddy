@@ -174,33 +174,76 @@ Flipper`, `Forget this Flipper`) with no footer under them (the iPhone's
 
 ## Differences from what ships
 
-Checked against the code on 2026-10-27; the iPhone list applies to the
-portrait layout and to everything shared (number keyboard, Net/Gross
-conversion, colour code, Tag details, apply on change, sheets, QR cover).
+None remain. The seven differences found on 2026-10-27 were closed by the
+plan `docs/plans/20261027-apple-ui-from-design.md` (the iPhone list covers
+the portrait layout and everything shared); where the app departs from
+this file, the next section says how and why. What changed:
 
-1. **Layout switch.** `RootView` (`host/Apple/iOS/App.swift`) switches on
-   `horizontalSizeClass`, so a full-screen portrait iPad gets the split view
-   and landscape rows, not the iPhone cards.
-2. **Sidebar.** The shipped sidebar holds only Feed and Settings: no
-   Connections section with the two status rows and their action chips, no
-   count badge on Feed, no `⌘,` hint, no Clear feed at its bottom.
-3. **Status bar.** `FeedView` (`host/Sources/FliBuddyUI/FeedView.swift`)
-   draws the macOS bottom `StatusBar` in the detail column on the iPad; the
-   design moves both states into the sidebar (landscape) or the banner
-   (portrait).
-4. **Row geometry.** The one-line layout in `FeedRowView` is `#if
-   os(macOS)`; the iPad stacks the entry under the header. It needs the
-   one-line grid (28 · 150 · 112 · 140 · flexible · auto), field 100 × 44 at
-   28 pt, segmented 120 × 34, Save 44 high, the short readout under the
-   status and the colour and remaining in separate columns.
-5. **Keyboard.** ⌘S, ⌘↑ / ⌘↓ (`FeedKeyboardShortcuts`) and ⌘⌫ (the toolbar
-   Clear) exist; ⌘, does not open Settings on the iPad, and the commands are
-   not menu commands, so the ⌘ overlay does not list them.
-6. **Clear placement.** Clear is a toolbar button of the feed, labelled
-   `Clear`, not the sidebar's `Clear feed`.
-7. **Link warning.** Inline already, but worded `… Linking moves it to
-   <uid>.` with a `Move link` button title (the macOS form); the iPad page
-   says `Saving moves the link to <uid>.`
+1. Layout by window width (`FeedLayout`), not size class alone.
+2. Sidebar (`Sidebar`, `PadSidebar`): Connections with the two status rows
+   and their chips, Feed with the count badge, Settings with `⌘,`, Clear
+   feed at the bottom.
+3. No status bar in the detail column: the sidebar (landscape) or the
+   banner (portrait) shows both states.
+4. The one-line table row on the iPad's grid.
+5. ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, as menu commands (`FeedCommands`), listed in
+   the ⌘ overlay.
+6. Clear feed in the sidebar.
+7. Link warning `Saving moves the link to <uid>.`
+
+## Implemented differently (2026-10-27)
+
+Where the app departs from this file or fills in what it leaves open, and
+why. Items marked "by eye" still wait for the owner's check on screen.
+
+Layout
+- `FeedLayout.forWindow(width:isCompact:)` (`FliBuddyCore`) decides from
+  the window's width, measured at the root: the table when the window
+  leaves 900 pt beside a 300 pt sidebar (window ≥ 1200 pt) and the size
+  class is regular, else the cards. A 13" iPad (1366 / 1376 pt) gets the
+  table in landscape; an 11" iPad (1180–1210 pt) gets the cards in
+  landscape too, as the 900 pt rule says. A narrow multitasking window
+  gets the cards.
+- The portrait cards are centred at most 760 wide through the list's
+  content margins.
+
+Sidebar
+- The rows come from `Sidebar` (`FliBuddyCore`), built from the same two
+  `StatusItem`s as the macOS status bar and the iPhone banner. A connected
+  Flipper without a saved name reads `Flipper · Bluetooth`. Sub lines for
+  states the table above leaves out: `Not set up`, `Rejected the API key`,
+  `Checking…` (with the spinner); a Flipper problem (`Bluetooth is off`,
+  a version mismatch) shows as it is.
+- A state that spins (searching, checking) keeps its symbol
+  (`antenna.radiowaves.left.and.right.slash`, `server.rack`) and shows the
+  10 pt spinner before the sub line. The chip fills with the app tint, as
+  on the iPhone banner. By eye.
+- Clear feed is a plain red button in the sidebar's bottom inset with
+  `⌘⌫` trailing; disabled it dims. By eye.
+
+Feed table
+- The focused row's background is the tint at 15 % rather than a `List`
+  selection, so a tap in the row never fights the weight field. By eye.
+- A row with no entry (a tag without material, a deleted spool) shows New
+  and Link to existing… as the 44 pt capsules in the trailing column; the
+  footnote buttons under the readout are for rows with an entry
+  (`Not in Bambuddy` with material, Created).
+- Save is the stock `.borderedProminent` capsule with a 30 pt label
+  minimum height (about 44 pt), not an exact frame. By eye.
+
+Keyboard
+- The commands are `FeedCommands` on the app's scene: a `Feed` menu with
+  Save Focused Row (⌘S), Previous Row (⌘↑), Next Row (⌘↓) and Clear Feed…
+  (⌘⌫), and Settings… (⌘,) in the app menu. ⌘⌫ shows the feed and asks;
+  ⌘, opens Settings in either layout. The iPhone gets the same commands.
+
+Dialogs
+- Clear the feed? is an alert beside the sidebar; the portrait cards keep
+  the iPhone's confirmation dialog.
+- The inline Link warning goes by device (an iPad shows it in both
+  layouts, never the alert): `<title> <colour> is linked to tag <tag>.
+  Saving moves the link to <uid>.` The ✓ button keeps its title; the Mac
+  keeps `… Linking moves it to <uid>.` and `Move link`.
 
 ## Open questions for the owner
 

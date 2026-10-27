@@ -5,44 +5,136 @@ import SwiftUI
 #if !os(watchOS)
 /// New and Link to existing, for a tag no spool carries. New opens the form
 /// for a tag without material and creates from the tag otherwise; the
-/// action the Flipper asked for is the prominent one. `compact`: link-style
-/// buttons under the weight field of a tag with material, where the
-/// Flipper's request is semibold rather than prominent.
+/// action the Flipper asked for is the prominent one.
 struct UnknownRowActions: View {
+    enum Style {
+        /// Bordered buttons, the requested one prominent (macOS).
+        case buttons
+        /// Link-style buttons under the weight field of a tag with material,
+        /// where the Flipper's request is semibold rather than prominent (macOS).
+        case compact
+        /// Two equal capsules, 44 high and 10 apart, the prominent one first:
+        /// New unless the Flipper asked to link (iPhone card).
+        case capsules
+        /// Two capsules sized to their titles, 44 high and 8 apart, the
+        /// prominent one tinted (iPad table row).
+        case pills
+    }
+
     let feed: FeedViewModel
     let item: FeedItem
-    var compact = false
+    var style = Style.buttons
     @ViewState private var showingNew = false
     @ViewState private var showingLink = false
 
     var body: some View {
-        if compact {
+        content
+            .disabled(feed.isBusy(item.id))
+            .sheet(isPresented: $showingNew) {
+                if let form = feed.newSpoolForm(for: item.id) {
+                    NewSpoolSheet(feed: feed, item: item, form: form).feedSheet(feed)
+                }
+            }
+            .sheet(isPresented: $showingLink) {
+                LinkSpoolSheet(feed: feed, item: item).feedSheet(feed)
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch style {
+        case .buttons:
+            buttons
+        case .compact:
             #if os(macOS)
             buttons.buttonStyle(.link).font(.footnote).controlSize(.small)
             #else
-            buttons.font(.footnote)
+            // Borderless: in a list row each button keeps its own tap.
+            buttons.buttonStyle(.borderless).font(.footnote)
             #endif
-        } else {
+        case .capsules:
+            // The row's status shows the spinner while New or Link runs.
+            HStack(spacing: 10) {
+                ForEach(item.cardActions, id: \.self) { action in
+                    capsule(action, prominent: action == item.cardActions.first)
+                }
+            }
+        case .pills:
+            #if os(iOS)
+            HStack(spacing: 8) {
+                ForEach(item.cardActions, id: \.self) { action in
+                    pill(action, prominent: action == item.cardActions.first)
+                }
+            }
+            #else
             buttons
+            #endif
         }
     }
 
+    private func perform(_ action: FeedItem.UnknownAction) {
+        switch action {
+        case .new: new()
+        case .link: showingLink = true
+        }
+    }
+
+    private func title(_ action: FeedItem.UnknownAction) -> String {
+        action == .new ? item.newAction.title : "Link to existing\u{2026}"
+    }
+
+    #if os(iOS)
+    private func pill(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
+        Button {
+            perform(action)
+        } label: {
+            Text(title(action))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                .padding(.horizontal, 18)
+                .frame(height: 44)
+                .background(
+                    prominent ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(uiColor: .tertiarySystemFill)),
+                    in: .capsule
+                )
+        }
+        .buttonStyle(.borderless)
+    }
+    #endif
+
     private var buttons: some View {
         HStack(spacing: 8) {
-            styled(Button(item.newAction.title) { new() }, prominent: item.prominentAction == .new)
-                .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
-            styled(Button("Link to existing\u{2026}") { showingLink = true }, prominent: item.prominentAction == .link)
-                .help("Attach this tag to a spool already in Bambuddy")
+            styled(newButton, prominent: item.prominentAction == .new)
+            styled(linkButton, prominent: item.prominentAction == .link)
             ProgressView().controlSize(.small).opacity(feed.isBusy(item.id) ? 1 : 0)
         }
-        .disabled(feed.isBusy(item.id))
-        .sheet(isPresented: $showingNew) {
-            if let form = feed.newSpoolForm(for: item.id) {
-                NewSpoolSheet(feed: feed, item: item, form: form)
-            }
+    }
+
+    private var newButton: some View {
+        Button(item.newAction.title) { new() }
+            .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
+    }
+
+    private var linkButton: some View {
+        Button("Link to existing\u{2026}") { showingLink = true }
+            .help("Attach this tag to a spool already in Bambuddy")
+    }
+
+    @ViewBuilder private func capsule(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
+        let button = Button {
+            perform(action)
+        } label: {
+            Text(title(action))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 30)
         }
-        .sheet(isPresented: $showingLink) {
-            LinkSpoolSheet(feed: feed, item: item)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        if prominent {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
         }
     }
 
@@ -53,8 +145,8 @@ struct UnknownRowActions: View {
         }
     }
 
-    @ViewBuilder private func styled(_ button: Button<Text>, prominent: Bool) -> some View {
-        if compact {
+    @ViewBuilder private func styled(_ button: some View, prominent: Bool) -> some View {
+        if style == .compact {
             button.fontWeight(prominent ? .semibold : .regular)
         } else if prominent {
             button.buttonStyle(.borderedProminent)
@@ -75,8 +167,17 @@ struct LinkExistingButton: View {
         Button("Link to existing…") { showingLink = true }
             .help("Move this tag to a spool already in Bambuddy and delete the one created on scan")
             .sheet(isPresented: $showingLink) {
-                LinkSpoolSheet(feed: feed, item: item)
+                LinkSpoolSheet(feed: feed, item: item).feedSheet(feed)
             }
+    }
+}
+
+extension View {
+    /// Content of a sheet over the feed: while it shows, no weight field
+    /// takes the keyboard (see `FeedViewModel.sheetOpened()`).
+    func feedSheet(_ feed: FeedViewModel) -> some View {
+        onAppear { feed.sheetOpened() }
+            .onDisappear { feed.sheetClosed() }
     }
 }
 
@@ -86,6 +187,9 @@ struct NewSpoolSheet: View {
     let item: FeedItem
     @ViewState private var form: NewSpoolForm
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @Environment(\.self) private var environment
+    #endif
 
     init(feed: FeedViewModel, item: FeedItem, form: NewSpoolForm) {
         self.feed = feed
@@ -94,6 +198,89 @@ struct NewSpoolSheet: View {
     }
 
     var body: some View {
+        #if os(iOS)
+        phoneBody
+        #else
+        macBody
+        #endif
+    }
+
+    private func create() {
+        Task {
+            if await feed.create(item.id, form) { dismiss() }
+        }
+    }
+
+    #if os(iOS)
+    /// iOS spec, "Sheets": Required and Optional sections, a colour picker,
+    /// `xmark` / `checkmark` in the navigation bar.
+    private var phoneBody: some View {
+        NavigationStack {
+            Form {
+                Section("Required") {
+                    Picker("Material", selection: $form.material) {
+                        Text("Choose").tag("")
+                        ForEach(form.materialOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                }
+                Section {
+                    TextField("Subtype", text: $form.subtype, prompt: Text("Basic, Matte, HF…"))
+                    ColorPicker("Colour", selection: color, supportsOpacity: false)
+                    TextField("Colour name", text: $form.colorName, prompt: Text("Lilac"))
+                    TextField("Brand", text: $form.brand, prompt: Text("Elegoo"))
+                    LabeledContent("Label weight") {
+                        HStack(spacing: 4) {
+                            TextField("Label weight", text: $form.labelWeight)
+                                .labelsHidden()
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                            Text("g").foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Optional")
+                } footer: {
+                    Text(NewSpoolForm.phoneFooter)
+                }
+                if let error = feed.error(for: item.id) {
+                    Section {
+                        Text(error).foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SheetTitle(title: NewSpoolForm.title, subtitle: form.subtitle)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create", systemImage: "checkmark") { create() }
+                        .disabled(!form.canCreate || feed.isBusy(item.id))
+                }
+            }
+        }
+    }
+
+    /// The colour picker's value: the form's swatch, a neutral grey while
+    /// the tag has none (nothing is stored until the user picks).
+    private var color: Binding<Color> {
+        Binding(
+            get: { form.swatch.map { Color(red: $0.red, green: $0.green, blue: $0.blue) } ?? .gray },
+            set: { color in
+                let resolved = color.resolve(in: environment)
+                form.swatch = Swatch(
+                    red: Double(resolved.red), green: Double(resolved.green), blue: Double(resolved.blue), alpha: 1
+                )
+            }
+        )
+    }
+    #else
+    private var macBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(NewSpoolForm.title).font(.headline)
@@ -131,22 +318,33 @@ struct NewSpoolSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Create") {
-                    Task {
-                        if await feed.create(item.id, form) { dismiss() }
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!form.canCreate || feed.isBusy(item.id))
+                Button("Create") { create() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!form.canCreate || feed.isBusy(item.id))
             }
             .padding(20)
         }
-        #if os(macOS)
-        // A sheet on macOS sizes to its content; on iOS it fills the screen.
+        // A sheet on macOS sizes to its content.
         .frame(minWidth: 420)
-        #endif
+    }
+    #endif
+}
+
+#if os(iOS)
+/// A sheet's inline title with the tag under it, monospaced.
+private struct SheetTitle: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(title).font(.headline)
+            Text(subtitle).font(.caption.monospaced()).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
+#endif
 
 /// Picks the spool to link the tag to, filtered as you type; a pick that
 /// carries another tag moves that link here.
@@ -155,10 +353,115 @@ struct LinkSpoolSheet: View {
     let item: FeedItem
     @ViewState private var query = ""
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
+    @ViewState private var confirmingMove = false
+    #endif
+
+    private var picker: LinkPickerModel {
+        LinkPickerModel(item: item, spools: feed.linkCandidates, query: query, selection: feed.linkSelection)
+    }
+
+    private func link() {
+        guard let spool = picker.selectedSpool else { return }
+        Task {
+            if await feed.link(item.id, toSpool: spool.id) { dismiss() }
+        }
+    }
 
     var body: some View {
-        let picker = LinkPickerModel(item: item, spools: feed.linkCandidates, query: query, selection: feed.linkSelection)
-        VStack(alignment: .leading, spacing: 12) {
+        #if os(iOS)
+        phoneBody
+        #else
+        macBody
+        #endif
+    }
+
+    #if os(iOS)
+    /// The iPad has the room for the move warning under the list, so ✓ moves
+    /// the link without the iPhone's alert.
+    private var warnsInline: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    /// iOS spec, "Sheets": a searchable list, a checkmark on the pick, and an
+    /// alert before a link moves away from another tag (inline on the iPad).
+    private var phoneBody: some View {
+        let picker = picker
+        return NavigationStack {
+            List {
+                if let error = feed.linkError {
+                    Text(error).foregroundStyle(.red)
+                }
+                if let error = feed.error(for: item.id) {
+                    Text(error).foregroundStyle(.red)
+                }
+                ForEach(picker.matches) { spool in
+                    Button {
+                        feed.linkSelection = spool.id
+                    } label: {
+                        HStack {
+                            SpoolPickerRow(spool: spool)
+                            if spool.id == picker.selection {
+                                Image(systemName: "checkmark").foregroundStyle(.tint).fontWeight(.semibold)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(spool.id == picker.selection ? .isSelected : [])
+                }
+                if warnsInline, let warning = picker.padWarning {
+                    Section {
+                        Label {
+                            Text(warning)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        }
+                        .font(.callout)
+                    }
+                }
+            }
+            .overlay {
+                if feed.isLoadingLinkCandidates {
+                    ProgressView()
+                } else if let empty = picker.emptyText, feed.linkError == nil {
+                    ContentUnavailableView(empty, systemImage: "magnifyingglass")
+                }
+            }
+            .searchable(
+                text: $query, placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(LinkPickerModel.phonePlaceholder)
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SheetTitle(title: LinkPickerModel.phoneTitle, subtitle: picker.uid)
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", systemImage: "xmark") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Link", systemImage: "checkmark") {
+                        if picker.moveAlert == nil || warnsInline { link() } else { confirmingMove = true }
+                    }
+                    .disabled(!picker.canLink || feed.isBusy(item.id) || feed.isLoadingLinkCandidates)
+                }
+            }
+            .alert(
+                picker.moveAlert?.title ?? "", isPresented: $confirmingMove, presenting: picker.moveAlert
+            ) { _ in
+                Button(LinkPickerModel.moveButton, systemImage: "arrow.left.arrow.right") { link() }
+                Button("Cancel", role: .cancel) {}
+            } message: { alert in
+                Text(alert.message)
+            }
+        }
+        .task { await feed.loadLinkCandidates() }
+    }
+    #else
+    private var macBody: some View {
+        let picker = picker
+        return VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(LinkPickerModel.title).font(.headline)
                 Text(picker.tagLine).font(.subheadline.monospaced()).foregroundStyle(.secondary)
@@ -193,22 +496,16 @@ struct LinkSpoolSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(picker.linkTitle) {
-                    guard let spool = picker.selectedSpool else { return }
-                    Task {
-                        if await feed.link(item.id, toSpool: spool.id) { dismiss() }
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!picker.canLink || feed.isBusy(item.id) || feed.isLoadingLinkCandidates)
+                Button(picker.linkTitle) { link() }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!picker.canLink || feed.isBusy(item.id) || feed.isLoadingLinkCandidates)
             }
         }
         .padding(20)
-        #if os(macOS)
         .frame(minWidth: 520, minHeight: 420)
-        #endif
         .task { await feed.loadLinkCandidates() }
     }
+    #endif
 }
 
 /// A spool in the Link picker: swatch, title, "colour · brand · n g left",

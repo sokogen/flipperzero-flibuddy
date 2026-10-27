@@ -5,8 +5,10 @@ import SwiftUI
 @main
 struct FliBuddyiOSApp: App {
     @ViewState private var host: HostModel
-    /// Sends the settings to the Apple Watch after each save (not on iPad).
+    /// Sends the settings to the Apple Watch after each applied change (not on iPad).
     @ViewState private var watchSync: WatchSettingsSender?
+    /// The pane and the Clear confirmation, shared with the menu commands.
+    @ViewState private var navigation = AppNavigation()
 
     init() {
         // Before the host model: loading the settings already logs.
@@ -20,51 +22,57 @@ struct FliBuddyiOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(host: host)
+            RootView(host: host, navigation: navigation)
                 .task {
                     if watchSync == nil { watchSync = WatchSettingsSender.start(for: host) }
                     host.start()
                     await host.feed.observe()
                 }
         }
+        .commands { FeedCommands(host: host, navigation: navigation) }
     }
 }
 
-/// A split view with a sidebar on iPad (regular width), tabs on iPhone.
+/// The iPad's sidebar and one-line table when the window leaves 900 pt
+/// beside the sidebar (landscape), else the iPhone's tabs and cards (an
+/// iPhone, a portrait iPad); see `FeedLayout`.
 struct RootView: View {
     let host: HostModel
+    @Bindable var navigation: AppNavigation
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @ViewState private var section: Section? = .feed
+    @ViewState private var width: CGFloat = 0
 
-    enum Section: Hashable {
-        case feed, settings
+    private var layout: FeedLayout {
+        FeedLayout.forWindow(width: width, isCompact: sizeClass != .regular)
     }
 
     var body: some View {
-        if sizeClass == .regular {
-            NavigationSplitView {
-                List(selection: $section) {
-                    Label("Feed", systemImage: "list.bullet").tag(Section.feed)
-                    Label("Settings", systemImage: "gearshape").tag(Section.settings)
+        Group {
+            switch layout {
+            case .table:
+                NavigationSplitView {
+                    PadSidebar(host: host, navigation: navigation)
+                        .navigationSplitViewColumnWidth(FeedLayout.sidebarWidth)
+                } detail: {
+                    switch navigation.pane {
+                    case .feed: feed
+                    case .settings: settings
+                    }
                 }
-                .navigationTitle("FliBuddy")
-            } detail: {
-                switch section ?? .feed {
-                case .feed: feed
-                case .settings: settings
+            case .cards:
+                TabView(selection: $navigation.pane) {
+                    Tab("Feed", systemImage: "list.bullet", value: AppPane.feed) { feed }
+                    Tab("Settings", systemImage: "gearshape", value: AppPane.settings) { settings }
                 }
-            }
-        } else {
-            TabView(selection: $section) {
-                Tab("Feed", systemImage: "list.bullet", value: Section?.some(.feed)) { feed }
-                Tab("Settings", systemImage: "gearshape", value: Section?.some(.settings)) { settings }
             }
         }
+        .environment(\.feedLayout, layout)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
     private var feed: some View {
         NavigationStack {
-            FeedView(host: host) { section = .settings }
+            FeedView(host: host, openSettings: { navigation.pane = .settings }, confirmingClear: $navigation.confirmingClear)
                 .navigationTitle("Feed")
         }
     }
@@ -77,8 +85,9 @@ struct RootView: View {
     }
 }
 
-/// Edits a copy of the saved settings. The copy is made once, so unsaved edits
-/// (a scanned QR code too) survive switching tabs.
+/// The settings, applied as they change (no Save on iPhone and iPad). The
+/// model is made once, so a field being typed survives switching tabs; leaving
+/// the tab commits it.
 struct SettingsScreen: View {
     let host: HostModel
     @ViewState private var model: SettingsViewModel?
@@ -93,7 +102,7 @@ struct SettingsScreen: View {
         }
         .onAppear {
             guard model == nil else { return }
-            let model = host.makeSettingsViewModel()
+            let model = host.makeSettingsViewModel(appliesOnChange: true)
             self.model = model
             Task { await model.loadCatalog() }
         }

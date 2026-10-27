@@ -54,7 +54,7 @@ struct StatusItemTests {
             flipper(.connected(Self.fap), choice: Self.bluetooth)
                 == StatusItem(
                     text: "Flipper \u{00B7} Bluetooth", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                    tint: .green, detail: "firmware 1.5.1"
+                    tint: .green, detail: "firmware 1.5.1", short: "Flipper connected"
                 )
         )
         #expect(flipper(.connected(Hello(app: "flibuddy-fap/0.1.0")), port: nil).detail == nil)
@@ -83,7 +83,7 @@ struct StatusItemTests {
             flipper(.disconnected, choice: nil, isActive: false)
                 == StatusItem(
                     text: "Flipper nearby, not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                    tint: .orange, action: .connect
+                    tint: .orange, action: .connect, short: "Flipper nearby"
                 )
         )
     }
@@ -99,7 +99,8 @@ struct StatusItemTests {
         #expect(
             BambuddyState.unchecked.statusItem()
                 == StatusItem(
-                    text: "Bambuddy \u{00B7} not checked", symbol: .symbol("server.rack"), tint: .gray, action: .check
+                    text: "Bambuddy \u{00B7} not checked", symbol: .symbol("server.rack"), tint: .gray, action: .check,
+                    short: "Bambuddy not checked"
                 )
         )
         #expect(
@@ -119,7 +120,7 @@ struct StatusItemTests {
                 == StatusItem(
                     text: "API key lacks inventory permission",
                     symbol: .symbol("lock.trianglebadge.exclamationmark"), tint: .red, action: .settings,
-                    detail: noPermission.message
+                    detail: noPermission.message, short: "Key lacks inventory permission"
                 )
         )
         let spoolman = BambuddyState.refused(.spoolmanMode)
@@ -157,7 +158,7 @@ struct StatusItemTests {
             BambuddyState.ready.statusItem(colorNamesProblem: problem)
                 == StatusItem(
                     text: "Bambuddy ready \u{00B7} colour names unavailable", symbol: .symbol("paintpalette"),
-                    tint: .orange, detail: problem
+                    tint: .orange, detail: problem, short: "Colour names unavailable"
                 )
         )
         #expect(BambuddyState.unchecked.statusItem(colorNamesProblem: problem).text == "Bambuddy \u{00B7} not checked")

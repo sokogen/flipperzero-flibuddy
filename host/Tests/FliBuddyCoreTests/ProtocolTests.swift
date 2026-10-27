@@ -370,7 +370,7 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
         }
         #expect(throws: ProtocolError.self) {
             let spool = SpoolSummary(id: 1, material: "PLA", rgba: "#FFFFFF", remaining: 1, label: 1, core: 1)
-            try Message.result(IntentResult(id: "i-1", ok: true, lines: [], spool: spool)).encodedLine()
+            _ = try Message.result(IntentResult(id: "i-1", ok: true, lines: [], spool: spool)).encodedLine()
         }
     }
 

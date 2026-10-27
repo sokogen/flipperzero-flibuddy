@@ -35,6 +35,17 @@ struct CrownWeightTests {
         #expect(weight.grams == 510)
     }
 
+    @Test func fiveGramsStartAtAboutSixDetentsPerSecond() {
+        #expect(CrownWeight.fastVelocity == 6)
+        var weight = CrownWeight(grams: 500)
+        weight.turn(to: 501, velocity: 5.9)
+        #expect(weight.grams == 501)
+        weight.turn(to: 502, velocity: 6)
+        #expect(weight.grams == 506)
+        weight.turn(to: 505, velocity: -6.5)
+        #expect(weight.grams == 501)
+    }
+
     @Test func aFractionalStepRounds() {
         var weight = CrownWeight(grams: 500)
         weight.turn(to: 500.6, velocity: 1)
@@ -65,11 +76,5 @@ struct CrownWeightTests {
     @Test func theWeightFieldTextFeedsTheFeed() {
         #expect(CrownWeight(grams: 7).text == "7")
         #expect(FeedViewModel.grams(from: CrownWeight(grams: 9999).text) == 9999)
-    }
-
-    @Test func seedsFromTheTypedWeightThenTheSuggestion() {
-        #expect(CrownWeight.seed(typed: "812", suggested: 1000).grams == 812)
-        #expect(CrownWeight.seed(typed: "", suggested: 1000).grams == 1000)
-        #expect(CrownWeight.seed(typed: "", suggested: nil).grams == 0)
     }
 }

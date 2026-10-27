@@ -128,6 +128,58 @@ struct WatchSettingsSenderTests {
         #expect(sender.lastError == nil)
     }
 
+    @Test func aDebouncedSenderSendsOnlyTheLatestOfAQuickRun() async {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session, debounce: .milliseconds(20))
+        var changed = testSettings
+        changed.defaultMode = .net
+
+        sender.settingsSaved(testSettings)
+        sender.settingsSaved(changed)
+        #expect(session.sent.isEmpty)
+
+        await sender.settled()
+        #expect(session.sentPayloads == [SettingsSyncPayload(changed)])
+    }
+
+    @Test func aDebouncedSendThatIsHeldStillGoesOnTheNextStateChange() async {
+        let session = FakeSessionMessaging()
+        session.isActivated = false
+        let sender = WatchSettingsSender(session: session, debounce: .milliseconds(20))
+
+        sender.settingsSaved(testSettings)
+        await sender.settled()
+        #expect(session.sent.isEmpty)
+
+        session.isActivated = true
+        sender.sessionStateChanged()
+        #expect(session.sentPayloads == [SettingsSyncPayload(testSettings)])
+    }
+
+    @Test func eachAppliedChangeOnTheiPhoneReachesTheWatch() async throws {
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        try store.save(testSettings)
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() },
+            discoverPorts: { [] }
+        )
+        model.onSettingsSaved = { sender.settingsSaved($0) }
+        let settings = model.makeSettingsViewModel(appliesOnChange: true)
+
+        settings.defaultMode = .net
+        await settings.settled()
+        settings.apiKey = "bb_typed"
+        await settings.settled()
+        #expect(session.sentPayloads.map(\.defaultMode) == [.net])
+
+        settings.commit()
+        await settings.settled()
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test", "bb_typed"])
+    }
+
     @Test func theHostModelHookSendsOnSaveOnly() async throws {
         let defaults = InMemoryKeyValueStore()
         let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())

@@ -12,11 +12,13 @@ in `Apple/` are thin XcodeGen shells over it (see below). No UI tests.
   followed by `00000100` (`7EF1AB04` → `7EF1AB0400000100`), NTAG UIDs as
   read; see `protocol/PROTOCOL.md`.
 - `FliBuddyUI`: SwiftUI views shared by the macOS and iOS apps (the feed,
-  the settings form with the Transport section, the New and Link sheets,
-  the iOS QR scanner); macOS-only parts (the Settings link, the serial port
-  picker) sit behind `#if os(macOS)`. `Watch/` holds the compact watch
-  views (`#if os(watchOS)`): the feed list, a row detail with the weight on
-  the Digital Crown, and a settings page. `FeedView`, `SettingsForm` and
+  the iPhone connection banner, the iPad sidebar and menu commands, the
+  settings form with the Transport section, the New, Link and Tag details
+  sheets, the iOS QR scanner); macOS-only parts (the Settings link, the
+  serial port picker) sit behind `#if os(macOS)`. `Watch/` holds the
+  compact watch views (`#if os(watchOS)`): one navigation stack with the
+  feed list, a row detail with the weight on the Digital Crown, the
+  read-only settings and Scan for Flipper. `FeedView`, `SettingsForm` and
   `UnknownRowActions` are not built for watchOS.
 - `FliBuddyMac`: SwiftUI executable for macOS 14+: the app and the
   Settings window around `SettingsForm`.
@@ -106,17 +108,21 @@ The layout and copy follow `docs/design/macos-ui-spec.md`; its last section
 lists where the app differs and why.
 
 The window (default 1000 × 600, minimum 760 × 420) shows the session feed,
-newest scan first, one line per tag: swatch, title and UID, colour and
-remaining, status, then the weight entry (field, Net/Gross, **Save**) for
-rows that wait for a weight. A scan of a tag already in the feed moves its
-row to the top and reopens it; no second row. The newest row that waits
+newest scan first, one line per tag: swatch, title, colour (with Bambu's
+colour code, `Jade White · 10501`) and remaining, status, then the weight
+entry (field, Net/Gross, **Save**) for rows that wait for a weight. A scan
+of a tag already in the feed moves its row to the top and reopens it; no
+second row. The newest row that waits
 takes focus with the suggestion selected (remaining + core weight in gross,
 remaining in net), so a correct suggestion costs one keystroke. While a
 field holds a number you typed, a new scan does not take focus: the new row
 gets a tinted outline and waits. After a save, focus moves to the newest
-row still waiting. Switching Net/Gross converts an untouched suggestion and
-keeps a typed number. The readout under the field shows what Save sends
-("Saves 590 g left · 915 − 325 g core").
+row still waiting. Switching Net/Gross converts the number in the field,
+typed or not (gross − core, not below 0, or net + core). The readout under
+the field shows what Save sends ("Saves 590 g left · 915 − 325 g core").
+The row's context menu (or its VoiceOver action) opens **Tag details**: UID,
+tray UUID, filament id, colour code, RGBA, label weight, diameter and
+nozzle range (`TagDetails`).
 
 ### Keyboard
 
@@ -217,8 +223,9 @@ the scan response's manufacturer data, `FliBuddyGATT.displayName`; the FAP
 advertises no name); choosing one stores it and selects Bluetooth. **Forget**
 clears the remembered Flipper of the chosen transport (the USB port back to
 Automatic, the Bluetooth peripheral to the first found); like every other
-field it takes effect on **Save**. `HostModel` reconnects when the transport choice
-changes (kind, port or peripheral), not on a rename. No pairing: the link
+field it takes effect on **Save** on the Mac and at once on the iPhone and
+iPad. `HostModel` reconnects when the transport choice changes (kind, port
+or peripheral), not on a rename. No pairing: the link
 is unencrypted and carries no secrets.
 
 ## iPhone, iPad and Apple Watch apps (`Apple/`)
@@ -226,9 +233,9 @@ is unencrypted and carries no secrets.
 ```
 Apple/project.yml                XcodeGen spec: FliBuddyiOS (iPhone, iPad)
                                  with the FliBuddyWatch companion embedded
-Apple/iOS/App.swift              NavigationSplitView (regular width) or
-                                 TabView (compact) over FeedView and
-                                 SettingsForm
+Apple/iOS/App.swift              NavigationSplitView with the sidebar and
+                                 one-line table, or TabView with the
+                                 cards, by window width (FeedLayout)
 Apple/Watch/App.swift            the watch app over the Watch/ views
 Apple/Base.xcconfig              tracked; includes Signing.xcconfig if present
 Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
@@ -245,6 +252,26 @@ Command Line Tools. To run on a device, fill in `Signing.xcconfig` with a
 team (a free personal team works; the install lasts 7 days), regenerate,
 and run `FliBuddyiOS` from Xcode; the watch app installs with it.
 
+### iPhone and iPad feed
+
+The iPhone and the portrait iPad show a glass banner over the feed
+(`ConnectionBanner`) in place of the Mac's status bar: one line when one
+side is in trouble, two when both are (the Flipper first), each with its
+action chip. A landscape iPad shows both states in the sidebar. A save plays
+the success haptic and a failed host action the error one, on the iPhone and
+on the watch. The iPad table layout has the Mac's shortcuts above as menu
+commands (`FeedCommands`).
+
+### Settings on iPhone and iPad
+
+`makeSettingsViewModel(appliesOnChange: true)` removes Save and Revert.
+Picker changes, Forget and a QR read apply at once; the text fields (URL, API
+key, core weight) apply on `commit()`, that is Return or leaving the field,
+and leaving the Settings tab commits the field being typed. Each change
+applies on top of the last applied settings, in order. A core weight out of
+range stays unapplied and sets `coreWeightError`; the field can be emptied
+while it is edited.
+
 ### Settings sync to the watch
 
 `Session/SettingsSync.swift`: `SettingsSyncPayload` is the Bambuddy URL,
@@ -255,9 +282,10 @@ other versions and malformed fields are rejected.
 protocol (`WatchConnectivitySession` wraps `WCSession`):
 
 - iPhone: `WatchSettingsSender` sends the payload with
-  `updateApplicationContext` after every save (`HostModel.onSettingsSaved`)
-  and once at launch when the settings are complete. A save it cannot send
-  yet (session not activated, no watch app) is held and sent on the next
+  `updateApplicationContext` 0.5 s after the last applied change
+  (`HostModel.onSettingsSaved`, debounced so a quick run of changes sends
+  once) and once at launch when the settings are complete. A save it
+  cannot send yet (session not activated, no watch app) is held and sent on the next
   session change. The iPad has no WatchConnectivity and sends nothing.
 - Watch: `WatchSettingsReceiver` merges the payload onto the watch's own
   settings (the transport and the Flipper stay), stores it through
@@ -266,8 +294,11 @@ protocol (`WatchConnectivitySession` wraps `WCSession`):
   `receivedApplicationContext` on activation.
 
 The watch then talks to Bambuddy itself. Its settings page shows what
-arrived and **Scan for Flipper**. The weight model behind the Digital Crown
-is `ViewModels/CrownWeight.swift` (0…9999 g, 1 g steps, 5 g from 20 g/s).
+arrived, read-only (`WatchSettingsTexts`), and the Flipper, with **Scan for
+Flipper** on a screen of its own. The weight model behind the Digital Crown
+is `ViewModels/CrownWeight.swift` (0…9999 g, 1 g per detent, 5 g from 6
+detents per second); `WatchNavigation` and `WatchRowScreen` decide which
+screen shows, when a new waiting row opens and when a save pops back.
 
 ### API key from Bambuddy's QR code
 
@@ -277,9 +308,11 @@ is `ViewModels/CrownWeight.swift` (0…9999 g, 1 g steps, 5 g from 20 g/s).
 `SettingsViewModel.applyQRPayload(_:)` fills the URL and key and reports
 in `qrStatus`; `scanQRCode(with:)` takes any `QRScanning` scanner, so it is
 tested without a camera. On iOS **Scan QR code** opens
-`FliBuddyUI/QRScanner.swift`, a sheet over VisionKit's
-`DataScannerViewController` reading QR codes. The button only shows where
-the scanner is supported and available, so never in the simulator.
+`FliBuddyUI/QRScanner.swift`, a full-screen cover over VisionKit's
+`DataScannerViewController` reading QR codes; a read applies the URL and
+key and starts **Test connection**. Where the scanner is not supported or
+available (always in the simulator) the row is dimmed and its footer says
+to type them instead.
 
 ### `@ViewState` instead of `@State`
 

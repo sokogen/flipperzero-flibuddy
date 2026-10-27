@@ -56,6 +56,24 @@ public final class HostModel {
         await session.checkBambuddy()
     }
 
+    /// The iPhone's banner over the feed, from both halves of the status bar.
+    public var connectionBanner: ConnectionBanner {
+        ConnectionBanner(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
+    }
+
+    /// The watch's connection glyph, from both halves of the status bar.
+    public var watchGlyph: StatusItem {
+        WatchGlyph.status(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
+    }
+
+    /// The iPad sidebar: both connection rows, the feed's count, Clear.
+    public var sidebar: Sidebar {
+        Sidebar(
+            flipper: link.statusItem, bambuddy: feed.bambuddyStatus, flipperName: settings.peripheralName,
+            serverURL: settings.baseURL, feedCount: feed.items.count
+        )
+    }
+
     /// A status bar button. Settings is the view's to open, so it does
     /// nothing here.
     public func perform(_ action: StatusItem.Action) async {
@@ -91,12 +109,15 @@ public final class HostModel {
         try await apply(new)
     }
 
-    public func makeSettingsViewModel() -> SettingsViewModel {
+    /// The Settings screen's model; the iPhone and iPad pass
+    /// `appliesOnChange`, the Mac keeps its Save.
+    public func makeSettingsViewModel(appliesOnChange: Bool = false) -> SettingsViewModel {
         SettingsViewModel(
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
             connectedTransport: { [link] in link.connectedTransport },
+            appliesOnChange: appliesOnChange,
             apply: { [weak self] in try await self?.apply($0) }
         )
     }
