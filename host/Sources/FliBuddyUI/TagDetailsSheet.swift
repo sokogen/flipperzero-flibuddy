@@ -31,8 +31,10 @@ struct TagDetailsSheet: View {
             .padding(20)
         }
         #if os(macOS)
-        // A sheet on macOS sizes to its content; on iOS it fills the screen.
+        // A sheet on macOS sizes to its content.
         .frame(minWidth: 420)
+        #else
+        .presentationDetents([.medium, .large])
         #endif
     }
 }

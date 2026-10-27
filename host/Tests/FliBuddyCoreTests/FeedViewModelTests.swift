@@ -65,9 +65,64 @@ struct FeedViewModelTests {
         #expect(model.weightText(for: id) == "1234")
         model.setWeightText("７３４", for: id)
         #expect(model.weightText(for: id) == "")
-        #expect(FeedViewModel.sanitizeWeight("0734") == "0734")
         #expect(FeedViewModel.grams(from: "0734") == 734)
         #expect(FeedViewModel.grams(from: "") == nil)
+    }
+
+    @Test func aLoneZeroIsReplacedByTheNextDigit() {
+        // the number pad appends to a lone 0: the 0 goes
+        #expect(FeedViewModel.sanitizeWeight("07") == "7")
+        #expect(FeedViewModel.sanitizeWeight("0734") == "734")
+        #expect(FeedViewModel.sanitizeWeight("00") == "0")
+        #expect(FeedViewModel.sanitizeWeight("0") == "0")
+        #expect(FeedViewModel.sanitizeWeight("10") == "10")
+        // the cap counts the digits that stay
+        #expect(FeedViewModel.sanitizeWeight("012345") == "1234")
+    }
+
+    @Test func aSavePlaysTheSuccessHapticAndAFailureTheErrorOne() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.haptic == nil)
+
+        inventory.updateError = .network("timed out")
+        model.setWeightText("734", for: id)
+        await model.save(id)
+        let failed = try #require(model.haptic)
+        #expect(failed.kind == .error)
+
+        inventory.updateError = nil
+        await model.save(id)
+        let saved = try #require(model.haptic)
+        #expect(saved.kind == .success)
+        #expect(saved != failed)
+
+        // a second save of the same kind still changes the trigger
+        await model.reopen(id)
+        model.setWeightText("700", for: id)
+        await model.save(id)
+        #expect(model.haptic?.kind == .success)
+        #expect(model.haptic != saved)
+    }
+
+    @Test func aFailedCreateOrLinkPlaysTheErrorHapticAndASuccessfulOneNone() async throws {
+        let inventory = FakeInventory()
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        inventory.createError = .network("timed out")
+        #expect(await !model.createFromTag(id))
+        #expect(model.haptic?.kind == .error)
+        let failed = model.haptic
+
+        inventory.createError = nil
+        #expect(await model.createFromTag(id))
+        #expect(model.haptic == failed)
     }
 
     @Test func saveIsEnabledOnlyWithAValue() async throws {
@@ -843,6 +898,55 @@ struct FeedViewModelUnknownTests {
         #expect(model.focusedRow == older.id)
         model.moveFocus(.up)
         #expect(model.focusedRow == newer.id)
+    }
+
+    @Test func noFieldTakesTheKeyboardWhileASheetIsOpen() throws {
+        let (model, _) = makeModel()
+        let older = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([older]))
+        #expect(model.focusedField == older.id)
+
+        model.sheetOpened()
+        #expect(model.focusedField == nil)
+        let newer = try spoolRow("s-2", .awaitingWeight)
+        model.apply(snapshot([older, newer]))
+        // the row still takes focus; its field waits for the sheet
+        #expect(model.focusedRow == newer.id)
+        #expect(model.focusedField == nil)
+
+        model.sheetClosed()
+        #expect(model.focusedField == newer.id)
+    }
+
+    @Test func sheetsCountSoTheFirstToCloseDoesNotReleaseTheKeyboard() throws {
+        let (model, _) = makeModel()
+        let row = try spoolRow("s-1", .awaitingWeight)
+        model.apply(snapshot([row]))
+
+        model.sheetOpened()
+        model.sheetOpened()
+        model.sheetClosed()
+        #expect(model.focusedField == nil)
+        model.sheetClosed()
+        #expect(model.focusedField == row.id)
+        // an extra close does not go below zero
+        model.sheetClosed()
+        model.sheetOpened()
+        #expect(model.focusedField == nil)
+    }
+
+    @Test func savingTheLastWaitingRowLowersThePad() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        #expect(model.focusedField == id)
+
+        await model.save(id)
+
+        // no other row waits: the field lets go of the keyboard
+        #expect(model.focusedField == nil)
     }
 
     @Test func clearDropsTheFocus() async throws {

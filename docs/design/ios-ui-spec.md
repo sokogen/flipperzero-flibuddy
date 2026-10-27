@@ -511,6 +511,39 @@ Connection banner
 - iPad gets the same banner over the feed until Task 5 of
   `docs/plans/20261027-apple-ui-from-design.md` gives it the sidebar status rows.
 
+Feed row, number pad and focus
+- The card is the row of its own inset-grouped `Section` with 16 pt row
+  insets; the waiting-row hint is a 2 pt `.tint` stroke on the card's row
+  background (24 pt continuous corner), not on the field. By eye.
+- Save and the New / Link capsules are stock `.borderedProminent` /
+  `.bordered` buttons with `.buttonBorderShape(.capsule)` at
+  `.controlSize(.large)`; the label's minimum height (36 / 30) gives about
+  50 / 44 pt rather than an exact frame. The non-prominent capsule is the
+  bordered style's tinted fill rather than `tertiarySystemFill`. By eye.
+- The capsules show no spinner of their own: the row's status line shows
+  `Creating in Bambuddy…` with its spinner while New or Link runs.
+- Select-all on focus sets the field's `TextSelection` to the whole value
+  one turn after the field takes the keyboard, so the caret the tap placed
+  does not win; a Net/Gross switch reselects a converted suggestion. A tap
+  anywhere in the 64 pt box focuses the field. By eye.
+- Leading zeros drop as the user types (`FeedViewModel.sanitizeWeight`),
+  which is how a lone `0` is replaced by the next key; the Mac shares it.
+- "Tapping the list background lowers the pad" is a tap on a card's header
+  (swatch, title, colour line, status) plus
+  `.scrollDismissesKeyboard(.immediately)` on a drag: a list-wide tap
+  gesture races the field's own tap and the buttons. A tap between cards
+  does nothing. By eye.
+- No row's field holds the keyboard while a sheet is open: the sheets
+  count themselves in and out (`FeedViewModel.sheetOpened()` /
+  `sheetClosed()`), and the focused row's field takes the pad back when the
+  last one closes.
+- The success haptic plays after a save from the host; the error haptic
+  after any failed host action (save, New, Link), as `FeedViewModel.haptic`
+  events. A save from the Flipper plays nothing on the iPhone.
+- The timeout note's symbol and text are a `Label` 4 pt under the status.
+- Tag details opens from the card's context menu and the VoiceOver action
+  shared with the Mac, as a sheet with medium and large detents.
+
 ## Open questions for the owner
 
 None. Decided 2026-10-27: Net/Gross below the core clamps to 0, as on the

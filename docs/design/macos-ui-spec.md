@@ -171,6 +171,10 @@ identifiers monospaced and selectable. Done closes it. The same
   and the next scan takes focus.
 - Focus never steals from a field the user is typing in (`touched`): the new
   row gets a blue focus hint and waits.
+- Digits only, at most four; leading zeros drop, so a digit typed after a
+  lone `0` replaces it (shared with the iPhone's number pad). While a sheet
+  is open (New, Link, Tag details) no weight field holds the keyboard; the
+  focused row's field takes it back when the sheet closes.
 - A save from the Flipper on a row the host shows as waiting turns it into
   `Saved … · by Flipper` and clears the host's draft.
 - Rows are ordered by their last scan, newest first. A scan of a tag already

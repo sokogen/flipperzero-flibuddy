@@ -191,6 +191,17 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         mode == .gross ? "Gross weight, grams" : "Net weight, grams"
     }
 
+    /// The word inside the iPhone's weight field, right of the value.
+    public static func modeWord(_ mode: Intent.WeightMode) -> String {
+        mode == .gross ? "gross" : "net"
+    }
+
+    /// New and Link to existing… as the iPhone card lays them out, the
+    /// prominent one first: New, unless the Flipper asked to link.
+    public var cardActions: [UnknownAction] {
+        prominentAction == .link ? [.link, .new] : [.new, .link]
+    }
+
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".
     public static func title(material: String, subtype: String?) -> String {
         guard let subtype, !subtype.isEmpty else { return material }

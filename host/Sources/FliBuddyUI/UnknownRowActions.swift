@@ -5,44 +5,94 @@ import SwiftUI
 #if !os(watchOS)
 /// New and Link to existing, for a tag no spool carries. New opens the form
 /// for a tag without material and creates from the tag otherwise; the
-/// action the Flipper asked for is the prominent one. `compact`: link-style
-/// buttons under the weight field of a tag with material, where the
-/// Flipper's request is semibold rather than prominent.
+/// action the Flipper asked for is the prominent one.
 struct UnknownRowActions: View {
+    enum Style {
+        /// Bordered buttons, the requested one prominent (macOS).
+        case buttons
+        /// Link-style buttons under the weight field of a tag with material,
+        /// where the Flipper's request is semibold rather than prominent (macOS).
+        case compact
+        /// Two equal capsules, 44 high and 10 apart, the prominent one first:
+        /// New unless the Flipper asked to link (iPhone card).
+        case capsules
+    }
+
     let feed: FeedViewModel
     let item: FeedItem
-    var compact = false
+    var style = Style.buttons
     @ViewState private var showingNew = false
     @ViewState private var showingLink = false
 
     var body: some View {
-        if compact {
+        content
+            .disabled(feed.isBusy(item.id))
+            .sheet(isPresented: $showingNew) {
+                if let form = feed.newSpoolForm(for: item.id) {
+                    NewSpoolSheet(feed: feed, item: item, form: form).feedSheet(feed)
+                }
+            }
+            .sheet(isPresented: $showingLink) {
+                LinkSpoolSheet(feed: feed, item: item).feedSheet(feed)
+            }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch style {
+        case .buttons:
+            buttons
+        case .compact:
             #if os(macOS)
             buttons.buttonStyle(.link).font(.footnote).controlSize(.small)
             #else
             buttons.font(.footnote)
             #endif
-        } else {
-            buttons
+        case .capsules:
+            // The row's status shows the spinner while New or Link runs.
+            HStack(spacing: 10) {
+                ForEach(item.cardActions, id: \.self) { action in
+                    capsule(action, prominent: action == item.cardActions.first)
+                }
+            }
         }
     }
 
     private var buttons: some View {
         HStack(spacing: 8) {
-            styled(Button(item.newAction.title) { new() }, prominent: item.prominentAction == .new)
-                .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
-            styled(Button("Link to existing\u{2026}") { showingLink = true }, prominent: item.prominentAction == .link)
-                .help("Attach this tag to a spool already in Bambuddy")
+            styled(newButton, prominent: item.prominentAction == .new)
+            styled(linkButton, prominent: item.prominentAction == .link)
             ProgressView().controlSize(.small).opacity(feed.isBusy(item.id) ? 1 : 0)
         }
-        .disabled(feed.isBusy(item.id))
-        .sheet(isPresented: $showingNew) {
-            if let form = feed.newSpoolForm(for: item.id) {
-                NewSpoolSheet(feed: feed, item: item, form: form)
+    }
+
+    private var newButton: some View {
+        Button(item.newAction.title) { new() }
+            .help(item.newAction == .form ? "Create a Bambuddy item; enter the material" : "Create a Bambuddy item from the tag")
+    }
+
+    private var linkButton: some View {
+        Button("Link to existing\u{2026}") { showingLink = true }
+            .help("Attach this tag to a spool already in Bambuddy")
+    }
+
+    @ViewBuilder private func capsule(_ action: FeedItem.UnknownAction, prominent: Bool) -> some View {
+        let button = Button {
+            switch action {
+            case .new: new()
+            case .link: showingLink = true
             }
+        } label: {
+            Text(action == .new ? item.newAction.title : "Link to existing\u{2026}")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, minHeight: 30)
         }
-        .sheet(isPresented: $showingLink) {
-            LinkSpoolSheet(feed: feed, item: item)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        if prominent {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
         }
     }
 
@@ -53,8 +103,8 @@ struct UnknownRowActions: View {
         }
     }
 
-    @ViewBuilder private func styled(_ button: Button<Text>, prominent: Bool) -> some View {
-        if compact {
+    @ViewBuilder private func styled(_ button: some View, prominent: Bool) -> some View {
+        if style == .compact {
             button.fontWeight(prominent ? .semibold : .regular)
         } else if prominent {
             button.buttonStyle(.borderedProminent)
@@ -75,8 +125,17 @@ struct LinkExistingButton: View {
         Button("Link to existing…") { showingLink = true }
             .help("Move this tag to a spool already in Bambuddy and delete the one created on scan")
             .sheet(isPresented: $showingLink) {
-                LinkSpoolSheet(feed: feed, item: item)
+                LinkSpoolSheet(feed: feed, item: item).feedSheet(feed)
             }
+    }
+}
+
+extension View {
+    /// Content of a sheet over the feed: while it shows, no weight field
+    /// takes the keyboard (see `FeedViewModel.sheetOpened()`).
+    func feedSheet(_ feed: FeedViewModel) -> some View {
+        onAppear { feed.sheetOpened() }
+            .onDisappear { feed.sheetClosed() }
     }
 }
 

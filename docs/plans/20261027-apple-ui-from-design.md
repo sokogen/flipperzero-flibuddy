@@ -82,13 +82,13 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 3
 
 ### Task 3: iPhone row card, number pad and focus
-- [ ] stacked card per ios spec "Feed row": status under the colour line, 64 pt field with the mode word, 34 pt value, full-width segmented, readout, full-width 50 pt Save, 44 pt New / Link capsules; one `Section` per row, compact spacing
-- [ ] number pad: `.numberPad`, select-all on focus, up to four digits, a lone `0` replaced by the next key; scroll to the focused row; tab bar hides while typing; pad lowers when no row waits; tap on the list background dismisses
-- [ ] focus rules (ios spec "Number pad and focus"): focus moves to the newest row waiting for a weight after a save; never steals from a touched field (2 pt tint outline instead)
-- [ ] haptics: success after a save, error on a failure
-- [ ] Tag details reachable from the row (sheet) on iPhone
-- [ ] write view-model tests for the focus rules, digit entry rules and haptic events
-- [ ] run `make test` and `make apple-build` — must pass before Task 4
+- [x] stacked card per ios spec "Feed row": status under the colour line, 64 pt field with the mode word, 34 pt value, full-width segmented, readout, full-width 50 pt Save, 44 pt New / Link capsules; one `Section` per row, compact spacing
+- [x] number pad: `.numberPad`, select-all on focus, up to four digits, a lone `0` replaced by the next key; scroll to the focused row; tab bar hides while typing; pad lowers when no row waits; tap on the list background dismisses
+- [x] focus rules (ios spec "Number pad and focus"): focus moves to the newest row waiting for a weight after a save; never steals from a touched field (2 pt tint outline instead)
+- [x] haptics: success after a save, error on a failure
+- [x] Tag details reachable from the row (sheet) on iPhone
+- [x] write view-model tests for the focus rules, digit entry rules and haptic events
+- [x] run `make test` and `make apple-build` — must pass before Task 4
 
 ### Task 4: iPhone settings, QR, sheets, Clear
 - [ ] Settings apply on change (no Save / Revert on iOS); labels, rows and footers per ios spec; keep Reload catalog; Connection picker stays hidden with one transport

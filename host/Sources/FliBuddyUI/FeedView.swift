@@ -46,6 +46,17 @@ public struct FeedView: View {
                 // Losing the field keeps the row focused, so ⌘S still has a target.
                 if let row { feed.focusedRow = row }
             }
+            #if os(iOS)
+            // The number pad needs the room; the tabs come back when it lowers.
+            .toolbarVisibility(focusedField == nil ? .automatic : .hidden, for: .tabBar)
+            .sensoryFeedback(trigger: feed.haptic) { _, haptic in
+                switch haptic?.kind {
+                case .success: .success
+                case .error: .error
+                case nil: nil
+                }
+            }
+            #endif
             .confirmationDialog("Clear the feed?", isPresented: $confirmingClear, titleVisibility: .visible) {
                 Button("Clear", role: .destructive) {
                     Task { await feed.clear() }
@@ -105,8 +116,25 @@ public struct FeedView: View {
             FeedRowView(feed: feed, item: item, focusedField: $focusedField)
         }
         #else
-        List(feed.items) { item in
-            FeedRowView(feed: feed, item: item, focusedField: $focusedField)
+        // One card per row; the focused row scrolls to the top so its entry
+        // block, Save included, stays clear of the number pad.
+        ScrollViewReader { proxy in
+            List {
+                ForEach(feed.items) { item in
+                    Section {
+                        FeedRowView(feed: feed, item: item, focusedField: $focusedField)
+                            .id(item.id)
+                            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .listSectionSpacing(.compact)
+            .scrollDismissesKeyboard(.immediately)
+            .onChange(of: focusedField) { _, row in
+                guard let row else { return }
+                withAnimation { proxy.scrollTo(row, anchor: .top) }
+            }
         }
         #endif
     }
@@ -134,9 +162,10 @@ struct FeedKeyboardShortcuts: View {
 
 /// One feed row. On macOS a single line with fixed columns: swatch · title
 /// · colour line · status · weight entry. Rows outside weight entry keep the
-/// entry block's space empty so the columns line up. iOS stacks the entry
-/// block under the header until its own spec lands. The UID and the other
-/// tag facts are in Tag details (context menu, VoiceOver action).
+/// entry block's space empty so the columns line up. On iOS a stacked card:
+/// swatch beside title, colour line and status, the entry block under them.
+/// The UID and the other tag facts are in Tag details (context menu,
+/// VoiceOver action).
 struct FeedRowView: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -161,16 +190,26 @@ struct FeedRowView: View {
             }
             .sheet(isPresented: $showingDetails) {
                 if let details = feed.tagDetails(for: item.id) {
-                    TagDetailsSheet(details: details)
+                    TagDetailsSheet(details: details).feedSheet(feed)
                 }
             }
             .help(Text("Scanned \(item.scannedAt, style: .time)"))
+            #if os(macOS)
             .overlay {
                 // A row that waits while the user types in another one.
                 if feed.focus.hintedRow == item.id {
                     RoundedRectangle(cornerRadius: 8).strokeBorder(.tint, lineWidth: 2)
                 }
             }
+            #else
+            .listRowBackground(
+                Color(uiColor: .secondarySystemGroupedBackground).overlay {
+                    if feed.focus.hintedRow == item.id {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.tint, lineWidth: 2)
+                    }
+                }
+            )
+            #endif
     }
 
     @ViewBuilder private var content: some View {
@@ -184,16 +223,35 @@ struct FeedRowView: View {
         #else
         VStack(alignment: .leading, spacing: 12) {
             header
-            trailing
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                // A tap outside the field lowers the number pad; a saved
+                // row reopens instead.
+                .onTapGesture {
+                    if !item.isReopenable { focusedField.wrappedValue = nil }
+                }
+            if item.isEntry || item.offersUnknownActions {
+                trailing
+            }
         }
-        .padding(.vertical, 4)
         #endif
     }
 
     /// Swatch, title, colour line, status: one element for VoiceOver.
     private var header: some View {
+        headerContent
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(item.accessibilityHeader)
+            // The timeout note and a failed host action sit in the header too.
+            .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
+    }
+
+    /// macOS: three equal columns. iOS: the colour line and the status
+    /// stacked under the title.
+    private var headerContent: some View {
         HStack(alignment: .center, spacing: 12) {
             SwatchView(swatch: item.swatch, size: 28)
+            #if os(macOS)
             Text(item.title)
                 .font(.headline)
                 .lineLimit(1)
@@ -204,11 +262,21 @@ struct FeedRowView: View {
                 .lineLimit(1)
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             status.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            #else
+            VStack(alignment: .leading, spacing: 0) {
+                Text(item.title).font(.headline).lineLimit(1)
+                if !item.detailText.isEmpty {
+                    Text(item.detailText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .padding(.top, 2)
+                }
+                status.padding(.top, 6)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            #endif
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.accessibilityHeader)
-        // The timeout note and a failed host action sit in the header too.
-        .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
     }
 
     private var status: some View {
@@ -221,7 +289,17 @@ struct FeedRowView: View {
             }
             .font(.subheadline)
             if let note = item.timeoutNote {
+                #if os(macOS)
                 Text(note).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                #else
+                Label {
+                    Text(note).foregroundStyle(.secondary).lineLimit(2)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .font(.footnote)
+                .padding(.top, 4)
+                #endif
             }
             if let error = feed.error(for: item.id) {
                 Text(error).font(.footnote).foregroundStyle(.red).lineLimit(2).help(error)
@@ -233,7 +311,11 @@ struct FeedRowView: View {
         if item.isEntry {
             WeightEntry(feed: feed, item: item, focusedField: focusedField)
         } else if item.offersUnknownActions {
+            #if os(macOS)
             UnknownRowActions(feed: feed, item: item)
+            #else
+            UnknownRowActions(feed: feed, item: item, style: .capsules)
+            #endif
         } else {
             // Saved, timed out or looking up: the space stays empty.
             Color.clear.frame(height: 1)
@@ -278,19 +360,54 @@ extension StatusTint {
 /// Weight field with its "g" unit, Net/Gross and Save, the readout under the
 /// field, and Link to existing… on a row created on scan, or New and Link to
 /// existing… on a tag no spool carries (Save then creates the spool and
-/// records the weight). Tab goes field → mode → Save in view order.
+/// records the weight). macOS lays it out on one line (Tab goes field → mode
+/// → Save in view order); iOS stacks it full width with the number pad.
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
+    #if os(macOS)
     /// The weight is the one custom-sized type: 22 pt at the default size.
     @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 22
+    #endif
 
     var body: some View {
+        #if os(macOS)
+        lineBody
+        #else
+        stackedBody
+        #endif
+    }
+
+    private var modePicker: some View {
+        let id = item.id
+        return Picker("Mode", selection: Binding(get: { feed.mode(for: id) }, set: { feed.setMode($0, for: id) })) {
+            Text("Net").tag(Intent.WeightMode.net)
+            Text("Gross").tag(Intent.WeightMode.gross)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .help("Net: filament only. Gross: spool on the scale, core included.")
+    }
+
+    @ViewBuilder private var readout: some View {
+        if let readout = feed.readout(for: item.id) {
+            Text(readout.text)
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                .lineLimit(1)
+        }
+    }
+
+    private var saveHelp: String {
+        item.savesNewSpool ? "Create the spool in Bambuddy from the tag and save the weight" : "Save the weight"
+    }
+
+    #if os(macOS)
+    private var lineBody: some View {
         let id = item.id
         let mode = feed.mode(for: id)
-        let saving = feed.isSaving(id)
-        VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     field(id: id, mode: mode)
@@ -299,22 +416,16 @@ struct WeightEntry: View {
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
                 }
-                Picker("Mode", selection: Binding(get: { feed.mode(for: id) }, set: { feed.setMode($0, for: id) })) {
-                    Text("Net").tag(Intent.WeightMode.net)
-                    Text("Gross").tag(Intent.WeightMode.gross)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 150)
-                .help("Net: filament only. Gross: spool on the scale, core included.")
-                .onKeyPress(.leftArrow) {
-                    feed.setMode(.net, for: id)
-                    return .handled
-                }
-                .onKeyPress(.rightArrow) {
-                    feed.setMode(.gross, for: id)
-                    return .handled
-                }
+                modePicker
+                    .frame(width: 150)
+                    .onKeyPress(.leftArrow) {
+                        feed.setMode(.net, for: id)
+                        return .handled
+                    }
+                    .onKeyPress(.rightArrow) {
+                        feed.setMode(.gross, for: id)
+                        return .handled
+                    }
                 Button {
                     Task { await feed.save(id) }
                 } label: {
@@ -322,28 +433,19 @@ struct WeightEntry: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!feed.canSave(id))
-                .help(item.savesNewSpool ? "Create the spool in Bambuddy from the tag and save the weight" : "Save the weight")
+                .help(saveHelp)
             }
-            .disabled(saving)
+            .disabled(feed.isSaving(id))
             HStack(spacing: 8) {
-                if let readout = feed.readout(for: id) {
-                    Text(readout.text)
-                        .font(.footnote.monospacedDigit())
-                        .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                        .lineLimit(1)
-                }
+                readout
                 Spacer(minLength: 0)
                 if item.offersLinkExisting {
-                    #if os(macOS)
                     LinkExistingButton(feed: feed, item: item)
                         .buttonStyle(.link)
                         .font(.footnote)
                         .controlSize(.small)
-                    #else
-                    LinkExistingButton(feed: feed, item: item).font(.footnote)
-                    #endif
                 } else if item.offersUnknownActions {
-                    UnknownRowActions(feed: feed, item: item, compact: true)
+                    UnknownRowActions(feed: feed, item: item, style: .compact)
                 }
             }
         }
@@ -372,9 +474,116 @@ struct WeightEntry: View {
                 )
         }
         .focused(focusedField, equals: id)
+        // AppKit selects the field's text on focus, so the first keystroke
+        // replaces the suggestion.
         .onSubmit { Task { await feed.save(id) } }
     }
+    #else
+    /// Field, Net / Gross, readout, Save, then New / Link to existing… as
+    /// capsules on a tag no spool carries; 10 pt apart.
+    private var stackedBody: some View {
+        let id = item.id
+        return VStack(alignment: .leading, spacing: 10) {
+            PhoneWeightField(feed: feed, item: item, focusedField: focusedField)
+                // The value stays on one line at the largest sizes.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                .disabled(feed.isSaving(id))
+            modePicker
+                .disabled(feed.isSaving(id))
+            HStack(spacing: 8) {
+                readout
+                Spacer(minLength: 0)
+                if item.offersLinkExisting {
+                    LinkExistingButton(feed: feed, item: item).font(.footnote)
+                }
+            }
+            Button {
+                Task { await feed.save(id) }
+            } label: {
+                Text(feed.saveTitle(for: id))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .disabled(!feed.canSave(id))
+            .accessibilityHint(saveHelp)
+            if item.offersUnknownActions {
+                UnknownRowActions(feed: feed, item: item, style: .capsules)
+            }
+        }
+    }
+    #endif
 }
+
+#if os(iOS)
+/// The iPhone's weight field: 64 high, full width, the value with its unit
+/// and the mode word inside. Taking the keyboard selects the value, so the
+/// first key on the number pad replaces it.
+struct PhoneWeightField: View {
+    let feed: FeedViewModel
+    let item: FeedItem
+    var focusedField: FocusState<FeedRow.ID?>.Binding
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 34
+    @ViewState private var selection: TextSelection?
+
+    var body: some View {
+        let id = item.id
+        let mode = feed.mode(for: id)
+        let focused = focusedField.wrappedValue == id
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            TextField(
+                FeedItem.weightFieldLabel(mode: mode),
+                text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
+                selection: $selection,
+                prompt: Text("0").foregroundStyle(.tertiary)
+            )
+            .labelsHidden()
+            .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
+            .keyboardType(.numberPad)
+            .font(.system(size: weightSize, weight: .bold, design: .rounded).monospacedDigit())
+            .fixedSize()
+            .focused(focusedField, equals: id)
+            Text("g")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Spacer(minLength: 8)
+            Text(FeedItem.modeWord(mode))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 64)
+        .background(Color(uiColor: .tertiarySystemFill), in: .rect(cornerRadius: 14))
+        .overlay {
+            if focused {
+                RoundedRectangle(cornerRadius: 14).strokeBorder(.tint, lineWidth: 2)
+            }
+        }
+        .contentShape(.rect(cornerRadius: 14))
+        // A tap anywhere in the box, not only on the digits, takes the pad.
+        .onTapGesture { focusedField.wrappedValue = id }
+        .onChange(of: focused) { _, now in
+            if now { selectAll() } else { selection = nil }
+        }
+        .onChange(of: mode) {
+            // A converted suggestion stays selected; a typed number keeps its caret.
+            if focused && !feed.draft(for: id).touched { selectAll() }
+        }
+    }
+
+    /// After the field has placed its caret from the tap.
+    private func selectAll() {
+        let text = feed.weightText(for: item.id)
+        Task { @MainActor in
+            selection = TextSelection(range: text.startIndex..<text.endIndex)
+        }
+    }
+}
+#endif
 
 #if os(macOS)
 /// The Flipper item and the Bambuddy item, each a symbol and a phrase with

@@ -179,6 +179,24 @@ struct FeedItemDisplayTests {
         #expect(FeedItem.weightFieldLabel(mode: .net) == "Net weight, grams")
     }
 
+    @Test func theWeightFieldShowsItsModeWord() {
+        #expect(FeedItem.modeWord(.gross) == "gross")
+        #expect(FeedItem.modeWord(.net) == "net")
+    }
+
+    /// The iPhone card's capsules: New first and prominent, unless the
+    /// Flipper asked to link; then Link to existing… leads.
+    @Test func theCardActionsLeadWithNewUnlessTheFlipperAskedToLink() throws {
+        let plain = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
+        #expect(plain.cardActions == [.new, .link])
+        let create = FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create))
+        #expect(create.cardActions == [.new, .link])
+        let link = FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link))
+        #expect(link.cardActions == [.link, .new])
+        let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
+        #expect(blank.cardActions == [.new, .link])
+    }
+
     @Test func everyStateInTheSpecTableReadsAsSpecified() throws {
         var saved = try row(status: .saved)
         saved.savedBy = .flipper
