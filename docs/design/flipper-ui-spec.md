@@ -84,8 +84,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     Pre-fill: gross = remaining + core, net = remaining; without a spool
     the lookup defaults (gross: the last gross, else label + core; net:
     gross - core, else label). The mode starts gross and is kept for the
-    session. On an unknown tag (Add and weigh, Weigh on Added) Save creates
-    the spool and records the weight.
+    session. After Add and weigh on an unknown tag, Save creates the spool
+    and records the weight.
 13. **Saving / Adding / Deleting / Updating** (title per action): the spool
     (`- 590 g` net when saving), an indeterminate bar, "Waiting for
     Bambuddy". No keys; Error · No host reply after 10 s.
@@ -99,8 +99,9 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     "Next spool in 3 s". ◀ Undo, OK Weigh, Back Ready.
 17. **Marked as empty**: `0 g left - archived`, the same bar. ◀ Undo; OK and
     Back go to Ready.
-18. **Deleted**: "Tag is free to reuse", the same bar, no Undo. Back (or the
-    bar running out) Ready with the Deleted bar; OK does nothing.
+18. **Deleted**: "Tag is free to reuse", the same bar, no Undo. When the
+    bar runs out, Ready with the Deleted bar; Back goes to Ready at once,
+    without the bar; OK does nothing.
 19. **Link tag / Create on host**: "Pick the spool in" / "Finish the spool
     in", "FliBuddy on host", bouncing dots. ◀ Cancel and Back to the result.
     The host's `result` only stops the 10 s timeout; when the host links or
