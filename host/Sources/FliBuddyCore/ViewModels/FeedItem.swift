@@ -84,33 +84,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let accessibilityHeader: String
     /// The lookup is done and found no spool: offer New and Link.
     public let offersUnknownActions: Bool
-    /// What New does on an unknown row.
-    public let newAction: NewAction
-    /// The action the Flipper asked for, shown prominent.
-    public let prominentAction: UnknownAction?
     /// What the row offers besides the weight entry, the prominent one
     /// first; none while a weight or an update is on its way.
     public let rowActions: [RowAction]
     /// Save as new on a New spool, Set weight… on a Created row, else the
     /// action the Flipper asked for; none while the entry is shown.
     public let prominentRowAction: RowAction?
-
-    /// New on an unknown row: the form for a tag without material, one step
-    /// from the tag's own data otherwise (the retry after a failed create on
-    /// scan).
-    public enum NewAction: Equatable, Sendable {
-        case form
-        case fromTag
-
-        public var title: String {
-            self == .form ? "New\u{2026}" : "New"
-        }
-    }
-
-    public enum UnknownAction: Equatable, Sendable {
-        case new
-        case link
-    }
 
     /// A row's actions, worded the same on every platform.
     public enum RowAction: Hashable, Sendable {
@@ -192,8 +171,6 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isError = if case .error = row.status { true } else { false }
         spoolId = spool?.id
         offersUnknownActions = spool == nil && row.status != .scanned
-        newAction = row.tag.hasPrefill ? .fromTag : .form
-        prominentAction = row.request.map { $0 == .create ? .new : .link }
         let isNewSpool = Self.isNewSpool(row)
         revealsEntry = Self.revealsEntry(row)
         let revealed = revealsEntry && entryRevealed

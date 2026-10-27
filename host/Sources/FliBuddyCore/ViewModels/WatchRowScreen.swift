@@ -45,9 +45,9 @@ public enum WatchRowScreen: Equatable, Sendable {
             // phone or the Mac can do.
             let hint: String? = if item.isDeleted {
                 nil
-            } else if item.prominentAction == .link {
+            } else if item.prominentRowAction == .link {
                 Self.linkHint
-            } else if item.newAction == .form {
+            } else if item.rowActions.contains(.newForm) {
                 Self.createHint
             } else {
                 nil

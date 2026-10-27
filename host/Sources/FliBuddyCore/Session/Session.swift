@@ -356,6 +356,8 @@ public actor Session {
             known.tag = row.tag
             known.status = .scanned
             known.request = nil
+            // The rescan makes a known spool of it: no stand-in Link may delete.
+            known.createdSpoolId = nil
             row = known
         }
         row.colorName = colorNames?.name(for: row.tag) ?? row.tag.bambuColor?.name

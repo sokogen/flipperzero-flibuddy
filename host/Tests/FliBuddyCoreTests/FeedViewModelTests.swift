@@ -353,7 +353,7 @@ struct FeedViewModelTests {
         #expect(!item.isWaiting)
         #expect(!item.savesNewSpool)
         #expect(item.offersUnknownActions)
-        #expect(item.newAction == .fromTag)
+        #expect(item.rowActions.contains(.saveAsNew))
         #expect(!item.offersLinkExisting)
     }
 
@@ -416,7 +416,7 @@ struct FeedViewModelTests {
         #expect(item.colorName == nil)
         #expect(item.swatch == nil)
         #expect(item.offersUnknownActions)
-        #expect(item.newAction == .form)
+        #expect(item.rowActions.contains(.newForm))
     }
 
     @Test func titlesJoinMaterialAndSubtype() {

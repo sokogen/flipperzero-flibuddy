@@ -235,26 +235,25 @@ struct FeedItemDisplayTests {
         #expect(blank.accessibilityHeader == "NTAG 7-byte UID 0411\u{2026}, Not in Bambuddy; tag has no material")
     }
 
-    /// "New…" opens the form for a tag without material; "New" creates from
-    /// the tag in one step; the Flipper's request makes its action prominent.
+    /// "New…" opens the form for a tag without material; "Save as new" creates
+    /// from the tag in one step; the Flipper's request makes its action prominent.
     @Test func newAndLinkOnAnUnknownRow() throws {
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
-        #expect(blank.newAction == .form)
-        #expect(blank.newAction.title == "New\u{2026}")
-        #expect(blank.prominentAction == nil)
+        #expect(blank.rowActions == [.newForm, .link])
+        #expect(FeedItem.RowAction.newForm.title == "New\u{2026}")
+        #expect(blank.prominentRowAction == nil)
 
-        // a failed create on scan leaves the one-step New as the retry
+        // a failed create on scan leaves the one-step Save as new as the retry
         let failed = FeedItem(try row(status: .error("timed out"), spool: nil))
-        #expect(failed.newAction == .fromTag)
-        #expect(failed.newAction.title == "New")
-        #expect(failed.prominentAction == nil)
+        #expect(failed.rowActions == [.saveAsNew, .saveWithWeight, .link])
+        #expect(failed.prominentRowAction == .saveAsNew)
 
-        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create)).prominentAction == .new)
-        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link)).prominentAction == .link)
+        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create)).prominentRowAction == .saveAsNew)
+        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link)).prominentRowAction == .link)
         var asked = FeedRow(scanId: "s-3", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false))
         asked.request = .create
-        #expect(FeedItem(asked).newAction == .form)
-        #expect(FeedItem(asked).prominentAction == .new)
+        #expect(FeedItem(asked).rowActions == [.newForm, .link])
+        #expect(FeedItem(asked).prominentRowAction == .newForm)
     }
 
     @Test func theRowCarriesTheTagAsBambuddyKeepsIt() throws {
@@ -479,7 +478,7 @@ struct FeedViewModelRulesTests {
         #expect(!item.isEntry)
         #expect(item.rowActions == [.saveAsNew, .saveWithWeight, .link])
         #expect(item.offersUnknownActions)
-        #expect(item.newAction == .fromTag)
+        #expect(item.rowActions.contains(.saveAsNew))
 
         inventory.createError = nil
         #expect(await model.createFromTag(item.id))

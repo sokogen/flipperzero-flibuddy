@@ -132,6 +132,25 @@ struct NewSpoolCardItemTests {
         #expect(!revealed.isWaiting)
     }
 
+    /// The weight on its way: the revealed entry stays, disabled, and the card
+    /// does not take focus back; a known spool's entry is no Created row.
+    @Test func aCreatedRowWhoseWeightSavesStaysACard() throws {
+        let saving = FeedItem(try createdRow(.saving))
+        #expect(saving.revealsEntry)
+        #expect(saving.isSaving)
+        #expect(!saving.isEntry)
+        #expect(saving.rowActions.isEmpty)
+        let revealed = FeedItem(try createdRow(.saving), entryRevealed: true)
+        #expect(revealed.isEntry)
+        #expect(!revealed.isWaiting)
+
+        var other = try createdRow(.error("boom"))
+        other.createdSpoolId = nil
+        let known = FeedItem(other)
+        #expect(!known.revealsEntry)
+        #expect(known.isEntry)
+    }
+
     /// New settings forget which spool was created here: Link would no
     /// longer delete it, so only Set weight… is left.
     @Test func aCreatedRowUnderNewSettingsOffersOnlySetWeight() throws {
@@ -448,6 +467,28 @@ struct NewSpoolCardModelTests {
         #expect(item.isEntry)
         #expect(item.offersLinkExisting)
         #expect(item.rowActions == [.link])
+        #expect(model.weightText(for: id) == "1100")
+    }
+
+    @Test func aRescannedCreatedRowIsAKnownSpoolWhoseEntryStaysThroughAFailedSave() async throws {
+        let inventory = FakeInventory()
+        let (model, session) = makeModel(inventory)
+        _ = await session.handleScan(try scan("s-1", autosave: true))
+        let id = await session.record(try scan("s-2"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+
+        #expect(model.item(id)?.statusText == "Enter weight")
+        #expect(model.item(id)?.revealsEntry == false)
+        #expect(model.item(id)?.isEntry == true)
+        model.setWeightText("1100", for: id)
+        inventory.updateError = .network("timed out")
+        #expect(!(await model.save(id)))
+
+        let item = try #require(model.item(id))
+        #expect(item.isError)
+        #expect(item.isEntry)
+        #expect(!item.revealsEntry)
         #expect(model.weightText(for: id) == "1100")
     }
 

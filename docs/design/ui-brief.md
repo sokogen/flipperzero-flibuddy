@@ -81,7 +81,7 @@ Each row shows, in this priority:
 5. **Status** (secondary text, red for errors):
    - `Looking up` (just scanned, waiting for the inventory)
    - `Enter weight` (found; the weight field is active)
-   - `Not in Bambuddy` (unknown; offers New and Link to existing)
+   - `New spool` (unknown tag with material; offers Save as new, Save with weight… and Link to existing…; superseded wording, see the platform specs)
    - `Not in Bambuddy; tag has no material` (unknown, no prefill; New opens the form)
    - `Saved 15 g left`, with `by host` or `by Flipper`
    - `Created in Bambuddy`
