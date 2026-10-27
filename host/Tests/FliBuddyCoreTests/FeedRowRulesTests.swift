@@ -292,7 +292,7 @@ struct FeedViewModelSaveButtonTests {
         #expect(model.saveTitle(for: id) == "Saving\u{2026}")
         #expect(model.isSaving(id))
         #expect(!model.canSave(id))
-        await saving.value
+        _ = await saving.value
         #expect(model.saveTitle(for: id) == "Save")
     }
 }
@@ -394,7 +394,7 @@ struct FeedViewModelRulesTests {
         model.apply(await session.snapshot)
         #expect(model.items.first?.statusText == "Saving\u{2026}")
         #expect(!model.canSave(id))
-        await saving.value
+        _ = await saving.value
     }
 
     @Test func aSavedRowReopensForAReweighWithTheSavedValueAsBase() async throws {

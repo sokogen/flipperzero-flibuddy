@@ -668,7 +668,7 @@ struct BambuddyClientLogTests {
         let server = StubServer { _ in .json(401, #"{"detail":"invalid key \#(key)"}"#) }
         let client = try server.client(apiKey: key)
 
-        let sink = try await capturingLog(level: .debug) { _ = try? await client.spoolmanEnabled() }
+        let sink = await capturingLog(level: .debug) { _ = try? await client.spoolmanEnabled() }
 
         #expect(server.requests.first?.headers["X-API-Key"] == key)
         #expect(sink.lines.filter { $0.message.contains("«redacted»") }.count == 2)

@@ -126,9 +126,9 @@
 - [x] run `make test` and `make apple-build` — must pass before Task 8
 
 ### Task 8: Verify acceptance criteria
-- [ ] walk each spec's "Differences from what ships" list: every item done or recorded under "Implemented differently"
-- [ ] run `make test`, `make lint`, `make coverage`, `make apple-build`, `swift build`
-- [ ] fix all issues
+- [x] walk each spec's "Differences from what ships" list: every item done or recorded under "Implemented differently"
+- [x] run `make test`, `make lint`, `make coverage`, `make apple-build`, `swift build`
+- [x] fix all issues (four unused-result / redundant `try` warnings in the host tests)
 
 ### Task 9: [Final] Update documentation
 - [ ] update the three specs' "Differences" sections to what remains (ideally nothing) and the READMEs for the new behaviour
