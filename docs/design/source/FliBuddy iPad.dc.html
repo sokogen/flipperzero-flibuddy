@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>body{margin:0;background:#D9DBE0;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}@keyframes fb-spin{to{transform:rotate(360deg)}}input::placeholder{color:rgba(128,128,134,.6)}*{scrollbar-width:none}*::-webkit-scrollbar{display:none}</style>
+</helmet>
+<div style="width:3320px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:56px">
+
+<header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
+  <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
+  <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">iPad</h1>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">Landscape on a bench stand, usually with a keyboard. NavigationSplitView: the sidebar carries both connection states, Settings and Clear; the detail is the feed with every row on one line. Portrait collapses to the iPhone layout.</p>
+</header>
+
+<section style="display:flex;gap:40px;align-items:flex-start">
+  <div style="width:340px;flex:none;display:flex;flex-direction:column;gap:20px">
+    <pre style="margin:0;padding:16px;border-radius:14px;background:#fff;font:12px/1.55 ui-monospace,'SF Mono',Menlo,monospace;color:#1D1D1F;white-space:pre-wrap">NavigationSplitView {
+  List(selection: $pane) {
+    Section("Connections") {
+      FlipperStatusRow()
+      BambuddyStatusRow() }
+    NavigationLink(value: .feed) {
+      Label("Feed", systemImage:
+        "list.bullet") }.badge(feed.count)
+    NavigationLink(value: .settings) {
+      Label("Settings", systemImage:
+        "gearshape") }
+  }
+  .safeAreaInset(edge: .bottom) {
+    Button("Clear feed",
+      systemImage: "trash",
+      role: .destructive)
+      .keyboardShortcut(.delete) }
+} detail: {
+  FeedTable()   // List, one-line rows
+}
+// size class .compact (portrait):
+// same TabView as iPhone</pre>
+    <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Prototype controls</span><button onClick="{{ ctl.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Reset</button></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag to the Flipper</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.scanKnown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Known spool</button>
+          <button onClick="{{ ctl.scanUnknown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">New Bambu tag</button>
+          <button onClick="{{ ctl.scanBlank }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Blank NTAG</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">On the Flipper</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.flipperSave }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Save waiting row</button>
+          <button onClick="{{ ctl.askCreate }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Ask to create</button>
+          <button onClick="{{ ctl.askLink }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Ask to link</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button onClick="{{ ctl.toggleFail }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ ctl.failBg }};color:{{ ctl.failFg }}">Next save fails</button>
+        <button onClick="{{ ctl.toggleTimeout }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ ctl.toBg }};color:{{ ctl.toFg }}">Flipper times out</button>
+      </div>
+      <div style="display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px;align-items:center;font-size:13px">
+        <span style="color:#6E6E73">Flipper</span>
+        <select value="{{ ctl.flipper }}" onChange="{{ ctl.setFlipper }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="none">No Flipper</option><option value="adv">BLE advertising</option><option value="ble">BLE connected</option><option value="nohello">Connected, no hello</option></select>
+        <span style="color:#6E6E73">Bambuddy</span>
+        <select value="{{ ctl.bambuddy }}" onChange="{{ ctl.setBambuddy }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="unchecked">Not checked yet</option><option value="ready">Ready</option><option value="unreachable">Unreachable</option><option value="noperm">Key lacks permission</option><option value="spoolman">Spoolman mode</option><option value="nocolors">Colour names unavailable</option></select>
+      </div>
+      <span style="font-size:12px;line-height:1.45;color:#6E6E73">Keyboard: type in the focused field, Tab to Net/Gross, Return or ⌘S saves, ⌘⌫ clears.</span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px 40px;align-items:flex-start;width:2880px">
+    <sc-for list="{{ devices }}" as="p" hint-placeholder-count="4">
+      <div style="{{ p.vars }}">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">{{ p.label }}</span><span style="font-size:13px;color:#6E6E73">{{ p.note }}</span></div>
+          <div style="padding:12px;border-radius:52px;background:#0E0E10;box-shadow:0 0 0 1px #3A3A3C,0 30px 80px rgba(0,0,0,.25)">
+            <div style="position:relative;width:{{ p.w }};height:{{ p.h }};border-radius:40px;overflow:hidden;background:var(--fb-bg);font-family:-apple-system,system-ui,sans-serif;color:var(--fb-l1)">
+              <div style="position:absolute;left:0;right:0;top:0;height:26px;z-index:9;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;pointer-events:none"><span>9:41  Mon 26 Oct</span><span style="display:flex;gap:6px;align-items:center"><i class="ph ph-wifi-high" style="font-size:16px"></i><span>100%</span><i class="ph-fill ph-battery-full" style="font-size:20px"></i></span></div>
+
+              <sc-if value="{{ p.land }}">
+                <div style="position:absolute;left:10px;top:10px;bottom:10px;width:300px;z-index:3;border-radius:28px;background:var(--fb-side);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 8px 30px rgba(0,0,0,.1);display:flex;flex-direction:column;padding:24px 14px 14px;box-sizing:border-box;gap:6px">
+                  <div style="display:flex;align-items:center;height:44px;padding:0 2px"><span style="width:40px;height:40px;border-radius:20px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb);display:flex;align-items:center;justify-content:center"><i class="ph ph-sidebar-simple" title="sidebar.left" style="font-size:20px"></i></span></div>
+                  <div style="font-size:30px;line-height:36px;font-weight:700;padding:0 8px 10px">FliBuddy</div>
+                  <span style="font-size:15px;font-weight:600;color:var(--fb-l2);padding:0 8px">Connections</span>
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px">
+                      <i class="{{ p.st.flip.icon }}" title="{{ p.st.flip.sym }}" style="font-size:22px;color:{{ p.st.flip.color }}"></i>
+                      <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:17px">Flipper</span><span style="font-size:13px;color:var(--fb-l2);display:flex;align-items:center;gap:5px"><sc-if value="{{ p.st.flip.spin }}"><span style="width:10px;height:10px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>{{ p.flipSub }}</span></div>
+                      <sc-if value="{{ p.st.flip.hasAct }}"><span style="height:28px;padding:0 12px;border-radius:14px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center">{{ p.st.flip.act }}</span></sc-if>
+                    </div>
+                    <div style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px">
+                      <i class="{{ p.st.bambu.icon }}" title="{{ p.st.bambu.sym }}" style="font-size:22px;color:{{ p.st.bambu.color }}"></i>
+                      <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:17px">Bambuddy</span><span style="font-size:13px;color:{{ p.bambuSubColor }}">{{ p.bambuSub }}</span></div>
+                      <sc-if value="{{ p.st.bambu.hasAct }}"><span style="height:28px;padding:0 12px;border-radius:14px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center">{{ p.st.bambu.act }}</span></sc-if>
+                    </div>
+                  </div>
+                  <div style="height:.5px;background:var(--fb-sep);margin:8px 8px"></div>
+                  <button onClick="{{ p.toFeed }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:{{ p.feedBg }};color:{{ p.feedFg }};font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-list-bullets" title="list.bullet" style="font-size:22px"></i><span style="flex:1">Feed</span><span style="font-size:15px;opacity:.75">{{ p.count }}</span></button>
+                  <button onClick="{{ p.toSettings }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:{{ p.setBg }};color:{{ p.setFg }};font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-gear-six" title="gearshape" style="font-size:22px"></i><span style="flex:1">Settings</span><span style="font-size:13px;opacity:.6">⌘,</span></button>
+                  <span style="flex:1"></span>
+                  <button onClick="{{ p.onClear }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:transparent;color:var(--fb-red);font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-trash" title="trash" style="font-size:22px"></i><span style="flex:1">Clear feed</span><span style="font-size:13px;opacity:.6">⌘⌫</span></button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ p.port }}">
+                <div style="position:absolute;left:0;right:0;top:34px;z-index:4;display:flex;justify-content:center;pointer-events:none">
+                  <div style="pointer-events:auto;display:flex;gap:2px;padding:4px;border-radius:24px;background:var(--fb-glass);backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 4px 14px rgba(0,0,0,.1)">
+                    <button onClick="{{ p.toFeed }}" style="height:38px;padding:0 20px;border:0;border-radius:19px;background:{{ p.feedTabBg }};color:{{ p.feedTabFg }};font-size:15px;font-weight:600;cursor:pointer">Feed</button>
+                    <button onClick="{{ p.toSettings }}" style="height:38px;padding:0 20px;border:0;border-radius:19px;background:{{ p.setTabBg }};color:{{ p.setTabFg }};font-size:15px;font-weight:600;cursor:pointer">Settings</button>
+                  </div>
+                </div>
+              </sc-if>
+
+              <div style="position:absolute;top:0;right:0;bottom:0;left:{{ p.left }};overflow:auto">
+                <div style="max-width:{{ p.maxW }};margin:0 auto;padding:30px 28px 60px;display:flex;flex-direction:column;gap:14px">
+                  <div style="height:44px;display:flex;justify-content:flex-end;align-items:center">
+                    <sc-if value="{{ p.port }}"><button onClick="{{ p.onClear }}" aria-label="Clear feed" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-trash" title="trash" style="font-size:20px"></i></button></sc-if>
+                  </div>
+                  <div style="font-size:34px;line-height:41px;font-weight:700;letter-spacing:.37px;margin-top:-6px">{{ p.title }}</div>
+                  <sc-if value="{{ p.showBanner }}">
+                    <div style="height:40px;flex:none;border-radius:20px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px;padding:0 6px 0 14px;font-size:13px;font-weight:500">
+                      <sc-if value="{{ p.st.banner.spin }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                      <i class="{{ p.st.banner.icon }}" title="{{ p.st.banner.sym }}" style="font-size:16px;color:{{ p.st.banner.color }}"></i>
+                      <span style="flex:1;min-width:0">{{ p.st.banner.text }}</span>
+                      <sc-if value="{{ p.st.banner.hasAct }}"><span style="height:28px;padding:0 12px;border-radius:14px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center">{{ p.st.banner.act }}</span></sc-if>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ p.isFeed }}">
+                    <sc-if value="{{ p.showCUV }}">
+                      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:160px 24px 0;text-align:center">
+                        <i class="{{ p.cuv.icon }}" title="{{ p.cuv.sym }}" style="font-size:60px;color:{{ p.cuv.color }}"></i>
+                        <div style="font-size:22px;font-weight:700;margin-top:4px">{{ p.cuv.title }}</div>
+                        <div style="font-size:15px;line-height:20px;color:var(--fb-l2);max-width:340px">{{ p.cuv.desc }}</div>
+                        <sc-if value="{{ p.cuv.hasAct }}"><span style="margin-top:8px;height:44px;padding:0 22px;border-radius:22px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center">{{ p.cuv.act }}</span></sc-if>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ p.wideRows }}">
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <sc-for list="{{ p.rows }}" as="r" hint-placeholder-count="4">
+                          <div onClick="{{ r.onRow }}" style="display:grid;grid-template-columns:28px 150px 112px 140px minmax(0,1fr) auto;column-gap:12px;align-items:center;min-height:76px;padding:10px 20px;box-sizing:border-box;box-shadow:inset 0 -.5px 0 var(--fb-sep);background:{{ r.rowBg }}">
+                            <sc-if value="{{ r.hasSwatch }}"><div aria-hidden="true" style="width:28px;height:28px;border-radius:50%;background:{{ r.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></div></sc-if>
+                            <sc-if value="{{ r.noSwatch }}"><div aria-hidden="true" style="width:28px;height:28px;border-radius:50%;border:1.5px dashed var(--fb-l3);box-sizing:border-box"></div></sc-if>
+                            <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ r.title }}</span><span style="font:12px/16px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">{{ r.uid }}</span></div>
+                            <span style="font-size:15px;color:var(--fb-l2)">{{ r.colorName }}</span>
+                            <span style="font-size:15px;color:var(--fb-l2);font-variant-numeric:tabular-nums">{{ r.rem }}</span>
+                            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                              <div style="display:flex;align-items:center;gap:5px;font-size:15px;line-height:20px;color:{{ r.statusColor }}">
+                                <sc-if value="{{ r.spin }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                                <sc-if value="{{ r.hasIcon }}"><i class="{{ r.icon }}" title="{{ r.sym }}" style="font-size:17px;color:{{ r.iconColor }}"></i></sc-if>
+                                <span>{{ r.statusText }}</span>
+                              </div>
+                              <sc-if value="{{ r.entry }}"><span style="font-size:13px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readoutShort }}</span></sc-if>
+                              <sc-if value="{{ r.hasNote }}"><span style="font-size:13px;color:var(--fb-l2)">{{ r.note }}</span></sc-if>
+                            </div>
+                            <div style="display:flex;justify-content:flex-end">
+                              <sc-if value="{{ r.entry }}">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                  <input data-wid="{{ r.wid }}" data-rid="{{ r.id }}" value="{{ r.raw }}" onChange="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKey }}" aria-label="{{ r.aria }}" placeholder="0" style="width:100px;height:44px;box-sizing:border-box;border:0;outline:none;border-radius:12px;padding:0 12px;text-align:right;font:700 28px/44px ui-rounded,'SF Pro Rounded',-apple-system,system-ui;font-variant-numeric:tabular-nums;color:var(--fb-l1);background:var(--fb-fill);box-shadow:{{ r.ring }}">
+                                  <span style="font-size:17px;font-weight:600;color:var(--fb-l2)">g</span>
+                                  <div role="radiogroup" aria-label="Weight mode" style="display:grid;grid-template-columns:1fr 1fr;width:120px;height:34px;padding:2px;box-sizing:border-box;border-radius:17px;background:var(--fb-fill)">
+                                    <button onClick="{{ r.setNet }}" style="border:0;border-radius:15px;font-size:14px;font-weight:600;color:var(--fb-l1);background:{{ r.netBg }};box-shadow:{{ r.netSh }};cursor:pointer">Net</button>
+                                    <button onClick="{{ r.setGross }}" style="border:0;border-radius:15px;font-size:14px;font-weight:600;color:var(--fb-l1);background:{{ r.grossBg }};box-shadow:{{ r.grossSh }};cursor:pointer">Gross</button>
+                                  </div>
+                                  <button onClick="{{ r.onSave }}" title="Save (⌘S)" style="height:44px;min-width:76px;padding:0 18px;border:0;border-radius:22px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;opacity:{{ r.saveOp }};cursor:pointer">{{ r.saveLabel }}</button>
+                                </div>
+                              </sc-if>
+                              <sc-if value="{{ r.hasActs }}">
+                                <div style="display:flex;gap:8px"><sc-for list="{{ r.acts }}" as="a" hint-placeholder-count="2"><button onClick="{{ a.on }}" style="height:44px;padding:0 18px;border:0;border-radius:22px;font-size:15px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }};cursor:pointer">{{ a.label }}</button></sc-for></div>
+                              </sc-if>
+                            </div>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                    <sc-if value="{{ p.cardRows }}">
+                      <sc-for list="{{ p.rows }}" as="r" hint-placeholder-count="4">
+                        <div onClick="{{ r.onRow }}" style="background:var(--fb-card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px">
+                          <div style="display:flex;gap:12px;align-items:flex-start">
+                            <sc-if value="{{ r.hasSwatch }}"><div aria-hidden="true" style="width:28px;height:28px;border-radius:50%;flex:none;background:{{ r.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></div></sc-if>
+                            <sc-if value="{{ r.noSwatch }}"><div aria-hidden="true" style="width:28px;height:28px;border-radius:50%;flex:none;border:1.5px dashed var(--fb-l3);box-sizing:border-box"></div></sc-if>
+                            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                              <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ r.title }}</span><span style="font:12px/16px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">{{ r.uid }}</span></div>
+                              <sc-if value="{{ r.hasSub }}"><div style="font-size:15px;line-height:20px;color:var(--fb-l2)">{{ r.sub }}</div></sc-if>
+                              <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:15px;line-height:20px;color:{{ r.statusColor }}">
+                                <sc-if value="{{ r.spin }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                                <sc-if value="{{ r.hasIcon }}"><i class="{{ r.icon }}" title="{{ r.sym }}" style="font-size:17px;color:{{ r.iconColor }}"></i></sc-if>
+                                <span>{{ r.statusText }}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <sc-if value="{{ r.entry }}">
+                            <div style="display:flex;flex-direction:column;gap:10px">
+                              <div style="display:flex;align-items:center;gap:6px;height:64px;border-radius:14px;background:var(--fb-fill);padding:0 16px;box-shadow:{{ r.ring }}">
+                                <input data-wid="{{ r.wid }}" data-rid="{{ r.id }}" value="{{ r.raw }}" onChange="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKey }}" aria-label="{{ r.aria }}" placeholder="0" style="width:120px;border:0;outline:none;background:transparent;font:700 34px/41px ui-rounded,'SF Pro Rounded',-apple-system,system-ui;font-variant-numeric:tabular-nums;color:var(--fb-l1)">
+                                <span style="font-size:22px;font-weight:600;color:var(--fb-l2)">g</span><span style="flex:1"></span><span style="font-size:13px;color:var(--fb-l2)">{{ r.modeWord }}</span>
+                              </div>
+                              <div style="height:32px;border-radius:16px;background:var(--fb-fill);padding:2px;display:grid;grid-template-columns:1fr 1fr;box-sizing:border-box">
+                                <button onClick="{{ r.setNet }}" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.netBg }};box-shadow:{{ r.netSh }};cursor:pointer">Net</button>
+                                <button onClick="{{ r.setGross }}" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.grossBg }};box-shadow:{{ r.grossSh }};cursor:pointer">Gross</button>
+                              </div>
+                              <div style="font-size:13px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readout }}</div>
+                              <button onClick="{{ r.onSave }}" style="height:50px;border:0;border-radius:25px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;opacity:{{ r.saveOp }};cursor:pointer">{{ r.saveLabel }}</button>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ r.hasActs }}">
+                            <div style="display:flex;gap:10px"><sc-for list="{{ r.acts }}" as="a" hint-placeholder-count="2"><button onClick="{{ a.on }}" style="flex:1;height:44px;border:0;border-radius:22px;font-size:15px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }};cursor:pointer">{{ a.label }}</button></sc-for></div>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+                    </sc-if>
+                  </sc-if>
+
+                  <sc-if value="{{ p.isSettings }}">
+                    <div style="display:flex;flex-direction:column;gap:8px;font-size:17px;letter-spacing:-.4px;max-width:640px">
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px">Bambuddy</span>
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);color:var(--fb-blue)"><i class="ph ph-qr-code" title="qrcode.viewfinder" style="font-size:22px"></i><span style="flex:1">Scan QR code</span></div>
+                        <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>URL</span><input value="{{ p.set.url }}" onChange="{{ p.onUrl }}" aria-label="Bambuddy URL" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l2)"></div>
+                        <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>API key</span><input type="password" value="{{ p.set.key }}" onChange="{{ p.onKeyField }}" aria-label="API key" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l2)"></div>
+                        <div onClick="{{ p.onTest }}" style="min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;cursor:pointer"><span style="flex:1;color:var(--fb-blue)">Test connection</span>
+                          <sc-if value="{{ p.testing }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                          <sc-if value="{{ p.testHasIcon }}"><i class="{{ p.testIcon }}" style="font-size:18px;color:{{ p.testColor }}"></i></sc-if>
+                          <span style="font-size:15px;color:var(--fb-l2)">{{ p.testText }}</span></div>
+                      </div>
+                      <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px">Scan the QR code Bambuddy shows when you create an API key.</span>
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px">New items</span>
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <div style="min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Empty spool</span><span style="color:var(--fb-l2);font-size:15px">Bambu reusable + core</span><i class="ph ph-caret-up-down" style="font-size:14px;color:var(--fb-l2)"></i></div>
+                        <div style="min-height:52px;display:flex;align-items:center;gap:6px;padding:0 16px"><span style="flex:1">Core weight</span><input value="{{ p.set.core }}" onChange="{{ p.onCore }}" aria-label="Core weight, grams" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l2)"><span style="color:var(--fb-l2)">g</span></div>
+                      </div>
+                      <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px">Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.</span>
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px">Weighing</span>
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px"><span style="flex:1">Type weight as</span>
+                          <div style="width:150px;height:32px;border-radius:16px;background:var(--fb-fill);padding:2px;display:grid;grid-template-columns:1fr 1fr;box-sizing:border-box">
+                            <button onClick="{{ p.setNet }}" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ p.netBg }};box-shadow:{{ p.netSh }};cursor:pointer">Net</button>
+                            <button onClick="{{ p.setGross }}" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ p.grossBg }};box-shadow:{{ p.grossSh }};cursor:pointer">Gross</button>
+                          </div></div>
+                      </div>
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:16px 16px 0">Flipper</span>
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <div style="min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Workshop</span><i class="{{ p.st.flip.icon }}" style="font-size:16px;color:{{ p.st.flip.color }}"></i><span style="font-size:15px;color:var(--fb-l2)">{{ p.flipSub }}</span></div>
+                        <div style="min-height:52px;display:flex;align-items:center;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);color:var(--fb-blue)">Scan for Flipper</div>
+                        <div style="min-height:52px;display:flex;align-items:center;padding:0 16px;color:var(--fb-red)">Forget this Flipper</div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+
+              <sc-if value="{{ p.dimmed }}"><div onClick="{{ p.closeAll }}" style="position:absolute;inset:0;z-index:5;background:var(--fb-dim)"></div></sc-if>
+
+              <sc-if value="{{ p.isNew }}">
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:540px;height:620px;z-index:6;border-radius:38px;background:var(--fb-bg);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+                  <div style="height:68px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+                    <button onClick="{{ p.closeAll }}" aria-label="Cancel" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-x" title="xmark" style="font-size:20px"></i></button>
+                    <span style="font-size:17px;font-weight:600">New spool</span>
+                    <button onClick="{{ p.sh.onCreate }}" aria-label="Create" style="width:44px;height:44px;border-radius:22px;border:0;background:{{ p.sh.createBg }};color:{{ p.sh.createFg }};display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-check" title="checkmark" style="font-size:22px"></i></button>
+                  </div>
+                  <div style="flex:1;overflow:auto;padding:4px 20px 30px;display:flex;flex-direction:column;gap:8px;font-size:17px;letter-spacing:-.4px">
+                    <div style="border-radius:24px;background:var(--fb-card);overflow:hidden"><div style="min-height:52px;display:flex;align-items:center;padding:0 16px"><span style="flex:1">NTAG 7-byte</span><span style="font:15px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l2)">{{ p.sh.uid }}</span></div></div>
+                    <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:14px 16px 0">Required</span>
+                    <div style="border-radius:24px;background:var(--fb-card);overflow:hidden"><div style="position:relative;min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px"><span style="flex:1">Material</span><span style="color:{{ p.sh.matColor }}">{{ p.sh.matText }}</span><i class="ph ph-caret-up-down" style="font-size:14px;color:var(--fb-l2)"></i>
+                      <select value="{{ p.sh.material }}" onChange="{{ p.sh.onMaterial }}" aria-label="Material" style="position:absolute;inset:0;opacity:0"><option value="">Choose</option><option>PLA</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option><option>PA</option><option>PC</option><option>PVA</option></select></div></div>
+                    <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:14px 16px 0">Optional</span>
+                    <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                      <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>Subtype</span><input value="{{ p.sh.subtype }}" onChange="{{ p.sh.onSubtype }}" placeholder="Basic, Matte, HF…" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l1)"></div>
+                      <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Colour</span><span style="position:relative;width:28px;height:28px;border-radius:50%;background:{{ p.sh.rgba }};box-shadow:inset 0 0 0 .5px var(--fb-sep),0 0 0 2px var(--fb-card),0 0 0 3.5px var(--fb-fill2)"><input type="color" value="{{ p.sh.rgba }}" onChange="{{ p.sh.onRgba }}" aria-label="Colour" style="position:absolute;inset:0;opacity:0;width:100%;height:100%"></span></div>
+                      <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>Colour name</span><input value="{{ p.sh.colorName }}" onChange="{{ p.sh.onColorName }}" placeholder="Lilac" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l1)"></div>
+                      <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>Brand</span><input value="{{ p.sh.brand }}" onChange="{{ p.sh.onBrand }}" placeholder="Elegoo" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l1)"></div>
+                      <div style="min-height:52px;display:flex;align-items:center;gap:6px;padding:0 16px"><span style="flex:1">Label weight</span><input value="{{ p.sh.label }}" onChange="{{ p.sh.onLabel }}" aria-label="Label weight, grams" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l1)"><span style="color:var(--fb-l2)">g</span></div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ p.isLink }}">
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;height:640px;z-index:6;border-radius:38px;background:var(--fb-bg);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+                  <div style="height:68px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+                    <button onClick="{{ p.closeAll }}" aria-label="Cancel" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-x" title="xmark" style="font-size:20px"></i></button>
+                    <div style="display:flex;flex-direction:column;align-items:center"><span style="font-size:17px;font-weight:600">Link to existing</span><span style="font:12px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l2)">{{ p.sh.uid }}</span></div>
+                    <button onClick="{{ p.sh.onLink }}" aria-label="Link" style="width:44px;height:44px;border-radius:22px;border:0;background:{{ p.sh.linkBg }};color:{{ p.sh.linkFg }};display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-check" title="checkmark" style="font-size:22px"></i></button>
+                  </div>
+                  <div style="padding:0 20px 10px"><div style="height:40px;border-radius:20px;background:var(--fb-fill);display:flex;align-items:center;gap:8px;padding:0 14px"><i class="ph ph-magnifying-glass" style="font-size:17px;color:var(--fb-l2)"></i><input value="{{ p.sh.q }}" onChange="{{ p.sh.onQ }}" placeholder="Material, colour, brand or note" aria-label="Filter spools" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:17px;color:var(--fb-l1)"></div></div>
+                  <div style="flex:1;overflow:auto;padding:4px 20px 20px">
+                    <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                      <sc-for list="{{ p.sh.list }}" as="s" hint-placeholder-count="6">
+                        <div onClick="{{ s.onPick }}" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);cursor:pointer">
+                          <span style="width:28px;height:28px;border-radius:50%;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                          <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:17px;font-weight:600">{{ s.title }}</span><span style="font-size:14px;color:var(--fb-l2)">{{ s.sub }}</span><sc-if value="{{ s.hasNote }}"><span style="font-size:13px;color:var(--fb-l3)">{{ s.note }}</span></sc-if></div>
+                          <div style="display:flex;align-items:center;gap:8px"><sc-if value="{{ s.tagged }}"><span style="font:11px ui-monospace,'SF Mono',Menlo,monospace;padding:3px 7px;border-radius:7px;background:var(--fb-fill);color:var(--fb-l2)">{{ s.tagText }}</span></sc-if><sc-if value="{{ s.on }}"><i class="ph ph-check" style="font-size:20px;color:var(--fb-blue)"></i></sc-if></div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ p.sh.moving }}"><div style="display:flex;gap:8px;padding:14px 16px 0;font-size:13px;line-height:18px;color:var(--fb-l2)"><i class="ph-fill ph-warning" style="font-size:16px;color:var(--fb-orange)"></i><span>{{ p.sh.warnText }}</span></div></sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ p.confirmClear }}">
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;z-index:6;border-radius:30px;background:var(--fb-card);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:20px;display:flex;flex-direction:column;gap:8px;text-align:center">
+                  <span style="font-size:17px;font-weight:600">Clear the feed?</span>
+                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2)">This clears the session log only. Nothing changes in Bambuddy.</span>
+                  <button onClick="{{ p.doClear }}" style="margin-top:8px;height:48px;border:0;border-radius:24px;background:var(--fb-red);color:#fff;font-size:17px;font-weight:600;cursor:pointer">Clear feed</button>
+                  <button onClick="{{ p.closeAll }}" style="height:48px;border:0;border-radius:24px;background:var(--fb-fill);color:var(--fb-l1);font-size:17px;cursor:pointer">Cancel</button>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', core: '325', mode: 'gross', test: 'ok'};
+
+class Component extends DCLogic {
+  state = {ready: false, ui: {al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}}, focus: null, set: {...SET0}};
+  componentDidMount() {
+    import(new URL('flibuddy-core.js', document.baseURI).href).then(C => {
+      this.C = C;
+      this.S = new C.Session(() => this.forceUpdate());
+      this.S.onFocus = id => this.focusRow(id);
+      this.setState({ready: true}, () => this.focusRow('r3'));
+    });
+    this.onKeyDoc = e => {
+      if (!this.S) return;
+      const mod = e.metaKey || e.ctrlKey, k = (e.key || '').toLowerCase();
+      if (mod && k === 's') { e.preventDefault(); const a = document.activeElement; const rid = (a && a.dataset && a.dataset.rid) || (this.S.rows.find(x => ['enter', 'created', 'error'].includes(x.status)) || {}).id; if (rid) this.S.save(rid); }
+      else if (mod && k === 'backspace') { e.preventDefault(); this.ui('al', {sheet: 'clear'}); }
+      else if (mod && k === ',') { e.preventDefault(); this.ui('al', {pane: 'settings'}); }
+    };
+    document.addEventListener('keydown', this.onKeyDoc);
+  }
+  componentWillUnmount() { document.removeEventListener('keydown', this.onKeyDoc); }
+  focusRow(id) {
+    if (!id) return;
+    const a = document.activeElement;
+    if (a && a.dataset && a.dataset.rid && a.dataset.rid !== id) { const cur = this.S.find(a.dataset.rid); if (cur && cur.touched) return; }
+    setTimeout(() => { const el = document.querySelector('[data-wid="al-' + id + '"]'); if (el) { el.focus({preventScroll: true}); el.select(); } }, 60);
+  }
+  ui(id, p) { this.setState(s => ({ui: {...s.ui, [id]: p === null ? {pane: (s.ui[id] || {}).pane || 'feed'} : {...(s.ui[id] || {}), ...p}}})); }
+  setSet(p) { this.setState(s => ({set: {...s.set, ...p}})); }
+
+  sheetVM(pid) {
+    const C = this.C, S = this.S, u = this.state.ui[pid] || {};
+    const r = u.rowId && S.find(u.rowId);
+    if (!r || !u.sheet) return {};
+    const close = () => this.ui(pid, null), form = u.form || {};
+    const setF = k => e => this.ui(pid, {form: {...form, [k]: k === 'label' ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value}});
+    const pick = u.pick != null ? S.inv.find(x => x.id === u.pick) : null;
+    const moving = !!(pick && pick.tag && pick.tag !== r.uid);
+    return {
+      uid: r.uid, ...form, matText: form.material || 'Choose', matColor: form.material ? 'var(--fb-l1)' : 'var(--fb-l2)',
+      onMaterial: setF('material'), onSubtype: setF('subtype'), onRgba: setF('rgba'), onColorName: setF('colorName'), onBrand: setF('brand'), onLabel: setF('label'),
+      createBg: form.material ? 'var(--fb-blue)' : 'var(--fb-fill2)', createFg: form.material ? '#fff' : 'var(--fb-l3)',
+      onCreate: () => { if (!form.material) return; S.create(r.id, {...form, label: parseInt(form.label, 10) || 1000}); close(); },
+      q: u.q || '', onQ: e => this.ui(pid, {q: e.target.value}),
+      list: S.filterInv(u.q).map(s => ({...C.invVM(s, r.uid), on: s.id === u.pick, onPick: () => this.ui(pid, {pick: s.id})})),
+      linkBg: pick ? 'var(--fb-blue)' : 'var(--fb-fill2)', linkFg: pick ? '#fff' : 'var(--fb-l3)',
+      moving, warnText: moving ? pick.material + (pick.subtype ? ' ' + pick.subtype : '') + ' ' + pick.colorName + ' is linked to tag ' + pick.tag + '. Saving moves the link to ' + r.uid + '.' : '',
+      onLink: () => { if (!pick) return; S.link(r.id, pick.id); close(); },
+    };
+  }
+
+  renderVals() {
+    if (!this.state.ready) return {devices: [], ctl: {}};
+    const C = this.C, S = this.S, set = this.state.set, f = this.state.focus;
+    const st = C.statusVM(S.cfg);
+    const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
+    const TT = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
+    const defs = [
+      {id: 'al', label: 'Landscape · light', note: 'Live with a hardware keyboard. The newest Enter weight row has focus.', vars: C.LIGHT, land: true},
+      {id: 'ad', label: 'Landscape · dark', note: 'Same session.', vars: C.DARK, land: true},
+      {id: 'ql', label: 'Portrait · light', note: 'Compact width: the iPhone layout with a top tab bar.', vars: C.LIGHT, land: false},
+      {id: 'qd', label: 'Portrait · dark', note: 'Same session.', vars: C.DARK, land: false},
+    ];
+    const devices = defs.map(d => {
+      const u = this.state.ui[d.id] || {pane: 'feed'};
+      const isFeed = u.pane !== 'settings';
+      const showCUV = st.blocking || S.rows.length === 0;
+      const n = seg(set.mode === 'net'), g = seg(set.mode === 'gross');
+      const rows = S.rows.map(r => {
+        const v = C.vm(r, {noColors: st.noColors});
+        const wid = d.id + '-' + r.id, foc = f && f.wid === wid;
+        return {
+          ...v, wid, colorName: v.colorName || '', rem: v.rem || '', readoutShort: v.bad || v.net == null ? v.readout : 'Saves ' + v.net + ' g left',
+          rowBg: f && f.rid === r.id && f.wid.startsWith(d.id) ? 'var(--fb-rowsel)' : 'transparent',
+          ring: foc ? '0 0 0 2px var(--fb-blue)' : 'none',
+          aria: (r.mode === 'gross' ? 'Gross' : 'Net') + ' weight, grams',
+          onInput: e => S.setValue(r.id, e.target.value),
+          onFocus: e => { e.target.select(); this.setState({focus: {wid, rid: r.id}}); },
+          onBlur: () => this.setState(s => (s.focus && s.focus.wid === wid ? {focus: null} : null)),
+          onKey: e => { if (e.key === 'Enter') { e.preventDefault(); S.save(r.id); } },
+          setNet: e => { e.stopPropagation(); S.setMode(r.id, 'net'); }, setGross: e => { e.stopPropagation(); S.setMode(r.id, 'gross'); },
+          onSave: e => { e.stopPropagation(); S.save(r.id); },
+          onRow: () => { if (v.reopenable) S.reopen(r.id); },
+          acts: v.acts.map(a => ({...a, on: e => {
+            e.stopPropagation();
+            if (a.key === 'new') { if (v.hasMaterial) S.create(r.id); else this.ui(d.id, {sheet: 'new', rowId: r.id, form: {material: '', subtype: '', colorName: '', rgba: '#8E8E93', brand: '', label: '1000'}}); }
+            else this.ui(d.id, {sheet: 'link', rowId: r.id, q: '', pick: null});
+          }})),
+        };
+      });
+      return {
+        ...d, port: !d.land, w: d.land ? '1366px' : '1024px', h: d.land ? '1024px' : '1366px',
+        left: d.land ? '320px' : '0px', maxW: d.land ? 'none' : '760px',
+        st, title: isFeed ? 'Feed' : 'Settings', showBanner: !d.land && isFeed,
+        isFeed, isSettings: !isFeed, showCUV: isFeed && showCUV, wideRows: d.land && !showCUV, cardRows: !d.land && !showCUV, rows,
+        cuv: st.blocking ? {icon: 'ph ph-prohibit', sym: 'nosign', color: 'var(--fb-red)', title: 'Bambuddy is in Spoolman mode', desc: 'FliBuddy works with Bambuddy’s own inventory. Switch it back from Spoolman in Bambuddy’s settings, then retry.', act: 'Retry', hasAct: true}
+          : {icon: 'ph ph-broadcast', sym: 'wave.3.right', color: 'var(--fb-l2)', title: 'No scans yet', desc: 'Hold a spool’s tag to the Flipper running FliBuddy.', hasAct: false},
+        flipSub: S.cfg.flipper === 'ble' ? 'Workshop · Bluetooth' : st.flip.text.replace('Flipper · ', ''),
+        bambuSub: st.bambu.text.replace('Bambuddy ', '').replace('Bambuddy · ', '').replace(/^ready/, 'Ready') + (S.cfg.bambuddy === 'ready' ? ' · bambuddy.local' : ''),
+        bambuSubColor: st.bambu.tint === 'red' ? 'var(--fb-red)' : 'var(--fb-l2)',
+        count: String(S.rows.length),
+        feedBg: isFeed ? 'var(--fb-blue)' : 'transparent', feedFg: isFeed ? '#fff' : 'var(--fb-l1)',
+        setBg: !isFeed ? 'var(--fb-blue)' : 'transparent', setFg: !isFeed ? '#fff' : 'var(--fb-l1)',
+        feedTabBg: isFeed ? 'var(--fb-fill2)' : 'transparent', feedTabFg: isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        setTabBg: !isFeed ? 'var(--fb-fill2)' : 'transparent', setTabFg: !isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        toFeed: () => this.ui(d.id, {pane: 'feed'}), toSettings: () => this.ui(d.id, {pane: 'settings'}),
+        onClear: () => this.ui(d.id, {sheet: 'clear'}), doClear: () => { S.clear(); this.ui(d.id, null); }, closeAll: () => this.ui(d.id, null),
+        dimmed: !!u.sheet, isNew: u.sheet === 'new', isLink: u.sheet === 'link', confirmClear: u.sheet === 'clear', sh: this.sheetVM(d.id),
+        set, onUrl: e => this.setSet({url: e.target.value, test: 'idle'}), onKeyField: e => this.setSet({key: e.target.value, test: 'idle'}),
+        onCore: e => this.setSet({core: e.target.value.replace(/\D/g, '').slice(0, 4)}),
+        testing: set.test === 'testing', testText: TT[0], testIcon: TT[1], testHasIcon: !!TT[1], testColor: TT[2],
+        onTest: () => { this.setSet({test: 'testing'}); setTimeout(() => this.setSet({test: /bambuddy/.test(this.state.set.url) ? 'ok' : 'fail'}), 1300); },
+        netBg: n.bg, netSh: n.sh, grossBg: g.bg, grossSh: g.sh, setNet: () => this.setSet({mode: 'net'}), setGross: () => this.setSet({mode: 'gross'}),
+      };
+    });
+    const cfg = S.cfg, tg = on => ({bg: on ? '#1D1D1F' : '#EDEDF0', fg: on ? '#fff' : '#1D1D1F'});
+    const fa = tg(cfg.failNext), to = tg(cfg.timeoutNext);
+    return {
+      devices,
+      ctl: {
+        reset: () => { S.reset(); this.setState({ui: {al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}}}); this.focusRow('r3'); },
+        scanKnown: () => S.scan('known'), scanUnknown: () => S.scan('unknown'), scanBlank: () => S.scan('blank'),
+        flipperSave: () => S.flipperSave(), askCreate: () => S.flipperAsk('create'), askLink: () => S.flipperAsk('link'),
+        toggleFail: () => S.setCfg({failNext: !cfg.failNext}), toggleTimeout: () => S.setCfg({timeoutNext: !cfg.timeoutNext}),
+        failBg: fa.bg, failFg: fa.fg, toBg: to.bg, toFg: to.fg, flipper: cfg.flipper, bambuddy: cfg.bambuddy,
+        setFlipper: e => S.setCfg({flipper: e.target.value}), setBambuddy: e => S.setCfg({bambuddy: e.target.value}),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>body{margin:0;background:#E9E9EC;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}@keyframes fb-spin{to{transform:rotate(360deg)}}@keyframes fb-blink{50%{opacity:0}}</style>
+</helmet>
+<div style="width:2000px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:80px">
+
+<header style="display:flex;flex-direction:column;gap:16px">
+  <div style="font:600 12px/1 ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">Interface spec · v1 · 26 Oct 2026</div>
+  <h1 style="margin:0;font-size:64px;line-height:1;font-weight:700;letter-spacing:-.025em">FliBuddy</h1>
+  <p style="margin:0;max-width:860px;font-size:22px;line-height:1.4;color:#424245;text-wrap:pretty">A bench tool for weighing filament spools. Hold a tag to the Flipper, read the scale, save to Bambuddy, next spool. Native SwiftUI on macOS 14+, iOS, iPadOS and watchOS 26+, drawn in the 27 idiom.</p>
+  <nav style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+    <a href="FliBuddy macOS.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-desktop" style="font-size:18px"></i>macOS</a>
+    <a href="FliBuddy iPhone.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-device-mobile" style="font-size:18px"></i>iPhone</a>
+    <a href="FliBuddy iPad.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-device-tablet" style="font-size:18px"></i>iPad</a>
+    <a href="FliBuddy Watch.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-watch" style="font-size:18px"></i>Apple Watch</a>
+    <a href="FliBuddy Flipper.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-game-controller" style="font-size:18px"></i>Flipper Zero</a>
+    <a href="FliBuddy App Icon.dc.html" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:#fff;color:#1D1D1F;font-size:15px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)"><i class="ph ph-app-window" style="font-size:18px"></i>App icon</a>
+  </nav>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">01</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Stance</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+    <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="font-size:19px;font-weight:600">One number per row</div><div style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">The weight is the critical path. The newest row that needs it takes focus with the suggestion pre-filled and selected; typing replaces it. A correct suggestion costs one tap.</div></div>
+    <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="font-size:19px;font-weight:600">Readable at a metre</div><div style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">The weight is the only custom-sized type: 34 pt on iPhone, 22 pt on Mac, 50 pt on Watch, all with monospaced digits so numbers don't jitter while typing. Everything else is a system text style and follows Dynamic Type.</div></div>
+    <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="font-size:19px;font-weight:600">Status is a word first</div><div style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">Every state is a short sentence-case phrase plus an SF Symbol. Colour reinforces it and never carries meaning on its own. The swatch always sits next to the title and colour name.</div></div>
+    <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:10px"><div style="font-size:19px;font-weight:600">Stock parts only</div><div style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">List, Form, NavigationSplitView, TabView, sheets, ContentUnavailableView. Liquid Glass appears only where the system puts it. On macOS 14 the same code renders the classic look with no special-casing.</div></div>
+  </div>
+  <div style="background:#fff;border-radius:18px;padding:24px 28px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px">
+    <div style="font-size:19px;font-weight:600">Assumptions to confirm</div>
+    <ol style="margin:0;padding-left:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:40px;row-gap:10px;font-size:15px;line-height:1.5;color:#424245">
+      <li>The suggestion is gross (remaining + core). Switching Net/Gross converts an untouched suggestion and keeps a number you typed.</li>
+      <li>After <b>New</b> the row stays open for a first weight: "Created in Bambuddy" with the field pre-filled to label + core.</li>
+      <li>Saved rows reopen on tap or click for a re-weigh. Last save wins; the status says who saved.</li>
+      <li>The watch creates Bambu Lab tags in one tap but cannot fill the form; for other tags it says "Create it on iPhone or Mac".</li>
+      <li>iPhone and iPad settings apply on change. macOS keeps the explicit Save section from the brief.</li>
+      <li>"Link to existing" warns when the chosen spool already carries a different tag and offers to move the link.</li>
+      <li>Watch is dark only, as watchOS is. Every other surface is shown light and dark.</li>
+      <li>In these mock-ups an open icon set stands in for SF Symbols. Hover any icon for the real symbol name; the full list is in 02.</li>
+    </ol>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">02</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Tokens</h2></div>
+  <div style="display:grid;grid-template-columns:440px minmax(0,1fr);gap:20px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:19px;font-weight:600">Spacing (pt)</div>
+        <sc-for list="{{ spacing }}" as="s" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:36px 40px minmax(0,1fr);gap:12px;align-items:center;font-size:14px">
+            <span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace">{{ s.v }}</span>
+            <span style="height:12px;border-radius:3px;background:#0071E3;width:{{ s.w }}"></span>
+            <span style="color:#424245">{{ s.use }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:19px;font-weight:600">Corner radii</div>
+        <div style="font-size:14px;line-height:1.5;color:#6E6E73">System-owned wherever possible. Values below match the mock-ups; in code use the shape, not the number.</div>
+        <sc-for list="{{ radii }}" as="r" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;font-size:14px;line-height:1.4"><span style="font-weight:600">{{ r.el }}</span><span style="color:#424245;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">{{ r.v }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:19px;font-weight:600">Type roles</div>
+      <div style="display:grid;grid-template-columns:170px minmax(0,1fr) 92px 92px 92px;column-gap:16px;font-size:12px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.04em;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,.1)"><span>Role</span><span>SwiftUI</span><span>iOS · iPadOS</span><span>macOS</span><span>watchOS</span></div>
+      <sc-for list="{{ type }}" as="t" hint-placeholder-count="9">
+        <div style="display:grid;grid-template-columns:170px minmax(0,1fr) 92px 92px 92px;column-gap:16px;align-items:baseline;padding:6px 0 10px;border-bottom:1px solid rgba(0,0,0,.06)">
+          <span style="font-size:15px;font-weight:600">{{ t.role }}</span>
+          <span style="font:12.5px/1.45 ui-monospace,'SF Mono',Menlo,monospace;color:#424245">{{ t.swift }}</span>
+          <span style="font-size:14px;font-variant-numeric:tabular-nums">{{ t.ios }}</span>
+          <span style="font-size:14px;font-variant-numeric:tabular-nums">{{ t.mac }}</span>
+          <span style="font-size:14px;font-variant-numeric:tabular-nums">{{ t.watch }}</span>
+        </div>
+      </sc-for>
+      <div style="font-size:13px;line-height:1.5;color:#6E6E73">Sizes at the default content size. The weight uses <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace">@ScaledMetric(relativeTo: .largeTitle)</span> so it grows with Dynamic Type and caps at AX3 to stay on one line.</div>
+    </div>
+  </div>
+  <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="font-size:19px;font-weight:600">Semantic colours</div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+      <sc-for list="{{ colors }}" as="c" hint-placeholder-count="12">
+        <div style="display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;background:#F5F5F7">
+          <div style="display:flex;flex:none;border-radius:8px;overflow:hidden;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15)"><span style="width:28px;height:40px;background:{{ c.l }}"></span><span style="width:28px;height:40px;background:{{ c.d }}"></span></div>
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:600 12.5px ui-monospace,'SF Mono',Menlo,monospace">{{ c.name }}</span><span style="font-size:13px;color:#424245;line-height:1.35">{{ c.use }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:13px;color:#6E6E73">Each chip: light | dark. Swatches use the tag's RGBA as-is with a 0.5 pt <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace">.separator</span> stroke so white and black spools stay visible.</div>
+  </div>
+  <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="font-size:19px;font-weight:600">SF Symbols</div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 20px">
+      <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="24">
+        <div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06)">
+          <i class="{{ s.i }}" style="font-size:20px;color:{{ s.c }};text-align:center"></i>
+          <div style="display:flex;flex-direction:column;min-width:0"><span style="font:600 12.5px ui-monospace,'SF Mono',Menlo,monospace">{{ s.n }}</span><span style="font-size:13px;color:#6E6E73">{{ s.u }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">03</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Feed row</h2></div>
+  <div style="display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:start;background:#fff;border-radius:18px;padding:32px">
+    <div style="width:402px;background:#F2F2F7;border-radius:28px;padding:16px;box-sizing:border-box">
+      <div style="background:#fff;border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px;position:relative">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div style="position:relative;flex:none"><div style="width:28px;height:28px;border-radius:50%;background:#00AE42;box-shadow:inset 0 0 0 .5px rgba(60,60,67,.18)"></div><span style="position:absolute;left:-12px;top:-10px;width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center">1</span></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;display:flex;align-items:center;gap:6px;font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">PLA Basic<span style="width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center;letter-spacing:0">2</span></span><span style="display:flex;align-items:center;gap:6px;font:12px/16px ui-monospace,'SF Mono',Menlo,monospace;color:rgba(60,60,67,.3)"><span style="width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center">7</span>91B4E7C2</span></div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:15px;line-height:20px;color:rgba(60,60,67,.6);letter-spacing:-.2px">Bambu Green<span style="width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center;letter-spacing:0">3</span> · 590 g left of 1000<span style="width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center;letter-spacing:0">4</span></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:15px;line-height:20px;color:rgba(60,60,67,.6)"><i class="ph ph-scales" title="scalemass" style="font-size:17px;color:#007AFF"></i>Enter weight<span style="width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center;margin-left:2px">5</span></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;position:relative">
+          <span style="position:absolute;left:-14px;top:-8px;z-index:1;width:18px;height:18px;border-radius:50%;background:#D6336C;color:#fff;font:700 11px/18px system-ui;text-align:center">6</span>
+          <div style="height:64px;border-radius:14px;background:rgba(118,118,128,.12);display:flex;align-items:center;padding:0 16px;gap:4px;box-shadow:0 0 0 2px #007AFF">
+            <span style="font:700 34px/41px ui-rounded,'SF Pro Rounded',-apple-system,system-ui;font-variant-numeric:tabular-nums;background:rgba(0,122,255,.22);border-radius:6px;padding:0 2px">915</span><span style="font-size:22px;font-weight:600;color:rgba(60,60,67,.6)">g</span><span style="flex:1"></span><span style="font-size:13px;color:rgba(60,60,67,.6)">gross</span>
+          </div>
+          <div style="height:32px;border-radius:16px;background:rgba(118,118,128,.12);padding:2px;display:grid;grid-template-columns:1fr 1fr;box-sizing:border-box"><span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500">Net</span><span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.12)">Gross</span></div>
+          <div style="font-size:13px;color:rgba(60,60,67,.6);font-variant-numeric:tabular-nums">Saves 590 g left · 915 − 325 g core</div>
+          <div style="height:50px;border-radius:25px;background:#007AFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Save</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:19px;font-weight:600">Anatomy</div>
+      <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.5;color:#424245">
+        <li><b>Swatch</b>, 28 pt <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">Circle()</span> from tag RGBA. No colour: dashed <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.tertiary</span> outline. Hidden from VoiceOver; the colour name is read instead.</li>
+        <li><b>Title</b>: material + subtype, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.headline</span>. Blank tags read "NTAG 7-byte UID 04A2…".</li>
+        <li><b>Colour name</b> from the inventory. Absent when unknown; never the hex.</li>
+        <li><b>Remaining</b>: "590 g left of 1000", or "label 1000 g" for unknown tags with prefill.</li>
+        <li><b>Status</b>: symbol + phrase, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.secondary</span>; text turns <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.red</span> only for errors.</li>
+        <li><b>Weight entry</b>: field → Net/Gross → readout → Save. Present for Enter weight, Created, Error and Saving (disabled).</li>
+        <li><b>UID</b>, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.caption.monospaced()</span>, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.tertiary</span>, trailing.</li>
+      </ol>
+      <div style="font-size:13px;line-height:1.5;color:#6E6E73">VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590 grams left of 1000, Enter weight". The field label is "Gross weight, grams".</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:19px;font-weight:600">Spacing</div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;font-size:14px;color:#424245;font-variant-numeric:tabular-nums">
+        <span>Row padding</span><b>16</b><span>Swatch → text</span><b>12</b><span>Title → colour line</span><b>2</b><span>Colour line → status</span><b>6</b><span>Header → entry block</span><b>12</b><span>Inside entry block</span><b>10</b><span>Field height</span><b>64</b><span>Net/Gross height</span><b>32</b><span>Save height</span><b>50</b><span>Row min height, no entry</span><b>76</b><span>Between rows</span><b>12</b>
+      </div>
+      <div style="font-size:19px;font-weight:600;margin-top:12px">Per platform</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5;color:#424245">
+        <div><b>iPhone, iPad portrait</b>: stacked card as shown; one <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">Section</span> per row, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.listSectionSpacing(.compact)</span>.</div>
+        <div><b>iPad landscape</b>: one line, swatch · title + UID · colour · remaining · status · field 120 · Net/Gross 150 · Save. Min height 64.</div>
+        <div><b>macOS</b>: one line as iPad, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.controlSize(.large)</span>, field 96 × 34, row 60.</div>
+        <div><b>Watch</b>: list row is swatch 16 · title · remaining · status glyph; the entry lives on the detail screen.</div>
+      </div>
+    </div>
+  </div>
+
+  <sc-for list="{{ themes }}" as="th" hint-placeholder-count="2">
+    <div style="{{ th.vars }}">
+      <div style="background:var(--fb-bg);border-radius:24px;padding:28px;display:flex;flex-direction:column;gap:18px">
+        <div style="font-size:15px;font-weight:600;color:var(--fb-l2)">{{ th.name }} · all row states</div>
+        <div style="display:grid;grid-template-columns:repeat(4,370px);gap:20px 24px;align-items:start">
+          <sc-for list="{{ th.rows }}" as="r" hint-placeholder-count="12">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:600 11px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--fb-l2)">{{ r.k }}</span>
+              <div style="background:var(--fb-card);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,system-ui,sans-serif">
+                <div style="display:flex;gap:12px;align-items:flex-start">
+                  <sc-if value="{{ r.hasSwatch }}" hint-placeholder-val="{{ true }}"><div style="width:28px;height:28px;border-radius:50%;flex:none;background:{{ r.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></div></sc-if>
+                  <sc-if value="{{ r.noSwatch }}"><div style="width:28px;height:28px;border-radius:50%;flex:none;border:1.5px dashed var(--fb-l3);box-sizing:border-box"></div></sc-if>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                    <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;min-width:0;font-size:17px;line-height:22px;font-weight:600;color:var(--fb-l1);letter-spacing:-.4px">{{ r.title }}</span><span style="font:12px/16px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">{{ r.uid }}</span></div>
+                    <sc-if value="{{ r.hasSub }}"><div style="font-size:15px;line-height:20px;color:var(--fb-l2);letter-spacing:-.2px">{{ r.sub }}</div></sc-if>
+                    <div style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:15px;line-height:20px;color:{{ r.statusColor }}">
+                      <sc-if value="{{ r.spin }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                      <sc-if value="{{ r.hasIcon }}"><i class="{{ r.icon }}" title="{{ r.sym }}" style="font-size:17px;color:{{ r.iconColor }}"></i></sc-if>
+                      <span>{{ r.statusText }}</span>
+                    </div>
+                    <sc-if value="{{ r.hasNote }}"><div style="display:flex;gap:5px;align-items:flex-start;font-size:13px;line-height:18px;color:var(--fb-l2)"><i class="ph-fill ph-warning" title="exclamationmark.triangle.fill" style="font-size:15px;color:var(--fb-orange);margin-top:1px"></i><span>{{ r.note }}</span></div></sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ r.entry }}">
+                  <div style="display:flex;flex-direction:column;gap:10px">
+                    <div style="height:64px;border-radius:14px;background:var(--fb-fill);display:flex;align-items:center;padding:0 16px;gap:4px;box-shadow:{{ r.ring }}">
+                      <span style="font:700 34px/41px ui-rounded,'SF Pro Rounded',-apple-system,system-ui;font-variant-numeric:tabular-nums;color:var(--fb-l1);background:{{ r.selBg }};border-radius:6px;padding:0 2px">{{ r.valueText }}</span>
+                      <span style="font-size:22px;font-weight:600;color:var(--fb-l2)">g</span><span style="flex:1"></span><span style="font-size:13px;color:var(--fb-l2)">{{ r.modeWord }}</span>
+                    </div>
+                    <div style="height:32px;border-radius:16px;background:var(--fb-fill);padding:2px;display:grid;grid-template-columns:1fr 1fr;box-sizing:border-box">
+                      <span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.netBg }};box-shadow:{{ r.netSh }}">Net</span>
+                      <span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.grossBg }};box-shadow:{{ r.grossSh }}">Gross</span>
+                    </div>
+                    <div style="font-size:13px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readout }}</div>
+                    <div style="height:50px;border-radius:25px;background:var(--fb-blue);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:600;opacity:{{ r.saveOp }}">{{ r.saveLabel }}</div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ r.hasActs }}">
+                  <div style="display:flex;gap:10px">
+                    <sc-for list="{{ r.acts }}" as="a" hint-placeholder-count="2"><div style="flex:1;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.label }}</div></sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">04</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Weight entry, step by step</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start">
+    <sc-for list="{{ flows }}" as="f" hint-placeholder-count="4">
+      <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:10px"><i class="{{ f.icon }}" style="font-size:22px"></i><span style="font-size:19px;font-weight:600">{{ f.name }}</span></div>
+        <div style="font-size:13px;color:#6E6E73;line-height:1.45">{{ f.min }}</div>
+        <sc-for list="{{ f.steps }}" as="s" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;font-size:14.5px;line-height:1.5;color:#424245">
+            <span style="width:22px;height:22px;border-radius:50%;background:#1D1D1F;color:#fff;font:600 12px/22px system-ui;text-align:center">{{ s.n }}</span>
+            <span style="text-wrap:pretty">{{ s.t }}</span>
+          </div>
+        </sc-for>
+        <sc-if value="{{ f.hasKeys }}">
+          <div style="display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08)">
+            <sc-for list="{{ f.keys }}" as="k" hint-placeholder-count="5"><div style="display:flex;justify-content:space-between;gap:12px;font-size:13.5px"><span style="color:#424245">{{ k.a }}</span><span style="font:600 12.5px ui-monospace,'SF Mono',Menlo,monospace;padding:1px 7px;border-radius:5px;background:#F0F0F2">{{ k.k }}</span></div></sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">05</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Connection and system states</h2></div>
+  <div style="font-size:15px;line-height:1.5;color:#424245;max-width:980px;text-wrap:pretty">macOS and iPad show both connections in a status bar. iPhone shows one compact glass banner under the title: when both are healthy it reads "Flipper connected · Bambuddy ready"; a problem replaces its half and adds one action. Watch shows a single glyph in the top trailing corner; tapping it opens Settings.</div>
+  <div style="background:#fff;border-radius:18px;padding:12px 24px 20px;display:flex;flex-direction:column">
+    <div style="display:grid;grid-template-columns:200px 230px 290px 290px 330px 330px 56px;column-gap:16px;padding:12px 0;font-size:12px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(0,0,0,.1)"><span>State</span><span>Meaning</span><span>Status bar · light</span><span>Status bar · dark</span><span>iPhone banner · light</span><span>iPhone banner · dark</span><span>Watch</span></div>
+    <sc-for list="{{ conn }}" as="c" hint-placeholder-count="11">
+      <div style="display:grid;grid-template-columns:200px 230px 290px 290px 330px 330px 56px;column-gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(0,0,0,.06)">
+        <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:11px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.05em">{{ c.group }}</span><span style="font-size:15px;font-weight:600">{{ c.state }}</span></div>
+        <span style="font-size:13.5px;line-height:1.4;color:#424245">{{ c.meaning }}</span>
+        <sc-for list="{{ c.themes }}" as="t" hint-placeholder-count="2">
+          <div style="{{ t.vars }}">
+            <div style="height:30px;border-radius:8px;background:var(--fb-bar);box-shadow:inset 0 .5px 0 var(--fb-sep);display:flex;align-items:center;gap:6px;padding:0 12px;font-size:12px;color:var(--fb-l1)">
+              <sc-if value="{{ c.spin }}"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+              <i class="{{ c.icon }}" title="{{ c.sym }}" style="font-size:14px;color:{{ c.tint }}"></i><span>{{ c.mac }}</span>
+              <sc-if value="{{ c.hasMacAct }}"><span style="margin-left:auto;padding:2px 9px;border-radius:999px;background:var(--fb-fill2);font-size:11.5px;font-weight:500">{{ c.macAct }}</span></sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <sc-for list="{{ c.themes }}" as="t" hint-placeholder-count="2">
+          <div style="{{ t.vars }}">
+            <div style="background:var(--fb-bg);padding:8px;border-radius:14px">
+              <sc-if value="{{ c.phoneNA }}"><div style="height:36px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:var(--fb-l3)">USB is macOS only</div></sc-if>
+              <sc-if value="{{ c.phoneOK }}">
+                <div style="height:36px;border-radius:18px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:7px;padding:0 6px 0 12px;font-size:13px;font-weight:500;color:var(--fb-l1)">
+                  <sc-if value="{{ c.spin }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                  <i class="{{ c.icon }}" title="{{ c.sym }}" style="font-size:15px;color:{{ c.tint }}"></i><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.phone }}</span>
+                  <sc-if value="{{ c.hasAct }}"><span style="height:26px;display:flex;align-items:center;padding:0 12px;border-radius:13px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600">{{ c.act }}</span></sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <div style="width:40px;height:40px;border-radius:50%;background:#1C1C1E;display:flex;align-items:center;justify-content:center"><i class="{{ c.watchIcon }}" title="{{ c.sym }}" style="font-size:20px;color:{{ c.watchTint }}"></i></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
+    <sc-for list="{{ themes }}" as="th" hint-placeholder-count="2">
+      <div style="{{ th.vars }}">
+        <div style="background:var(--fb-bg);border-radius:24px;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;font-family:-apple-system,system-ui,sans-serif">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font:600 11px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--fb-l2)">{{ th.name }} · Empty feed</span>
+            <div style="height:300px;border-radius:24px;background:var(--fb-bg);box-shadow:inset 0 0 0 1px var(--fb-sep);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center">
+              <i class="ph ph-broadcast" title="wave.3.right" style="font-size:52px;color:var(--fb-l2)"></i>
+              <div style="font-size:22px;font-weight:700;color:var(--fb-l1)">No scans yet</div>
+              <div style="font-size:15px;line-height:20px;color:var(--fb-l2);max-width:240px">Hold a spool's tag to the Flipper running FliBuddy.</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font:600 11px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--fb-l2)">{{ th.name }} · Settings feedback</span>
+            <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+              <sc-for list="{{ th.tests }}" as="t" hint-placeholder-count="4">
+                <div style="min-height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);font-size:17px;letter-spacing:-.4px">
+                  <span style="flex:1;color:{{ t.labelColor }}">{{ t.label }}</span>
+                  <sc-if value="{{ t.spin }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                  <sc-if value="{{ t.hasIcon }}"><i class="{{ t.icon }}" style="font-size:18px;color:{{ t.tint }}"></i></sc-if>
+                  <span style="font-size:15px;color:var(--fb-l2)">{{ t.detail }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px">QR unavailable: "This device has no camera. Type the URL and API key instead."</div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const CORE = 325;
+const LIGHT = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.06)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
+const DARK = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
+const T = {green:'var(--fb-green)',red:'var(--fb-red)',orange:'var(--fb-orange)',blue:'var(--fb-blue)',gray:'var(--fb-gray)',l2:'var(--fb-l2)'};
+const SYM = {'ph ph-scales':'scalemass','ph-fill ph-check-circle':'checkmark.circle.fill','ph ph-question':'questionmark.circle','ph-fill ph-plus-circle':'plus.circle.fill','ph-fill ph-warning':'exclamationmark.triangle.fill','ph ph-broadcast':'dot.radiowaves.left.and.right'};
+
+function vm(r) {
+  const title = r.material ? r.material + (r.subtype ? ' ' + r.subtype : '') : 'NTAG 7-byte UID ' + r.uid.slice(0, 4) + '…';
+  const rem = r.known ? r.remaining + ' g left of ' + r.label : (r.material && r.label ? 'label ' + r.label + ' g' : '');
+  const sub = [r.colorName, rem].filter(Boolean).join(' · ');
+  const by = r.savedBy === 'flipper' ? 'Flipper' : 'host';
+  const M = {
+    lookup: ['Looking up', '', 'l2', 1], enter: ['Enter weight', 'ph ph-scales', 'blue'], saving: ['Saving…', '', 'l2', 1],
+    saved: ['Saved ' + r.savedLeft + ' g left · by ' + by, 'ph-fill ph-check-circle', 'green'],
+    timeout: ['Saved ' + r.savedLeft + ' g left · by host', 'ph-fill ph-check-circle', 'green'],
+    unknown: ['Not in Bambuddy', 'ph ph-question', 'l2'], unknownNoMat: ['Not in Bambuddy; tag has no material', 'ph ph-question', 'l2'],
+    created: ['Created in Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
+    flipperCreate: ['Flipper asks to create it here', 'ph ph-broadcast', 'blue'], flipperLink: ['Flipper asks to link it here', 'ph ph-broadcast', 'blue'],
+  }[r.status];
+  const entry = ['enter', 'saving', 'created', 'error'].includes(r.status);
+  const raw = r.value != null ? r.value : String(r.suggested ?? '');
+  const n = parseInt(raw, 10);
+  const net = isNaN(n) ? null : r.mode === 'gross' ? n - CORE : n;
+  const bad = net != null && net < 0;
+  const readout = net == null ? 'Type the scale reading' : bad ? 'Below the core weight (' + CORE + ' g)' : r.mode === 'gross' ? 'Saves ' + net + ' g left · ' + n + ' − ' + CORE + ' g core' : 'Saves ' + net + ' g left';
+  let acts = [];
+  if (['unknown', 'unknownNoMat', 'flipperCreate', 'flipperLink'].includes(r.status)) {
+    const lf = r.status === 'flipperLink';
+    const nw = { label: r.material ? 'New' : 'New…', p: !lf }, lk = { label: 'Link to existing…', p: lf };
+    acts = (lf ? [lk, nw] : [nw, lk]).map(a => ({ ...a, bg: a.p ? T.blue : 'var(--fb-fill)', fg: a.p ? '#fff' : T.blue }));
+  }
+  const thumb = 'var(--fb-thumb)', sh = '0 1px 3px rgba(0,0,0,.14)';
+  return {
+    k: r.k, title, sub, hasSub: !!sub, uid: r.uid, swatch: r.rgba, hasSwatch: !!r.rgba, noSwatch: !r.rgba,
+    statusText: M[0], icon: M[1], hasIcon: !!M[1], iconColor: T[M[2]], spin: !!M[3], sym: SYM[M[1]] || '',
+    statusColor: r.status === 'error' ? T.red : T.l2,
+    note: r.status === 'timeout' ? 'Flipper timed out after 10 s and showed an error; the save went through.' : '', hasNote: r.status === 'timeout',
+    entry, valueText: raw || '0', selBg: r.sel ? 'var(--fb-sel)' : 'transparent', ring: r.sel ? '0 0 0 2px var(--fb-blue)' : 'none',
+    modeWord: r.mode, netBg: r.mode === 'net' ? thumb : 'transparent', netSh: r.mode === 'net' ? sh : 'none',
+    grossBg: r.mode === 'gross' ? thumb : 'transparent', grossSh: r.mode === 'gross' ? sh : 'none',
+    readout, readoutColor: bad ? T.red : T.l2, saveOp: r.status === 'saving' || bad ? 0.45 : 1, saveLabel: r.status === 'saving' ? 'Saving…' : 'Save',
+    acts, hasActs: acts.length > 0,
+  };
+}
+
+const G = { uid: '91B4E7C2', rgba: '#00AE42', material: 'PLA', subtype: 'Basic', colorName: 'Bambu Green', known: true, remaining: 590, label: 1000, suggested: 915, mode: 'gross' };
+const STATES = [
+  { ...G, k: 'Enter weight · focused', status: 'enter', sel: true },
+  { ...G, k: 'Saving', status: 'saving', value: '915' },
+  { ...G, k: 'Error', status: 'error', error: 'Bambuddy unreachable', value: '915' },
+  { k: 'Created in Bambuddy', uid: '3C9D20F1', rgba: '#A4DBE8', material: 'PLA', subtype: 'Pure', known: true, remaining: 1000, label: 1000, status: 'created', suggested: 1325, mode: 'gross', sel: true },
+  { k: 'Looking up', uid: '5B21C0DE', rgba: '#2B2B2D', material: 'PETG', subtype: 'HF', status: 'lookup' },
+  { k: 'Saved · by host', uid: '7EF1AB04', rgba: '#FF9016', material: 'PLA', subtype: 'Basic', colorName: 'Pumpkin Orange', known: true, remaining: 15, label: 1000, status: 'saved', savedLeft: 15, savedBy: 'host' },
+  { k: 'Saved · by Flipper', uid: '5B21C0DE', rgba: '#000000', material: 'PETG', subtype: 'HF', colorName: 'Black', known: true, remaining: 742, label: 1000, status: 'saved', savedLeft: 742, savedBy: 'flipper' },
+  { k: 'Flipper timed out, host saved', uid: 'A1C3770E', rgba: '#3B3B3B', material: 'PLA', subtype: 'Matte', colorName: 'Charcoal', known: true, remaining: 410, label: 1000, status: 'timeout', savedLeft: 410 },
+  { k: 'Not in Bambuddy · prefill', uid: '3C9D20F1', rgba: '#A4DBE8', material: 'PLA', subtype: 'Pure', label: 1000, status: 'unknown' },
+  { k: 'Not in Bambuddy · no material', uid: '04A2C93B1F5E80', status: 'unknownNoMat' },
+  { k: 'Flipper asks to create', uid: 'D40E19A7', rgba: '#FFFFFF', material: 'PETG', subtype: 'HF', label: 1000, status: 'flipperCreate' },
+  { k: 'Flipper asks to link', uid: '04B7E2116A3C80', status: 'flipperLink' },
+];
+
+const CONN = [
+  { group: 'Flipper', state: 'No Flipper', meaning: 'Searching over USB and Bluetooth', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right.slash', tint: 'gray', spin: 1, mac: 'No Flipper · searching', phone: 'No Flipper · searching' },
+  { group: 'Flipper', state: 'USB', meaning: 'Serial over USB-C. macOS only', icon: 'ph ph-usb', sym: 'cable.connector', tint: 'green', mac: 'Flipper · USB', na: 1 },
+  { group: 'Flipper', state: 'BLE advertising', meaning: 'Flipper visible, not connected', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right', tint: 'orange', mac: 'Flipper nearby, not connected', macAct: 'Connect', phone: 'Flipper nearby', act: 'Connect' },
+  { group: 'Flipper', state: 'BLE connected', meaning: 'Link open and FliBuddy said hello', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right', tint: 'green', mac: 'Flipper · Bluetooth', phone: 'Flipper connected · Bambuddy ready' },
+  { group: 'Flipper', state: 'Connected, no hello', meaning: 'Link open, FliBuddy app not running on the Flipper', icon: 'ph ph-app-window', sym: 'app.dashed', tint: 'orange', mac: 'Open FliBuddy on the Flipper', phone: 'Open FliBuddy on the Flipper' },
+  { group: 'Bambuddy', state: 'Not checked yet', meaning: 'No request made since launch', icon: 'ph ph-hard-drives', sym: 'server.rack', tint: 'gray', mac: 'Bambuddy · not checked', phone: 'Bambuddy not checked', act: 'Check' },
+  { group: 'Bambuddy', state: 'Ready', meaning: 'Reachable, key has inventory access', icon: 'ph ph-hard-drives', sym: 'server.rack', tint: 'green', mac: 'Bambuddy ready', phone: 'Flipper connected · Bambuddy ready' },
+  { group: 'Bambuddy', state: 'Unreachable', meaning: 'No answer from the URL in Settings', icon: 'ph ph-wifi-slash', sym: 'wifi.exclamationmark', tint: 'red', mac: 'Bambuddy unreachable', macAct: 'Retry', phone: 'Bambuddy unreachable', act: 'Retry' },
+  { group: 'Bambuddy', state: 'API key lacks permission', meaning: 'Key works but cannot read or write inventory', icon: 'ph ph-lock-key', sym: 'lock.trianglebadge.exclamationmark', tint: 'red', mac: 'API key lacks inventory permission', macAct: 'Settings', phone: 'Key lacks inventory permission', act: 'Settings' },
+  { group: 'Bambuddy', state: 'Spoolman mode', meaning: 'Blocking. Feed replaced by an explanation until changed', icon: 'ph ph-prohibit', sym: 'nosign', tint: 'red', mac: 'Bambuddy is in Spoolman mode', macAct: 'Retry', phone: 'Bambuddy is in Spoolman mode', act: 'Retry' },
+  { group: 'Bambuddy', state: 'Colour names unavailable', meaning: 'Non-blocking. Rows show no colour name', icon: 'ph ph-palette', sym: 'paintpalette', tint: 'orange', mac: 'Colour names unavailable', phone: 'Colour names unavailable' },
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    const themes = [{ name: 'Light', vars: LIGHT }, { name: 'Dark', vars: DARK }];
+    const rows = STATES.map(vm);
+    const tests = [
+      { label: 'Test connection', detail: 'Testing…', spin: 1 },
+      { label: 'Test connection', detail: 'Ready · inventory OK', icon: 'ph-fill ph-check-circle', tint: T.green },
+      { label: 'Test connection', detail: 'Unreachable', icon: 'ph-fill ph-x-circle', tint: T.red },
+      { label: 'Scan QR code', detail: 'No camera', dim: 1 },
+    ].map(t => ({ ...t, spin: !!t.spin, hasIcon: !!t.icon, labelColor: t.dim ? 'var(--fb-l3)' : 'var(--fb-blue)' }));
+    const darkT = { green: '#30D158', red: '#FF453A', orange: '#FF9F0A', gray: '#8E8E93' };
+    return {
+      themes: themes.map(t => ({ ...t, rows, tests })),
+      conn: CONN.map(c => ({
+        ...c, spin: !!c.spin, tint: T[c.tint], watchTint: darkT[c.tint], watchIcon: c.icon,
+        phoneNA: !!c.na, phoneOK: !c.na, hasAct: !!c.act, hasMacAct: !!c.macAct, themes: themes,
+      })),
+      spacing: [[4, 'Symbol ↔ text in a status line'], [8, 'Between controls in a group'], [12, 'Swatch ↔ text; header ↔ entry; between rows'], [16, 'Row padding; list inset (iOS)'], [20, 'Sheet and Form padding'], [24, 'Between Form sections'], [32, 'Empty-state stack']].map(([v, use]) => ({ v, use, w: v + 'px' })),
+      radii: [['Swatch', 'Circle()'], ['Row card (iOS)', 'insetGrouped Section · ≈24'], ['Weight field', '.rect(cornerRadius: 14) iOS · 8 macOS'], ['Buttons', '.buttonBorderShape(.capsule)'], ['Banner (iPhone)', 'Capsule() · .glassEffect() on 26+, .regularMaterial below'], ['Sheets, windows, watch platters', 'system']].map(([el, v]) => ({ el, v })),
+      type: [
+        ['Weight value', '.system(.largeTitle, design: .rounded).bold().monospacedDigit()', '34', '22 sb', '50 sb'],
+        ['Row title', '.headline', '17 sb', '15 sb', '17 sb'],
+        ['Colour · remaining', '.subheadline · .secondary', '15', '13', '15'],
+        ['Status', '.subheadline · .secondary / .red', '15', '12', 'glyph · 15'],
+        ['UID', '.caption.monospaced() · .tertiary', '12', '10', '12'],
+        ['Readout', '.footnote.monospacedDigit() · .secondary', '13', '11', '14'],
+        ['Banner / status bar', '.footnote.weight(.medium)', '13', '11', '—'],
+        ['Save', '.headline on .borderedProminent', '17 sb', '13', '17 sb'],
+        ['Unit "g"', '.title2.weight(.semibold) · .secondary', '22 sb', '15', '24 sb'],
+      ].map(([role, swift, ios, mac, watch]) => ({ role, swift, ios, mac, watch })),
+      colors: [
+        ['.primary', 'Titles, weight value', '#000', '#fff'], ['.secondary', 'Colour, remaining, status', '#8A8A8E', '#98989F'], ['.tertiary', 'UID, placeholders', '#C4C4C6', '#5B5B60'], ['.tint · systemBlue', 'Save, focus, Flipper requests', '#007AFF', '#0A84FF'],
+        ['.red', 'Errors, Forget, Clear', '#FF3B30', '#FF453A'], ['.green', 'Saved, created, ready', '#34C759', '#30D158'], ['.orange', 'Warnings: timeout, advertising', '#FF9500', '#FF9F0A'], ['.gray', 'Searching, not checked', '#8E8E93', '#8E8E93'],
+        ['systemGroupedBackground', 'Feed, Form background', '#F2F2F7', '#000'], ['secondarySystemGroupedBackground', 'Row card', '#fff', '#1C1C1E'], ['tertiarySystemFill', 'Weight field, segmented track', '#EBEBEE', '#2B2B2F'], ['.separator', 'Swatch stroke, dividers', '#DCDCDE', '#38383A'],
+      ].map(([name, use, l, d]) => ({ name, use, l, d })),
+      symbols: [
+        ['scalemass', 'Enter weight', 'ph ph-scales', '#007AFF'], ['checkmark.circle.fill', 'Saved, ready, test ok', 'ph-fill ph-check-circle', '#34C759'], ['plus.circle.fill', 'Created in Bambuddy', 'ph-fill ph-plus-circle', '#34C759'], ['questionmark.circle', 'Not in Bambuddy', 'ph ph-question', '#8E8E93'],
+        ['exclamationmark.triangle.fill', 'Error, timeout note', 'ph-fill ph-warning', '#FF3B30'], ['xmark.circle.fill', 'Test failed', 'ph-fill ph-x-circle', '#FF3B30'], ['dot.radiowaves.left.and.right', 'Flipper request', 'ph ph-broadcast', '#007AFF'], ['antenna.radiowaves.left.and.right', 'Flipper over Bluetooth', 'ph ph-broadcast', '#34C759'],
+        ['antenna.radiowaves.left.and.right.slash', 'No Flipper', 'ph ph-broadcast', '#8E8E93'], ['cable.connector', 'Flipper over USB', 'ph ph-usb', '#34C759'], ['app.dashed', 'Connected, no hello', 'ph ph-app-window', '#FF9500'], ['server.rack', 'Bambuddy', 'ph ph-hard-drives', '#34C759'],
+        ['wifi.exclamationmark', 'Bambuddy unreachable', 'ph ph-wifi-slash', '#FF3B30'], ['lock.trianglebadge.exclamationmark', 'Key lacks permission', 'ph ph-lock-key', '#FF3B30'], ['nosign', 'Spoolman mode', 'ph ph-prohibit', '#FF3B30'], ['paintpalette', 'Colour names unavailable', 'ph ph-palette', '#FF9500'],
+        ['wave.3.right', 'Empty feed', 'ph ph-broadcast', '#8E8E93'], ['list.bullet', 'Feed tab', 'ph ph-list-bullets', '#1D1D1F'], ['gearshape', 'Settings', 'ph ph-gear-six', '#1D1D1F'], ['trash', 'Clear', 'ph ph-trash', '#1D1D1F'],
+        ['qrcode.viewfinder', 'Scan QR code', 'ph ph-qr-code', '#007AFF'], ['link', 'Link to existing', 'ph ph-link', '#007AFF'], ['arrow.left.arrow.right', 'Move tag link', 'ph ph-arrows-left-right', '#007AFF'], ['digitalcrown.horizontal.arrow.clockwise', 'Crown hint (watch)', 'ph ph-arrows-clockwise', '#1D1D1F'],
+      ].map(([n, u, i, c]) => ({ n, u, i, c })),
+      flows: FLOWS.map(f => ({ ...f, steps: f.steps.map((t, i) => ({ n: i + 1, t })), hasKeys: !!f.keys, keys: (f.keys || []).map(([a, k]) => ({ a, k })) })),
+    };
+  }
+}
+
+const FLOWS = [
+  { name: 'macOS', icon: 'ph ph-desktop', min: 'Correct suggestion: ⌘S. Otherwise: type, ⌘S. No mouse needed.', steps: [
+    'Row turns Enter weight. Focus moves to its field, unless you are typing in another row; then it waits and the new row gets a blue focus hint.',
+    'The suggestion is selected. Typing replaces it; digits only, Delete clears. The readout below updates live: "Saves 590 g left".',
+    'Tab moves to Net/Gross (← → switches), Tab again to Save. Shift-Tab goes back.',
+    'Return or ⌘S saves the focused row. Saving… then "Saved 590 g left · by host". The field stays editable for a correction.',
+    'Focus moves to the next newest row still waiting for a weight. If none, the list keeps the selection and the next scan takes focus.',
+  ], keys: [['Save focused row', '⌘S / ↩'], ['Clear feed', '⌘⌫'], ['Settings', '⌘,'], ['Field → mode → Save', '⇥'], ['Next / previous row', '⌘↓ / ⌘↑']] },
+  { name: 'iPhone', icon: 'ph ph-device-mobile', min: 'Correct suggestion: 1 tap. Otherwise: digits + 1 tap.', steps: [
+    'Row turns Enter weight. The list scrolls it to the top and the field takes focus; the number pad rises with the suggestion selected.',
+    'Type the scale reading; the first key replaces the selection. ⌫ deletes one digit.',
+    'Net/Gross sits under the field. Flipping it converts an untouched suggestion and keeps a typed number.',
+    'Tap Save, which always stays above the pad. Saving… → Saved, then a light success haptic.',
+    'If another row waits, focus moves there; otherwise the pad lowers. Tap any field to reopen it with its value selected.',
+  ] },
+  { name: 'iPad', icon: 'ph ph-device-tablet', min: 'Hardware keyboard: same as macOS. Touch: same as iPhone.', steps: [
+    'Landscape: the newest Enter weight row focuses its inline field; the suggestion is selected.',
+    'With a hardware keyboard: type, Tab to mode, ⌘S or Return saves. Hold ⌘ to see the shortcut overlay.',
+    'Without one, the system number keyboard appears; the row stays visible above it because the list scrolls the focused row into view.',
+    'Portrait behaves exactly like iPhone: stacked card, full-width Save.',
+    'Clear lives in the sidebar and in the ⌘ menu; it asks for confirmation.',
+  ], keys: [['Save focused row', '⌘S / ↩'], ['Clear feed', '⌘⌫'], ['Settings', '⌘,'], ['Field → mode → Save', '⇥']] },
+  { name: 'Apple Watch', icon: 'ph ph-watch', min: 'Correct suggestion: 1 tap on Save. Otherwise: turn the crown, tap Save.', steps: [
+    'When a row needs a weight and the feed is frontmost, its detail opens on its own; otherwise tap the row.',
+    'The suggestion fills the screen. The Digital Crown moves it 1 g per detent with a detent haptic; a fast turn moves 5 g per detent.',
+    'Tap Net or Gross. The line under the number shows what will be saved.',
+    'Tap Save: .success haptic, "Saved 590 g left · by host", back to the feed after one second.',
+    'On error: .failure haptic, red status, the number stays so you can retry. Unknown Bambu Lab tags show one New button.',
+  ] },
+];
+</script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>body{margin:0;background:#D9DBE0;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}@keyframes fb-spin{to{transform:rotate(360deg)}}*{scrollbar-width:none}*::-webkit-scrollbar{display:none}</style>
+</helmet>
+<div style="width:2140px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:56px">
+
+<header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
+  <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
+  <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">Apple Watch</h1>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">Hands stay free: the spool in one, the Flipper in the other, the wrist does the rest. The Digital Crown sets the weight, one tap saves, a haptic confirms. Settings are read-only and arrive from the iPhone. Shown at 46 mm, enlarged 1.6×; watchOS is dark only.</p>
+</header>
+
+<section style="display:flex;gap:40px;align-items:flex-start">
+  <div style="width:340px;flex:none;display:flex;flex-direction:column;gap:20px">
+    <pre style="margin:0;padding:16px;border-radius:14px;background:#fff;font:12px/1.55 ui-monospace,'SF Mono',Menlo,monospace;color:#1D1D1F;white-space:pre-wrap">NavigationStack {
+  List(feed) { WatchFeedRow($0) }
+    .navigationTitle("FliBuddy")
+    .toolbar { ToolbarItem(
+      placement: .topBarLeading) {
+        ConnectionGlyph() } }
+    .navigationDestination(for:) {
+      RowDetail($0) }
+}
+// RowDetail
+Text(grams, format: .number)
+  .font(.system(size: 50,
+    weight: .semibold,
+    design: .rounded))
+  .monospacedDigit()
+  .focusable()
+  .digitalCrownRotation($grams,
+    from: 0, through: 5000, by: 1,
+    sensitivity: .low,
+    isHapticFeedbackEnabled: true)
+// 5 g per detent above ~6 detents/s
+// save: WKInterfaceDevice.play(.success)
+// error: .play(.failure)
+// AOD: @Environment(\.isLuminanceReduced)</pre>
+    <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Prototype controls</span><button onClick="{{ ctl.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Reset</button></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Digital Crown (or scroll over a watch)</span>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+          <button onClick="{{ ctl.cm5 }}" style="border:0;border-radius:8px;padding:7px 0;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">−5</button>
+          <button onClick="{{ ctl.cm1 }}" style="border:0;border-radius:8px;padding:7px 0;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">−1</button>
+          <button onClick="{{ ctl.cp1 }}" style="border:0;border-radius:8px;padding:7px 0;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">+1</button>
+          <button onClick="{{ ctl.cp5 }}" style="border:0;border-radius:8px;padding:7px 0;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">+5</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag to the Flipper</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.scanKnown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Known spool</button>
+          <button onClick="{{ ctl.scanUnknown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">New Bambu tag</button>
+          <button onClick="{{ ctl.scanBlank }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Blank NTAG</button>
+          <button onClick="{{ ctl.flipperSave }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Flipper saves</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button onClick="{{ ctl.toggleFail }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ ctl.failBg }};color:{{ ctl.failFg }}">Next save fails</button>
+      </div>
+      <div style="display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px;align-items:center;font-size:13px">
+        <span style="color:#6E6E73">Flipper</span>
+        <select value="{{ ctl.flipper }}" onChange="{{ ctl.setFlipper }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="none">No Flipper</option><option value="adv">BLE advertising</option><option value="ble">BLE connected</option><option value="nohello">Connected, no hello</option></select>
+        <span style="color:#6E6E73">Bambuddy</span>
+        <select value="{{ ctl.bambuddy }}" onChange="{{ ctl.setBambuddy }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="unchecked">Not checked yet</option><option value="ready">Ready</option><option value="unreachable">Unreachable</option><option value="noperm">Key lacks permission</option><option value="spoolman">Spoolman mode</option><option value="nocolors">Colour names unavailable</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:48px 44px;align-items:flex-start;width:1630px">
+    <sc-for list="{{ watches }}" as="w" hint-placeholder-count="7">
+      <div style="display:flex;flex-direction:column;gap:12px;width:378px">
+        <div style="display:flex;flex-direction:column;gap:4px;min-height:58px"><span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">{{ w.label }}</span><span style="font-size:13px;line-height:1.4;color:#6E6E73;text-wrap:pretty">{{ w.note }}</span></div>
+        <div style="zoom:1.6;width:236px">
+          <div style="position:relative;width:236px;height:286px;border-radius:64px;background:#1C1C1E;box-shadow:inset 0 0 0 1.5px #3A3A3C,0 16px 36px rgba(0,0,0,.28);padding:19px 14px;box-sizing:border-box">
+            <div style="position:absolute;right:-6px;top:64px;width:9px;height:34px;border-radius:4px;background:#48484A;box-shadow:inset 0 0 0 .5px #636366"></div>
+            <div style="position:absolute;right:-4px;top:124px;width:6px;height:50px;border-radius:3px;background:#2C2C2E"></div>
+            <div data-crown="{{ w.id }}" style="position:relative;width:208px;height:248px;border-radius:46px;overflow:hidden;background:#000;color:#fff;font-family:'SF Compact Text','SF Compact',-apple-system,system-ui,sans-serif;box-shadow:{{ w.hapticRing }};transition:box-shadow .25s">
+              <div style="position:absolute;left:0;right:0;top:0;height:38px;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:6px 16px 0;box-sizing:border-box;background:{{ w.topBg }}">
+                <sc-if value="{{ w.showGlyph }}">
+                  <button onClick="{{ w.toSettings }}" aria-label="{{ w.glyphLabel }}" style="width:30px;height:30px;border-radius:15px;border:0;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
+                    <sc-if value="{{ w.st.watch.spin }}"><span style="width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                    <sc-if value="{{ w.glyphStatic }}"><i class="{{ w.st.watch.icon }}" style="font-size:16px;color:{{ w.st.watch.color }}"></i></sc-if>
+                  </button>
+                </sc-if>
+                <sc-if value="{{ w.showBack }}"><button onClick="{{ w.onBack }}" aria-label="Back" style="width:30px;height:30px;border-radius:15px;border:0;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;padding:0"><i class="ph ph-caret-left" title="chevron.left" style="font-size:16px"></i></button></sc-if>
+                <sc-if value="{{ w.aod }}"><span></span></sc-if>
+                <span style="font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:{{ w.timeColor }}">9:41</span>
+              </div>
+
+              <sc-if value="{{ w.isFeed }}">
+                <div data-scroll="1" style="position:absolute;inset:0;overflow:auto;padding:40px 8px 30px;display:flex;flex-direction:column;gap:5px;box-sizing:border-box">
+                  <span style="font-size:17px;font-weight:600;padding:0 8px 4px;color:{{ w.titleColor }}">FliBuddy</span>
+                  <sc-if value="{{ w.empty }}"><div style="padding:24px 10px;text-align:center;font-size:14px;line-height:18px;color:rgba(235,235,245,.6)">Hold a spool’s tag to the Flipper running FliBuddy.</div></sc-if>
+                  <sc-for list="{{ w.rows }}" as="r" hint-placeholder-count="4">
+                    <div onClick="{{ r.open }}" style="display:grid;grid-template-columns:{{ w.rowCols }};gap:8px;align-items:center;padding:9px 12px;border-radius:20px;background:{{ w.platter }};cursor:pointer;min-height:52px;box-sizing:border-box">
+                      <sc-if value="{{ w.full }}"><sc-if value="{{ r.hasSwatch }}"><span style="width:16px;height:16px;border-radius:50%;background:{{ r.swatch }};box-shadow:inset 0 0 0 .5px rgba(255,255,255,.3)"></span></sc-if><sc-if value="{{ r.noSwatch }}"><span style="width:16px;height:16px;border-radius:50%;border:1.5px dashed rgba(235,235,245,.4);box-sizing:border-box"></span></sc-if></sc-if>
+                      <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:15px;line-height:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ w.titleColor }}">{{ r.wTitle }}</span><span style="font-size:13px;line-height:16px;color:{{ w.subColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.remShort }}</span></div>
+                      <sc-if value="{{ w.full }}">
+                        <span style="display:flex;justify-content:center">
+                          <sc-if value="{{ r.wSpin }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                          <sc-if value="{{ r.wHasIcon }}"><i class="{{ r.wIcon }}" title="{{ r.wSym }}" aria-label="{{ r.statusText }}" style="font-size:19px;color:{{ r.wColor }}"></i></sc-if>
+                        </span>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ w.isDetail }}">
+                <div style="position:absolute;inset:0;padding:40px 10px 10px;display:flex;flex-direction:column;gap:5px;box-sizing:border-box">
+                  <div style="display:flex;align-items:center;gap:6px;padding:0 4px;min-width:0">
+                    <sc-if value="{{ w.d.hasSwatch }}"><span style="width:12px;height:12px;flex:none;border-radius:50%;background:{{ w.d.swatch }};box-shadow:inset 0 0 0 .5px rgba(255,255,255,.3)"></span></sc-if>
+                    <span style="font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ w.d.wTitle }}</span>
+                  </div>
+                  <sc-if value="{{ w.d.showEntry }}">
+                    <div style="display:flex;align-items:baseline;justify-content:center;gap:3px;height:54px"><span style="font:600 50px/54px 'SF Compact Rounded',ui-rounded,-apple-system,system-ui;font-variant-numeric:tabular-nums;letter-spacing:-.5px">{{ w.d.valueText }}</span><span style="font:600 20px 'SF Compact Rounded',ui-rounded,system-ui;color:rgba(235,235,245,.6)">g</span></div>
+                    <div style="text-align:center;font-size:13px;line-height:16px;color:{{ w.d.lineColor }};font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ w.d.line }}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;height:30px;margin-top:3px">
+                      <button onClick="{{ w.d.setNet }}" style="border:0;border-radius:15px;font-size:13px;font-weight:600;background:{{ w.d.netBg }};color:{{ w.d.netFg }};cursor:pointer">Net</button>
+                      <button onClick="{{ w.d.setGross }}" style="border:0;border-radius:15px;font-size:13px;font-weight:600;background:{{ w.d.grossBg }};color:{{ w.d.grossFg }};cursor:pointer">Gross</button>
+                    </div>
+                    <button onClick="{{ w.d.onSave }}" style="height:40px;border:0;border-radius:20px;background:#0A84FF;color:#fff;font-size:16px;font-weight:600;opacity:{{ w.d.saveOp }};cursor:pointer;margin-top:3px">{{ w.d.saveLabel }}</button>
+                    <div style="position:absolute;right:3px;top:70px;width:4px;height:40px;border-radius:2px;background:rgba(255,255,255,.16)"><div style="position:absolute;left:0;right:0;height:12px;border-radius:2px;background:#30D158;top:{{ w.d.crownTop }}"></div></div>
+                  </sc-if>
+                  <sc-if value="{{ w.d.showSaved }}">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:6px"><i class="{{ w.d.icon }}" style="font-size:34px;color:{{ w.d.iconColor }}"></i><span style="font:600 34px/40px 'SF Compact Rounded',ui-rounded,system-ui;font-variant-numeric:tabular-nums">{{ w.d.bigLeft }}</span><span style="font-size:13px;line-height:16px;color:rgba(235,235,245,.6);text-align:center">{{ w.d.statusText }}</span></div>
+                    <span style="flex:1"></span>
+                    <button onClick="{{ w.d.onReopen }}" style="height:40px;border:0;border-radius:20px;background:rgba(255,255,255,.16);color:#fff;font-size:16px;font-weight:600;cursor:pointer">Weigh again</button>
+                  </sc-if>
+                  <sc-if value="{{ w.d.showUnknown }}">
+                    <div style="display:flex;flex-direction:column;gap:4px;padding:4px 4px 0"><span style="font-size:13px;color:rgba(235,235,245,.6)">{{ w.d.remShort }}</span><span style="display:flex;align-items:center;gap:5px;font-size:15px;line-height:19px"><i class="{{ w.d.icon }}" style="font-size:17px;color:{{ w.d.iconColor }}"></i>{{ w.d.statusText }}</span><span style="font-size:13px;line-height:16px;color:rgba(235,235,245,.6)">{{ w.d.hint }}</span></div>
+                    <span style="flex:1"></span>
+                    <sc-if value="{{ w.d.canNew }}"><button onClick="{{ w.d.onNew }}" style="height:40px;border:0;border-radius:20px;background:#0A84FF;color:#fff;font-size:16px;font-weight:600;cursor:pointer">New</button></sc-if>
+                  </sc-if>
+                  <sc-if value="{{ w.d.showBusy }}">
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px"><span style="width:26px;height:26px;border-radius:50%;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;animation:fb-spin .8s linear infinite;box-sizing:border-box"></span><span style="font-size:15px;color:rgba(235,235,245,.6)">{{ w.d.statusText }}</span></div>
+                  </sc-if>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ w.isSettings }}">
+                <div data-scroll="1" style="position:absolute;inset:0;overflow:auto;padding:40px 8px 30px;display:flex;flex-direction:column;gap:5px;box-sizing:border-box">
+                  <span style="font-size:17px;font-weight:600;padding:0 8px 4px">Settings</span>
+                  <span style="font-size:12px;color:rgba(235,235,245,.6);padding:4px 8px 0">From iPhone</span>
+                  <div style="padding:8px 12px;border-radius:20px;background:#222224;display:flex;flex-direction:column"><span style="font-size:15px">Server</span><span style="font-size:13px;color:rgba(235,235,245,.6)">bambuddy.local:8000</span></div>
+                  <div style="padding:8px 12px;border-radius:20px;background:#222224;display:flex;flex-direction:column"><span style="font-size:15px">Core weight</span><span style="font-size:13px;color:rgba(235,235,245,.6)">325 g</span></div>
+                  <div style="padding:8px 12px;border-radius:20px;background:#222224;display:flex;flex-direction:column"><span style="font-size:15px">Weight as</span><span style="font-size:13px;color:rgba(235,235,245,.6)">Gross</span></div>
+                  <span style="font-size:12px;line-height:15px;color:rgba(235,235,245,.6);padding:2px 8px 8px">Received 2 min ago. Change these on iPhone.</span>
+                  <span style="font-size:12px;color:rgba(235,235,245,.6);padding:0 8px">Flipper</span>
+                  <div style="padding:8px 12px;border-radius:20px;background:#222224;display:flex;flex-direction:column"><span style="font-size:15px">Workshop</span><span style="font-size:13px;color:{{ w.st.watch.color }};display:flex;align-items:center;gap:4px"><i class="{{ w.st.watch.icon }}" style="font-size:13px"></i>{{ w.flipText }}</span></div>
+                  <button onClick="{{ w.toScan }}" style="min-height:44px;border:0;border-radius:22px;background:#222224;color:#0A84FF;font-size:15px;font-weight:600;cursor:pointer">Scan for Flipper</button>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ w.isScan }}">
+                <div style="position:absolute;inset:0;overflow:auto;padding:40px 8px 20px;display:flex;flex-direction:column;gap:5px;box-sizing:border-box">
+                  <span style="font-size:17px;font-weight:600;padding:0 8px 2px">Scan for Flipper</span>
+                  <div style="display:flex;align-items:center;gap:8px;padding:2px 8px 4px;font-size:13px;color:rgba(235,235,245,.6)"><span style="width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:fb-spin .8s linear infinite;box-sizing:border-box"></span>Searching…</div>
+                  <sc-for list="{{ w.found }}" as="f" hint-placeholder-count="2">
+                    <div onClick="{{ f.on }}" style="padding:8px 12px;border-radius:20px;background:#222224;display:flex;align-items:center;gap:8px;cursor:pointer"><i class="ph ph-broadcast" style="font-size:18px;color:#0A84FF"></i><div style="display:flex;flex-direction:column;flex:1"><span style="font-size:15px">{{ f.name }}</span><span style="font-size:13px;color:rgba(235,235,245,.6)">{{ f.sub }}</span></div></div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ w.hasToast }}"><div style="position:absolute;left:14px;right:14px;bottom:8px;z-index:4;height:26px;border-radius:13px;background:rgba(40,40,42,.95);display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:600;color:{{ w.toastColor }}"><i class="{{ w.toastIcon }}" style="font-size:13px"></i>{{ w.toast }}</div></sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const UI0 = () => ({
+  wf: {screen: 'feed'}, wd: {screen: 'detail', rowId: 'r3'}, wu: {screen: 'detail', rowId: 'r2'},
+  ws: {screen: 'settings'}, wn: {screen: 'scan'}, wa: {screen: 'feed'},
+});
+const W = {
+  enter: ['ph ph-scales', '#0A84FF', 'scalemass'], saved: ['ph-fill ph-check-circle', '#30D158', 'checkmark.circle.fill'], timeout: ['ph-fill ph-check-circle', '#30D158', 'checkmark.circle.fill'],
+  unknown: ['ph ph-question', '#8E8E93', 'questionmark.circle'], unknownNoMat: ['ph ph-question', '#8E8E93', 'questionmark.circle'],
+  created: ['ph-fill ph-plus-circle', '#30D158', 'plus.circle.fill'], error: ['ph-fill ph-warning', '#FF453A', 'exclamationmark.triangle.fill'],
+  flipperCreate: ['ph ph-broadcast', '#0A84FF', 'dot.radiowaves.left.and.right'], flipperLink: ['ph ph-broadcast', '#0A84FF', 'dot.radiowaves.left.and.right'],
+};
+
+class Component extends DCLogic {
+  state = {ready: false, ui: UI0(), fx: {}};
+  componentDidMount() {
+    import(new URL('flibuddy-core.js', document.baseURI).href).then(C => {
+      this.C = C;
+      this.S = new C.Session(() => this.forceUpdate());
+      this.S.onHaptic = (kind, id) => this.haptic(kind, id);
+      this.S.onFocus = id => { const u = this.state.ui.wf; if (id && u.screen === 'feed') this.ui('wf', {screen: 'detail', rowId: id}); };
+      this.setState({ready: true});
+    });
+  }
+  componentDidUpdate() {
+    document.querySelectorAll('[data-crown]').forEach(el => {
+      if (el._fbCrown) return;
+      el._fbCrown = true;
+      el.addEventListener('wheel', e => { e.preventDefault(); this.crown(el.getAttribute('data-crown'), e.deltaY, el); }, {passive: false});
+    });
+  }
+  ui(id, p) { this.setState(s => ({ui: {...s.ui, [id]: {...s.ui[id], ...p}}})); }
+  fx(id, p) { this.setState(s => ({fx: {...s.fx, [id]: p}})); }
+  crown(pid, dy, el) {
+    const u = this.state.ui[pid];
+    if (!u || !this.S) return;
+    if (u.screen !== 'detail') { const sc = el.querySelector('[data-scroll]'); if (sc) sc.scrollTop += dy; return; }
+    const r = this.S.find(u.rowId);
+    if (!r || !['enter', 'created', 'error'].includes(r.status)) return;
+    this.acc = (this.acc || 0) + dy;
+    const now = Date.now();
+    while (Math.abs(this.acc) >= 28) {
+      const fast = now - (this.last || 0) < 70;
+      this.S.nudge(r.id, (this.acc < 0 ? 1 : -1) * (fast ? 5 : 1));
+      this.acc -= Math.sign(this.acc) * 28;
+      this.last = now;
+    }
+  }
+  haptic(kind, rowId) {
+    const pid = this.saver || 'wd';
+    this.fx(pid, {kind});
+    setTimeout(() => this.fx(pid, null), 1100);
+    if (kind === 'success' && pid === 'wf') setTimeout(() => { if (this.state.ui.wf.rowId === rowId) this.ui('wf', {screen: 'feed'}); }, 1000);
+  }
+
+  detailVM(pid, r, st) {
+    const C = this.C, S = this.S;
+    if (!r) return {};
+    const v = C.vm(r, {noColors: st.noColors});
+    const busy = ['lookup', 'saving', 'creating'].includes(r.status) && !(r.status === 'saving');
+    const entry = v.entry;
+    const wi = W[r.status] || ['', '', ''];
+    const n = parseInt(v.raw, 10) || 0;
+    return {
+      ...v, wTitle: v.title.replace('NTAG 7-byte UID ', 'NTAG '),
+      showEntry: entry, showSaved: v.reopenable, showBusy: busy, showUnknown: v.unknown,
+      line: v.isError ? v.statusText : v.bad ? v.readout : v.net == null ? 'Turn the crown' : 'Saves ' + v.net + ' g left',
+      lineColor: v.isError || v.bad ? '#FF453A' : 'rgba(235,235,245,.6)',
+      netBg: v.isNet ? '#fff' : 'rgba(255,255,255,.16)', netFg: v.isNet ? '#000' : '#fff',
+      grossBg: v.isGross ? '#fff' : 'rgba(255,255,255,.16)', grossFg: v.isGross ? '#000' : '#fff',
+      setNet: () => S.setMode(r.id, 'net'), setGross: () => S.setMode(r.id, 'gross'),
+      onSave: () => { this.saver = pid; S.save(r.id); },
+      crownTop: Math.round((n % 200) / 200 * 28) + 'px',
+      icon: wi[0], iconColor: wi[1], bigLeft: (r.savedLeft != null ? r.savedLeft : r.remaining) + ' g',
+      onReopen: () => S.reopen(r.id),
+      hint: r.status === 'unknownNoMat' ? 'Create it on iPhone or Mac.' : r.status === 'flipperLink' ? 'Link it on iPhone or Mac.' : '',
+      canNew: v.unknown && v.hasMaterial,
+      onNew: () => S.create(r.id),
+    };
+  }
+
+  renderVals() {
+    if (!this.state.ready) return {watches: [], ctl: {}};
+    const C = this.C, S = this.S, st = C.statusVM(S.cfg);
+    const defs = [
+      {id: 'wf', label: 'Feed list', note: 'Live. Newest first. A row that needs a weight opens on its own.'},
+      {id: 'wd', label: 'Row detail · Enter weight', note: 'Scroll over the watch or use the buttons to turn the crown. Save plays a haptic.'},
+      {id: 'wu', label: 'Row detail · Not in Bambuddy', note: 'Bambu Lab tag with prefill: one New button.'},
+      {id: 'wa', label: 'Feed list · Always On', note: 'Luminance reduced: title and remaining only.', aod: true},
+      {id: 'ws', label: 'Settings', note: 'Read-only, received from the iPhone. The glyph on the feed opens it.'},
+      {id: 'wn', label: 'Scan for Flipper', note: 'Tap a Flipper to connect.'},
+    ];
+    const watches = defs.map(d => {
+      const u = this.state.ui[d.id], fx = this.state.fx[d.id], aod = !!d.aod;
+      const scr = u.screen;
+      const r = scr === 'detail' ? S.find(u.rowId) : null;
+      const rows = S.rows.map(x => {
+        const v = C.vm(x, {noColors: st.noColors}), wi = W[x.status];
+        return {...v, wTitle: v.title.replace('NTAG 7-byte UID ', 'NTAG '), wIcon: wi ? wi[0] : '', wColor: wi ? wi[1] : '', wSym: wi ? wi[2] : '', wHasIcon: !!wi, wSpin: !wi,
+          open: aod ? undefined : () => this.ui(d.id, {screen: 'detail', rowId: x.id})};
+      });
+      return {
+        ...d, st, aod, full: !aod, isFeed: scr === 'feed', isDetail: scr === 'detail', isSettings: scr === 'settings', isScan: scr === 'scan',
+        showGlyph: scr === 'feed' && !aod, glyphStatic: !st.watch.spin, glyphLabel: st.watch.text,
+        showBack: scr !== 'feed',
+        onBack: () => this.ui(d.id, {screen: scr === 'scan' ? 'settings' : 'feed'}),
+        toSettings: () => this.ui(d.id, {screen: 'settings'}), toScan: () => this.ui(d.id, {screen: 'scan'}),
+        rows, empty: rows.length === 0, rowCols: aod ? 'minmax(0,1fr)' : '16px minmax(0,1fr) 22px',
+        platter: aod ? 'transparent' : '#222224', titleColor: aod ? 'rgba(255,255,255,.55)' : '#fff', subColor: aod ? 'rgba(255,255,255,.35)' : 'rgba(235,235,245,.6)',
+        timeColor: aod ? 'rgba(255,255,255,.5)' : '#fff', topBg: scr === 'detail' ? 'transparent' : '#000',
+        d: this.detailVM(d.id, r, st),
+        flipText: st.watch.text.replace('Flipper ', '').replace(/^connected/, 'Connected'),
+        found: [{name: 'Workshop', sub: 'Nearby · strong'}, {name: 'Bench', sub: 'Nearby'}].map(f => ({...f, on: () => { this.ui(d.id, {screen: 'settings'}); S.setCfg({flipper: 'ble'}); }})),
+        hapticRing: fx ? (fx.kind === 'success' ? 'inset 0 0 0 3px #30D158' : 'inset 0 0 0 3px #FF453A') : 'inset 0 0 0 0 transparent',
+        hasToast: !!fx, toast: fx ? (fx.kind === 'success' ? 'Haptic · success' : 'Haptic · failure') : '',
+        toastColor: fx && fx.kind === 'failure' ? '#FF453A' : '#30D158', toastIcon: fx && fx.kind === 'failure' ? 'ph-fill ph-warning' : 'ph-fill ph-check-circle',
+      };
+    });
+    const cfg = S.cfg, crownRow = () => this.state.ui.wd.rowId;
+    return {
+      watches,
+      ctl: {
+        reset: () => { S.reset(); this.setState({ui: UI0(), fx: {}}); },
+        cm5: () => S.nudge(crownRow(), -5), cm1: () => S.nudge(crownRow(), -1), cp1: () => S.nudge(crownRow(), 1), cp5: () => S.nudge(crownRow(), 5),
+        scanKnown: () => S.scan('known'), scanUnknown: () => S.scan('unknown'), scanBlank: () => S.scan('blank'), flipperSave: () => S.flipperSave(),
+        toggleFail: () => S.setCfg({failNext: !cfg.failNext}), failBg: cfg.failNext ? '#1D1D1F' : '#EDEDF0', failFg: cfg.failNext ? '#fff' : '#1D1D1F',
+        flipper: cfg.flipper, bambuddy: cfg.bambuddy,
+        setFlipper: e => S.setCfg({flipper: e.target.value}), setBambuddy: e => S.setCfg({bambuddy: e.target.value}),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>
