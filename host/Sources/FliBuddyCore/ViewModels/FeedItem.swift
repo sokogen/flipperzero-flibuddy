@@ -113,7 +113,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     }
 
     /// A row's actions, worded the same on every platform.
-    public enum RowAction: Equatable, Sendable {
+    public enum RowAction: Hashable, Sendable {
         /// Creates the spool from the tag, full.
         case saveAsNew
         /// Reveals the entry; its Save creates the spool and records the weight.

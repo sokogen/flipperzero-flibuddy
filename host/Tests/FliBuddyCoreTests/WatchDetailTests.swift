@@ -11,30 +11,66 @@ private func row(
     return row
 }
 
-private func screen(_ row: FeedRow, isCreating: Bool = false) -> WatchRowScreen {
-    WatchRowScreen(FeedItem(row), isCreating: isCreating)
+private func screen(_ row: FeedRow, isCreating: Bool = false, revealed: Bool = false) -> WatchRowScreen {
+    WatchRowScreen(FeedItem(row, entryRevealed: revealed), isCreating: isCreating)
 }
 
 @Suite("Watch row detail screen")
 struct WatchRowScreenTests {
     @Test func aKnownSpoolWaitingForAWeightIsTheEntry() throws {
         for status in [FeedRow.Status.awaitingWeight, .saving, .updating, .error("timed out")] {
-            #expect(screen(try row(status: status)) == .entry(offersNew: false))
+            #expect(screen(try row(status: status)) == .entry(offersCancel: false))
         }
     }
 
-    /// The spool exists: New is never offered again.
-    @Test func aCreatedRowOffersNoNew() throws {
-        #expect(screen(try row(status: .created)) == .unknown(hint: nil, offersNew: false))
+    /// Created on scan: the label weight and Set weight; the spool exists,
+    /// so Save as new is never offered again.
+    @Test func aCreatedRowIsACardWithSetWeight() throws {
+        #expect(screen(try row(status: .created)) == .card(hint: nil, actions: [.setWeight], prominent: .setWeight))
+        var failed = try row(status: .error("timed out"))
+        failed.createdSpoolId = failed.spool?.id
+        #expect(screen(failed) == .card(hint: nil, actions: [.setWeight], prominent: .setWeight))
     }
 
-    @Test func aNewSpoolOffersNew() throws {
-        #expect(screen(try row(status: .unknown(prefill: true), spool: nil)) == .unknown(hint: nil, offersNew: true))
+    @Test func aNewSpoolIsACardWithSaveAsNewAndWithWeight() throws {
+        let new = try row(status: .unknown(prefill: true), spool: nil)
+        #expect(screen(new) == .card(hint: nil, actions: [.saveAsNew, .saveWithWeight], prominent: .saveAsNew))
+        let failed = try row(status: .error("timed out"), spool: nil)
+        #expect(screen(failed) == .card(hint: nil, actions: [.saveAsNew, .saveWithWeight], prominent: .saveAsNew))
+    }
+
+    @Test func aCreateRequestKeepsSaveAsNewProminent() throws {
+        let asks = try row(status: .unknown(prefill: true), spool: nil, request: .create)
+        #expect(screen(asks) == .card(hint: nil, actions: [.saveAsNew, .saveWithWeight], prominent: .saveAsNew))
+    }
+
+    /// Link is for the phone or the Mac: the hint, and neither button prominent.
+    @Test func aLinkRequestOnANewSpoolHintsLink() throws {
+        let asks = try row(status: .unknown(prefill: true), spool: nil, request: .link)
+        #expect(screen(asks) == .card(
+            hint: WatchRowScreen.linkHint, actions: [.saveAsNew, .saveWithWeight], prominent: nil
+        ))
+    }
+
+    @Test func withWeightAndSetWeightOpenTheCrownEntryWithCancel() throws {
+        let new = try row(status: .unknown(prefill: true), spool: nil)
+        #expect(screen(new, revealed: true) == .entry(offersCancel: true))
+        #expect(screen(try row(status: .created), revealed: true) == .entry(offersCancel: true))
+        // a known spool has no optional entry to hide
+        #expect(screen(try row(status: .awaitingWeight), revealed: true) == .entry(offersCancel: false))
+    }
+
+    @Test func theWatchTitlesAreShort() {
+        #expect(FeedItem.RowAction.saveAsNew.watchTitle == "Save as new")
+        #expect(FeedItem.RowAction.saveWithWeight.watchTitle == "With weight")
+        #expect(FeedItem.RowAction.setWeight.watchTitle == "Set weight")
     }
 
     @Test func aBambuTagSavingItsNewSpoolIsBusy() throws {
         let saving = try row(status: .saving, spool: nil)
         #expect(screen(saving) == .busy("Saving\u{2026}"))
+        // the weight Save with weight… sent keeps its entry
+        #expect(screen(saving, revealed: true) == .entry(offersCancel: true))
     }
 
     @Test func newOnTheWatchShowsBusyUntilTheSpoolExists() throws {

@@ -77,9 +77,9 @@
 - [x] run `make test`, `swift build`, `make apple-build` — must pass before Task 3
 
 ### Task 3: Watch
-- [ ] detail screens per the Behaviour section; auto-open only for waiting rows
-- [ ] write tests for the screen-state selection and auto-open rule
-- [ ] run `make test` and `make apple-build` — must pass before Task 4
+- [x] detail screens per the Behaviour section; auto-open only for waiting rows
+- [x] write tests for the screen-state selection and auto-open rule
+- [x] run `make test` and `make apple-build` — must pass before Task 4
 
 ### Task 4: Verify and document
 - [ ] update the four specs' row-states tables and actions; note the change under "Implemented differently" where it departs from the design
