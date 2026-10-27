@@ -133,6 +133,12 @@ The transport is a setting on both sides; nothing negotiates it.
   remembered and reconnected to directly. **Forget** clears it. On the Mac
   every Settings change takes effect on **Save**; the iPhone and iPad apply
   each change at once.
+- The iPhone and iPad keep the Flipper connected while the screen is locked
+  (`bluetooth-central` background mode): a scan wakes the app, which
+  answers the Flipper and calls Bambuddy inside a background task. If iOS
+  ends the app in the background, it relaunches it for the next Bluetooth
+  event (state restoration). A swiped-away app stays closed until opened.
+  The Watch app works only while it is on screen.
 
 There is no pairing step anywhere. The FAP publishes its own GATT service
 instead of the stock serial profile, whose passkey prompt watchOS cannot

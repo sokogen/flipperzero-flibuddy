@@ -25,9 +25,20 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
     /// or by a late `didConnect` of the cancelled attempt.
     private var closing: Set<UUID> = []
 
+    /// iOS relaunches the app for a Bluetooth event after it terminated the
+    /// app in the background, and hands back the peripherals under this key.
+    static let restoreIdentifier = "com.sokolachko.flibuddy.central"
+
     override public init() {
         super.init()
+        #if os(iOS)
+        manager = CBCentralManager(
+            delegate: self, queue: queue,
+            options: [CBCentralManagerOptionRestoreIdentifierKey: Self.restoreIdentifier]
+        )
+        #else
         manager = CBCentralManager(delegate: self, queue: queue)
+        #endif
     }
 
     public func powerState() async -> BLEPowerState {
@@ -149,6 +160,15 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
 }
 
 extension CoreBluetoothCentral: CBCentralManagerDelegate {
+    /// After a relaunch the restored peripherals are known again; the link
+    /// connects to its saved Flipper as on any start, and CoreBluetooth
+    /// answers a connect to one that is still connected at once.
+    public func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        let restored = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] ?? []
+        for peripheral in restored { peripherals[peripheral.identifier] = peripheral }
+        Log.notice(.link, "bluetooth central restored: peripherals=\(restored.count)")
+    }
+
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         guard let state = Self.powerState(central.state) else { return }
         Log.info(.link, "bluetooth central power: \(state)")

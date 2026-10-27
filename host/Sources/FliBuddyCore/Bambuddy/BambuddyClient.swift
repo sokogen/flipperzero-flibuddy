@@ -178,6 +178,14 @@ public struct BambuddyClient: Sendable {
     private func send(
         _ method: String, _ path: String, query: [URLQueryItem] = [], body: (any Encodable)? = nil
     ) async throws -> (Data, Int) {
+        try await BackgroundActivity.run("Bambuddy \(method) \(path)") {
+            try await sendNow(method, path, query: query, body: body)
+        }
+    }
+
+    private func sendNow(
+        _ method: String, _ path: String, query: [URLQueryItem], body: (any Encodable)?
+    ) async throws -> (Data, Int) {
         var request = URLRequest(url: url(path, query: query), timeoutInterval: Self.timeout)
         request.httpMethod = method
         request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
