@@ -1062,6 +1062,25 @@ struct SettingsApplyOnChangeTests {
         #expect(model.hasChanges)
     }
 
+    @Test func theCoreWeightFieldTakesDigitsAsTyped() async {
+        let applied = Applied()
+        let model = makeApplying(applied)
+        #expect(model.coreWeightText == "250")
+
+        model.coreWeightText = "3x25"
+        #expect(model.coreWeight == 325)
+        model.coreWeightText = "012345"
+        #expect(model.coreWeightText == "1234")
+        model.coreWeightText = ""
+        #expect(model.coreWeight == 0)
+        #expect(model.coreWeightError != nil)
+
+        model.coreWeightText = "300"
+        model.commit()
+        await model.settled()
+        #expect(applied.values.map(\.coreWeight) == [300])
+    }
+
     // MARK: iPhone texts
 
     @Test(arguments: [

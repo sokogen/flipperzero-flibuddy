@@ -79,7 +79,7 @@ public struct SettingsForm: View {
                 catalogPicker
                 LabeledContent("Core weight") {
                     HStack(spacing: 4) {
-                        TextField("Core weight", value: $model.coreWeight, format: .number)
+                        TextField("Core weight", text: $model.coreWeightText)
                             .labelsHidden()
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)

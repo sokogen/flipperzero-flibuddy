@@ -555,6 +555,10 @@ Settings, QR, sheets and Clear
   red line at the bottom of the form; the edit stays and the next commit
   tries again.
 - URL and API key are labelled rows with the field trailing. By eye.
+- The core weight field is text, not a number format: digits go into the
+  setting as typed (`SettingsViewModel.coreWeightText`, at most four, an
+  empty field reads 0 and is not applied), so the commit on focus loss
+  never sees a stale number; the number pad has no Return.
 - The Flipper row reads `Searching…` while a scan runs (it wins over a
   connection), `Bluetooth` when connected, and `Not connected` with
   `antenna.radiowaves.left.and.right.slash` otherwise, which the spec does

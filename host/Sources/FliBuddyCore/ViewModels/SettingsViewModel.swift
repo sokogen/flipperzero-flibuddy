@@ -64,6 +64,14 @@ public final class SettingsViewModel {
     }
     /// Grams; editable, saved as is.
     public var coreWeight: Int
+
+    /// The iPhone's core weight field: digits only, at most four, written
+    /// to `coreWeight` as typed so a commit on focus loss sees the number;
+    /// an empty field is 0 (out of range, so it is not applied).
+    public var coreWeightText: String {
+        get { String(coreWeight) }
+        set { coreWeight = FeedViewModel.grams(from: newValue) ?? 0 }
+    }
     public var defaultMode: Intent.WeightMode {
         didSet {
             guard defaultMode != oldValue else { return }
