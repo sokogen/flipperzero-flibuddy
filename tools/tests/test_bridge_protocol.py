@@ -705,17 +705,17 @@ def test_loading_the_colour_map_without_bambuddy_does_nothing():
     assert b.color_map is None
 
 
-def test_unknown_lookup_defaults_to_a_325_g_core():
+def test_unknown_lookup_defaults_to_a_242_g_core():
     (reply,) = replies(bridge(FakeBambuddy()), load("scan_mfc.json"))
-    assert reply["defaults"]["core"] == 325
+    assert reply["defaults"]["core"] == 242
 
 
-def test_new_defaults_to_a_325_g_core():
+def test_new_defaults_to_a_242_g_core():
     fake = FakeBambuddy()
     replies(bridge(fake), load("intent_new.json"))
     (_, body) = fake.calls[-1]
-    assert session.DEFAULT_CORE == 325
-    assert body["core_weight"] == 325
+    assert session.DEFAULT_CORE == 242
+    assert body["core_weight"] == 242
 
 
 def test_new_without_a_catalog_id_omits_it():

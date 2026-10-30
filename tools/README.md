@@ -47,8 +47,8 @@ uv run python -m bridge --dump-dir ../protocol/fixtures/tags   # no Bambuddy: pr
   mode (the key needs `settings:read`).
 - It speaks protocol version 2: it answers `hello`, prints each parsed tag
   and the `lookup` it sends, and performs the `weigh`, `new`, `full`,
-  `empty` and `delete` intents (`--core-weight`, default 325 g = Bambu
-  reusable spool 293 g + refill core 32 g, and `--catalog-id` set the core
+  `empty` and `delete` intents (`--core-weight`, default 242 g = Bambu
+  reusable spool 215 g + refill core 27 g, and `--catalog-id` set the core
   weight and `core_weight_catalog_id` of new items); `create_on_host` /
   `link_on_host` are only logged. A repeated intent id gets the stored `result`; failed calls are
   not stored, so a retry runs again.

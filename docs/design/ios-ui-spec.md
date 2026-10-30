@@ -211,7 +211,7 @@ the entry states of the table below:
 |---|---|
 | Weight field | full width, height 64, `tertiarySystemFill`, `.rect(cornerRadius: 14)`, padding 16; focus ring 2 pt `.tint`. Value `.system(.largeTitle, design: .rounded).bold().monospacedDigit()` scaled to 34 pt; the selected suggestion is highlighted (system selection); an empty field shows `0` in `.tertiary`. Unit `g` `.title2.weight(.semibold)` `.secondary` (22) after the value. The mode word (`gross` / `net`) right-aligned inside the field, `.footnote` `.secondary` (13). Accessibility label `Gross weight, grams` / `Net weight, grams`. |
 | Net / Gross | segmented, full width, height 32, capsule track; labels 14 sb. |
-| Readout | `.footnote.monospacedDigit()` `.secondary` (13): `Saves 590 g left · 915 − 325 g core` (gross), `Saves 590 g left` (net), `Type the scale reading` (empty), `Below the core weight (325 g)` in `.red`. |
+| Readout | `.footnote.monospacedDigit()` `.secondary` (13): `Saves 590 g left · 832 − 242 g core` (gross), `Saves 590 g left` (net), `Type the scale reading` (empty), `Below the core weight (242 g)` in `.red`. |
 | Save | full width, height 50, `.borderedProminent`, capsule, `.headline` (17 sb): `Save` / `Saving…`; disabled (45 % look) when empty, below the core or saving. |
 | Actions | New spool and Created cards (entry hidden): the lead action (**Save as new** / **Set weight…**) full width, height 50, `.borderedProminent` capsule, 17 sb, over the others (**Save with weight…**, **Link to existing…**) as equal capsules, height 44, 10 apart, 15 sb. A revealed entry: **Cancel** and **Link to existing…** as the 44 pt capsules under Save. Other rows that offer actions (New… / Save as new and Link): a row of two equal 44 pt capsules, the prominent one `.tint` with white text, the other `tertiarySystemFill` with `.tint` text. |
 
@@ -367,7 +367,7 @@ Form {
     Button("Test connection") + trailing result
   } footer: QR footer
   Section("New items") { Picker("Empty spool"); LabeledContent("Core weight") { TextField + "g" } }
-    footer: "Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g."
+    footer: "Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g."
   Section("Weighing") { Picker("Type weight as", Net | Gross).pickerStyle(.segmented) }
     footer: "Gross is the whole spool on the scale. Each row can still switch."
   Section("Flipper") {

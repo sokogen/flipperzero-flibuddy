@@ -95,7 +95,7 @@ public struct SettingsForm: View {
             } header: {
                 Text("New items")
             } footer: {
-                Text("Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.")
+                Text("Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g.")
             }
             Section {
                 Picker("Type weight as", selection: $model.defaultMode) {
@@ -182,7 +182,7 @@ public struct SettingsForm: View {
             } header: {
                 Text("New items")
             } footer: {
-                Text("Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.")
+                Text("Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g.")
             }
             Section {
                 Picker("I type the weight as", selection: $model.defaultMode) {

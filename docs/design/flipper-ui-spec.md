@@ -91,7 +91,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     convert the number on screen, typed or not (gross - core, floored at 0;
     net + core). ▲▼ on a digit change it (wrapping;
     held, they repeat). OK Save, Back to the result. The line under the
-    digits: gross `Net 590 g - core 325`, gross without a known core
+    digits: gross `Net 590 g - core 242`, gross without a known core
     `Core weight unknown`, net `Saves 590 g left`; gross below the core
     shows inverted `Below core weight`, and OK flashes red without sending.
     Pre-fill: gross = remaining + core, net = remaining; without a spool

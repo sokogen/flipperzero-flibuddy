@@ -40,19 +40,19 @@ private func makeModel(
 @Suite("FeedItem: weight readout and states")
 struct FeedItemRulesTests {
     @Test func theReadoutSaysWhatASaveRecords() {
-        #expect(FeedItem.readout(value: 915, mode: .gross, core: 325)
-            == FeedItem.Readout(text: "Saves 590 g left · 915 \u{2212} 325 g core", isError: false))
-        #expect(FeedItem.readout(value: 590, mode: .net, core: 325)
+        #expect(FeedItem.readout(value: 832, mode: .gross, core: 242)
+            == FeedItem.Readout(text: "Saves 590 g left · 832 \u{2212} 242 g core", isError: false))
+        #expect(FeedItem.readout(value: 590, mode: .net, core: 242)
             == FeedItem.Readout(text: "Saves 590 g left", isError: false))
-        #expect(FeedItem.readout(value: nil, mode: .gross, core: 325)
+        #expect(FeedItem.readout(value: nil, mode: .gross, core: 242)
             == FeedItem.Readout(text: "Type the scale reading", isError: false))
-        #expect(FeedItem.readout(value: nil, mode: .net, core: 325)
+        #expect(FeedItem.readout(value: nil, mode: .net, core: 242)
             == FeedItem.Readout(text: "Type the scale reading", isError: false))
-        #expect(FeedItem.readout(value: 300, mode: .gross, core: 325)
-            == FeedItem.Readout(text: "Below the core weight (325 g)", isError: true))
-        #expect(FeedItem.readout(value: 325, mode: .gross, core: 325)
-            == FeedItem.Readout(text: "Saves 0 g left · 325 \u{2212} 325 g core", isError: false))
-        #expect(FeedItem.readout(value: 0, mode: .net, core: 325).isError == false)
+        #expect(FeedItem.readout(value: 200, mode: .gross, core: 242)
+            == FeedItem.Readout(text: "Below the core weight (242 g)", isError: true))
+        #expect(FeedItem.readout(value: 242, mode: .gross, core: 242)
+            == FeedItem.Readout(text: "Saves 0 g left · 242 \u{2212} 242 g core", isError: false))
+        #expect(FeedItem.readout(value: 0, mode: .net, core: 242).isError == false)
     }
 
     @Test func eachStateHasItsPhraseSymbolAndTint() throws {

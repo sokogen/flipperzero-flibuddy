@@ -29,8 +29,8 @@ public enum TransportKind: String, CaseIterable, Sendable {
 /// `KeyValueStore` (`UserDefaults` in the apps).
 public struct Settings: Equatable, Sendable {
     /// Everything on the scale that is not filament: Bambu reusable spool
-    /// 293 g + refill core 32 g, measured in Phase 0.
-    public static let defaultCoreWeight = 325
+    /// 215 g + refill core 27 g, remeasured on 2026-10-29 (Phase 0 used 293 g + 32 g = 325 g).
+    public static let defaultCoreWeight = 242
     /// Core weights the settings accept, in grams.
     public static let coreWeightRange = 1...5000
 

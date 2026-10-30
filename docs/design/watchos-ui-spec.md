@@ -134,7 +134,7 @@ Created entry that With weight / Set weight opened):
 | Part | Spec |
 |---|---|
 | Weight | centred, 54 high: value 50 sb rounded tabular digits, `g` 20 sb `.secondary` (the Spec table's 24 is superseded by the page) |
-| Line | 13, centred, one line: `Saves 590 g left`; `Turn the crown` when empty; red `Below the core weight (325 g)`; red `Error: <message>` in the error state |
+| Line | 13, centred, one line: `Saves 590 g left`; `Turn the crown` when empty; red `Below the core weight (242 g)`; red `Error: <message>` in the error state |
 | Net / Gross | two pills side by side, 30 high, 4 apart, 13 sb; the selected one white with black text, the other white 16 % with white text |
 | Save | full width, 40 high capsule, `#0A84FF`, white 16 sb: `Save` / `Saving…`; 45 % when it cannot save |
 | Cancel | an entry With weight / Set weight opened only: under Save, same size, white 16 % fill; hides the entry without saving and returns to the card |
@@ -205,7 +205,7 @@ Title `Settings`. Platters as in the feed (`#222224`, corner 20, padding
 8 × 12), each a 15 pt label over a 13 pt `.secondary` value:
 
 - Header `From iPhone` (12 `.secondary`): `Server` (`bambuddy.local:8000`,
-  host and port of the URL), `Core weight` (`325 g`), `Weight as`
+  host and port of the URL), `Core weight` (`242 g`), `Weight as`
   (`Gross` / `Net`). Footer (12 `.secondary`): `Received 2 min ago. Change
   these on iPhone.` (the relative time of the last received settings).
 - Header `Flipper`: a platter with the Flipper's name (`Workshop`) over the

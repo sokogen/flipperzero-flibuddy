@@ -1,5 +1,5 @@
 // FliBuddy for Flipper Zero: 128x64 1-bit renderer, screens and app state machine.
-export const W = 128, H = 64, CORE = 325;
+export const W = 128, H = 64, CORE = 242;
 
 const I = {
   usb: ['....#####', '....#...#', '#####.#.#', '....#...#', '....#####'],

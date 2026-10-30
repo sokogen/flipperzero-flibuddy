@@ -8,7 +8,7 @@ import Testing
         #expect(settings.baseURL == "")
         #expect(settings.apiKey == "")
         #expect(settings.catalogEntryId == nil)
-        #expect(settings.coreWeight == 325)
+        #expect(settings.coreWeight == 242)
         #expect(settings.defaultMode == .gross)
         #expect(settings.port == nil)
         #expect(settings.peripheralId == nil)
@@ -299,7 +299,7 @@ struct SettingsStoreLogTests {
         let sink = await capturingLog { _ = store.load() }
 
         let transport = TransportKind.platformDefault.rawValue
-        #expect(sink.events == ["settings load: url= key=absent catalog=none core=325 mode=gross transport=\(transport)"])
+        #expect(sink.events == ["settings load: url= key=absent catalog=none core=242 mode=gross transport=\(transport)"])
     }
 
     @Test func keychainFailuresAreLoggedWithTheStatus() async throws {

@@ -75,7 +75,7 @@ import Testing
         ("config?key=s3cret&v=1", "config?key=«redacted»&v=1"),
         ("X-API-Key: s3cret", "X-API-Key: «redacted»"),
         ("headers x-api-key=s3cret accept=json", "headers x-api-key=«redacted» accept=json"),
-        (#"{"apiKey":"s3cret","coreWeight":325}"#, #"{"apiKey":"«redacted»","coreWeight":325}"#),
+        (#"{"apiKey":"s3cret","coreWeight":242}"#, #"{"apiKey":"«redacted»","coreWeight":242}"#),
         ("load: url=http://nas:8000 key=present catalog=3", "load: url=http://nas:8000 key=present catalog=3"),
         ("load: key=absent", "load: key=absent"),
         ("monkey=3 turkey: 4", "monkey=3 turkey: 4"),

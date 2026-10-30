@@ -238,7 +238,7 @@
                         <div style="min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Empty spool</span><span style="color:var(--fb-l2);font-size:15px">Bambu reusable + core</span><i class="ph ph-caret-up-down" style="font-size:14px;color:var(--fb-l2)"></i></div>
                         <div style="min-height:52px;display:flex;align-items:center;gap:6px;padding:0 16px"><span style="flex:1">Core weight</span><input value="{{ p.set.core }}" onChange="{{ p.onCore }}" aria-label="Core weight, grams" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:17px;color:var(--fb-l2)"><span style="color:var(--fb-l2)">g</span></div>
                       </div>
-                      <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px">Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.</span>
+                      <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px">Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g.</span>
                       <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px">Weighing</span>
                       <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
                         <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px"><span style="flex:1">Type weight as</span>
@@ -325,7 +325,7 @@
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
-const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', core: '325', mode: 'gross', test: 'ok'};
+const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', core: '242', mode: 'gross', test: 'ok'};
 
 class Component extends DCLogic {
   state = {ready: false, ui: {al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}}, focus: null, set: {...SET0}};

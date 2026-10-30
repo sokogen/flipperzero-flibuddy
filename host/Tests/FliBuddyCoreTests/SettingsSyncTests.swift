@@ -5,12 +5,12 @@ import Testing
 @Suite("SettingsSyncPayload")
 struct SettingsSyncTests {
     private static let payload = SettingsSyncPayload(
-        baseURL: "http://192.168.1.20:8000", apiKey: "bb_key", coreWeight: 325, catalogEntryId: 24, defaultMode: .gross
+        baseURL: "http://192.168.1.20:8000", apiKey: "bb_key", coreWeight: 242, catalogEntryId: 24, defaultMode: .gross
     )
 
     /// The Technical Details example.
     private static var dictionary: [String: Any] { [
-        "v": 1, "baseURL": "http://192.168.1.20:8000", "apiKey": "bb_key", "coreWeight": 325,
+        "v": 1, "baseURL": "http://192.168.1.20:8000", "apiKey": "bb_key", "coreWeight": 242,
         "catalogEntryId": 24, "defaultMode": "gross",
     ] }
 
@@ -36,7 +36,7 @@ struct SettingsSyncTests {
         #expect(encoded["v"] as? Int == 1)
         #expect(encoded["baseURL"] as? String == "http://192.168.1.20:8000")
         #expect(encoded["apiKey"] as? String == "bb_key")
-        #expect(encoded["coreWeight"] as? Int == 325)
+        #expect(encoded["coreWeight"] as? Int == 242)
         #expect(encoded["catalogEntryId"] as? Int == 24)
         #expect(encoded["defaultMode"] as? String == "gross")
         #expect(encoded.count == 6)
@@ -93,7 +93,7 @@ struct SettingsSyncTests {
     @Test(arguments: [
         ("baseURL", Value.int(5)),
         ("apiKey", .bool(true)),
-        ("coreWeight", .string("325")),
+        ("coreWeight", .string("242")),
         ("coreWeight", .bool(true)),
         ("coreWeight", .int(0)),
         ("coreWeight", .int(5001)),
@@ -129,7 +129,7 @@ struct SettingsSyncTests {
         let applied = Self.payload.applied(to: watch)
         #expect(applied.baseURL == "http://192.168.1.20:8000")
         #expect(applied.apiKey == "bb_key")
-        #expect(applied.coreWeight == 325)
+        #expect(applied.coreWeight == 242)
         #expect(applied.catalogEntryId == 24)
         #expect(applied.defaultMode == .gross)
         #expect(applied.transport == .bluetooth)

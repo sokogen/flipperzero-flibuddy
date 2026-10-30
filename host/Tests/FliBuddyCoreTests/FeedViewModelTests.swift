@@ -309,11 +309,11 @@ struct FeedViewModelTests {
     }
 
     @Test func theiPadReadoutDropsTheGrossSum() {
-        #expect(FeedItem.readout(value: 915, mode: .gross, core: 325).short == "Saves 590 g left")
-        #expect(FeedItem.readout(value: 590, mode: .net, core: 325).short == "Saves 590 g left")
-        #expect(FeedItem.readout(value: nil, mode: .gross, core: 325).short == "Type the scale reading")
-        let below = FeedItem.readout(value: 200, mode: .gross, core: 325)
-        #expect(below.short == "Below the core weight (325 g)")
+        #expect(FeedItem.readout(value: 832, mode: .gross, core: 242).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: 590, mode: .net, core: 242).short == "Saves 590 g left")
+        #expect(FeedItem.readout(value: nil, mode: .gross, core: 242).short == "Type the scale reading")
+        let below = FeedItem.readout(value: 200, mode: .gross, core: 242)
+        #expect(below.short == "Below the core weight (242 g)")
         #expect(below.isError)
     }
 

@@ -252,12 +252,12 @@ struct SettingsViewModelTests {
         let inventory = FakeInventory()
         inventory.catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
         var settings = testSettings
-        settings.coreWeight = 325
+        settings.coreWeight = 242
         let model = makeModel(inventory, settings: settings)
 
         await model.loadCatalog()
 
-        #expect(model.draft.coreWeight == 325)
+        #expect(model.draft.coreWeight == 242)
         #expect(!model.hasChanges)
     }
 
@@ -269,10 +269,10 @@ struct SettingsViewModelTests {
         await model.loadCatalog()
 
         model.catalogEntryId = 9
-        model.coreWeight = 325
+        model.coreWeight = 242
 
         #expect(await model.save())
-        #expect(applied.map(\.coreWeight) == [325])
+        #expect(applied.map(\.coreWeight) == [242])
         #expect(applied.map(\.catalogEntryId) == [9])
     }
 
@@ -282,21 +282,21 @@ struct SettingsViewModelTests {
         let model = makeModel(inventory)
         await model.loadCatalog()
 
-        model.coreWeight = 325
+        model.coreWeight = 242
         model.catalogEntryId = 3
 
-        #expect(model.draft.coreWeight == 325)
+        #expect(model.draft.coreWeight == 242)
     }
 
     @Test func anEditedCoreWeightIsSavedWithoutACatalog() async {
         var applied: [Settings] = []
         let model = makeModel(apply: { applied.append($0) })
 
-        model.coreWeight = 325
+        model.coreWeight = 242
 
         #expect(model.hasChanges)
         #expect(await model.save())
-        #expect(applied.map(\.coreWeight) == [325])
+        #expect(applied.map(\.coreWeight) == [242])
     }
 
     @Test(arguments: [0, -5, 5001])
@@ -312,7 +312,7 @@ struct SettingsViewModelTests {
         #expect(model.saveError == "Core weight must be 1–5000 g")
     }
 
-    @Test(arguments: [1, 325, 5000])
+    @Test(arguments: [1, 242, 5000])
     func anInRangeCoreWeightIsAccepted(weight: Int) async {
         let model = makeModel()
         model.coreWeight = weight

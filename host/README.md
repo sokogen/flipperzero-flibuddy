@@ -81,13 +81,13 @@ the apps, `InMemoryKeyValueStore` in the tests) and the API key in a
 `SecretStore` (`KeychainSecretStore` in the apps).
 
 The core weight is everything on the scale that is not filament (`net =
-gross − core_weight`). It defaults to 325 g, a Bambu reusable spool (293 g)
-plus a refill core (32 g), which fits sealed spools and mounted refills alike.
+gross − core_weight`). It defaults to 242 g, a Bambu reusable spool (215 g)
+plus a refill core (27 g), which fits sealed spools and mounted refills alike.
 Choosing a catalog entry copies its weight once; the number stays editable
 (1–5000 g) and is saved as entered; a value saved before (e.g. 250 g)
 is kept, not replaced by the new default. The entry itself is sent only as
 `core_weight_catalog_id`. AMS-added spools get their core weight from the
-first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 325 g as
+first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 242 g as
 well to keep both kinds of spool consistent.
 
 After the startup check the session loads Bambuddy's colour map
@@ -119,7 +119,7 @@ field holds a number you typed, a new scan does not take focus: the new row
 gets a tinted outline and waits. After a save, focus moves to the newest
 row still waiting. Switching Net/Gross converts the number in the field,
 typed or not (gross − core, not below 0, or net + core). The readout under
-the field shows what Save sends ("Saves 590 g left · 915 − 325 g core").
+the field shows what Save sends ("Saves 590 g left · 832 − 242 g core").
 The row's context menu (or its VoiceOver action) opens **Tag details**: UID,
 tray UUID, filament id, colour code, RGBA, label weight, diameter and
 nozzle range (`TagDetails`).

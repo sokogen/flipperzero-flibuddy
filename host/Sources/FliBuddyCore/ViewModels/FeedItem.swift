@@ -215,9 +215,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         }
     }
 
-    /// "Saves 590 g left · 915 − 325 g core" in gross, "Saves 590 g left" in
+    /// "Saves 590 g left · 832 − 242 g core" in gross, "Saves 590 g left" in
     /// net, "Type the scale reading" without a value, "Below the core weight
-    /// (325 g)" when the gross value is lighter than the core.
+    /// (242 g)" when the gross value is lighter than the core.
     public static func readout(value: Int?, mode: Intent.WeightMode, core: Int?) -> Readout {
         guard let value else { return Readout(text: "Type the scale reading", isError: false) }
         guard mode == .gross else { return Readout(text: "Saves \(value) g left", isError: false) }

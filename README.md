@@ -110,13 +110,13 @@ The app logs to `~/Library/Logs/FliBuddy/flibuddy.log` (Help ▸ **Show Log
 File**); `FLIBUDDY_LOG=debug swift run FliBuddyMac` adds the protocol lines.
 See "Debugging" in `host/README.md`.
 
-The core weight of new items defaults to 325 g: everything on the scale that
-is not filament, a Bambu reusable spool (293 g) plus a refill core (32 g).
+The core weight of new items defaults to 242 g: everything on the scale that
+is not filament, a Bambu reusable spool (215 g) plus a refill core (27 g).
 Picking a catalog entry copies its weight, which can then be edited; the
 entry is recorded only as `core_weight_catalog_id`. A core weight saved
-before keeps its value, so an install set up with 250 g needs 325 entered
+before keeps its value, so an install set up with 250 g needs 242 entered
 once. AMS-added spools take their core weight from the first "Bambu Lab"
-catalog entry in Bambuddy, so set that entry to 325 g too.
+catalog entry in Bambuddy, so set that entry to 242 g too.
 
 ## Phase 2: Bluetooth, iPhone, iPad and Apple Watch
 
@@ -220,7 +220,7 @@ uv run python -m bridge               # no Bambuddy: print the parsed scans only
 ```
 
 `--port` overrides the auto-detected `/dev/cu.usbmodemflip_*`; the key can
-also come from `$BAMBUDDY_API_KEY`; `--core-weight` (default 325 g, see the
+also come from `$BAMBUDDY_API_KEY`; `--core-weight` (default 242 g, see the
 Mac host above) and `--catalog-id` set the core weight and the catalog entry
 of new items. Only one program can hold the port: quit the
 Mac host before starting the bridge.
@@ -296,8 +296,9 @@ of the design doc. Verified:
   a known spool byte for byte. Blocks 4+5 hold the detailed type.
 - Bambuddy stores AMS tag UIDs as the MIFARE UID followed by `00000100`;
   the host and the bridge send Bambu UIDs in that form.
-- Core weight 325 g: a Bambu reusable spool (293 g) plus a refill core
-  (32 g), for sealed spools and mounted refills alike.
+- Core weight 242 g: a Bambu reusable spool (215 g) plus a refill core
+  (27 g), for sealed spools and mounted refills alike (remeasured on
+  2026-10-29; Phase 0 used 325 g = 293 g + 32 g).
 
 Remaining checks:
 

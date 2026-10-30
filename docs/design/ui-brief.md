@@ -96,11 +96,11 @@ Each row shows, in this priority:
 Example rows from a real session (use them in the mock-ups):
 
 - Swatch #FF9016 · **PLA Basic** · Pumpkin Orange · 15 g left of 1000 ·
-  Saved 15 g left · by host · suggested gross 340 g (core 325 g)
+  Saved 15 g left · by host · suggested gross 257 g (core 242 g)
 - Swatch #A4DBE8 · **PLA Pure** · (no colour name) · label 1000 g ·
   Not in Bambuddy → **New** / **Link to existing…**
 - Swatch #00AE42 · **PLA Basic** · Bambu Green · 590 g left of 1000 ·
-  Enter weight · suggested gross 915 g
+  Enter weight · suggested gross 832 g
 - No swatch · **NTAG 7-byte UID 04A2…** · Not in Bambuddy; tag has no
   material → **New…** (form) / **Link to existing…**
 
@@ -131,8 +131,8 @@ weight field accepts typing immediately when a row becomes `Enter weight`
 clear, ⌘, settings, Tab between field and mode. Settings is a grouped `Form`
 with five sections: Bambuddy (URL, API key, Test connection), New items
 (empty-spool catalog entry, core weight number with the explanation "weight
-of everything that is not filament; 325 g = Bambu reusable spool 293 g +
-refill core 32 g"), Weighing (Net/Gross default), Flipper (transport:
+of everything that is not filament; 242 g = Bambu reusable spool 215 g +
+refill core 27 g"), Weighing (Net/Gross default), Flipper (transport:
 USB/Bluetooth, port picker or Scan for Flipper, Forget), Save.
 
 **iPhone.** Feed tab and Settings tab. Rows are tall enough for a thumb;

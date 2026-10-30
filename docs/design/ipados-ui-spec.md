@@ -98,7 +98,7 @@ minimum height 76. Columns, 12 apart:
 | Title | 150 | material + subtype, `.headline` (17 sb); the UID line of the design moves to Tag details (owner decision) |
 | Colour | 112 | colour name and Bambu code, `.subheadline` `.secondary` (15): `Bambu Green · 10501`; `Jade White · archived` for an archived spool |
 | Remaining | 140 | `.subheadline.monospacedDigit()` `.secondary` (15): `590 g left of 1000`, `label 1000 g` |
-| Status | flexible | symbol 17 pt + phrase (15); under it, in entry states, the short readout `.footnote.monospacedDigit()` (13): `Saves 590 g left`, `Type the scale reading`, or red `Below the core weight (325 g)`; the timeout note in `.footnote` |
+| Status | flexible | symbol 17 pt + phrase (15); under it, in entry states, the short readout `.footnote.monospacedDigit()` (13): `Saves 590 g left`, `Type the scale reading`, or red `Below the core weight (242 g)`; the timeout note in `.footnote` |
 | Entry / actions | auto, trailing | weight field · `g` · Net/Gross · Save, 8 apart; or the action buttons |
 
 Entry parts:

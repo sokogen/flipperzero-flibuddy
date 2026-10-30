@@ -132,7 +132,7 @@ line up.
 | Status | symbol + phrase, `.subheadline` (12) `.secondary`; `.red` only for errors. |
 | Weight field | `TextField` 96 × 34, value `.system(.largeTitle, design: .rounded).bold().monospacedDigit()` scaled to 22 pt via `@ScaledMetric(relativeTo: .largeTitle)`, digits only, 0…9999; unit "g" `.title2.weight(.semibold)` `.secondary` (15) after it. Focus ring on focus. Accessibility label "Gross weight, grams" / "Net weight, grams". |
 | Net / Gross | segmented picker; ← → switch when focused. |
-| Readout | `.footnote.monospacedDigit()` `.secondary` (11) under the field: "Saves 590 g left · 915 − 325 g core" (gross), "Saves 590 g left" (net), "Type the scale reading" (empty), "Below the core weight (325 g)" in `.red` (negative net). |
+| Readout | `.footnote.monospacedDigit()` `.secondary` (11) under the field: "Saves 590 g left · 832 − 242 g core" (gross), "Saves 590 g left" (net), "Type the scale reading" (empty), "Below the core weight (242 g)" in `.red` (negative net). |
 | Save | `.borderedProminent`, "Save" / "Saving…"; disabled when empty, negative or saving. |
 | Timeout note | `.footnote` under the status: "Flipper timed out after 10 s and showed an error; the save went through." |
 
@@ -272,7 +272,7 @@ Form {
   Section("Bambuddy") { TextField("Server URL"); SecureField("API key")
     Button("Test connection") + result line }
   Section("New items") { Picker("Empty spool"); TextField("Core weight") + "g" }
-    footer: "Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g."
+    footer: "Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g."
   Section("Weighing") { Picker("I type the weight as", Net | Gross).pickerStyle(.segmented) }
     footer: "Gross is the whole spool on the scale. Each row can still switch."
   Section("Flipper") { Picker("Connection", USB | Bluetooth)

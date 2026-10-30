@@ -188,7 +188,7 @@ struct WatchSettingsTextsTests {
     }
 
     @Test func coreAndMode() {
-        #expect(WatchSettingsTexts.coreWeight(325) == "325 g")
+        #expect(WatchSettingsTexts.coreWeight(242) == "242 g")
         #expect(WatchSettingsTexts.mode(.gross) == "Gross")
         #expect(WatchSettingsTexts.mode(.net) == "Net")
     }

@@ -90,13 +90,13 @@ def test_parse_args_defaults(monkeypatch):
     monkeypatch.delenv("BAMBUDDY_API_KEY", raising=False)
     args = cli.parse_args([])
     assert args.port is None and args.bambuddy is None
-    assert args.core_weight == 325 and args.catalog_id is None and args.dump_dir is None
+    assert args.core_weight == 242 and args.catalog_id is None and args.dump_dir is None
 
 
 def test_core_weight_help_names_the_default(capsys):
     with pytest.raises(SystemExit):
         cli.parse_args(["--help"])
-    assert "default: 325" in " ".join(capsys.readouterr().out.split())
+    assert "default: 242" in " ".join(capsys.readouterr().out.split())
 
 
 def test_parse_args_reads_the_key_from_the_environment(monkeypatch):

@@ -3,7 +3,7 @@ import Foundation
 /// The settings the iPhone hands to the watch: what Bambuddy needs, not the
 /// transport (each device keeps its own Flipper). Travels as a WatchConnectivity
 /// application context, a dictionary of property-list values:
-/// `{"v": 1, "baseURL": "...", "apiKey": "...", "coreWeight": 325, "catalogEntryId": 24, "defaultMode": "gross"}`.
+/// `{"v": 1, "baseURL": "...", "apiKey": "...", "coreWeight": 242, "catalogEntryId": 24, "defaultMode": "gross"}`.
 /// `catalogEntryId` is left out when no catalog entry is chosen.
 public struct SettingsSyncPayload: Equatable, Sendable {
     public static let version = 1

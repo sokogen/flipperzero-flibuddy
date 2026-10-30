@@ -179,7 +179,7 @@ TextField("Weight", value: $grams,
                       <select value="{{ p.set.spool }}" onChange="{{ p.onSpool }}" aria-label="Empty spool" style="position:absolute;inset:0;opacity:0"><option>Bambu reusable + core</option><option>Bambu cardboard</option><option>Generic 1 kg plastic</option><option>Custom</option></select></div>
                     <div style="min-height:52px;display:flex;align-items:center;gap:6px;padding:0 16px"><span style="flex:1">Core weight</span><input value="{{ p.set.core }}" onChange="{{ p.onCore }}" aria-label="Core weight, grams" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:17px;font-variant-numeric:tabular-nums;color:var(--fb-l2)"><span style="color:var(--fb-l2)">g</span></div>
                   </div>
-                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px;letter-spacing:-.08px">Weight of everything that is not filament; 325 g = Bambu reusable spool 293 g + refill core 32 g.</span>
+                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px;letter-spacing:-.08px">Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g.</span>
                   <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px;letter-spacing:-.08px">Weighing</span>
                   <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
                     <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px"><span style="flex:1">Type weight as</span>
@@ -331,7 +331,7 @@ TextField("Weight", value: $grams,
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
-const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', spool: 'Bambu reusable + core', core: '325', mode: 'gross', test: 'ok', filled: false, camera: true, paired: true, scanning: false};
+const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', spool: 'Bambu reusable + core', core: '242', mode: 'gross', test: 'ok', filled: false, camera: true, paired: true, scanning: false};
 const KEYS = [['1', ''], ['2', 'ABC'], ['3', 'DEF'], ['4', 'GHI'], ['5', 'JKL'], ['6', 'MNO'], ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ'], ['', ''], ['0', ''], ['del', '']];
 const UI0 = () => ({
   pl: {tab: 'feed', kp: 'r3'}, pd: {tab: 'feed', kp: 'r3'},
