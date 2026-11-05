@@ -346,6 +346,42 @@ key and starts **Test connection**. Where the scanner is not supported or
 available (always in the simulator) the row is dimmed and its footer says
 to type them instead.
 
+### Demo mode and simulator screenshots
+
+Launched with `-FliBuddyDemo YES`, the iPhone/iPad and watch apps run on
+fixtures instead of Bluetooth and Bambuddy (`FliBuddyCore/Demo`,
+`DemoFixtures.makeHost()`): a connected Flipper "Atgizo" (`DemoTransport`)
+and an in-memory Bambuddy in internal mode (`DemoInventory`, twelve spools,
+a catalog and colour names), with settings in in-memory stores
+(`https://bambuddy.example.com`, key `demo-key`), so nothing reaches the
+network, `UserDefaults` or the Keychain, and the watch settings sync stays
+off. On the first connect the demo Flipper plays a script into the session
+at a still clock (the rows follow `seed()` and `INV` in
+`docs/design/source/flibuddy-core.js`), newest first: PLA Basic Bambu Green
+waiting for a weight (590 g of 1000, 832 g gross suggested), a blank NTAG,
+PLA Pure not in Bambuddy, Pumpkin Orange saved by the Flipper, PLA Silk+
+added on scan, PETG HF the Flipper asks to link, and PLA Matte marked empty
+and archived, the last scan at 09:41. Save, New and Link to existing work
+on the in-memory inventory; Scan for Flipper finds Atgizo. The argument is
+not reachable from the UI and nothing user-facing mentions it.
+
+`tools/sim_shot.sh` takes a screenshot of the demo in a simulator, after
+`make apple-project apple-build`:
+
+```
+tools/sim_shot.sh "iPhone 18 Pro Max" /tmp/iphone.png
+tools/sim_shot.sh -a dark -s extra-large "iPad Pro 13-inch (M5)" /tmp/ipad.png
+tools/sim_shot.sh "Apple Watch Series 12 (46mm)" /tmp/watch.png
+```
+
+It takes a device name or UDID, boots it if needed, sets the appearance
+(`-a light|dark`), the Dynamic Type size (`-s`, a `simctl ui content_size`
+category, default `large`) and the 9:41 status bar on iPhone and iPad
+(watch simulators support none of these), installs the app from
+`Apple/.build`, launches it with the demo argument, waits (`-w`, default
+4 s) and saves a PNG. `simctl` cannot rotate a device, so an iPad stays in
+portrait unless it was turned in the Simulator app.
+
 ### `@ViewState` instead of `@State`
 
 The macOS 27 SDK declares `@State` as a macro too, implemented in the
