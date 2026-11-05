@@ -22,7 +22,7 @@ public struct WatchSettingsView: View {
             Section {
                 if settings.baseURL.isEmpty && settings.apiKey.isEmpty {
                     Text(WatchSettingsTexts.emptyText)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
                     WatchSettingPlatter(label: "Server", value: WatchSettingsTexts.server(settings.baseURL))
@@ -31,29 +31,29 @@ public struct WatchSettingsView: View {
                 }
                 if let error = receiver?.lastError {
                     Text(error)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(StatusTint.red.watchColor)
                 }
             } header: {
-                Text("From iPhone").font(.system(size: 12))
+                Text("From iPhone").font(.footnote)
             } footer: {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     Text(WatchSettingsTexts.footer(received: receiver?.lastReceived, now: context.date))
-                        .font(.system(size: 12))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
             Section {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(WatchSettingsTexts.flipperName(settings.peripheralName)).font(.system(size: 15))
+                    Text(WatchSettingsTexts.flipperName(settings.peripheralName)).font(.body)
                     HStack(spacing: 4) {
                         switch flipper.symbol {
                         case .progress:
                             ProgressView().frame(width: 12, height: 12)
                         case .symbol(let name):
-                            Image(systemName: name).font(.system(size: 12))
+                            Image(systemName: name).font(.footnote)
                         }
-                        Text(flipper.text).font(.system(size: 13))
+                        Text(flipper.text).font(.footnote)
                     }
                     .foregroundStyle(flipper.tint.watchColor)
                 }
@@ -62,28 +62,28 @@ public struct WatchSettingsView: View {
                 .accessibilityElement(children: .combine)
                 Button("Scan for Flipper", action: onScan)
                     .buttonStyle(WatchCapsuleButtonStyle(
-                        fill: WatchPlatter.fill, foreground: StatusTint.blue.watchColor, height: 44, fontSize: 15
+                        fill: WatchPlatter.fill, foreground: StatusTint.blue.watchColor, height: 44, font: .body.weight(.semibold)
                     ))
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
             } header: {
-                Text("Flipper").font(.system(size: 12))
+                Text("Flipper").font(.footnote)
             }
         }
         .navigationTitle("Settings")
     }
 }
 
-/// A 15 pt label over its 13 pt `.secondary` value, on the feed's platter.
+/// A `.body` label over its `.footnote` `.secondary` value, on the feed's platter.
 struct WatchSettingPlatter: View {
     let label: String
     let value: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.system(size: 15))
+            Text(label).font(.body)
             Text(value)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
@@ -113,21 +113,21 @@ public struct WatchScanView: View {
                     HStack(spacing: 6) {
                         ProgressView().frame(width: 12, height: 12)
                         Text("Searching\u{2026}")
-                            .font(.system(size: 13))
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .listRowBackground(Color.clear)
                 } else {
                     Button("Scan again") { scanner.scanForFlippers() }
                         .buttonStyle(WatchCapsuleButtonStyle(
-                            fill: WatchPlatter.fill, foreground: StatusTint.blue.watchColor, height: 44, fontSize: 15
+                            fill: WatchPlatter.fill, foreground: StatusTint.blue.watchColor, height: 44, font: .body.weight(.semibold)
                         ))
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
                 }
                 if let problem = scanner.scanProblem {
                     Text(problem)
-                        .font(.system(size: 13))
+                        .font(.footnote)
                         .foregroundStyle(StatusTint.red.watchColor)
                         .listRowBackground(Color.clear)
                 }
@@ -135,12 +135,12 @@ public struct WatchScanView: View {
                     Button { choose(peripheral) } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "antenna.radiowaves.left.and.right")
-                                .font(.system(size: 18))
+                                .font(.title3)
                                 .foregroundStyle(StatusTint.blue.watchColor)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(peripheral.name).font(.system(size: 15))
+                                Text(peripheral.name).font(.body)
                                 Text(WatchSettingsTexts.signal(rssi: peripheral.rssi))
-                                    .font(.system(size: 13))
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -151,7 +151,7 @@ public struct WatchScanView: View {
             }
             if let chooseError {
                 Text(chooseError)
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(StatusTint.red.watchColor)
                     .listRowBackground(Color.clear)
             }

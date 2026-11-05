@@ -446,13 +446,15 @@ struct FeedRowView: View {
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             status.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             #else
+            // Wrapped rather than cut: two lines for the title, three for
+            // the colour line and the status, at any text size.
             VStack(alignment: .leading, spacing: 0) {
-                Text(item.title).font(.headline).lineLimit(1)
+                Text(item.title).font(.headline).lineLimit(2)
                 if !item.detailText.isEmpty {
                     Text(item.detailText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(3)
                         .padding(.top, 2)
                 }
                 status.padding(.top, 6)
@@ -468,7 +470,7 @@ struct FeedRowView: View {
                 StatusSymbolView(symbol: item.statusSymbol, tint: item.statusTint)
                 Text(item.statusText)
                     .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                    .lineLimit(1)
+                    .lineLimit(Self.statusLines)
             }
             .help(item.errorHint ?? item.statusText)
             .font(.subheadline)
@@ -508,6 +510,13 @@ struct FeedRowView: View {
             Color.clear.frame(height: 1)
         }
     }
+
+    /// The Mac's line keeps one line of status; a card or tile wraps it.
+    #if os(macOS)
+    private static let statusLines = 1
+    #else
+    private static let statusLines = 3
+    #endif
 
     /// An iPad tile rather than an iPhone card or a Mac line.
     private var isTile: Bool {
@@ -592,9 +601,16 @@ struct WeightEntry: View {
             Text(readout.text)
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                .lineLimit(1)
+                .lineLimit(Self.readoutLines)
         }
     }
+
+    /// The gross readout wraps on the iPhone at large text sizes.
+    #if os(macOS)
+    private static let readoutLines = 1
+    #else
+    private static let readoutLines = 2
+    #endif
 
     private let saveHelp = "Save the weight"
 

@@ -220,6 +220,12 @@ Flipper choice. The iPad sends nothing.
 
 ## Tokens (watch page)
 
+The app uses text styles, so the sizes follow Dynamic Type: 12–13 →
+`.footnote`, 14 → `.caption2`, 15 → `.body`, 15–16 sb → `.headline`,
+17–19 symbols → `.title3`, the unit 20 sb → `.title3` semibold, 34 →
+`.title`; the 50 pt weight scales with `.largeTitle` (`@ScaledMetric`).
+Feed rows take two lines at the accessibility sizes.
+
 Weight 50 sb rounded tabular · unit `g` 20 sb · screen title 17 sb · row
 and detail title 15 sb · sub lines, readout line, hints 13 · section
 headers and footers 12 · buttons 40 high (Scan 44), 16 sb (Scan 15 sb),

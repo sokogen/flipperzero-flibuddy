@@ -19,7 +19,7 @@ struct WatchRowDetail: View {
                     HStack(spacing: 6) {
                         SwatchView(swatch: item.swatch, size: 12)
                         Text(item.watchTitle)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.headline)
                             .lineLimit(1)
                     }
                     switch WatchRowScreen(item, isCreating: isCreating) {
@@ -61,6 +61,8 @@ struct WatchWeightEntry: View {
     let onSaved: (FeedRow.ID) -> Void
     @ViewState private var velocity = 0.0
     @FocusState private var isFocused: Bool
+    /// The weight is the one custom-sized type: 50 pt at the default size.
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 50
 
     var body: some View {
         let id = item.id
@@ -71,10 +73,10 @@ struct WatchWeightEntry: View {
         VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(grams.map(String.init) ?? "0")
-                    .font(.system(size: 50, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(.system(size: weightSize, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundStyle(grams == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 Text("g")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
@@ -91,7 +93,7 @@ struct WatchWeightEntry: View {
             .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
             .accessibilityValue(grams.map { "\($0) grams" } ?? WatchRowScreen.turnTheCrownText)
             Text(line.text)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(line.isError ? AnyShapeStyle(StatusTint.red.watchColor) : AnyShapeStyle(.secondary))
@@ -140,7 +142,7 @@ struct WatchModePill: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(isSelected ? .black : .white)
                 .frame(maxWidth: .infinity, minHeight: 30)
                 .background(Capsule().fill(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(0.16))))
@@ -150,7 +152,7 @@ struct WatchModePill: View {
     }
 }
 
-/// A full-width capsule, 40 high, 16 sb white text.
+/// A full-width capsule, at least 40 high, white `.headline` text.
 struct WatchCapsuleButtonStyle: ButtonStyle {
     /// Save's tinted capsule: the watch blue at 26 % under `#4DA2FF` text.
     static let tintedFill = StatusTint.blue.watchColor.opacity(0.26)
@@ -159,11 +161,13 @@ struct WatchCapsuleButtonStyle: ButtonStyle {
     let fill: Color
     var foreground: Color = .white
     var height: CGFloat = 40
-    var fontSize: CGFloat = 16
+    var font: Font = .headline
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: fontSize, weight: .semibold))
+            .font(font)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, 4)
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity, minHeight: height)
             .background(Capsule().fill(fill))
@@ -179,13 +183,13 @@ struct WatchSavedBody: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            WatchStatusSymbol(item: item, size: 34)
+            WatchStatusSymbol(item: item, font: .title)
             if let remaining = WatchRowScreen.remainingText(item) {
                 Text(remaining)
-                    .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(.system(.title, design: .rounded).weight(.semibold).monospacedDigit())
             }
             Text(item.statusText)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button(item.reopenTitle ?? "Weigh again") { Task { await feed.reopen(item.id) } }
@@ -208,20 +212,20 @@ struct WatchUnknownBody: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(item.watchSubText)
-                .font(.system(size: 13))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                WatchStatusSymbol(item: item, size: 17)
-                Text(item.statusText).font(.system(size: 15))
+                WatchStatusSymbol(item: item, font: .body)
+                Text(item.statusText).font(.body)
             }
             if let hint {
                 Text(hint)
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             if let error = feed.error(for: item.id) {
                 Text("Error: \(error)")
-                    .font(.system(size: 13))
+                    .font(.footnote)
                     .foregroundStyle(StatusTint.red.watchColor)
             }
             if offersNew {
@@ -242,7 +246,7 @@ struct WatchBusyBody: View {
         VStack(spacing: 8) {
             ProgressView().frame(width: 26, height: 26)
             Text(phrase)
-                .font(.system(size: 15))
+                .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -251,15 +255,15 @@ struct WatchBusyBody: View {
     }
 }
 
-/// The row's status symbol at `size` in the watch's tint.
+/// The row's status symbol in `font`'s size and the watch's tint.
 struct WatchStatusSymbol: View {
     let item: FeedItem
-    let size: CGFloat
+    let font: Font
 
     var body: some View {
         if case .symbol(let name) = item.statusSymbol {
             Image(systemName: name)
-                .font(.system(size: size))
+                .font(font)
                 .foregroundStyle(item.statusTint.watchColor)
                 .accessibilityHidden(true)
         }
@@ -273,15 +277,15 @@ struct WatchDetailsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Details")
-                .font(.system(size: 12))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             ForEach(facts) { fact in
                 LabeledContent(fact.label) {
                     Text(fact.value)
-                        .font(fact.isIdentifier ? .system(size: 13).monospaced() : .system(size: 13))
+                        .font(fact.isIdentifier ? .footnote.monospaced() : .footnote)
                         .lineLimit(2)
                 }
-                .font(.system(size: 13))
+                .font(.footnote)
             }
         }
         .padding(.top, 8)

@@ -78,7 +78,7 @@ struct WatchFeedView: View {
                 // Ticks so a search that grows long changes the line.
                 TimelineView(.periodic(from: .now, by: 5)) { context in
                     Text(emptyText(context.date))
-                        .font(.system(size: 14))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -123,6 +123,10 @@ struct WatchFeedRow: View {
     let item: FeedItem
     let isBusy: Bool
     let isReduced: Bool
+    /// One line each, two at the accessibility text sizes.
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var lines: Int { typeSize.isAccessibilitySize ? 2 : 1 }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -131,14 +135,14 @@ struct WatchFeedRow: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.watchTitle)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
+                    .font(.headline)
+                    .lineLimit(lines)
                     .truncationMode(.tail)
                     .foregroundStyle(isReduced ? AnyShapeStyle(.white.opacity(0.55)) : AnyShapeStyle(.primary))
                 if !item.watchSubText.isEmpty {
                     Text(item.watchSubText)
-                        .font(.system(size: 13))
-                        .lineLimit(1)
+                        .font(.footnote)
+                        .lineLimit(lines)
                         .foregroundStyle(isReduced ? AnyShapeStyle(.white.opacity(0.35)) : AnyShapeStyle(.secondary))
                 }
             }
@@ -159,7 +163,7 @@ struct WatchFeedRow: View {
                 ProgressView().frame(width: 14, height: 14)
             } else if case .symbol(let name) = item.statusSymbol {
                 Image(systemName: name)
-                    .font(.system(size: 19))
+                    .font(.title3)
                     .foregroundStyle(item.statusTint.watchColor)
             }
         }
@@ -182,11 +186,13 @@ struct WatchConnectionGlyph: View {
                     ProgressView().frame(width: 13, height: 13)
                 case .symbol(let name):
                     Image(systemName: name)
-                        .font(.system(size: 16))
+                        .font(.body)
                         .foregroundStyle(status.tint.watchColor)
                 }
             }
             .frame(width: 30, height: 30)
+            // The symbol stays inside its 30 pt circle.
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(status.text)

@@ -70,14 +70,18 @@ public struct SettingsForm: View {
                         .focused($editing, equals: .apiKey)
                         .submitLabel(.done)
                 }
-                HStack(spacing: 8) {
-                    Button("Test connection") {
-                        editing = nil
-                        Task { await model.testConnection() }
+                // The result beside the button where both fit, else under it
+                // (accessibility text sizes).
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        testButton
+                        Spacer()
+                        resultLine(model.connectionResult).font(.subheadline)
                     }
-                    .disabled(model.connection == .testing)
-                    Spacer()
-                    resultLine(model.connectionResult).font(.subheadline)
+                    VStack(alignment: .leading, spacing: 6) {
+                        testButton
+                        resultLine(model.connectionResult).font(.subheadline)
+                    }
                 }
             } header: {
                 Text("Bambuddy")
@@ -182,6 +186,14 @@ public struct SettingsForm: View {
         // off the app's root (`settingsSession`): an iPad rotation builds
         // this form again, which must not stop either.
     }
+    private var testButton: some View {
+        Button("Test connection") {
+            editing = nil
+            Task { await model.testConnection() }
+        }
+        .disabled(model.connection == .testing)
+    }
+
     /// The camera is asked for on the first Scan, not before.
     private func scanQRCode() async {
         if camera == .notDetermined {

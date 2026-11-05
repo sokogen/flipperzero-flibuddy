@@ -174,7 +174,7 @@ struct PadStatusRow: View {
         HStack(spacing: 12) {
             HStack(spacing: 12) {
                 Image(systemName: row.symbol)
-                    .font(.system(size: 22))
+                    .font(.title2)
                     .foregroundStyle(row.tint.color)
                     .frame(width: 28)
                     .accessibilityHidden(true)
