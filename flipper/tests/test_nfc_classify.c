@@ -33,6 +33,15 @@ static void test_sak_unsupported(void) {
     }
 }
 
+static void test_ntag_read_result(void) {
+    CHECK_EQ_INT(tag_ntag_read_result(135, false), TagReadOk);
+    CHECK_EQ_INT(tag_ntag_read_result(1, true), TagReadOk); /* what was read counts */
+    /* no page and a password: retrying cannot help, the tag stays */
+    CHECK_EQ_INT(tag_ntag_read_result(0, true), TagReadUnsupported);
+    /* no page, no known reason (timeout, lost contact, protocol): retry */
+    CHECK_EQ_INT(tag_ntag_read_result(0, false), TagReadFailed);
+}
+
 static void test_block_text_of_a_bambu_tag(void) {
     load_mfc(&mfc);
     CHECK(tag_block_text(&mfc, TAG_BLOCK_MATERIAL, text));
@@ -99,6 +108,7 @@ int main(void) {
     RUN_TEST(test_sak_mifare_classic_1k_and_4k);
     RUN_TEST(test_sak_ntag);
     RUN_TEST(test_sak_unsupported);
+    RUN_TEST(test_ntag_read_result);
     RUN_TEST(test_block_text_of_a_bambu_tag);
     RUN_TEST(test_block_text_of_a_missing_block);
     RUN_TEST(test_block_text_is_sanitized);

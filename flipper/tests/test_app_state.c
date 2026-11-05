@@ -120,13 +120,18 @@ static void set_digits(uint16_t grams) {
     app.weight.touched = true;
 }
 
-/* Fresh app with a host connected (Ready); the next scan id is s-000012
- * and the next intent id i-000003, as in the fixtures. */
-static void setup(void) {
+/* Fresh app without a host (Waiting); the next scan id is s-000012 and the
+ * next intent id i-000003, as in the fixtures. */
+static void setup_no_host(void) {
     load_mfc(&mfc);
     load_ntag(&ntag);
     single_slot_intent_store_init(&store);
     app_state_init(&app, &store.base, 12, 3);
+}
+
+/* The same with a host connected (Ready). */
+static void setup(void) {
+    setup_no_host();
     send(AppEventHostConnected);
 }
 
@@ -253,6 +258,81 @@ static void test_read_failed_returns_to_ready_by_itself(void) {
     CHECK(app.screen == AppScreenReady);
     CHECK(app.last == AppOutcomeNone);
     CHECK(app_reader_wanted(&app));
+}
+
+static void test_unsupported_tag_is_its_own_quiet_outcome(void) {
+    setup();
+    send_at(AppEventTagDetected, 1000);
+    CHECK(send_at(AppEventTagUnsupported, 1000) == AppEffectNone);
+    CHECK(app.screen == AppScreenError);
+    CHECK(app.error == AppErrorUnsupportedTag);
+    CHECK(app.cue == AppCueNone); /* a tag nobody can read is no failure */
+    CHECK(!app.retryable);
+    CHECK_EQ_INT(app_timer_left_ms(&app, 1000), APP_READ_RETRY_MS);
+    CHECK(tick(1000 + APP_READ_RETRY_MS) == AppEffectNone);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.last == AppOutcomeNone);
+    /* only while reading */
+    CHECK(send(AppEventTagUnsupported) == AppEffectNone);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.cue == AppCueNone);
+}
+
+static void test_forget_the_tag_when_the_result_is_left_unanswered(void) {
+    /* Lookup failed: Back, and the spool still on the Flipper is read again */
+    setup();
+    scan_mfc();
+    send_fixture_lookup("lookup_error.json");
+    CHECK(!app.forget_tag);
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.forget_tag);
+
+    /* a scan taken without a host */
+    setup();
+    send(AppEventHostLost);
+    send(AppEventTagDetected);
+    send_tag(&ntag);
+    CHECK(app.result_kind == AppResultNoHost);
+    CHECK(!app.forget_tag); /* still on the result: the reader would loop */
+    press(AppKeyBack);
+    CHECK(app.forget_tag);
+
+    /* a scan the host could not get */
+    setup();
+    scan_mfc();
+    send(AppEventSendFailed);
+    press(AppKeyBack);
+    CHECK(app.forget_tag);
+
+    /* an answered scan is not read again */
+    setup();
+    scan_found();
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(!app.forget_tag);
+}
+
+static void test_other_host_version_is_remembered_until_a_host_connects(void) {
+    setup_no_host();
+    CHECK_EQ_INT(app.other_version, 0);
+    AppEvent e = {.type = AppEventOtherVersion, .version = 3};
+    CHECK(app_reduce(&app, &e) == AppEffectNone);
+    CHECK_EQ_INT(app.other_version, 3);
+    CHECK(app.screen == AppScreenWaiting);
+    CHECK(app.cue == AppCueNone);
+    send(AppEventHostConnected);
+    CHECK_EQ_INT(app.other_version, 0);
+    /* a connected host's stray hello says nothing */
+    app_reduce(&app, &e);
+    CHECK_EQ_INT(app.other_version, 0);
+    /* the port closing clears it (version 0) */
+    send(AppEventHostLost);
+    app_reduce(&app, &e);
+    CHECK_EQ_INT(app.other_version, 3);
+    e.version = 0;
+    app_reduce(&app, &e);
+    CHECK_EQ_INT(app.other_version, 0);
 }
 
 static void test_unknown_right_opens_weight_and_known_right_does_nothing(void) {
@@ -1531,6 +1611,9 @@ int main(void) {
     RUN_TEST(test_scan_gets_a_new_id_and_a_copy_of_the_tag);
     RUN_TEST(test_scan_carries_the_autosave_setting);
     RUN_TEST(test_read_failed_returns_to_ready_by_itself);
+    RUN_TEST(test_unsupported_tag_is_its_own_quiet_outcome);
+    RUN_TEST(test_forget_the_tag_when_the_result_is_left_unanswered);
+    RUN_TEST(test_other_host_version_is_remembered_until_a_host_connects);
     RUN_TEST(test_unknown_right_opens_weight_and_known_right_does_nothing);
     RUN_TEST(test_read_failed_and_back_while_reading);
     RUN_TEST(test_looking_up_back_and_stale_lookups);

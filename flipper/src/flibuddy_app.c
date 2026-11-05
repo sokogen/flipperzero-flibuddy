@@ -1,6 +1,7 @@
 #include <furi.h>
 #include <furi_hal_rtc.h>
 #include <furi_hal_version.h>
+#include <notification/notification_messages.h>
 #include <toolbox/version.h>
 
 #include "app_settings_file.h"
@@ -102,6 +103,7 @@ static void on_reader_event(TagReaderEvent event, void* ctx) {
         [TagReaderEventDetected] = FliBuddyEventTagDetected,
         [TagReaderEventRead] = FliBuddyEventTagRead,
         [TagReaderEventFailed] = FliBuddyEventReadFailed,
+        [TagReaderEventUnsupported] = FliBuddyEventTagUnsupported,
     };
     view_dispatcher_send_custom_event(app->view_dispatcher, custom[event]);
 }
@@ -158,14 +160,37 @@ static void save_settings(FliBuddyApp* app) {
     }
 }
 
+/* The port is closed: a hello the transport worker queued belongs to the
+ * session that ended and must not connect a host over the next one, and a
+ * protocol version noted from it is stale. */
+static void port_closed(FliBuddyApp* app) {
+    furi_message_queue_reset(app->rx_queue);
+    app->port_open = false;
+    apply_link(app, host_link_port_closed(&app->link));
+    if(app->state.other_version != 0) {
+        flibuddy_reduce(app, &(AppEvent){.type = AppEventOtherVersion, .version = 0});
+    }
+}
+
+/* Follows the transport's port: opened sends our hello, closed loses the
+ * host. A host hello is fed only after this, since the host speaks as soon
+ * as it opens the port, ahead of the next tick. */
+static void sync_port(FliBuddyApp* app) {
+    bool open = transport_is_connected(app->transport);
+    if(open == app->port_open) return;
+    if(open) {
+        app->port_open = true;
+        apply_link(app, host_link_port_opened(&app->link, now_ms()));
+    } else {
+        port_closed(app);
+    }
+}
+
 /* Closes the old transport (the host it carried is lost), saves the
  * settings and opens the new one. */
 static void switch_transport(FliBuddyApp* app) {
     free_transport(app);
-    /* a hello the old worker queued must not connect a host over the new one */
-    furi_message_queue_reset(app->rx_queue);
-    app->port_open = false;
-    apply_link(app, host_link_port_closed(&app->link));
+    port_closed(app);
     save_settings(app);
     start_transport(app);
 }
@@ -176,6 +201,16 @@ static void play_cue(FliBuddyApp* app) {
     if(app->state.cue != AppCueNone) {
         feedback_play(app->notifications, app->state.cue, &app->state.settings);
     }
+}
+
+/* The reducer left a result nobody answered: the spool on the Flipper is to
+ * be read again. The reader is stopped around the call (forget needs it
+ * stopped); sync_reader() restarts it where the screen reads. */
+static void forget_unanswered_tag(FliBuddyApp* app) {
+    if(!app->state.forget_tag) return;
+    app->state.forget_tag = false;
+    tag_reader_stop(app->reader);
+    tag_reader_forget(app->reader);
 }
 
 void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event) {
@@ -214,6 +249,7 @@ void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event) {
         app_reduce(&app->state, &(AppEvent){.type = AppEventSendFailed, .now_ms = stamped.now_ms});
         play_cue(app);
     }
+    forget_unanswered_tag(app);
     sync_reader(app);
     refresh(app);
 }
@@ -246,8 +282,16 @@ static AppBleStatus ble_status(FliBuddyApp* app) {
 static void handle_message(FliBuddyApp* app, const ProtoMessage* msg) {
     switch(msg->type) {
     case ProtoMsgHello:
+        sync_port(app);
         strlcpy(app->host_app, msg->hello.app, sizeof(app->host_app));
         apply_link(app, host_link_host_hello(&app->link, now_ms()));
+        break;
+    case ProtoMsgOtherVersion:
+        sync_port(app);
+        if(app->link.state != HostLinkStateClosed) {
+            flibuddy_reduce(
+                app, &(AppEvent){.type = AppEventOtherVersion, .version = msg->other_version});
+        }
         break;
     case ProtoMsgLookup:
         flibuddy_reduce(app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
@@ -264,7 +308,8 @@ static void handle_message(FliBuddyApp* app, const ProtoMessage* msg) {
 static void on_rx_line(const char* line, size_t len, void* ctx) {
     FliBuddyApp* app = ctx;
     UNUSED(len);
-    if(proto_decode_line(line, &app->rx_decoded) != ProtoDecodeOk) return;
+    ProtoDecodeStatus status = proto_decode_line(line, &app->rx_decoded);
+    if(status != ProtoDecodeOk && status != ProtoDecodeOtherVersion) return;
     if(furi_message_queue_put(app->rx_queue, &app->rx_decoded, 0) == FuriStatusOk) {
         view_dispatcher_send_custom_event(app->view_dispatcher, FliBuddyEventRx);
     }
@@ -299,6 +344,11 @@ static bool on_custom_event(void* ctx, uint32_t event) {
         forget_dropped_read(app);
         flibuddy_reduce_type(app, AppEventReadFailed);
         return true;
+    case FliBuddyEventTagUnsupported:
+        tag_reader_stop(app->reader);
+        forget_dropped_read(app);
+        flibuddy_reduce_type(app, AppEventTagUnsupported);
+        return true;
     default:
         return false;
     }
@@ -312,14 +362,7 @@ static bool on_navigation(void* ctx) {
 
 static void on_tick(void* ctx) {
     FliBuddyApp* app = ctx;
-    bool open = transport_is_connected(app->transport);
-    if(open != app->port_open) {
-        app->port_open = open;
-        apply_link(
-            app,
-            open ? host_link_port_opened(&app->link, now_ms()) :
-                   host_link_port_closed(&app->link));
-    }
+    sync_port(app);
     apply_link(app, host_link_tick(&app->link, now_ms()));
     AppBleStatus ble = ble_status(app);
     if(ble != app->state.ble) {
@@ -376,6 +419,9 @@ static void flibuddy_app_free(FliBuddyApp* app) {
     view_dispatcher_remove_view(app->view_dispatcher, FliBuddyViewMain);
     view_free(app->view);
     view_dispatcher_free(app->view_dispatcher);
+    /* the sequences live in this FAP's memory and the service plays them
+     * asynchronously: let it finish before the FAP is unloaded */
+    notification_message_block(app->notifications, &sequence_empty);
     furi_record_close(RECORD_NOTIFICATION);
     furi_record_close(RECORD_GUI);
 

@@ -37,7 +37,9 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    the transport in use, "Waiting for host" with animated dots. The line
    reads `USB: no host app`, `USB unavailable` (the port did not open),
    `Visible as <name>` (Bluetooth, advertising), `Bluetooth: no host app`
-   (a central subscribed without a `hello`) or `Bluetooth off`. ▶ Settings,
+   (a central subscribed without a `hello`) or `Bluetooth off`. A host app
+   whose `hello` speaks another protocol version replaces the line with
+   `App speaks protocol N` until a host connects or the port closes. ▶ Settings,
    Back exits the app. A tag read here shows Result · no host.
 2. **Ready** (host connected): spool picture with animated waves, "Ready",
    "Hold spool tag to the back". After an action an inverted bar with a
@@ -125,9 +127,16 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     host's `lines` and `error` when present). Titles follow the failed
     action (`Not saved`, `Not added`, `Not deleted`, `Not updated`,
     `Not linked`) or the case (`Lookup failed`, `No host reply`, `Host
-    lost`, `Not sent`, `Tag not read`). `Tag not read` has no chips: it
-    says "Hold the tag still against the back. Reading again...", runs a
-    1.5 s countdown bar and returns to Ready by itself (Back sooner). After a failed intent, while the
+    lost`, `Not sent`, `Tag not read`, `Unsupported tag`). `Tag not read`
+    has no chips: it says "Hold the tag still against the back. Reading
+    again...", runs a 1.5 s countdown bar and returns to Ready by itself
+    (Back sooner). `Unsupported tag` (an unsupported SAK, a
+    password-protected NTAG) is the same screen with "Not a spool tag
+    FliBuddy can read.", no error cue (no red LED, vibro or sound) and no
+    retry text; the tag stays remembered until it leaves the field. Back
+    from `Lookup failed`, and from a result shown without the host, makes
+    the reader forget the tag, so a spool still on the Flipper is read
+    again. After a failed intent, while the
     host is there, ◀ Back and Back return to the result and ▶ Retry
     resends the same intent under its id; otherwise there is no Retry chip
     and ◀, ▶ and Back go home.

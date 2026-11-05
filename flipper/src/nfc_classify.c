@@ -18,6 +18,11 @@ bool tag_type_from_sak(uint8_t sak, TagType* type) {
     }
 }
 
+TagReadResult tag_ntag_read_result(size_t pages, bool password_protected) {
+    if(pages > 0) return TagReadOk; /* `scan` needs at least one page */
+    return password_protected ? TagReadUnsupported : TagReadFailed;
+}
+
 bool tag_block_text(const TagDump* dump, uint8_t block, char out[TAG_BLOCK_TEXT_MAX]) {
     out[0] = '\0';
     if(dump->type != TagTypeMfc || !tag_dump_block_present(dump, block)) return false;

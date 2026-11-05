@@ -306,9 +306,15 @@ static bool result_complete(const ProtoResult* res, unsigned seen) {
     return (seen & SeenError) && !(seen & SeenSpool);
 }
 
+#define PROTO_OTHER_VERSION_MAX 99
+
 /* First pass: validates the whole line as one JSON object and picks up
  * `t` and `v`, which may come anywhere in it. */
-static ProtoDecodeStatus read_header(const char* line, size_t len, ProtoMsgType* type) {
+static ProtoDecodeStatus read_header(
+    const char* line,
+    size_t len,
+    ProtoMsgType* type,
+    uint8_t* other_version) {
     JsonReader r;
     char key[PROTO_KEY_MAX];
     char t[PROTO_TYPE_MAX];
@@ -328,7 +334,13 @@ static ProtoDecodeStatus read_header(const char* line, size_t len, ProtoMsgType*
         if(!ok) return ProtoDecodeMalformed;
     }
     if(!json_reader_finish(&r) || !has_t || !has_v) return ProtoDecodeMalformed;
-    if(v != PROTO_VERSION) return ProtoDecodeIgnored;
+    if(v != PROTO_VERSION) {
+        if(key_is(t, "hello") && v >= 1 && v <= PROTO_OTHER_VERSION_MAX) {
+            *other_version = (uint8_t)v;
+            return ProtoDecodeOtherVersion;
+        }
+        return ProtoDecodeIgnored;
+    }
     if(key_is(t, "hello"))
         *type = ProtoMsgHello;
     else if(key_is(t, "lookup"))
@@ -376,7 +388,13 @@ ProtoDecodeStatus proto_decode_line(const char* line, ProtoMessage* msg) {
     memset(msg, 0, sizeof(*msg));
     size_t len = strlen(line);
     ProtoMsgType type = ProtoMsgNone;
-    ProtoDecodeStatus status = read_header(line, len, &type);
+    uint8_t other_version = 0;
+    ProtoDecodeStatus status = read_header(line, len, &type, &other_version);
+    if(status == ProtoDecodeOtherVersion) {
+        msg->type = ProtoMsgOtherVersion;
+        msg->other_version = other_version;
+        return status;
+    }
     if(status != ProtoDecodeOk) return status;
     msg->type = type;
     if(!decode_body(line, len, msg)) {

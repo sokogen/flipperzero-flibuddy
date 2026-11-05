@@ -97,9 +97,10 @@ app cannot connect to the Flipper; it can again once you leave the app.
 The characteristics carry the same NDJSON lines as USB (lines ≤ 8192
 bytes, `protocol/PROTOCOL.md`), cut into chunks of ATT MTU − 3 bytes (20
 until the MTU exchange says more, at most 243). The Flipper sends one
-notification at a time and retries a chunk up to 3 times when the stack is
-busy (`src/ble_lines.h`); the host writes one chunk at a time. The Flipper
-sends its `hello` when the host subscribes to TX, as it does on USB when
+notification at a time and does not retry a chunk: the SDK waits about a
+second for room in the stack, and a chunk it still cannot place ends the
+line at once (`src/ble_lines.h`); the host writes one chunk at a time.
+The Flipper sends its `hello` when the host subscribes to TX, as it does on USB when
 the host raises DTR. A subscribed host is a connected host; unsubscribing
 or disconnecting ends the session.
 

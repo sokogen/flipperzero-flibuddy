@@ -150,11 +150,22 @@ static size_t put_str(char* out, size_t cap, size_t at, const char* s) {
     return at;
 }
 
+static char lower(char c) {
+    return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+}
+
+/* Whether `s` starts with `prefix` (non-empty), ignoring ASCII case. */
+static bool starts_with_nocase(const char* s, const char* prefix) {
+    for(; *prefix; s++, prefix++)
+        if(lower(*s) != lower(*prefix)) return false;
+    return true;
+}
+
 size_t ui_spool_name(const char* material, const char* subtype, char* out, size_t cap) {
     if(cap == 0) return 0;
     out[0] = '\0';
     size_t mlen = strlen(material);
-    bool subtype_has_material = mlen > 0 && strncmp(subtype, material, mlen) == 0 &&
+    bool subtype_has_material = mlen > 0 && starts_with_nocase(subtype, material) &&
                                 (subtype[mlen] == '\0' || subtype[mlen] == ' ');
     size_t at = 0;
     if(!subtype_has_material) {

@@ -37,6 +37,13 @@
  * Feedback and Sound settings.
  *
  * A failed read shows Error{ReadFailed} for APP_READ_RETRY_MS, then Ready.
+ * A tag the app cannot read at all (AppEventTagUnsupported) shows
+ * Error{UnsupportedTag} the same way, without an error cue; the reader
+ * keeps the tag remembered, so it is not read in a loop.
+ *
+ * Leaving a result nobody answered (Lookup failed, or a scan shown without
+ * the host) sets `forget_tag`, so the spool still on the Flipper is read
+ * again on Ready.
  *
  * Mark as new / Mark as empty send nothing at first: their toast holds the
  * intent for 3 s, ◀ Undo drops it, and the deadline, OK, Back or a new tag
@@ -123,8 +130,8 @@ typedef enum {
 } AppOutcome;
 
 typedef enum {
-    AppErrorNone,
     AppErrorReadFailed, /* the tag could not be read */
+    AppErrorUnsupportedTag, /* a tag the app cannot read at all; no error cue */
     AppErrorLookup, /* the host answered `lookup` with status error; see lookup */
     AppErrorHost, /* the host answered `result` with ok false; see result */
     AppErrorTimeout, /* no `result` in time */
@@ -175,6 +182,7 @@ typedef enum {
     AppEventTagDetected, /* the reader found a tag and starts reading it */
     AppEventTagRead, /* .tag */
     AppEventReadFailed,
+    AppEventTagUnsupported, /* the reader met a tag it cannot read, and never will */
     AppEventLookupReceived, /* .lookup */
     AppEventResultReceived, /* .result */
     AppEventSendFailed, /* the scan or intent of the last effect was not sent */
@@ -182,6 +190,7 @@ typedef enum {
     AppEventTick,
     AppEventBleStatus, /* .ble */
     AppEventTransportFailed, /* the transport in use did not open */
+    AppEventOtherVersion, /* .version: a host hello of another protocol version, 0 clears */
 } AppEventType;
 
 typedef struct {
@@ -193,6 +202,7 @@ typedef struct {
         const ProtoResult* result;
         AppKey key;
         AppBleStatus ble;
+        uint8_t version;
     };
 } AppEvent;
 
@@ -224,9 +234,12 @@ typedef struct {
     AppResultKind result_kind; /* of the Result the other screens return to */
     AppToast toast; /* on Toast */
     AppOutcome last; /* on Ready */
-    AppError error; /* on Error */
+    AppError error; /* on Error; meaningless elsewhere */
     bool retryable; /* on Error: ▶ resends `held` under its id */
     AppCue cue; /* of the last app_reduce() call */
+    bool forget_tag; /* the tag read last may still be on the Flipper and is to be read
+                      * again: the caller makes the reader forget it, then clears this */
+    uint8_t other_version; /* Waiting: the protocol of a host app that said hello, 0 none */
     bool connected;
     TransportKind transport; /* in use */
     bool transport_failed; /* it did not open; leaving Settings retries it */

@@ -144,7 +144,10 @@ static void usb_close(Transport* base) {
     t->opened = false;
 
     furi_hal_usb_unlock();
-    furi_check(furi_hal_usb_set_config(t->usb_prev, NULL));
+    /* a failed restore is logged, not fatal: the CLI must still come back */
+    if(!furi_hal_usb_set_config(t->usb_prev, NULL)) {
+        FURI_LOG_E("FliBuddy", "USB: restoring the previous configuration failed");
+    }
     cli_vcp_set(true);
 }
 

@@ -165,6 +165,13 @@ static void test_spool_names(void) {
     /* "PLA" does not start "PLAX": a subtype that only shares letters */
     ui_spool_name("PLA", "PLAX", out, sizeof(out));
     CHECK_STR_EQ(out, "PLA PLAX");
+    /* the match ignores case (PROTOCOL.md, `subtype`), as the host's does */
+    ui_spool_name("PLA", "pla Silk+", out, sizeof(out));
+    CHECK_STR_EQ(out, "pla Silk+");
+    ui_spool_name("petg", "PETG HF", out, sizeof(out));
+    CHECK_STR_EQ(out, "PETG HF");
+    ui_spool_name("PLA", "plax", out, sizeof(out));
+    CHECK_STR_EQ(out, "PLA plax");
 }
 
 int main(void) {

@@ -4,7 +4,8 @@
  * it read last has left the field (tag_watch.h), so a spool left on the
  * Flipper is read once; then it waits for an ISO 14443-3A tag
  * (nfc_scanner), reports TagReaderEventDetected, reads the tag with
- * tag_reader_read() and reports TagReaderEventRead or TagReaderEventFailed;
+ * tag_reader_read() and reports TagReaderEventRead, TagReaderEventFailed or
+ * TagReaderEventUnsupported;
  * then the worker ends, so one start reads at most one tag. Tags of other
  * technologies are ignored. Callbacks run on the worker thread.
  *
@@ -20,12 +21,14 @@
 
 #include <stdbool.h>
 
+#include "nfc_classify.h"
 #include "tag_dump.h"
 
 typedef enum {
     TagReaderEventDetected, /* a tag is in the field; reading starts */
     TagReaderEventRead, /* the dump passed to start() holds the tag */
-    TagReaderEventFailed, /* lost, unsupported SAK, or no data */
+    TagReaderEventFailed, /* lost, or no data: may succeed on the next try */
+    TagReaderEventUnsupported, /* a tag the app cannot read: unsupported SAK, locked NTAG */
 } TagReaderEvent;
 
 typedef void (*TagReaderCallback)(TagReaderEvent event, void* ctx);
@@ -57,7 +60,8 @@ bool tag_reader_is_started(const TagReader* reader);
  * 0x08/0x18 every MIFARE Classic sector with the Bambu Key A derived from
  * the 4-byte UID (sectors that fail stay missing), for SAK 0x00 every NTAG
  * page. Call it from a FuriThread (the sync pollers wait on thread flags).
- * When it fails `out` still holds the UID if a tag answered (uid_len 0
- * otherwise).
+ * When it does not read, `out` still holds the UID if a tag answered
+ * (uid_len 0 otherwise). Either way the worker remembers that UID, so the
+ * tag is not read again until it has left the field.
  */
-bool tag_reader_read(TagReader* reader, TagDump* out);
+TagReadResult tag_reader_read(TagReader* reader, TagDump* out);

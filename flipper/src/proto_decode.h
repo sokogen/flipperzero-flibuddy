@@ -7,6 +7,11 @@
  *   ProtoDecodeIgnored    valid JSON whose `t` the Flipper does not consume
  *                         (unknown, scan, intent) or whose `v` is not
  *                         PROTO_VERSION
+ *   ProtoDecodeOtherVersion  a `hello` whose `v` (1..99) is not PROTO_VERSION:
+ *                         msg->type is ProtoMsgOtherVersion and
+ *                         msg->other_version holds `v`; the host app is
+ *                         there but speaks another protocol. Any other
+ *                         message of another version is Ignored.
  *   ProtoDecodeMalformed  not JSON, or a known `t` with missing, ill-typed
  *                         or out-of-range fields (per the schema), too many
  *                         or too long `lines`, a `spool` / `created` /
@@ -16,7 +21,8 @@
  * Fields may come in any order; unknown fields are skipped, also inside
  * `spool` and `tag_info`. Strings are
  * ASCII as the Flipper renders them (see json_reader.h). Unless the status
- * is ProtoDecodeOk the message is left zeroed with type ProtoMsgNone.
+ * is ProtoDecodeOk (or OtherVersion, see above) the message is left zeroed
+ * with type ProtoMsgNone.
  */
 #pragma once
 
@@ -38,6 +44,7 @@ typedef enum {
     ProtoDecodeOk,
     ProtoDecodeIgnored,
     ProtoDecodeMalformed,
+    ProtoDecodeOtherVersion,
 } ProtoDecodeStatus;
 
 typedef enum {
@@ -45,6 +52,7 @@ typedef enum {
     ProtoMsgHello,
     ProtoMsgLookup,
     ProtoMsgResult,
+    ProtoMsgOtherVersion, /* only with ProtoDecodeOtherVersion */
 } ProtoMsgType;
 
 typedef struct {
@@ -131,6 +139,7 @@ typedef struct {
 
 typedef struct {
     ProtoMsgType type;
+    uint8_t other_version; /* ProtoMsgOtherVersion: the `v` of the host's hello */
     union {
         ProtoHello hello;
         ProtoLookup lookup;

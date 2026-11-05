@@ -45,7 +45,13 @@ static void go(AppState* s, AppScreen screen) {
 static void go_home(AppState* s, AppOutcome last) {
     go(s, s->connected ? AppScreenReady : AppScreenWaiting);
     s->last = last;
-    s->error = AppErrorNone;
+}
+
+/* Back to Ready / Waiting from a result nobody answered: the spool may
+ * still lie on the Flipper, and Ready invites the next one. */
+static void go_home_reread(AppState* s) {
+    go_home(s, AppOutcomeNone);
+    s->forget_tag = true;
 }
 
 static void go_result(AppState* s, AppResultKind kind) {
@@ -209,6 +215,12 @@ size_t app_encode_intent(const AppState* s, char* buf, size_t cap) {
 static void read_failed(AppState* s, uint32_t now_ms) {
     go_error(s, AppErrorReadFailed, false);
     timer_start(s, now_ms, APP_READ_RETRY_MS);
+}
+
+static void tag_unsupported(AppState* s, uint32_t now_ms) {
+    read_failed(s, now_ms);
+    s->error = AppErrorUnsupportedTag;
+    s->cue = AppCueNone;
 }
 
 static AppEffect on_tag_read(AppState* s, const TagDump* tag, uint32_t now_ms) {
@@ -393,7 +405,11 @@ static AppEffect key_home(AppState* s, AppKey key) {
 
 static AppEffect key_result(AppState* s, AppKey key, uint32_t now_ms) {
     if(key == AppKeyBack) {
-        go_home(s, AppOutcomeNone);
+        if(s->result_kind == AppResultNoHost) {
+            go_home_reread(s);
+        } else {
+            go_home(s, AppOutcomeNone);
+        }
         return AppEffectNone;
     }
     if(key == AppKeyLeft) {
@@ -574,14 +590,13 @@ static AppEffect key_toast(AppState* s, AppKey key, uint32_t now_ms) {
 
 static AppEffect key_error(AppState* s, AppKey key, uint32_t now_ms) {
     bool intent_error = s->retryable && s->connected;
-    if(key == AppKeyLeft || key == AppKeyBack) {
-        if(intent_error) {
-            go(s, AppScreenResult);
-        } else {
-            go_home(s, AppOutcomeNone);
-        }
-    } else if(key == AppKeyRight) {
-        if(intent_error) return send_held(s, now_ms);
+    if(key == AppKeyRight && intent_error) return send_held(s, now_ms);
+    if(key != AppKeyLeft && key != AppKeyBack && key != AppKeyRight) return AppEffectNone;
+    if(intent_error) {
+        go(s, AppScreenResult);
+    } else if(s->error == AppErrorLookup) {
+        go_home_reread(s);
+    } else {
         go_home(s, AppOutcomeNone);
     }
     return AppEffectNone;
@@ -721,6 +736,7 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
     switch(e->type) {
     case AppEventHostConnected:
         s->connected = true;
+        s->other_version = 0;
         s->cue = AppCueConnected;
         if(s->screen == AppScreenWaiting) go_home(s, AppOutcomeNone);
         break;
@@ -735,6 +751,9 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         break;
     case AppEventReadFailed:
         if(s->screen == AppScreenReading) read_failed(s, e->now_ms);
+        break;
+    case AppEventTagUnsupported:
+        if(s->screen == AppScreenReading) tag_unsupported(s, e->now_ms);
         break;
     case AppEventLookupReceived:
         if(accepts_lookup(s->screen)) on_lookup(s, e->lookup, e->now_ms);
@@ -760,6 +779,9 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         break;
     case AppEventTransportFailed:
         s->transport_failed = true;
+        break;
+    case AppEventOtherVersion:
+        s->other_version = s->connected ? 0 : e->version;
         break;
     }
     return effect;

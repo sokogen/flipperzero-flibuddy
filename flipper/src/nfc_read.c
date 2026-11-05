@@ -48,10 +48,10 @@ static bool tag_present(TagReader* r) {
     return reader_tag_answered(ok, iso.uid_len);
 }
 
-static bool read_mfc(TagReader* r, TagDump* out) {
+static TagReadResult read_mfc(TagReader* r, TagDump* out) {
     /* Bambu keys come from a 4-byte UID; any other tag keeps every sector
      * missing and the host can still match it by UID. */
-    if(out->uid_len != BAMBU_UID_LEN) return true;
+    if(out->uid_len != BAMBU_UID_LEN) return TagReadOk;
 
     uint8_t derived[BAMBU_KEYS_LEN];
     bambu_derive_keys(out->uid, derived);
@@ -76,10 +76,10 @@ static bool read_mfc(TagReader* r, TagDump* out) {
     mf_classic_free(data);
     free(keys);
     memset(derived, 0, sizeof(derived));
-    return ok;
+    return ok ? TagReadOk : TagReadFailed;
 }
 
-static bool read_ntag(TagReader* r, TagDump* out) {
+static TagReadResult read_ntag(TagReader* r, TagDump* out) {
     MfUltralightData* data = mf_ultralight_alloc();
     MfUltralightError error = mf_ultralight_poller_sync_read_card(r->nfc, data, NULL);
     if(error == MfUltralightErrorNone) {
@@ -88,19 +88,19 @@ static bool read_ntag(TagReader* r, TagDump* out) {
     }
     FURI_LOG_I("FliBuddy", "ntag read: error %d, pages %u", error, out->page_count);
     mf_ultralight_free(data);
-    return out->page_count > 0; /* `scan` needs at least one page */
+    return tag_ntag_read_result(out->page_count, error == MfUltralightErrorAuth);
 }
 
-bool tag_reader_read(TagReader* r, TagDump* out) {
+TagReadResult tag_reader_read(TagReader* r, TagDump* out) {
     Iso14443_3aData iso;
     tag_dump_init(out, TagTypeMfc); /* no UID until a tag answers */
     bool ok = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
-    if(!reader_tag_answered(ok, iso.uid_len)) return false;
-    if(!tag_dump_set_uid(out, iso.uid, iso.uid_len)) return false;
+    if(!reader_tag_answered(ok, iso.uid_len)) return TagReadFailed;
+    if(!tag_dump_set_uid(out, iso.uid, iso.uid_len)) return TagReadFailed;
     TagType type;
     if(!tag_type_from_sak(iso.sak, &type)) {
         FURI_LOG_I("FliBuddy", "unsupported SAK %02X", iso.sak);
-        return false;
+        return TagReadUnsupported;
     }
     out->type = type;
     out->sak = iso.sak;
@@ -151,12 +151,18 @@ static int32_t reader_worker(void* ctx) {
     TagReader* r = ctx;
     if(!wait_gone(r) || !wait_for_tag(r)) return 0;
     report(r, TagReaderEventDetected);
-    bool ok = tag_reader_read(r, r->out);
-    /* also a tag that failed: it would fail again at once. A result nobody
-     * gets (the reader was stopped during the read) is not remembered: the
-     * next reader reads that tag. */
+    TagReadResult result = tag_reader_read(r, r->out);
+    /* also a tag that failed or is unsupported: it would fail again at once,
+     * and the screen does not say "reading again". A result nobody gets
+     * (the reader was stopped during the read) is not remembered: the next
+     * reader reads that tag. */
     if(!r->stopping) tag_watch_set(&r->watch, r->out->uid, r->out->uid_len);
-    report(r, ok ? TagReaderEventRead : TagReaderEventFailed);
+    static const TagReaderEvent events[] = {
+        [TagReadOk] = TagReaderEventRead,
+        [TagReadFailed] = TagReaderEventFailed,
+        [TagReadUnsupported] = TagReaderEventUnsupported,
+    };
+    report(r, events[result]);
     return 0;
 }
 

@@ -10,7 +10,9 @@
  * connected. Without an answer the port is held by something else (a
  * terminal, qFlipper) and the Flipper stays quiet until a host `hello`
  * arrives, which connects at any time and is answered with a `hello` unless
- * it answers ours. Closing the port loses the host.
+ * it answers ours. Closing the port loses the host. A host `hello` while
+ * the port is closed is stale and ignored: the caller feeds port_opened()
+ * first when the transport already holds the port.
  *
  * Each call returns what the caller must do. Times are milliseconds of a
  * free-running uint32 tick that may wrap.

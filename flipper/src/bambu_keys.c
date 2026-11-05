@@ -13,7 +13,7 @@ static const uint8_t bambu_info[7] = {'R', 'F', 'I', 'D', '-', 'A', '\0'};
 
 void bambu_derive_keys(const uint8_t uid[BAMBU_UID_LEN], uint8_t out[BAMBU_KEYS_LEN]) {
     /* Cannot fail: the output length is a valid constant. */
-    sb_hkdf_sha256(
+    fb_hkdf_sha256(
         bambu_master_key,
         sizeof(bambu_master_key),
         uid,

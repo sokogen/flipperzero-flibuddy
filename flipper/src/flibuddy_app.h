@@ -9,8 +9,8 @@
  *
  * Threads: the GUI thread owns everything below except rx_decoded, which
  * the transport worker fills and hands over through rx_queue, read_dump,
- * which the NFC worker fills before it posts FliBuddyEventTagRead or
- * FliBuddyEventReadFailed and then ends, and the view's frame, which the
+ * which the NFC worker fills before it posts FliBuddyEventTagRead,
+ * FliBuddyEventReadFailed or FliBuddyEventTagUnsupported and then ends, and the view's frame, which the
  * GUI service draws under the view model's lock. Every source file that
  * uses the SDK includes an SDK header itself, so that the host test build
  * (flipper/tests/Makefile) leaves it out.
@@ -42,6 +42,7 @@ typedef enum {
     FliBuddyEventTagDetected, /* NFC worker */
     FliBuddyEventTagRead, /* NFC worker, read_dump is filled */
     FliBuddyEventReadFailed, /* NFC worker */
+    FliBuddyEventTagUnsupported, /* NFC worker */
 } FliBuddyEvent;
 
 typedef struct {

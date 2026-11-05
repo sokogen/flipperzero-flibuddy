@@ -70,12 +70,19 @@ static void test_repeated_host_hello_is_answered_without_reconnect(void) {
     CHECK(host_link_is_up(&link));
 }
 
-static void test_host_hello_on_closed_port_connects(void) {
+static void test_host_hello_on_closed_port_is_ignored(void) {
     HostLink link;
     host_link_init(&link);
-    /* a host that does not raise DTR is still a host */
-    check_out(host_link_host_hello(&link, 5), true, true, false);
-    CHECK(host_link_is_up(&link));
+    /* a hello still in flight when the port closed must not bring the host
+     * back; a live host's hello is fed after the port-open check */
+    check_out(host_link_host_hello(&link, 5), false, false, false);
+    CHECK_EQ_INT(link.state, HostLinkStateClosed);
+    CHECK(!host_link_is_up(&link));
+
+    host_link_port_opened(&link, 10);
+    host_link_port_closed(&link);
+    check_out(host_link_host_hello(&link, 20), false, false, false);
+    CHECK_EQ_INT(link.state, HostLinkStateClosed);
 }
 
 static void test_port_close_loses_host(void) {
@@ -134,7 +141,7 @@ int main(void) {
     RUN_TEST(test_late_host_hello_connects_and_gets_a_reply);
     RUN_TEST(test_host_hello_after_timeout_before_tick_gets_a_reply);
     RUN_TEST(test_repeated_host_hello_is_answered_without_reconnect);
-    RUN_TEST(test_host_hello_on_closed_port_connects);
+    RUN_TEST(test_host_hello_on_closed_port_is_ignored);
     RUN_TEST(test_port_close_loses_host);
     RUN_TEST(test_port_close_while_waiting_loses_nothing);
     RUN_TEST(test_repeated_port_open_is_ignored);

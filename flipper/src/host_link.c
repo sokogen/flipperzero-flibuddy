@@ -25,6 +25,7 @@ HostLinkOutput host_link_port_closed(HostLink* link) {
 }
 
 HostLinkOutput host_link_host_hello(HostLink* link, uint32_t now_ms) {
+    if(link->state == HostLinkStateClosed) return nothing;
     bool answers_ours = link->state == HostLinkStateWaiting && !hello_expired(link, now_ms);
     bool was_up = link->state == HostLinkStateUp;
     link->state = HostLinkStateUp;

@@ -148,6 +148,31 @@ static void test_waiting_over_usb(void) {
     CHECK_STR_EQ(frame.line[0], "USB unavailable");
 }
 
+static void test_waiting_names_the_protocol_of_another_host_app(void) {
+    setup_no_host();
+    AppEvent e = {.type = AppEventOtherVersion, .version = 3};
+    app_reduce(&app, &e);
+    build();
+    CHECK_STR_EQ(frame.line[0], "App speaks protocol 3");
+    CHECK_STR_EQ(frame.line[1], "Waiting for host");
+    CHECK(frame.line_icon == UiIconUsb);
+    CHECK(strlen(frame.line[0]) <= 21); /* fits the 108 px beside the icon */
+
+    e.version = 12;
+    app_reduce(&app, &e);
+    build();
+    CHECK_STR_EQ(frame.line[0], "App speaks protocol 12");
+
+    app.transport = TransportKindBluetooth;
+    build();
+    CHECK_STR_EQ(frame.line[0], "App speaks protocol 12");
+
+    e.version = 0;
+    app_reduce(&app, &e);
+    build();
+    CHECK_STR_EQ(frame.line[0], "Bluetooth off");
+}
+
 static void test_waiting_over_bluetooth(void) {
     setup_no_host();
     app.transport = TransportKindBluetooth;
@@ -772,6 +797,19 @@ static void test_errors(void) {
     check_chips("", "", "");
 }
 
+static void test_unsupported_tag_screen_does_not_promise_a_retry(void) {
+    setup();
+    send(AppEventTagDetected);
+    send(AppEventTagUnsupported);
+    build();
+    CHECK(frame.screen == AppScreenError);
+    CHECK_STR_EQ(frame.title, "Unsupported tag");
+    CHECK_STR_EQ(frame.body, "Not a spool tag FliBuddy can read.");
+    CHECK(strstr(frame.body, "again") == NULL);
+    CHECK_EQ_INT(frame.progress, UI_TOAST_MAX);
+    check_chips("", "", "");
+}
+
 static void test_error_titles_follow_the_action(void) {
     setup();
     send_tag(&mfc);
@@ -886,6 +924,8 @@ static void test_fields_of_another_screen_are_cleared(void) {
 int main(void) {
     RUN_TEST(test_waiting_over_usb);
     RUN_TEST(test_waiting_over_bluetooth);
+    RUN_TEST(test_waiting_names_the_protocol_of_another_host_app);
+    RUN_TEST(test_unsupported_tag_screen_does_not_promise_a_retry);
     RUN_TEST(test_ready);
     RUN_TEST(test_ready_names_the_last_outcome);
     RUN_TEST(test_reading_and_looking_up);

@@ -19,7 +19,7 @@ static uint32_t rotr(uint32_t x, unsigned n) {
     return (x >> n) | (x << (32 - n));
 }
 
-static void compress(uint32_t state[8], const uint8_t block[SB_SHA256_BLOCK_LEN]) {
+static void compress(uint32_t state[8], const uint8_t block[FB_SHA256_BLOCK_LEN]) {
     uint32_t w[64];
     for(int i = 0; i < 16; i++) {
         w[i] = (uint32_t)block[i * 4] << 24 | (uint32_t)block[i * 4 + 1] << 16 |
@@ -56,7 +56,7 @@ static void compress(uint32_t state[8], const uint8_t block[SB_SHA256_BLOCK_LEN]
     state[7] += h;
 }
 
-void sb_sha256_init(SbSha256* ctx) {
+void fb_sha256_init(FbSha256* ctx) {
     static const uint32_t iv[8] = {
         0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
@@ -66,34 +66,34 @@ void sb_sha256_init(SbSha256* ctx) {
     ctx->block_len = 0;
 }
 
-void sb_sha256_update(SbSha256* ctx, const uint8_t* data, size_t len) {
+void fb_sha256_update(FbSha256* ctx, const uint8_t* data, size_t len) {
     ctx->total_len += len;
     while(len > 0) {
-        size_t take = SB_SHA256_BLOCK_LEN - ctx->block_len;
+        size_t take = FB_SHA256_BLOCK_LEN - ctx->block_len;
         if(take > len) take = len;
         memcpy(ctx->block + ctx->block_len, data, take);
         ctx->block_len += take;
         data += take;
         len -= take;
-        if(ctx->block_len == SB_SHA256_BLOCK_LEN) {
+        if(ctx->block_len == FB_SHA256_BLOCK_LEN) {
             compress(ctx->state, ctx->block);
             ctx->block_len = 0;
         }
     }
 }
 
-void sb_sha256_final(SbSha256* ctx, uint8_t out[SB_SHA256_DIGEST_LEN]) {
+void fb_sha256_final(FbSha256* ctx, uint8_t out[FB_SHA256_DIGEST_LEN]) {
     uint64_t bits = ctx->total_len * 8;
 
     ctx->block[ctx->block_len++] = 0x80;
-    if(ctx->block_len > SB_SHA256_BLOCK_LEN - 8) {
-        memset(ctx->block + ctx->block_len, 0, SB_SHA256_BLOCK_LEN - ctx->block_len);
+    if(ctx->block_len > FB_SHA256_BLOCK_LEN - 8) {
+        memset(ctx->block + ctx->block_len, 0, FB_SHA256_BLOCK_LEN - ctx->block_len);
         compress(ctx->state, ctx->block);
         ctx->block_len = 0;
     }
-    memset(ctx->block + ctx->block_len, 0, SB_SHA256_BLOCK_LEN - 8 - ctx->block_len);
+    memset(ctx->block + ctx->block_len, 0, FB_SHA256_BLOCK_LEN - 8 - ctx->block_len);
     for(int i = 0; i < 8; i++) {
-        ctx->block[SB_SHA256_BLOCK_LEN - 1 - i] = (uint8_t)(bits >> (8 * i));
+        ctx->block[FB_SHA256_BLOCK_LEN - 1 - i] = (uint8_t)(bits >> (8 * i));
     }
     compress(ctx->state, ctx->block);
 
@@ -106,9 +106,9 @@ void sb_sha256_final(SbSha256* ctx, uint8_t out[SB_SHA256_DIGEST_LEN]) {
     memset(ctx, 0, sizeof(*ctx));
 }
 
-void sb_sha256(const void* data, size_t len, uint8_t out[SB_SHA256_DIGEST_LEN]) {
-    SbSha256 ctx;
-    sb_sha256_init(&ctx);
-    sb_sha256_update(&ctx, data, len);
-    sb_sha256_final(&ctx, out);
+void fb_sha256(const void* data, size_t len, uint8_t out[FB_SHA256_DIGEST_LEN]) {
+    FbSha256 ctx;
+    fb_sha256_init(&ctx);
+    fb_sha256_update(&ctx, data, len);
+    fb_sha256_final(&ctx, out);
 }

@@ -19,6 +19,20 @@
  * leaves *type untouched. */
 bool tag_type_from_sak(uint8_t sak, TagType* type);
 
+/* What a tag read came to. Unsupported is a tag the app will never read
+ * (an unsupported SAK, a password-protected NTAG): no error cue, no retry
+ * text. Failed is a read that may succeed next time. */
+typedef enum {
+    TagReadOk,
+    TagReadFailed,
+    TagReadUnsupported,
+} TagReadResult;
+
+/* The outcome of reading an NTAG / Ultralight: `pages` read, and whether
+ * the SDK's read stopped on a password (MfUltralightErrorAuth). A timeout,
+ * lost contact or protocol error is a real, retryable failure. */
+TagReadResult tag_ntag_read_result(size_t pages, bool password_protected);
+
 /* A MIFARE Classic block as text: it stops at the first NUL, turns other
  * control and non-ASCII bytes into '?' and drops trailing spaces. False
  * (and "") when the dump is not mfc, the block is missing or it holds no

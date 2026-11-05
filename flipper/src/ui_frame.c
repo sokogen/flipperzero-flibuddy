@@ -157,7 +157,10 @@ static void build_waiting(UiFrame* f, const AppState* s, const UiEnv* env) {
     put(&t, env->version);
     f->line_icon = f->icon;
     t = TEXT(f->line[0]);
-    if(s->transport == TransportKindUsb) {
+    if(s->other_version != 0) {
+        put(&t, "App speaks protocol ");
+        put_uint(&t, s->other_version);
+    } else if(s->transport == TransportKindUsb) {
         put(&t, s->transport_failed ? "USB unavailable" : "USB: no host app");
     } else if(s->transport_failed || s->ble == AppBleOff) {
         put(&t, "Bluetooth off");
@@ -605,6 +608,12 @@ static void build_error(UiFrame* f, const AppState* s, const UiEnv* env) {
         f->progress =
             (uint16_t)(app_timer_left_ms(s, env->now_ms) * UI_TOAST_MAX / APP_READ_RETRY_MS);
         return; /* no keys needed */
+    case AppErrorUnsupportedTag:
+        SET(f->title, "Unsupported tag");
+        put(&t, "Not a spool tag FliBuddy can read.");
+        f->progress =
+            (uint16_t)(app_timer_left_ms(s, env->now_ms) * UI_TOAST_MAX / APP_READ_RETRY_MS);
+        return; /* no keys needed */
     case AppErrorLookup:
         SET(f->title, "Lookup failed");
         put_host_text(
@@ -625,9 +634,6 @@ static void build_error(UiFrame* f, const AppState* s, const UiEnv* env) {
     case AppErrorSendFailed:
         SET(f->title, "Not sent");
         put(&t, "Could not send to the host.");
-        break;
-    case AppErrorNone:
-        SET(f->title, "Error");
         break;
     }
     SET(f->left, "Back");

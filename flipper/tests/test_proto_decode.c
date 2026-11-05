@@ -412,6 +412,30 @@ static void test_unknown_type_or_version_is_ignored(void) {
     CHECK(decode("{\"t\":\"ping\",\"v\":2,") == ProtoDecodeMalformed);
 }
 
+static void test_hello_of_another_version_is_reported(void) {
+    /* the waiting screen names the version a host app speaks */
+    CHECK(decode("{\"t\":\"hello\",\"v\":3,\"app\":\"flibuddy-mac/9.0.0\"}") ==
+          ProtoDecodeOtherVersion);
+    CHECK(msg.type == ProtoMsgOtherVersion);
+    CHECK_EQ_INT(msg.other_version, 3);
+    CHECK(decode("{\"v\":1,\"app\":\"flibuddy-mac/0.0.1\",\"t\":\"hello\"}") ==
+          ProtoDecodeOtherVersion);
+    CHECK_EQ_INT(msg.other_version, 1);
+    /* only a hello says what the app speaks; other messages stay ignored */
+    CHECK(decode("{\"t\":\"result\",\"v\":3,\"id\":\"i-1\",\"ok\":true,\"lines\":[]}") ==
+          ProtoDecodeIgnored);
+    CHECK(msg.type == ProtoMsgNone);
+    CHECK_EQ_INT(msg.other_version, 0);
+    /* a version that is no small positive number is noise */
+    CHECK(decode("{\"t\":\"hello\",\"v\":0}") == ProtoDecodeIgnored);
+    CHECK(decode("{\"t\":\"hello\",\"v\":100}") == ProtoDecodeIgnored);
+    CHECK(decode("{\"t\":\"hello\",\"v\":-2}") == ProtoDecodeIgnored);
+    /* the current version is a normal hello */
+    CHECK(decode("{\"t\":\"hello\",\"v\":2,\"app\":\"flibuddy-mac/1\",\"os\":\"macOS\"}") ==
+          ProtoDecodeOk);
+    CHECK_EQ_INT(msg.other_version, 0);
+}
+
 static void test_key_order_and_unknown_fields(void) {
     CHECK(decode("{\"lines\":[\"x\"],\"extra\":{\"a\":[1,2.5e3,null]},\"ok\":true,"
                  "\"id\":\"i-9\",\"v\":2,\"t\":\"result\"}") == ProtoDecodeOk);
@@ -613,6 +637,7 @@ int main(void) {
     RUN_TEST(test_tag_info_fields_are_optional);
     RUN_TEST(test_malformed_v2_fields);
     RUN_TEST(test_unknown_type_or_version_is_ignored);
+    RUN_TEST(test_hello_of_another_version_is_reported);
     RUN_TEST(test_key_order_and_unknown_fields);
     RUN_TEST(test_line_length_cap);
     RUN_TEST(test_lines_count_cap);
