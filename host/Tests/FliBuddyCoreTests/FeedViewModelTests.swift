@@ -125,6 +125,24 @@ struct FeedViewModelTests {
         #expect(model.haptic == failed)
     }
 
+    @Test func aSecondActionOnABusyRowIsIgnored() async throws {
+        let inventory = FakeInventory()
+        let (model, session) = makeModel(inventory)
+        let id = await session.record(try scan("s-1"))
+        _ = await session.lookup(row: id)
+        model.apply(await session.snapshot)
+        inventory.onCreate = { try? await Task.sleep(for: .milliseconds(200)) }
+
+        let first = Task { await model.createFromTag(id) }
+        #expect(await eventually { model.isBusy(id) })
+        #expect(await !model.createFromTag(id))
+
+        #expect(await first.value)
+        #expect(inventory.creates.count == 1)
+        #expect(model.error(for: id) == nil)
+        #expect(model.haptic == nil)
+    }
+
     @Test func saveIsEnabledOnlyWithAValue() async throws {
         let (model, session) = makeModel()
         let id = await session.record(try scan("s-1"))

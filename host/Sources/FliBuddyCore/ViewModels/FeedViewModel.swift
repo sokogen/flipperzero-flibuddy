@@ -419,8 +419,14 @@ public final class FeedViewModel {
 
     // MARK: Plumbing
 
+    /// Runs a host action on the row; a second one while the first runs (a
+    /// double tap) is ignored and reports `false`.
     @discardableResult
     private func perform(_ id: FeedRow.ID, _ action: (Session) async throws -> Void) async -> Bool {
+        guard !busy.contains(id) else {
+            Log.debug(.session, "host action ignored: the row is busy")
+            return false
+        }
         busy.insert(id)
         errors[id] = nil
         defer { busy.remove(id) }

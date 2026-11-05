@@ -7,9 +7,13 @@ public struct BambuddyClient: Sendable {
     /// Bambuddy `detail` texts are cut to this length, as `error` fields are.
     static let maxMessage = 200
 
+    /// Every client without a session of its own uses this one: a client
+    /// is made on every settings apply, Test connection and catalog load.
+    static let sharedSession = URLSession(configuration: defaultConfiguration)
+
     public let baseURL: URL
     private let apiKey: String
-    private let session: URLSession
+    let session: URLSession
 
     /// `baseURL` is the Bambuddy root, e.g. `http://192.168.1.20:8000`; a path
     /// prefix (reverse proxy) is kept.
@@ -19,13 +23,17 @@ public struct BambuddyClient: Sendable {
         else { throw BambuddyError.invalidBaseURL(baseURL.absoluteString) }
         self.baseURL = baseURL
         self.apiKey = apiKey
-        self.session = session ?? URLSession(configuration: Self.defaultConfiguration)
+        self.session = session ?? Self.sharedSession
     }
 
+    /// Clients of other URLs and keys share the session, so nothing is
+    /// answered from a cache: one key's answer must not stand for another's.
     private static var defaultConfiguration: URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = timeout
         configuration.timeoutIntervalForResource = timeout * 2
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         return configuration
     }
 

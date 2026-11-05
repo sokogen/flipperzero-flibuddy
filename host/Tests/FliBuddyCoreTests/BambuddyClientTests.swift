@@ -537,6 +537,19 @@ struct BambuddyClientTests {
         #expect(server.requests.first?.path == "/bambuddy/api/v1/inventory/catalog")
     }
 
+    @Test func clientsShareOneURLSession() throws {
+        let first = try BambuddyClient(baseURL: URL(string: "http://a.test:8000")!, apiKey: "bb_a")
+        let second = try BambuddyClient(baseURL: URL(string: "http://b.test:8000")!, apiKey: "bb_b")
+        #expect(first.session === second.session)
+        #expect(first.session === BambuddyClient.sharedSession)
+        let configuration = BambuddyClient.sharedSession.configuration
+        #expect(configuration.timeoutIntervalForRequest == BambuddyClient.timeout)
+        #expect(configuration.timeoutIntervalForResource == BambuddyClient.timeout * 2)
+        // One key's answer is never served from a cache to another key.
+        #expect(configuration.urlCache == nil)
+        #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+    }
+
     @Test func baseURLMustBeHTTP() {
         for text in ["ftp://nas.local", "nas.local:8000", "file:///tmp"] {
             #expect(throws: BambuddyError.invalidBaseURL(text)) {
