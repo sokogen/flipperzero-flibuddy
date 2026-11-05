@@ -417,6 +417,31 @@ category, default `large`) and the 9:41 status bar on iPhone and iPad
 the output path, waits (`-w`, default 4 s) and saves a PNG. `simctl` cannot rotate a device, so an iPad stays in
 portrait unless it was turned in the Simulator app.
 
+### App Store packaging
+
+Both apps carry a `PrivacyInfo.xcprivacy` (no tracking, no collected data,
+`UserDefaults` with reason CA92.1, the only required-reason API in
+`host/Sources`; a test fails if another one appears) and set
+`ITSAppUsesNonExemptEncryption` to NO. `MARKETING_VERSION` is 1.0.0 for both.
+
+```
+make apple-archive
+```
+
+archives the `FliBuddyiOS` scheme (Release, `generic/platform=iOS`, the watch
+app embedded) with `CURRENT_PROJECT_VERSION` set to `git rev-list --count
+HEAD` for both apps, then exports a signed `.ipa` for App Store Connect into
+`host/Apple/.build/export` (`ExportOptions.plist`; the team comes from
+`DEVELOPMENT_TEAM` in `Signing.xcconfig`). It needs Xcode signed in to the
+paid Apple Developer account and an App Store Connect app record, and it
+uploads nothing. The release log level is `info`.
+
+`tools/store_shots.sh [dir]` captures the App Store screenshots (iPhone 18
+Pro Max 1320x2868, iPad Pro 13-inch 2064x2752 in portrait, Apple Watch
+Series 12 46 mm 416x496) with `sim_shot.sh` into `host/Apple/.build/store-shots`
+after `make apple-project apple-build`. The watch simulator keeps its own
+clock, so the watch shot does not show 9:41.
+
 ### `@ViewState` instead of `@State`
 
 The macOS 27 SDK declares `@State` as a macro too, implemented in the

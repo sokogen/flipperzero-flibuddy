@@ -198,3 +198,103 @@ def test_both_apps_use_the_app_icon_and_accent_color_of_their_catalogs():
         assert settings["ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME"] == "AccentColor"
     assert (APPLE / "iOS/Assets.xcassets/AppIcon.appiconset").is_dir()
     assert (APPLE / "Watch/Assets.xcassets/AppIcon.appiconset").is_dir()
+
+
+def test_both_apps_declare_the_privacy_manifest():
+    # App Store Connect requires a manifest: no tracking, no collected data,
+    # and the one required-reason API the apps use, UserDefaults (the
+    # settings), for the app's own data (CA92.1). No other such API is used:
+    # no file timestamps, boot time, disk space or active keyboards.
+    for folder in ("iOS", "Watch"):
+        manifest = plistlib.loads((APPLE / folder / "PrivacyInfo.xcprivacy").read_bytes())
+        assert manifest["NSPrivacyTracking"] is False
+        assert manifest["NSPrivacyTrackingDomains"] == []
+        assert manifest["NSPrivacyCollectedDataTypes"] == []
+        assert manifest["NSPrivacyAccessedAPITypes"] == [
+            {
+                "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+                "NSPrivacyAccessedAPITypeReasons": ["CA92.1"],
+            }
+        ]
+
+
+def test_the_host_sources_use_no_other_required_reason_api():
+    sources = REPO / "host" / "Sources"
+    forbidden = (
+        "attributesOfItem",
+        "creationDate",
+        "contentModificationDate",
+        "systemUptime",
+        "mach_absolute_time",
+        "volumeAvailableCapacity",
+        "systemFreeSize",
+        "activeInputModes",
+    )
+    for path in sources.rglob("*.swift"):
+        text = path.read_text(encoding="utf-8")
+        for name in forbidden:
+            assert name not in text, f"{path.name} uses {name}: declare it in the privacy manifests"
+
+
+def test_both_apps_declare_that_they_use_no_non_exempt_encryption():
+    # HTTPS and the Keychain are exempt, so App Store Connect asks no export
+    # compliance question per build.
+    for settings in (ios_settings(), watch_settings()):
+        assert settings["INFOPLIST_KEY_ITSAppUsesNonExemptEncryption"] is False
+
+
+def test_the_apps_are_version_1_0_0_in_one_project_wide_setting():
+    # `make apple-archive` overrides CURRENT_PROJECT_VERSION for both targets
+    # at once, so the embedded watch app gets the iPhone app's build number.
+    base = spec()["settings"]["base"]
+    assert base["MARKETING_VERSION"] == "1.0.0"
+    for name in ("FliBuddyiOS", "FliBuddyWatch"):
+        target = spec()["targets"][name]["settings"]["base"]
+        assert "MARKETING_VERSION" not in target
+        assert "CURRENT_PROJECT_VERSION" not in target
+
+
+def apple_archive_recipe() -> str:
+    lines = (REPO / "Makefile").read_text(encoding="utf-8").splitlines()
+    start = lines.index("apple-archive:") + 1
+    recipe = []
+    for line in lines[start:]:
+        if not line.startswith("\t"):
+            break
+        recipe.append(line.strip())
+    return " ".join(recipe).replace("\\ ", "")
+
+
+def test_apple_archive_archives_and_exports_locally_without_uploading():
+    recipe = apple_archive_recipe()
+    assert "-scheme FliBuddyiOS" in recipe
+    assert "-configuration Release" in recipe
+    assert "generic/platform=iOS" in recipe
+    assert "-allowProvisioningUpdates" in recipe
+    assert "build=$$(git rev-list --count HEAD)" in recipe
+    assert "CURRENT_PROJECT_VERSION=$$build" in recipe
+    assert " archive" in recipe
+    assert "-exportArchive" in recipe
+    assert "-exportOptionsPlist" in recipe
+    assert ".build/export" in recipe
+    # Uploading to App Store Connect is a separate, confirmed step.
+    assert "altool" not in recipe
+    assert "notarytool" not in recipe
+
+
+def test_the_export_options_export_for_app_store_connect_without_uploading():
+    options = plistlib.loads((APPLE / "ExportOptions.plist").read_bytes())
+    assert options["method"] == "app-store-connect"
+    assert options["destination"] == "export"
+    assert options["signingStyle"] == "automatic"
+    # The team comes from the git-ignored Signing.xcconfig, not the repo.
+    assert "teamID" not in options
+    assert "Signing.xcconfig" in apple_archive_recipe()
+
+
+def test_the_store_screenshot_script_covers_the_required_devices():
+    script = (REPO / "tools" / "store_shots.sh").read_text(encoding="utf-8")
+    assert "sim_shot.sh" in script
+    for device in ("iPhone 18 Pro Max", "iPad Pro 13-inch (M5)", "Apple Watch Series 12 (46mm)"):
+        assert device in script
+    assert "host/Apple/.build/store-shots" in script

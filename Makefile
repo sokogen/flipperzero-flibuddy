@@ -5,7 +5,7 @@
 .PHONY: test test-flipper test-host test-tools
 .PHONY: lint lint-flipper lint-host lint-tools
 .PHONY: coverage coverage-host coverage-tools
-.PHONY: apple-project apple-build icons
+.PHONY: apple-project apple-build apple-archive icons
 .DEFAULT_GOAL := test
 
 test: test-flipper test-host test-tools
@@ -55,6 +55,27 @@ apple-build:
 	cd host/Apple && xcodebuild -project FliBuddy.xcodeproj -scheme FliBuddyWatch \
 		-destination 'generic/platform=watchOS Simulator' -derivedDataPath .build \
 		CODE_SIGNING_ALLOWED=NO build
+
+# Archives the iPhone app (with the watch app embedded) for the App Store and
+# exports a signed .ipa to host/Apple/.build/export; it uploads nothing. Needs
+# a distribution certificate and an App Store Connect app record for the
+# bundle ids (-allowProvisioningUpdates creates profiles), and DEVELOPMENT_TEAM
+# in the git-ignored host/Apple/Signing.xcconfig. The build number is the
+# commit count, one for both apps.
+apple-archive:
+	@team=$$(sed -n 's/^DEVELOPMENT_TEAM *= *//p' host/Apple/Signing.xcconfig 2>/dev/null | tr -d ' '); \
+	test -n "$$team" || { echo "set DEVELOPMENT_TEAM in host/Apple/Signing.xcconfig" >&2; exit 1; }; \
+	build=$$(git rev-list --count HEAD); \
+	echo "archiving build $$build"; \
+	cd host/Apple && mkdir -p .build && \
+	cp ExportOptions.plist .build/ExportOptions.plist && \
+	/usr/libexec/PlistBuddy -c "Add :teamID string $$team" .build/ExportOptions.plist && \
+	xcodebuild -project FliBuddy.xcodeproj -scheme FliBuddyiOS -configuration Release \
+		-destination 'generic/platform=iOS' -archivePath .build/FliBuddy.xcarchive \
+		-allowProvisioningUpdates CURRENT_PROJECT_VERSION=$$build archive && \
+	xcodebuild -exportArchive -archivePath .build/FliBuddy.xcarchive \
+		-exportPath .build/export -exportOptionsPlist .build/ExportOptions.plist \
+		-allowProvisioningUpdates
 
 # Regenerates the app icons (SVGs, asset catalog PNGs, the Flipper icon);
 # needs rsvg-convert (brew install librsvg). The PNGs are committed.
