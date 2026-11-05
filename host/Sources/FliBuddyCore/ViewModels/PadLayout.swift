@@ -119,6 +119,11 @@ public struct Sidebar: Equatable, Sendable {
         public var detail: String?
         /// Bambuddy's host on a line of its own under `Ready`.
         public var server: String?
+
+        /// The chip's VoiceOver label: `Retry Bambuddy`, `Flipper settings`.
+        public var actionAccessibilityLabel: String? {
+            action?.accessibilityLabel(for: name)
+        }
     }
 
     public static let connectionsTitle = "Connections"

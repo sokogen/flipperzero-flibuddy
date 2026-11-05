@@ -19,6 +19,12 @@ public struct StatusItem: Equatable, Sendable {
             case .settings: "Settings"
             }
         }
+
+        /// The chip's VoiceOver label, with the side it acts on (`side`:
+        /// `Flipper` or `Bambuddy`): `Retry Bambuddy`, `Flipper settings`.
+        public func accessibilityLabel(for side: String) -> String {
+            self == .settings ? "\(side) settings" : "\(title) \(side)"
+        }
     }
 
     public var text: String

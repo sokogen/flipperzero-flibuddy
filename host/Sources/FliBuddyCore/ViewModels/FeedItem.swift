@@ -18,6 +18,10 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// Bambuddy's or the resolved colour name; never the hex, which the
     /// swatch shows instead.
     public let colorName: String?
+    /// The colour as VoiceOver reads it: Bambuddy's name, else Bambu's name
+    /// for the tag's colour, else a plain word for the swatch (`dark blue`);
+    /// `nil` without a colour.
+    public let spokenColor: String?
     /// Bambu's colour code (`10501`): the spool's `material_number`, else
     /// the one the tag names.
     public let colorCode: String?
@@ -143,6 +147,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         colorLine = [colorName, colorCode].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         detailText = [colorLine, remainingText].filter { !$0.isEmpty }.joined(separator: " · ")
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
+        spokenColor = [colorName, row.tag.bambuColor?.name].compactMap { $0 }.first { !$0.isEmpty }
+            ?? swatch?.colorWord
         statusText = Self.statusText(row, hostName: hostName)
         isError = if case .error = row.status { true } else { false }
         errorHint = isError ? row.failure?.hint : nil
@@ -167,7 +173,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
-            title: title, colorName: colorName, spool: spool,
+            title: title, colorName: spokenColor, spool: spool,
             labelWeight: row.tag.labelWeight, status: statusText
         )
     }
@@ -335,8 +341,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         request == .create ? "Flipper asks to create it here" : "Flipper asks to link it here"
     }
 
-    /// Title, colour name, what is left (or the label weight, or "archived")
-    /// and the status, grams spelled out; never the hex of an unnamed colour.
+    /// Title, colour (`spokenColor`), what is left (or the label weight, or
+    /// "archived") and the status, grams spelled out; never the hex.
     static func accessibilityHeader(
         title: String, colorName: String?, spool: Spool?, labelWeight: Int?, status: String
     ) -> String {

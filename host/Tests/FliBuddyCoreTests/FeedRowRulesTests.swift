@@ -135,9 +135,11 @@ struct FeedItemRulesTests {
     @Test func theAccessibilityHeaderReadsAsOneSentence() throws {
         #expect(FeedItem(try row(status: .awaitingWeight)).accessibilityHeader
             == "PLA Basic, Jade White, 484 grams left of \(Grams.text(1000)), Enter weight")
-        // an unnamed colour is left out rather than read as hex
+        // without Bambuddy's name, Bambu's name for the tag's colour; never the hex
         let unknown = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
-        #expect(unknown.accessibilityHeader == "\(unknown.title), label \(Grams.text(1000)) grams, Not in Bambuddy")
+        #expect(unknown.colorName == nil)
+        #expect(unknown.accessibilityHeader
+            == "\(unknown.title), Jade White, label \(Grams.text(1000)) grams, Not in Bambuddy")
     }
 }
 

@@ -212,10 +212,12 @@ struct PadStatusRow: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 12)
-                        .frame(height: 28)
+                        .padding(.vertical, 4)
+                        .frame(minHeight: 28)
                         .background(.tint, in: .capsule)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(row.actionAccessibilityLabel ?? action.title)
             }
         }
         // A status row is not a pane.

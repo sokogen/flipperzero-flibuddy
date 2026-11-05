@@ -545,7 +545,7 @@ public final class SpoolsViewModel {
         let detail = updated.map { "\(left) \u{00B7} updated \(ago($0, now: now))" } ?? left
         let hasTag = present(spool.tagUid) != nil || present(spool.trayUuid) != nil
         let spoken: [String?] = [
-            title, present(spool.colorName), present(spool.brand),
+            title, present(spool.colorName) ?? spool.rgba.flatMap(Swatch.init(rgba:))?.colorWord, present(spool.brand),
             "\(Grams.text(spool.remaining, locale: locale)) grams left of \(Grams.text(spool.labelWeight, locale: locale))",
             low ? "low" : nil,
             spool.isArchived ? "archived" : nil, hasTag ? "tag linked" : nil,
