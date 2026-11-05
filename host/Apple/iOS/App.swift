@@ -141,7 +141,9 @@ struct SettingsScreen: View {
             if let model {
                 SettingsForm(model: model)
                     // Each time Settings comes on screen, not only the first.
-                    .task { await model.opened() }
+                    // Not `.task`: leaving the tab would cancel the load and
+                    // show the cancellation as the catalog's error.
+                    .onAppear { Task { await model.opened() } }
             } else {
                 ProgressView()
             }
