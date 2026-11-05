@@ -73,15 +73,18 @@ public final class FeedViewModel {
     /// What the user typed; absent while the field shows the suggestion.
     private var weightTexts: [FeedRow.ID: String] = [:]
     private var modes: [FeedRow.ID: Intent.WeightMode] = [:]
-    private var errors: [FeedRow.ID: String] = [:]
+    private var errors: [FeedRow.ID: ErrorText] = [:]
+    /// This device in "by iPhone".
+    private let hostName: String
     private var busy: Set<FeedRow.ID> = []
     /// Rows that waited for a weight, or were saving one, at the last snapshot.
     private var waitingIDs: Set<FeedRow.ID> = []
     private var entryIDs: Set<FeedRow.ID> = []
 
-    public init(session: Session, settings: Settings) {
+    public init(session: Session, settings: Settings, hostName: String = PlatformInfo.deviceName) {
         self.session = session
         self.settings = settings
+        self.hostName = hostName
     }
 
     /// Follows the session until the calling task is cancelled.
@@ -107,7 +110,7 @@ public final class FeedViewModel {
     /// Builds the items from the session's rows, drops the drafts of rows
     /// that left weight entry and moves focus.
     private func refresh() {
-        items = sessionRows.reversed().map { FeedItem($0, coreWeight: settings.coreWeight) }
+        items = sessionRows.reversed().map { FeedItem($0, coreWeight: settings.coreWeight, hostName: hostName) }
         itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
         // A row that left weight entry (saved, also from the Flipper, or
         // scanned again) drops the host's draft.
@@ -219,9 +222,14 @@ public final class FeedViewModel {
         isSaving(id) ? "Saving\u{2026}" : "Save"
     }
 
-    /// The last host action on the row failed with this message.
+    /// The last host action on the row failed: a plain sentence.
     public func error(for id: FeedRow.ID) -> String? {
-        errors[id]
+        errors[id]?.sentence
+    }
+
+    /// The technical detail of that failure, for the hint and tooltip.
+    public func errorHint(for id: FeedRow.ID) -> String? {
+        errors[id]?.hint
     }
 
     /// Disabled while empty, below the core weight in gross, or saving.
@@ -410,7 +418,7 @@ public final class FeedViewModel {
             try await action(session)
             ok = true
         } catch {
-            errors[id] = Session.describe(error)
+            errors[id] = ErrorText(error)
             ok = false
             play(.error)
         }

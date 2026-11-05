@@ -274,8 +274,8 @@ struct NewSpoolModelTests {
 
         #expect(!(await model.addNew(id)))
 
-        let message = BambuddyError.network("timed out").localizedDescription
-        #expect(model.error(for: id) == message)
+        #expect(model.error(for: id) == "Bambuddy didn't answer")
+        #expect(model.errorHint(for: id) == BambuddyError.network("timed out").localizedDescription)
         #expect(model.haptic?.kind == .error)
         let item = try #require(model.item(id))
         #expect(!item.isEntry)
@@ -322,7 +322,7 @@ struct NewSpoolModelTests {
         #expect(await model.save(id))
         #expect(inventory.creates.count == 1)
         #expect(inventory.updates == [.update(spoolId: 100, gross: 1100)])
-        #expect(model.item(id)?.statusText == "Saved 850 g left · by host")
+        #expect(model.item(id)?.statusText == "Saved 850 g left · by Mac")
     }
 
     @Test func anAddedOnScanRowWaitsForNothingUntilTapped() async throws {

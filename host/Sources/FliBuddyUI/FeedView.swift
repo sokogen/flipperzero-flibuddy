@@ -318,8 +318,8 @@ struct FeedRowView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(TapGesture().onEnded { reopenIfSaved() }, including: item.isReopenable ? .all : .subviews)
             .accessibilityActions {
-                if item.isReopenable {
-                    Button("Re-weigh") { reopenIfSaved() }
+                if let title = item.reopenTitle {
+                    Button(title) { reopenIfSaved() }
                 }
                 Button("Tag details") { showingDetails = true }
             }
@@ -423,8 +423,10 @@ struct FeedRowView: View {
         headerContent
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(item.accessibilityHeader)
-            // The timeout note and a failed host action sit in the header too.
+            // The timeout note and a failed host action sit in the header too;
+            // the technical detail of an error is the hint.
             .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
+            .accessibilityHint(feed.errorHint(for: item.id) ?? item.errorHint ?? "")
     }
 
     /// macOS: three equal columns. iOS: the colour line and the status
@@ -468,6 +470,7 @@ struct FeedRowView: View {
                     .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
             }
+            .help(item.errorHint ?? item.statusText)
             .font(.subheadline)
             if let note = item.timeoutNote {
                 #if os(macOS)
@@ -483,7 +486,8 @@ struct FeedRowView: View {
                 #endif
             }
             if let error = feed.error(for: item.id) {
-                Text(error).font(.footnote).foregroundStyle(.red).lineLimit(2).help(error)
+                Text(error).font(.footnote).foregroundStyle(.red).lineLimit(2)
+                    .help(feed.errorHint(for: item.id) ?? error)
             }
         }
     }

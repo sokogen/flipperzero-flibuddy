@@ -188,7 +188,7 @@ struct WatchSavedBody: View {
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Weigh again") { Task { await feed.reopen(item.id) } }
+            Button(item.reopenTitle ?? "Weigh again") { Task { await feed.reopen(item.id) } }
                 .buttonStyle(WatchCapsuleButtonStyle(fill: .white.opacity(0.16)))
                 .padding(.top, 4)
         }

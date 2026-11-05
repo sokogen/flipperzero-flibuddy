@@ -118,7 +118,7 @@ struct SpoolsViewModelTests {
     @Test func searchUsesTheLinkPickersFilter() async {
         let (model, _) = makeModel()
         await model.refresh()
-        #expect(SpoolsViewModel.searchPrompt == "Material, colour, brand or note")
+        #expect(SpoolsViewModel.searchPrompt == "Material, color, brand or note")
         model.query = "pla bambu"
         #expect(Set(model.rows.map(\.id)) == [12, 21])
         model.query = "DRAWER"
@@ -142,7 +142,7 @@ struct SpoolsViewModelTests {
     @Test func eachSortOrder() async {
         let (model, _) = makeModel()
         await model.refresh()
-        #expect(SpoolsViewModel.Sort.allCases.map(\.title) == ["Recently updated", "Least left", "Material", "Colour"])
+        #expect(SpoolsViewModel.Sort.allCases.map(\.title) == ["Recently updated", "Least left", "Material", "Color"])
         #expect(model.sort == .recentlyUpdated)
         // Newest first; a spool without updated_at last.
         #expect(model.rows.map(\.id) == [12, 14, 21, 30, 27, 31, 33])
@@ -243,7 +243,7 @@ struct SpoolsViewModelTests {
         model.query = "  nylon "
         let empty = try #require(model.emptyResult)
         #expect(empty.title == "No spools match \u{201C}nylon\u{201D}")
-        #expect(empty.message == "Search looks at material, colour, brand and note.")
+        #expect(empty.message == "Search looks at material, color, brand and note.")
         #expect(empty.systemImage == "magnifyingglass")
     }
 
@@ -533,7 +533,7 @@ struct SpoolsViewModelTests {
         model.feed?.apply(await session.snapshot)
         await model.refresh()
         let today = try #require(model.detail(for: 42)?.today)
-        #expect(today.text == "Saved 400 g left \u{00B7} by host")
+        #expect(today.text == "Saved 400 g left \u{00B7} by Mac")
         #expect(today.symbol == .symbol("checkmark.circle.fill"))
         #expect(today.tint == .green)
         #expect(SpoolsViewModel.Detail.todayTitle == "Today")

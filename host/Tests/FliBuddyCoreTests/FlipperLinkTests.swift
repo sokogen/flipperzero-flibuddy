@@ -507,7 +507,7 @@ struct FlipperLinkTests {
         #expect(FlipperLink.statusText(.disconnected, problem: "No Flipper found") == "Flipper: No Flipper found")
         #expect(FlipperLink.statusText(.waitingForHello, problem: nil) == "Flipper: waiting for the app")
         #expect(FlipperLink.statusText(.noAnswer, problem: nil) == "Flipper: no answer; open FliBuddy on the Flipper")
-        #expect(FlipperLink.statusText(.otherVersion(1), problem: nil) == "Flipper: speaks protocol 1, host speaks 2")
+        #expect(FlipperLink.statusText(.otherVersion(1), problem: nil) == "Flipper: speaks protocol 1, app speaks 2")
         #expect(FlipperLink.connectedTransport(.otherVersion(1), choice: .usb(port: nil)) == nil)
         #expect(
             FlipperLink.statusText(.connected(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")), problem: nil)

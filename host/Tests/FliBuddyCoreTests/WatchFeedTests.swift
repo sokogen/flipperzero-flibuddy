@@ -91,7 +91,7 @@ struct WatchGlyphTests {
              .symbol("lock.trianglebadge.exclamationmark"), .red),
             (connected, BambuddyState.refused(.spoolmanMode).statusItem(), "Bambuddy is in Spoolman mode",
              .symbol("nosign"), .red),
-            (connected, BambuddyState.ready.statusItem(colorNamesProblem: "404"), "Colour names unavailable",
+            (connected, BambuddyState.ready.statusItem(colorNamesProblem: "404"), "Color names unavailable",
              .symbol("paintpalette"), .orange),
         ]
         for (flipper, bambuddy, text, symbol, tint) in cases {

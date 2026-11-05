@@ -16,8 +16,8 @@ public enum WatchRowScreen: Equatable, Sendable {
     case busy(String)
 
     public static let creatingText = "Creating in Bambuddy\u{2026}"
-    public static let createHint = "Create it on iPhone or Mac."
-    public static let linkHint = "Link it on iPhone or Mac."
+    public static let createHint = "Create it on the iPhone."
+    public static let linkHint = "Link it on the iPhone."
     public static let turnTheCrownText = "Turn the crown"
 
     /// `isCreating`: New on the watch is on its way to Bambuddy.

@@ -47,9 +47,9 @@ enum WireLog {
         }
     }
 
-    /// "Flipper speaks protocol 1, host speaks 2".
+    /// "Flipper speaks protocol 1, app speaks 2".
     static func versionMismatch(_ version: Int) -> String {
-        "Flipper speaks protocol \(version), host speaks \(Message.version)"
+        "Flipper speaks protocol \(version), app speaks \(Message.version)"
     }
 
     /// The line as text without its terminator, cut after `limit`

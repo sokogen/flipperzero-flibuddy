@@ -263,7 +263,7 @@ public final class FlipperLink {
         case .disconnected: "Flipper: \(problem ?? "not connected")"
         case .waitingForHello: "Flipper: waiting for the app"
         case .noAnswer: "Flipper: no answer; open FliBuddy on the Flipper"
-        case .otherVersion(let version): "Flipper: speaks protocol \(version), host speaks \(Message.version)"
+        case .otherVersion(let version): "Flipper: speaks protocol \(version), app speaks \(Message.version)"
         case .connected(let hello): "Flipper: connected" + (hello.fw.map { " (firmware \($0))" } ?? "")
         }
     }

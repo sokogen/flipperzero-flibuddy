@@ -121,11 +121,11 @@ struct ConnectionBannerTests {
     }
 
     @Test func missingColourNamesIsAnOrangeLine() {
-        let problem = "Colour names unavailable: timed out"
+        let problem = "Color names unavailable: timed out"
         #expect(
             line(bambuddy: BambuddyState.ready.statusItem(colorNamesProblem: problem))
                 == StatusItem(
-                    text: "Colour names unavailable", symbol: .symbol("paintpalette"), tint: .orange, detail: problem
+                    text: "Color names unavailable", symbol: .symbol("paintpalette"), tint: .orange, detail: problem
                 )
         )
     }

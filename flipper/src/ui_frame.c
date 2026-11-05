@@ -161,17 +161,17 @@ static void build_waiting(UiFrame* f, const AppState* s, const UiEnv* env) {
         put(&t, "App speaks protocol ");
         put_uint(&t, s->other_version);
     } else if(s->transport == TransportKindUsb) {
-        put(&t, s->transport_failed ? "USB unavailable" : "USB: no host app");
+        put(&t, s->transport_failed ? "USB unavailable" : "USB: no app");
     } else if(s->transport_failed || s->ble == AppBleOff) {
         put(&t, "Bluetooth off");
     } else if(s->ble == AppBleAdvertising) {
         put(&t, "Visible as ");
         put(&t, env->device_name);
     } else {
-        put(&t, "Bluetooth: no host app");
+        put(&t, "Bluetooth: no app");
     }
     t = TEXT(f->line[1]);
-    put(&t, "Waiting for host");
+    put(&t, "Waiting for app");
     for(uint32_t i = 0; i < env->anim % 4; i++)
         put(&t, ".");
     SET(f->right, "Settings");
@@ -325,7 +325,7 @@ static void build_result(UiFrame* f, const AppState* s) {
         SET(f->center, "Link");
         break;
     case AppResultNoHost:
-        SET(f->bar, "No host");
+        SET(f->bar, "No app");
         break;
     }
 }
@@ -339,7 +339,7 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuMarkEmpty:
         return "Mark as empty";
     case AppMenuRelink:
-        return "Relink on host";
+        return "Relink in app";
     case AppMenuDetails:
         return "Tag details";
     case AppMenuDelete:
@@ -349,9 +349,9 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuAddAndWeigh:
         return "Add and weigh";
     case AppMenuCreateOnHost:
-        return "Create on host";
+        return "Create in app";
     case AppMenuLinkOnHost:
-        return "Link on host";
+        return "Link in app";
     }
     return "";
 }
@@ -565,9 +565,9 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
 
 static void build_link(UiFrame* f, const AppState* s) {
     bool create = s->held.action == IntentActionCreateOnHost;
-    SET(f->title, create ? "Create on host" : "Link tag");
+    SET(f->title, create ? "Create in app" : "Link tag");
     SET(f->line[0], create ? "Finish the spool in" : "Pick the spool in");
-    SET(f->line[1], "FliBuddy on host");
+    SET(f->line[1], "the FliBuddy app");
     SET(f->left, "Cancel");
 }
 
@@ -620,23 +620,23 @@ static void build_error(UiFrame* f, const AppState* s, const UiEnv* env) {
     case AppErrorLookup:
         SET(f->title, "Lookup failed");
         put_host_text(
-            &t, &s->lookup.lines, s->lookup.error, "The host could not look the tag up.");
+            &t, &s->lookup.lines, s->lookup.error, "The app could not look the tag up.");
         break;
     case AppErrorHost:
         SET(f->title, host_error_title(s->held.action));
         put_host_text(&t, &s->result.lines, s->result.error, "Bambuddy did not take the change.");
         break;
     case AppErrorTimeout:
-        SET(f->title, "No host reply");
-        put(&t, "No reply in 10 s. Open FliBuddy on the Mac or iPhone.");
+        SET(f->title, "No app reply");
+        put(&t, "No reply in 10 s. Open the FliBuddy app.");
         break;
     case AppErrorHostLost:
-        SET(f->title, "Host lost");
-        put(&t, "The host went away before it answered.");
+        SET(f->title, "App lost");
+        put(&t, "The app went away before it answered.");
         break;
     case AppErrorSendFailed:
         SET(f->title, "Not sent");
-        put(&t, "Could not send to the host.");
+        put(&t, "Could not send to the app.");
         break;
     }
     SET(f->left, "Back");
@@ -696,11 +696,11 @@ static void build_about(UiFrame* f, const AppState* s, const UiEnv* env) {
     put(&t, env->firmware);
     t = TEXT(f->line[3]);
     if(s->connected) {
-        put(&t, "Host: ");
+        put(&t, "App: ");
         put(&t, env->host_app[0] ? env->host_app : "connected");
         put(&t, s->transport == TransportKindBluetooth ? " - BLE" : " - USB");
     } else {
-        put(&t, "Host: not connected");
+        put(&t, "App: not connected");
     }
 }
 
@@ -726,7 +726,7 @@ void ui_frame_build(UiFrame* f, const AppState* s, const UiEnv* env) {
     case AppScreenLookingUp:
         SET(f->title, "Looking up");
         if(local_name(s, local)) SET(f->line[0], local);
-        SET(f->line[1], "Asking the host");
+        SET(f->line[1], "Asking the app");
         break;
     case AppScreenResult:
         build_result(f, s);

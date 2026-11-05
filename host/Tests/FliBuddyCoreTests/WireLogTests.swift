@@ -83,7 +83,7 @@ import Testing
 
         #expect(messages == [nil, nil])
         #expect(otherVersion == 1)
-        #expect(sink.events == ["wire Flipper speaks protocol 1, host speaks 2"])
+        #expect(sink.events == ["wire Flipper speaks protocol 1, app speaks 2"])
         #expect(sink.lines.map(\.level) == [.error])
     }
 

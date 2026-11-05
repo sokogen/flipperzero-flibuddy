@@ -71,7 +71,7 @@ struct StatusItemTests {
         #expect(
             flipper(.otherVersion(1))
                 == StatusItem(
-                    text: "Flipper speaks protocol 1, host speaks 2", symbol: .symbol("exclamationmark.triangle"),
+                    text: "Flipper speaks protocol 1, app speaks 2", symbol: .symbol("exclamationmark.triangle"),
                     tint: .orange, detail: "Install the matching FliBuddy app on the Flipper"
                 )
         )
@@ -155,12 +155,12 @@ struct StatusItemTests {
     }
 
     @Test func missingColourNamesWarnOnlyWhenReady() {
-        let problem = "Colour names unavailable: timed out"
+        let problem = "Color names unavailable: timed out"
         #expect(
             BambuddyState.ready.statusItem(colorNamesProblem: problem)
                 == StatusItem(
-                    text: "Bambuddy ready \u{00B7} colour names unavailable", symbol: .symbol("paintpalette"),
-                    tint: .orange, detail: problem, short: "Colour names unavailable"
+                    text: "Bambuddy ready \u{00B7} color names unavailable", symbol: .symbol("paintpalette"),
+                    tint: .orange, detail: problem, short: "Color names unavailable"
                 )
         )
         #expect(BambuddyState.unchecked.statusItem(colorNamesProblem: problem).text == "Bambuddy \u{00B7} not checked")
@@ -197,7 +197,7 @@ struct StatusItemTests {
 
     @Test func theFeedCarriesTheBambuddyItem() {
         let model = FeedViewModel(session: Session(settings: testSettings, inventory: nil), settings: testSettings)
-        model.apply(SessionSnapshot(rows: [], bambuddy: .ready, colorNamesProblem: "Colour names unavailable: x"))
+        model.apply(SessionSnapshot(rows: [], bambuddy: .ready, colorNamesProblem: "Color names unavailable: x"))
         #expect(model.bambuddyStatus.symbol == .symbol("paintpalette"))
         model.apply(SessionSnapshot(rows: [], bambuddy: .ready, isCheckingBambuddy: true))
         #expect(model.bambuddyStatus.symbol == .progress)

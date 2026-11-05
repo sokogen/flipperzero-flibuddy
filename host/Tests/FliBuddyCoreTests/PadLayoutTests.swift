@@ -136,6 +136,10 @@ struct SidebarTests {
         sidebar(bambuddy: item, url: url).bambuddy.subline
     }
 
+    private func serverLine(_ item: StatusItem, url: String = "http://bambuddy.local:8000") -> String? {
+        sidebar(bambuddy: item, url: url).bambuddy.server
+    }
+
     // MARK: Flipper row
 
     @Test func aConnectedFlipperShowsItsName() {
@@ -181,18 +185,21 @@ struct SidebarTests {
 
     // MARK: Bambuddy row
 
-    @Test func readyNamesTheServersHost() {
+    @Test func readyNamesTheServersHostOnItsOwnLine() {
+        // "Ready · bambuddy.example.com" wrapped awkwardly in the ~300 pt sidebar.
         let row = sidebar().bambuddy
         #expect(
             row == Sidebar.StatusRow(
-                name: "Bambuddy", subline: "Ready \u{00B7} bambuddy.local", symbol: "server.rack", tint: .green,
-                spins: false, isSublineRed: false, action: nil, detail: nil
+                name: "Bambuddy", subline: "Ready", symbol: "server.rack", tint: .green,
+                spins: false, isSublineRed: false, action: nil, detail: nil, server: "bambuddy.local"
             )
         )
         let ready = BambuddyState.ready.statusItem()
-        #expect(bambuddyLine(ready, url: "192.168.1.20:8000") == "Ready \u{00B7} 192.168.1.20")
-        #expect(bambuddyLine(ready, url: " https://inventory.example.com/ ") == "Ready \u{00B7} inventory.example.com")
-        #expect(bambuddyLine(ready, url: "") == "Ready")
+        #expect(serverLine(ready, url: "192.168.1.20:8000") == "192.168.1.20")
+        #expect(serverLine(ready, url: " https://inventory.example.com/ ") == "inventory.example.com")
+        #expect(serverLine(ready, url: "") == nil)
+        // Only a ready Bambuddy names it.
+        #expect(serverLine(BambuddyState.unreachable("x").statusItem()) == nil)
     }
 
     @Test func everyBambuddyPhraseLosesItsPrefixAndIsCapitalised() {
@@ -203,7 +210,7 @@ struct SidebarTests {
             (BambuddyState.refused(.permissionMissing("inventory:read")).statusItem(), "API key lacks inventory permission"),
             (BambuddyState.refused(.unauthorized).statusItem(), "Rejected the API key"),
             (BambuddyState.refused(.spoolmanMode).statusItem(), "In Spoolman mode"),
-            (BambuddyState.ready.statusItem(colorNamesProblem: "HTTP 500"), "Ready \u{00B7} colour names unavailable"),
+            (BambuddyState.ready.statusItem(colorNamesProblem: "HTTP 500"), "Ready \u{00B7} color names unavailable"),
             (BambuddyState.ready.statusItem(isChecking: true), "Checking\u{2026}"),
         ]
         for (item, text) in cases {

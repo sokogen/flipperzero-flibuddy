@@ -191,6 +191,13 @@ struct PadStatusRow: View {
                             .foregroundStyle(row.isSublineRed ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                             .lineLimit(2)
                     }
+                    if let server = row.server {
+                        Text(server)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
                 Spacer(minLength: 0)
             }

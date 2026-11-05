@@ -73,17 +73,17 @@ struct WatchRowScreenTests {
 
     @Test func aTagWithoutMaterialIsCreatedOnThePhoneOrMac() throws {
         let unknown = try row("scan_ntag", status: .unknown(prefill: false), spool: nil)
-        #expect(screen(unknown) == .unknown(hint: "Create it on iPhone or Mac.", offersNew: false))
+        #expect(screen(unknown) == .unknown(hint: "Create it on the iPhone.", offersNew: false))
     }
 
     @Test func aLinkRequestIsLinkedOnThePhoneOrMac() throws {
         let asks = try row("scan_ntag", status: .unknown(prefill: false), spool: nil, request: .link)
-        #expect(screen(asks) == .unknown(hint: "Link it on iPhone or Mac.", offersNew: false))
+        #expect(screen(asks) == .unknown(hint: "Link it on the iPhone.", offersNew: false))
     }
 
     @Test func aCreateRequestForATagWithoutMaterialHintsCreate() throws {
         let asks = try row("scan_ntag", status: .unknown(prefill: false), spool: nil, request: .create)
-        #expect(screen(asks) == .unknown(hint: "Create it on iPhone or Mac.", offersNew: false))
+        #expect(screen(asks) == .unknown(hint: "Create it on the iPhone.", offersNew: false))
     }
 
     @Test func aDeletedSpoolHasNoHintAndOffersNewForATagWithMaterial() throws {
@@ -94,7 +94,7 @@ struct WatchRowScreenTests {
 
     @Test func aFailedCreateForATagWithoutMaterialStaysUnknown() throws {
         let failed = try row("scan_ntag", status: .error("Bambuddy said no"), spool: nil)
-        #expect(screen(failed) == .unknown(hint: "Create it on iPhone or Mac.", offersNew: false))
+        #expect(screen(failed) == .unknown(hint: "Create it on the iPhone.", offersNew: false))
     }
 }
 
@@ -148,7 +148,7 @@ struct WatchDetailsTests {
     @Test func listsOnlyTheWatchFactsInTheSpecOrder() throws {
         let details = TagDetails(try row(status: .saved))
         let labels = details.watchFacts.map(\.label)
-        let order = ["Colour", "Colour code", "UID", "Filament ID", "Diameter", "Nozzle", "Spool"]
+        let order = ["Color", "Color code", "UID", "Filament ID", "Diameter", "Nozzle", "Spool"]
         #expect(labels == order.filter { details.value($0) != nil })
         #expect(labels.contains("UID"))
         #expect(!labels.contains("RGBA"))

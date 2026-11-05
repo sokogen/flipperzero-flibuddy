@@ -165,8 +165,8 @@ struct NewSpoolSheet: View {
                 }
                 Section {
                     TextField("Subtype", text: $form.subtype, prompt: Text("Basic, Matte, HF…"))
-                    ColorPicker("Colour", selection: color, supportsOpacity: false)
-                    TextField("Colour name", text: $form.colorName, prompt: Text("Lilac"))
+                    ColorPicker("Color", selection: color, supportsOpacity: false)
+                    TextField("Color name", text: $form.colorName, prompt: Text("Lilac"))
                     TextField("Brand", text: $form.brand, prompt: Text("Elegoo"))
                     LabeledContent("Label weight") {
                         HStack(spacing: 4) {
@@ -234,7 +234,7 @@ struct NewSpoolSheet: View {
                     }
                     .pickerStyle(.menu)
                     TextField("Subtype", text: $form.subtype, prompt: Text("e.g. Basic"))
-                    TextField("Colour", text: $form.colorName)
+                    TextField("Color", text: $form.colorName)
                     TextField("Brand", text: $form.brand)
                     LabeledContent("Label weight") {
                         HStack(spacing: 4) {

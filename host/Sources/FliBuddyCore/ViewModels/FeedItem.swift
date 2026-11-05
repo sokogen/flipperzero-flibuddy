@@ -36,6 +36,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// material, "Unknown tag" for a tag without.
     public let watchSubText: String
     public let statusText: String
+    /// The technical detail of an error row (the HTTP status, Bambuddy's
+    /// message, the system reason), for the accessibility hint and tooltip.
+    public let errorHint: String?
     public let isError: Bool
     public let spoolId: Int?
     /// Filament grams the suggestion starts from: the spool's remaining
@@ -57,6 +60,10 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// A saved, marked or added row (Added to Bambuddy asks for no weight);
     /// a tap or click opens it again for a weight.
     public let isReopenable: Bool
+    /// The action that reopens the row, for VoiceOver and the watch:
+    /// `Weigh again` after a weight, `Weigh` on a spool added here that was
+    /// never weighed; `nil` when the row does not reopen.
+    public let reopenTitle: String?
     /// The spool was deleted from Bambuddy (here or on the Flipper).
     public let isDeleted: Bool
     /// Under the status of a save the Flipper gave up waiting for.
@@ -96,7 +103,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
 
     /// `coreWeight`: the settings' core weight, which a spool created from
     /// the tag gets; the suggestion and readout of a tag without a spool use it.
-    public init(_ row: FeedRow, coreWeight: Int? = nil) {
+    /// `hostName`: this device in "Saved … · by iPhone" (`PlatformInfo.deviceName`).
+    public init(_ row: FeedRow, coreWeight: Int? = nil, hostName: String = PlatformInfo.compiledDeviceName) {
         id = row.id
         scanId = row.scanId
         scannedAt = row.scannedAt
@@ -133,8 +141,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         colorLine = [colorName, colorCode].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         detailText = [colorLine, remainingText].filter { !$0.isEmpty }.joined(separator: " · ")
         swatch = (spool?.rgba ?? row.tag.rgba).flatMap(Swatch.init(rgba:))
-        statusText = Self.statusText(row)
+        statusText = Self.statusText(row, hostName: hostName)
         isError = if case .error = row.status { true } else { false }
+        errorHint = isError ? row.failure?.hint : nil
         spoolId = spool?.id
         offersUnknownActions = spool == nil && row.status != .scanned
         // The Flipper asked to relink the spool it just added: Link, no entry.
@@ -143,6 +152,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isWaiting = spool != nil && !relinks && row.status == .awaitingWeight
         isSaving = row.status == .saving || row.status == .updating
         isReopenable = spool != nil && !relinks && row.status.isReopenable
+        reopenTitle = isReopenable ? (row.status == .created && row.weight == nil ? "Weigh" : "Weigh again") : nil
         isDeleted = row.status == .deleted
         rowActions = if isSaving {
             []
@@ -264,7 +274,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         return row.request == .link ? [.link, new] : [new, .link]
     }
 
-    static func statusText(_ row: FeedRow) -> String {
+    static func statusText(_ row: FeedRow, hostName: String) -> String {
         switch row.status {
         case .scanned: return "Looking up"
         // `where` binds to one pattern only, so each state has its own case.
@@ -277,15 +287,15 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         case .saving: return "Saving\u{2026}"
         case .saved, .savedAfterTimeout:
             let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
-            return row.savedBy.map { "\(saved) · \(savedByText($0))" } ?? saved
+            return row.savedBy.map { "\(saved) · \(savedByText($0, hostName: hostName))" } ?? saved
         case .created: return "Added to Bambuddy"
         case .updating: return "Updating\u{2026}"
         case .markedNew:
             let marked = row.spool.map { "Marked as new · \($0.remaining) g left" } ?? "Marked as new"
-            return row.savedBy.map { "\(marked) · \(savedByText($0))" } ?? marked
-        case .markedEmpty: return bySide(row, "Marked as empty · archived")
-        case .deleted: return bySide(row, "Deleted from Bambuddy")
-        case .error(let message): return "Error: \(message)"
+            return row.savedBy.map { "\(marked) · \(savedByText($0, hostName: hostName))" } ?? marked
+        case .markedEmpty: return bySide(row, "Marked as empty · archived", hostName: hostName)
+        case .deleted: return bySide(row, "Deleted from Bambuddy", hostName: hostName)
+        case .error(let message): return "Error: \(row.failure?.sentence ?? message)"
         }
     }
 
@@ -307,13 +317,14 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         }
     }
 
-    /// `phrase · by host` / `· by Flipper`, or the phrase alone.
-    private static func bySide(_ row: FeedRow, _ phrase: String) -> String {
-        row.savedBy.map { "\(phrase) · \(savedByText($0))" } ?? phrase
+    /// `phrase · by iPhone` / `· by Flipper`, or the phrase alone.
+    private static func bySide(_ row: FeedRow, _ phrase: String, hostName: String) -> String {
+        row.savedBy.map { "\(phrase) · \(savedByText($0, hostName: hostName))" } ?? phrase
     }
 
-    static func savedByText(_ side: FeedRow.Side) -> String {
-        side == .host ? "by host" : "by Flipper"
+    /// `by iPhone` (this device, `hostName`) or `by Flipper`.
+    static func savedByText(_ side: FeedRow.Side, hostName: String) -> String {
+        side == .host ? "by \(hostName)" : "by Flipper"
     }
 
     static func requestText(_ request: FeedRow.HostRequest) -> String {

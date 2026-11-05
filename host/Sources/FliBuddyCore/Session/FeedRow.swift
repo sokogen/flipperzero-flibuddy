@@ -61,6 +61,8 @@ public struct FeedRow: Identifiable, Equatable, Sendable {
     public var colorName: String?
     public var spool: Spool?
     public var status: Status
+    /// What an `error` status shows: a sentence and the detail for the hint.
+    public var failure: ErrorText?
     public var weight: Weight?
     public var savedBy: Side?
     public var request: HostRequest?

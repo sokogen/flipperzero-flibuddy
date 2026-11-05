@@ -90,16 +90,30 @@ public enum LookupBuilder {
     }
 
     public static func lines(_ candidates: [String]) -> [String] {
-        candidates.filter { !$0.isEmpty }.prefix(Field.maxLines).map { clip($0, Field.maxLineLength) }
+        candidates.map(ascii).filter { !$0.isEmpty }.prefix(Field.maxLines).map { clip($0, Field.maxLineLength) }
+    }
+
+    /// What the Flipper can draw: its fonts are ASCII only, so a name from
+    /// Bambuddy is transliterated (`Grün` → `Grun`, `Straße` → `Strasse`,
+    /// Cyrillic to Latin, `·` → `-`) and what has no ASCII form is dropped.
+    static func ascii(_ text: String) -> String {
+        guard !text.allSatisfy(\.isASCII) else { return text }
+        let punctuation: [Character: String] = ["\u{00B7}": "-", "\u{2022}": "-", "\u{2026}": "..."]
+        let replaced = String(text.flatMap { punctuation[$0] ?? String($0) })
+        let latin = replaced.applyingTransform(.toLatin, reverse: false) ?? replaced
+        let plain = latin.applyingTransform(.stripDiacritics, reverse: false) ?? latin
+        let folded = plain.applyingTransform(StringTransform("Latin-ASCII"), reverse: false) ?? plain
+        let kept = folded.unicodeScalars.filter { $0.isASCII && ($0.value >= 0x20 || $0 == "\n") }
+        return String(String.UnicodeScalarView(kept)).trimmingCharacters(in: .whitespaces)
     }
 
     static func grams(_ value: Int) -> Int {
         min(maxGrams, max(0, value))
     }
 
-    /// A name cut to 40 characters; `nil` when empty.
+    /// A name in ASCII (`ascii`), then cut to 40 characters; `nil` when empty.
     static func name(_ text: String?) -> String? {
-        guard let text, !text.isEmpty else { return nil }
+        guard let text = text.map(ascii), !text.isEmpty else { return nil }
         return clip(text, Field.maxName)
     }
 
@@ -111,7 +125,8 @@ public enum LookupBuilder {
 
     /// An `error` field: never empty, at most 200 characters.
     static func message(_ text: String) -> String {
-        text.isEmpty ? "failed" : clip(text, maxError)
+        let text = ascii(text)
+        return text.isEmpty ? "failed" : clip(text, maxError)
     }
 
     /// The schema counts code points, so cut by Unicode scalars.

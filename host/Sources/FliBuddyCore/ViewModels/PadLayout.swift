@@ -117,6 +117,8 @@ public struct Sidebar: Equatable, Sendable {
         public var action: StatusItem.Action?
         /// The reason behind the phrase, for the pointer label.
         public var detail: String?
+        /// Bambuddy's host on a line of its own under `Ready`.
+        public var server: String?
     }
 
     public static let connectionsTitle = "Connections"
@@ -157,9 +159,10 @@ public struct Sidebar: Equatable, Sendable {
         return row(item, name: "Flipper", subline: subline, spinning: "antenna.radiowaves.left.and.right.slash")
     }
 
-    /// The status phrase without `Bambuddy`, capitalised: `Ready ·
-    /// bambuddy.local` (the URL's host), `Not checked`, `Unreachable`,
-    /// `In Spoolman mode`, `Ready · colour names unavailable`.
+    /// The status phrase without `Bambuddy`, capitalised: `Ready` with the
+    /// URL's host (`bambuddy.local`) as `server`, on its own line as
+    /// `Ready · <host>` wrapped badly in the sidebar; `Not checked`,
+    /// `Unreachable`, `In Spoolman mode`, `Ready · color names unavailable`.
     static func bambuddyRow(_ item: StatusItem, serverURL: String) -> StatusRow {
         var subline = item.text
         for prefix in ["Bambuddy is ", "Bambuddy \u{00B7} ", "Bambuddy "] where subline.hasPrefix(prefix) {
@@ -168,10 +171,8 @@ public struct Sidebar: Equatable, Sendable {
         }
         if subline == "Checking Bambuddy\u{2026}" { subline = "Checking\u{2026}" }
         subline = subline.prefix(1).uppercased() + subline.dropFirst()
-        if subline == "Ready", let host = Self.host(of: serverURL) {
-            subline = "Ready \u{00B7} \(host)"
-        }
         var row = row(item, name: "Bambuddy", subline: subline, spinning: "server.rack")
+        if subline == "Ready" { row.server = Self.host(of: serverURL) }
         row.isSublineRed = item.tint == .red
         return row
     }

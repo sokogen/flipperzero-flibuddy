@@ -127,8 +127,8 @@ extension BambuddyState {
         case .ready:
             if let colorNamesProblem {
                 return StatusItem(
-                    text: "Bambuddy ready \u{00B7} colour names unavailable", symbol: .symbol("paintpalette"),
-                    tint: .orange, detail: colorNamesProblem, short: "Colour names unavailable"
+                    text: "Bambuddy ready \u{00B7} color names unavailable", symbol: .symbol("paintpalette"),
+                    tint: .orange, detail: colorNamesProblem, short: "Color names unavailable"
                 )
             }
             return StatusItem(text: "Bambuddy ready", symbol: .symbol("server.rack"), tint: .green)

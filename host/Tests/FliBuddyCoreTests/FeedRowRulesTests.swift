@@ -64,8 +64,8 @@ struct FeedItemRulesTests {
             (try row(status: .scanned, spool: nil), "Looking up", .progress, .secondary),
             (try row(status: .awaitingWeight), "Enter weight", .symbol("scalemass"), .blue),
             (try row(status: .saving), "Saving\u{2026}", .progress, .secondary),
-            (saved, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
-            (timedOut, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
+            (saved, "Saved 484 g left · by Mac", .symbol("checkmark.circle.fill"), .green),
+            (timedOut, "Saved 484 g left · by Mac", .symbol("checkmark.circle.fill"), .green),
             (try row(status: .created), "Added to Bambuddy", .symbol("plus.circle.fill"), .green),
             (try row(status: .updating), "Updating\u{2026}", .progress, .secondary),
             (try row(status: .markedNew), "Marked as new · 484 g left", .symbol("arrow.counterclockwise.circle.fill"), .green),
@@ -192,7 +192,7 @@ struct FeedItemDisplayTests {
             (try row(status: .awaitingWeight), "Enter weight", true, false, false),
             (try row(status: .saving), "Saving\u{2026}", true, false, false),
             (saved, "Saved 484 g left · by Flipper", false, true, false),
-            (timedOut, "Saved 484 g left · by host", false, true, true),
+            (timedOut, "Saved 484 g left · by Mac", false, true, true),
             (try row(status: .created), "Added to Bambuddy", false, true, false),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable", true, false, false),
             (try row(status: .unknown(prefill: true), spool: nil), "Not in Bambuddy", false, false, false),
@@ -465,7 +465,8 @@ struct FeedViewModelRulesTests {
         #expect(lookup.status == .unknown)
         #expect(lookup.prefill == true)
         let item = try #require(model.items.first)
-        #expect(item.statusText == "Error: \(BambuddyError.network("timed out").localizedDescription)")
+        #expect(item.statusText == "Error: Bambuddy didn't answer")
+        #expect(item.errorHint == BambuddyError.network("timed out").localizedDescription)
         // New retries
         #expect(!item.isEntry)
         #expect(item.rowActions == [.new, .link])

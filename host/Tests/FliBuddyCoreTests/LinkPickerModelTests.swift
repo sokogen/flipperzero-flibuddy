@@ -38,7 +38,7 @@ struct LinkPickerModelTests {
         let picker = LinkPickerModel(item: try item(), spools: spools())
         #expect(LinkPickerModel.title == "Link to existing spool")
         #expect(picker.tagLine == "Tag 04112233445566")
-        #expect(LinkPickerModel.placeholder == "material, colour, brand or note")
+        #expect(LinkPickerModel.placeholder == "material, color, brand or note")
     }
 
     @Test func matchesFollowTheQueryAndLeaveOutTheRowsOwnSpool() throws {
@@ -107,7 +107,7 @@ struct LinkPickerModelTests {
 
     @Test func theiPhoneSheetHasItsOwnTitleAndSearchPrompt() {
         #expect(LinkPickerModel.phoneTitle == "Link to existing")
-        #expect(LinkPickerModel.phonePlaceholder == "Material, colour, brand or note")
+        #expect(LinkPickerModel.phonePlaceholder == "Material, color, brand or note")
     }
 
     @Test func movingAnotherTagsLinkAsksFirstOnTheiPhone() throws {

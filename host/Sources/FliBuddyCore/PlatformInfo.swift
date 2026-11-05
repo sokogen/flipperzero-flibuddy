@@ -30,6 +30,31 @@ public enum PlatformInfo {
         #endif
     }
 
+    /// The device in the feed's "by iPhone": iPhone, iPad, Watch or Mac.
+    public static func deviceName(_ family: Family) -> String {
+        switch family {
+        case .macOS: "Mac"
+        case .iOS: "iPhone"
+        case .iPadOS: "iPad"
+        case .watchOS: "Watch"
+        }
+    }
+
+    /// This device's name, telling the iPad from the iPhone.
+    @MainActor public static var deviceName: String { deviceName(currentFamily) }
+
+    /// The name known when compiling, where the iPad cannot be told apart
+    /// (off the main actor; the views pass `deviceName`).
+    public static var compiledDeviceName: String {
+        #if os(macOS)
+        "Mac"
+        #elseif os(watchOS)
+        "Watch"
+        #else
+        "iPhone"
+        #endif
+    }
+
     @MainActor public static var current: String {
         describe(currentFamily, version: ProcessInfo.processInfo.operatingSystemVersion)
     }

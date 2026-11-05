@@ -18,6 +18,13 @@ private func row(
     return row
 }
 
+/// A spool saved here, 484 g left.
+private func savedRow() throws -> FeedRow {
+    var saved = try row(status: .saved, spool: knownSpool())
+    saved.savedBy = .host
+    return saved
+}
+
 @MainActor
 private func makeModel(_ inventory: FakeInventory = FakeInventory(spools: [knownSpool()])) -> (FeedViewModel, Session) {
     let session = Session(settings: testSettings, inventory: inventory)
@@ -180,7 +187,7 @@ struct FeedViewModelTests {
 
         #expect(inventory.updates == [.update(spoolId: 42, gross: 734)])
         let item = try #require(model.items.first)
-        #expect(item.statusText == "Saved 484 g left · by host")
+        #expect(item.statusText == "Saved 484 g left · by Mac")
         #expect(!model.draft(for: id).touched)
         #expect(model.error(for: id) == nil)
     }
@@ -258,8 +265,28 @@ struct FeedViewModelTests {
     @Test func savedByAndHostRequestTexts() {
         #expect(FeedItem.requestText(.create) == "Flipper asks to create it here")
         #expect(FeedItem.requestText(.link) == "Flipper asks to link it here")
-        #expect(FeedItem.savedByText(.flipper) == "by Flipper")
-        #expect(FeedItem.savedByText(.host) == "by host")
+        #expect(FeedItem.savedByText(.flipper, hostName: "iPhone") == "by Flipper")
+        #expect(FeedItem.savedByText(.host, hostName: "iPhone") == "by iPhone")
+        #expect(FeedItem.savedByText(.host, hostName: "Watch") == "by Watch")
+    }
+
+    @Test func aSaveHereNamesThisDevice() throws {
+        let item = FeedItem(try savedRow(), hostName: "iPhone")
+        #expect(item.statusText == "Saved 484 g left · by iPhone")
+        #expect(PlatformInfo.deviceName(.iOS) == "iPhone")
+        #expect(PlatformInfo.deviceName(.iPadOS) == "iPad")
+        #expect(PlatformInfo.deviceName(.watchOS) == "Watch")
+        #expect(PlatformInfo.deviceName(.macOS) == "Mac")
+    }
+
+    @Test func onlyAWeighedRowIsWeighedAgain() throws {
+        // VoiceOver's action on a row that reopens: an added spool was
+        // never weighed, so it is weighed, not weighed again.
+        #expect(FeedItem(try savedRow()).reopenTitle == "Weigh again")
+        let added = FeedItem(try row(status: .created, spool: knownSpool()))
+        #expect(added.reopenTitle == "Weigh")
+        let waiting = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
+        #expect(waiting.reopenTitle == nil)
     }
 
     @Test func aKnownSpoolShowsBambuddysData() throws {
@@ -658,7 +685,8 @@ struct FeedViewModelUnknownTests {
         #expect(!(await model.link(id, toSpool: 2)))
 
         let message = try #require(model.error(for: id))
-        #expect(message == BambuddyError.tagAlreadyLinked(otherSpoolId: nil).localizedDescription)
+        #expect(message == "Another spool already has this tag")
+        #expect(model.errorHint(for: id) == BambuddyError.tagAlreadyLinked(otherSpoolId: nil).localizedDescription)
         // The row stays open for another try.
         #expect(model.items.first?.offersUnknownActions == true)
     }
@@ -706,7 +734,7 @@ struct FeedViewModelUnknownTests {
 
         model.apply(await session.snapshot)
 
-        #expect(model.colorNamesProblem == "Colour names unavailable: \(BambuddyError.network("timed out").localizedDescription)")
+        #expect(model.colorNamesProblem == "Color names unavailable: \(BambuddyError.network("timed out").localizedDescription)")
     }
 
     @Test func aFormWithoutMaterialCannotBeSubmitted() async throws {

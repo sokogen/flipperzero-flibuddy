@@ -60,7 +60,7 @@ public enum BambuddyState: Equatable, Sendable {
     var flipperLines: [String] {
         switch self {
         case .unchecked, .ready: []
-        case .notConfigured: ["Bambuddy not set up", "see host settings"]
+        case .notConfigured: ["Bambuddy not set up", "see app settings"]
         case .refused(.spoolmanMode): ["Spoolman mode", "not supported"]
         case .refused(.permissionMissing(let permission)): ["API key lacks", permission]
         case .refused(.unauthorized): ["API key rejected"]
@@ -342,7 +342,7 @@ public actor Session {
                 rows[index].colorName = resolver.name(for: rows[index].tag)
             }
         case .failure(let error):
-            colorNamesProblem = "Colour names unavailable: \(Self.describe(error))"
+            colorNamesProblem = "Color names unavailable: \(Self.describe(error))"
             Log.error(.session, "colour names failed: error=\(Self.describe(error))")
         }
         publish()
@@ -446,7 +446,10 @@ public actor Session {
         }
         guard let inventory = await ensureReady() else {
             let message = bambuddy.message ?? "Bambuddy not ready"
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                $0.failure = nil
+            }
             return (
                 LookupBuilder.error(scanId: row.scanId, lines: bambuddy.flipperLines, error: bambuddy.message ?? "not ready"),
                 .failed(message)
@@ -489,7 +492,10 @@ public actor Session {
             )
         } catch {
             let message = Self.describe(error)
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                $0.failure = ErrorText(error)
+            }
             let isNetwork = if case BambuddyError.network = error { true } else { false }
             let lookup = LookupBuilder.error(
                 scanId: row.scanId, lines: [isNetwork ? "Bambuddy unreachable" : "Lookup failed"], error: message
@@ -514,7 +520,10 @@ public actor Session {
             return created
         } catch {
             let message = Self.describe(error)
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                $0.failure = ErrorText(error)
+            }
             Log.error(.session, "create on scan failed: id=\(scanId) error=\(message)")
             return nil
         }
@@ -587,7 +596,10 @@ public actor Session {
         }
         guard let inventory = await ensureReady() else {
             let message = bambuddy.message ?? "Bambuddy not ready"
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                $0.failure = nil
+            }
             return LookupBuilder.result(id: intent.id, ok: false, lines: [failed] + bambuddy.flipperLines, error: message)
         }
         guard let row = rows.first(where: { $0.id == id }) else { return dropped(intent, failed) }
@@ -612,7 +624,10 @@ public actor Session {
             // the Flipper waits for the result: perform the intent on the new settings
             if outlived(guarded, startedUnder: started) { return await perform(intent, arrived: arrived) }
             let message = Self.describe(error)
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                $0.failure = ErrorText(error)
+            }
             return LookupBuilder.result(id: intent.id, ok: false, lines: [failed], error: message)
         }
     }
@@ -772,7 +787,10 @@ public actor Session {
         let updated = try await hostUpdate(id, under: listed, status: status, action)
         guard let spool = updated.spool else {
             let error = SessionError.spoolNotFound(updated.tag.uid)
-            updateRow(id) { $0.status = .error(Self.describe(error)) }
+            updateRow(id) {
+                $0.status = .error(Self.describe(error))
+                $0.failure = ErrorText(error)
+            }
             throw error
         }
         return spool
@@ -808,6 +826,7 @@ public actor Session {
             let message = Self.describe(error)
             updateRow(id) {
                 $0.status = .error(message)
+                $0.failure = ErrorText(error)
                 // No spool carries the tag (any spool the row knew is gone).
                 if case SessionError.spoolNotFound = error {
                     $0.spool = nil

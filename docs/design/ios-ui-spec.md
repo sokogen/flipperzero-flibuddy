@@ -44,7 +44,7 @@ recorded the owner's first answers (2026-10-26), and the design synced on
 3. *Saved rows reopen on tap for a re-weigh; last save wins; the status
    says who saved.* Adopted; an added row reopens the same way.
 4. *The watch creates Bambu Lab tags in one tap but cannot fill the form;
-   for other tags it says "Create it on iPhone or Mac".* Adopted, see the
+   for other tags it says "Create it on the iPhone".* Adopted, see the
    watch spec.
 5. *Settings apply on change on every platform; there is no Save button.*
    Adopted on the iPhone and iPad: no Save / Revert row. The Mac still has
@@ -182,7 +182,7 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 | Flipper | not started | `Flipper not connected` | `antenna.radiowaves.left.and.right` | orange | Settings |
 | Flipper | ble | `Flipper connected` | `antenna.radiowaves.left.and.right` | green | |
 | Flipper | nohello | `Open FliBuddy on the Flipper` | `app.dashed` | orange | |
-| Flipper | other version | `Flipper speaks protocol 1, host speaks 2` (the side to update in the hint) | `exclamationmark.triangle` | orange | |
+| Flipper | other version | `Flipper speaks protocol 1, app speaks 2` (the side to update in the hint) | `exclamationmark.triangle` | orange | |
 | Bambuddy | not set up | `Bambuddy not set up` | `server.rack` | orange | Settings |
 | Bambuddy | unchecked | `Bambuddy not checked` | `server.rack` | gray | Check |
 | Bambuddy | ready | `Bambuddy ready` | `server.rack` | green | |
@@ -192,7 +192,7 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 | Bambuddy | spoolman | `Bambuddy is in Spoolman mode` | `nosign` | red | Retry |
 | Bambuddy | http address | `Bambuddy needs HTTPS` (hint `FliBuddy needs an https:// address.`) | `lock.slash` | red | Settings |
 | Bambuddy | certificate | `Certificate not trusted` (hint: this device does not trust it) | `lock.trianglebadge.exclamationmark` | red | Retry |
-| Bambuddy | nocolors | `Colour names unavailable` | `paintpalette` | orange | |
+| Bambuddy | nocolors | `Color names unavailable` | `paintpalette` | orange | |
 
 USB is macOS only; the iPhone never shows `Flipper · USB`.
 
@@ -236,7 +236,11 @@ A row without an entry block or actions has a minimum height of 76.
 
 VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590
 grams left of 1000, Enter weight" (the colour code is not read). Rows that
-can reopen get a "Re-weigh" action; every row gets a "Tag details" action.
+can reopen get a "Weigh again" action ("Weigh" on an added spool that was
+never weighed); every row gets a "Tag details" action. An error status is
+a plain sentence (`Error: Bambuddy didn't answer`); the technical detail
+(`Bambuddy HTTP 500: …`, the system reason) is its accessibility hint and
+tooltip.
 
 ### Row states and copy
 
@@ -247,8 +251,8 @@ Same model and texts as the macOS table; only the entry column differs.
 | Looking up | `Looking up` | spinner | secondary | none |
 | Enter weight | `Enter weight` | `scalemass` | blue | entry, focused when newest |
 | Saving | `Saving…` | spinner | secondary | entry, disabled |
-| Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | none; tap reopens |
-| Timeout | `Saved 590 g left · by host` + timeout note | `checkmark.circle.fill` | green | none; tap reopens |
+| Saved | `Saved 590 g left · by iPhone` / `· by Flipper` | `checkmark.circle.fill` | green | none; tap reopens |
+| Timeout | `Saved 590 g left · by iPhone` + timeout note | `checkmark.circle.fill` | green | none; tap reopens |
 | Not in Bambuddy, Bambu tag (Auto-save new off) | `Not in Bambuddy` | `questionmark.circle` | secondary | no entry, never focused, no number pad; **New** (prominent, adds the spool from the tag at its label weight) · **Link to existing…** |
 | Added to Bambuddy (after New, or Auto-save new on) | `Added to Bambuddy` | `plus.circle.fill` | green | none, never focused; tap reopens it as Enter weight, pre-filled label + core |
 | Not in Bambuddy, no material | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (prominent, opens the form) · **Link to existing…** |
@@ -280,7 +284,7 @@ weight; the row reads `Saving…` meanwhile, with no field and no buttons.
   "Open questions").
 - Digits only, 0…9999. Save sends what the shipped `FeedViewModel.save`
   sends today (gross to Bambuddy).
-- After a successful save the row shows `Saved n g left · by host`, keeps
+- After a successful save the row shows `Saved n g left · by iPhone`, keeps
   the value as the new base, and focus moves to the newest row that still
   waits for a weight (Enter weight). With none, the pad lowers.
 - Focus never steals from a field the user is typing in (`touched`): the
@@ -361,7 +365,7 @@ trailing, `.tint` when a material is chosen, disabled otherwise), title
 - Section "Required": Material, menu `Choose` / PLA, PETG, ABS, ASA, TPU,
   PA, PC, PVA.
 - Section "Optional": Subtype (placeholder `Basic, Matte, HF…`), Colour
-  (`ColorPicker`, the swatch RGBA), Colour name (placeholder `Lilac`),
+  (`ColorPicker`, the swatch RGBA), Color name (placeholder `Lilac`),
   Brand (placeholder `Elegoo`), Label weight (digits, default 1000, `g`).
 - Footer: `FliBuddy adds the spool to Bambuddy at its label weight.`
 
@@ -467,14 +471,14 @@ bench. The last good list is kept as the cache; a list from other settings
 (another URL or key) is never shown.
 
 **List.** Under the large title: the search field (`.searchable`, prompt
-`Material, colour, brand or note`, the Link picker's filter: every word in
+`Material, color, brand or note`, the Link picker's filter: every word in
 material, subtype, colour, brand or note, ignoring case and diacritics),
 then the scope as a segmented control, `Active · Archived · All` (Active
 first; a segmented control rather than `searchScopes`, which iOS shows only
 while searching), then one inset-grouped card of rows. The toolbar's
 trailing `line.3.horizontal.decrease.circle` menu (`.fill` and `.tint` while
 a material is chosen) holds **Sort by** `Recently updated` (default) ·
-`Least left` · `Material` · `Colour`, and **Material** `All materials` plus
+`Least left` · `Material` · `Color`, and **Material** `All materials` plus
 each material in the inventory. A footnote under the card counts the active
 spools: `7 active spools. Pull down to refresh.`
 
@@ -512,7 +516,7 @@ clock reads `just now`). VoiceOver spells the unit out (`3 days ago`).
 | Key rejected | same symbol, `Bambuddy rejected the API key`, `Check the key in Settings, or scan the QR code of a new one.`, **Open Settings** |
 | Spoolman mode | the feed's blocking screen: `nosign` (red), `Bambuddy is in Spoolman mode`, the same text, **Retry** |
 | Empty inventory | `shippingbox`, `No spools in Bambuddy`, `Spools added in Bambuddy, or with New in the feed, show here.` |
-| No search results | `magnifyingglass`, `No spools match “<q>”`, `Search looks at material, colour, brand and note.` |
+| No search results | `magnifyingglass`, `No spools match “<q>”`, `Search looks at material, color, brand and note.` |
 | Material filter empties the scope | `line.3.horizontal.decrease.circle`, `No PETG spools`, `Choose All materials to see every spool.` |
 | Scope empty | `shippingbox`, `No archived spools` / `No active spools`, `Bambuddy has spools in the other scope.` |
 

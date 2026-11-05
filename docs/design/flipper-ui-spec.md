@@ -33,10 +33,10 @@ starts with the material (`PLA Silk+`).
 
 Keys: OK / ◀ / ▶ / ▲▼ / Back.
 
-1. **Waiting for host** (no host): title "FliBuddy", the version, a line for
-   the transport in use, "Waiting for host" with animated dots. The line
-   reads `USB: no host app`, `USB unavailable` (the port did not open),
-   `Visible as <name>` (Bluetooth, advertising), `Bluetooth: no host app`
+1. **Waiting for app** (no host): title "FliBuddy", the version, a line for
+   the transport in use, "Waiting for app" with animated dots. The line
+   reads `USB: no app`, `USB unavailable` (the port did not open),
+   `Visible as <name>` (Bluetooth, advertising), `Bluetooth: no app`
    (a central subscribed without a `hello`) or `Bluetooth off`. A host app
    whose `hello` speaks another protocol version replaces the line with
    `App speaks protocol N` until a host connects or the port closes. ▶ Settings,
@@ -49,7 +49,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    nothing (the design's Recent screen is not built).
 3. **Reading tag**: spool and waves, "Keep still". Back goes home.
 4. **Looking up**: while the `lookup` is pending (no timeout): the tag's own
-   detailed type or material when it has one, "Asking the host". Back goes
+   detailed type or material when it has one, "Asking the app". Back goes
    home. Not in the design.
 5. **Result · known**: colour swatch (Bayer-dithered by the luminance of the
    spool's RGBA) and the spool as title; the colour name (or
@@ -72,12 +72,12 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
 7. **Result · blank tag**: `Blank tag`; the tag type; UID; inverted
    `No spool data`. OK Link (asks the host), ◀ Menu, Back home.
 8. **Result · no host**: the tag's own text or type as title, the type, UID,
-   inverted `No host`. ◀ Menu (Tag details only), Back home.
+   inverted `No app`. ◀ Menu (Tag details only), Back home.
 9. **Menu** (▲▼ wrap, OK chooses, Back to the result; four rows visible):
-   known: Weigh, Reset to full, Mark as empty, Relink on host, Tag details,
-   Delete spool. Unknown Bambu: Save as new, Save with weight, Link on
-   host, Tag details. No material: Create on host, Link on host, Tag details. Blank:
-   Link on host, Tag details. No host: Tag details.
+   known: Weigh, Reset to full, Mark as empty, Relink in app, Tag details,
+   Delete spool. Unknown Bambu: Save as new, Save with weight, Link in
+   app, Tag details. No material: Create in app, Link in app, Tag details. Blank:
+   Link in app, Tag details. No host: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
     `135 pages`), then what is known: Code (`11803`), Fila (filament id
     `GFA01`), RGBA, Label (`1000 g`), Diam (`1.75 mm`), Nozzle (`190-230 C`).
@@ -103,7 +103,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     the spool and records the weight.
 13. **Saving / Deleting / Updating** (title per action): the spool
     (`- 590 g` net when saving), an indeterminate bar, "Waiting for
-    Bambuddy". No keys; Error · No host reply after 10 s.
+    Bambuddy". No keys; Error · No app reply after 10 s.
 14. **Saved**: big check, "Saved", `PLA Basic - 590 g left`; after 1.3 s
     (or OK / Back) Ready with the Saved bar.
 15. **Saved as new**: the spool and colour, `Spool #31 - 1000 g`. OK
@@ -117,8 +117,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
 18. **Deleted**: "Tag is free to reuse", the same bar, no Undo. When the
     bar runs out, Ready with the Deleted bar; Back goes to Ready at once,
     without the bar; OK does nothing.
-19. **Link tag / Create on host**: "Pick the spool in" / "Finish the spool
-    in", "FliBuddy on host", bouncing dots. ◀ Cancel and Back to the result.
+19. **Link tag / Create in app**: "Pick the spool in" / "Finish the spool
+    in", "the FliBuddy app", bouncing dots. ◀ Cancel and Back to the result.
     The host's `result` only stops the 10 s timeout; when the host links or
     creates the spool it pushes a fresh `lookup` for the same scan and the
     screen becomes Result · known. Such a lookup also replaces Result, Menu
@@ -126,7 +126,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
 20. **Error**: a title per case, warning icon, up to three lines (the
     host's `lines` and `error` when present). Titles follow the failed
     action (`Not saved`, `Not added`, `Not deleted`, `Not updated`,
-    `Not linked`) or the case (`Lookup failed`, `No host reply`, `Host
+    `Not linked`) or the case (`Lookup failed`, `No app reply`, `App
     lost`, `Not sent`, `Tag not read`, `Unsupported tag`). `Tag not read`
     has no chips: it says "Hold the tag still against the back. Reading
     again...", runs a 1.5 s countdown bar and returns to Ready by itself
@@ -146,8 +146,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     About). Leaving with another Connection, or after the transport in use
     failed to open, restarts the transport.
 22. **About**: app icon, "FliBuddy", "for Bambuddy", `Version 0.1.0`,
-    `Protocol 2 - fw 1.5.1`, `Host: <app> - USB` / `- BLE` or
-    `Host: not connected`. OK / Back to Settings.
+    `Protocol 2 - fw 1.5.1`, `App: <app> - USB` / `- BLE` or
+    `App: not connected`. OK / Back to Settings.
 
 ## Mark as new, Mark as empty and Undo
 
@@ -185,3 +185,9 @@ adds the beeps whatever Feedback says. Every event wakes the backlight.
 
 The design's Recent screen (Ready's ◀), the settings After scan and Weigh
 as, and Connection = Auto (the app uses the one transport chosen).
+
+The Flipper's own texts say "app" for the FliBuddy app on the phone or
+watch (`Waiting for app`, `No app`, `Create in app`, `Pick the spool in the
+FliBuddy app`, `No app reply`: "No reply in 10 s. Open the FliBuddy app.");
+the design page still says "host", and the prose here keeps "host" for the
+protocol peer.

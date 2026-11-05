@@ -26,8 +26,8 @@ watch:
 
 - **Assumption 4:** the watch creates Bambu tags in one tap and cannot fill
   the form. The page: one **New** button only for a tag with prefill
-  (material); a tag without material reads `Create it on iPhone or Mac.`;
-  a Flipper request to link reads `Link it on iPhone or Mac.`. There is no
+  (material); a tag without material reads `Create it on the iPhone.`;
+  a Flipper request to link reads `Link it on the iPhone.`. There is no
   Link to existing on the watch.
 - **Assumption 2 (2026-11-05):** New adds the spool at its label weight
   and asks for no weight: the row reads `Added to Bambuddy` and shows as a
@@ -87,14 +87,14 @@ problem, else `antenna.radiowaves.left.and.right` in green labelled
 | No Flipper | spinner | gray `#8E8E93` | `No Flipper · searching` |
 | Flipper not connected (no Flipper chosen) | `antenna.radiowaves.left.and.right` | orange `#FF9F0A` | `Flipper not connected` |
 | Connected, no hello | `app.dashed` | orange | `Open FliBuddy on the Flipper` |
-| Other version | `exclamationmark.triangle` | orange | `Flipper speaks protocol 1, host speaks 2` |
+| Other version | `exclamationmark.triangle` | orange | `Flipper speaks protocol 1, app speaks 2` |
 | Bambuddy not set up | `server.rack` | orange | `Bambuddy not set up` |
 | Bambuddy not checked | `server.rack` | gray | `Bambuddy not checked` |
 | Bambuddy unreachable | `wifi.exclamationmark` | red `#FF453A` | `Bambuddy unreachable` |
 | API key rejected | `lock.trianglebadge.exclamationmark` | red | `Bambuddy rejected the API key` |
 | API key lacks permission | `lock.trianglebadge.exclamationmark` | red | `Key lacks inventory permission` |
 | Spoolman mode | `nosign` | red | `Bambuddy is in Spoolman mode` |
-| Colour names unavailable | `paintpalette` | orange | `Colour names unavailable` |
+| Color names unavailable | `paintpalette` | orange | `Color names unavailable` |
 | All healthy | `antenna.radiowaves.left.and.right` | green `#30D158` | `Flipper connected` |
 
 The page draws no blocking view for Spoolman mode on the watch; the red
@@ -145,14 +145,14 @@ by state:
 **Saved** (Saved, Timeout, Added to Bambuddy; also Marked as new / Marked
 as empty): the state
 symbol 34 pt in its tint, the remaining `590 g` at 34 sb rounded tabular,
-the status phrase 13 `.secondary` centred (`Saved 590 g left · by host`),
+the status phrase 13 `.secondary` centred (`Saved 590 g left · by iPhone`),
 and at the bottom **Weigh again** (40 high, white 16 % fill, 16 sb), which
 reopens the entry and focuses it.
 
 **Unknown** (Not in Bambuddy with or without material, Flipper asks to
 create / link it, Deleted): the sub line (13 `.secondary`), the status
-symbol 17 pt + phrase 15, a hint 13 `.secondary`: `Create it on iPhone or
-Mac.` for a tag without material, `Link it on iPhone or Mac.` for a link
+symbol 17 pt + phrase 15, a hint 13 `.secondary`: `Create it on the
+iPhone.` for a tag without material, `Link it on the iPhone.` for a link
 request, none otherwise; a red `Error: <message>` after a failed New; at
 the bottom one **New** (40 high, filled `#0A84FF`, white) when the tag has
 prefill, which adds the spool from the tag at its label weight in one tap
@@ -175,7 +175,7 @@ UID, filament id, diameter, nozzle range, spool id, each when known, as
 - A crown turn makes the value touched; Net/Gross still converts it
   (owner).
 - Save succeeds: `WKInterfaceDevice.current().play(.success)`, the status
-  reads `Saved 590 g left · by host`, and one second later the detail pops
+  reads `Saved 590 g left · by iPhone`, and one second later the detail pops
   back to the feed (when it was opened from the feed). The page's green
   ring and "Haptic · success" toast only simulate the haptic; do not build
   them.
@@ -263,7 +263,7 @@ why. Items marked "by eye" still wait for the owner's check on screen.
 
 Navigation and glyph
 - A Flipper link request on a tag with material shows the unknown body
-  with the hint `Link it on iPhone or Mac.` and New, filled as always;
+  with the hint `Link it on the iPhone.` and New, filled as always;
   the asked action (Link) is not on the watch. A relink request on a row
   added here shows the hint without New.
 - `WatchRootView` (`host/Sources/FliBuddyUI/Watch/WatchFeedView.swift`)
@@ -304,10 +304,12 @@ Row detail
   save; the page keeps it open on the `Added to Bambuddy` result with
   Weigh again (deferred, owner call).
 - The added result's big number is the spool's remaining (its label
-  weight); Weigh again opens the crown entry pre-filled to label + core.
-- Unknown hints: a Flipper link request wins (`Link it on iPhone or
-  Mac.`); a tag without material otherwise reads `Create it on iPhone or
-  Mac.`, also under a Flipper create request; a deleted spool has no hint
+  weight); its button reads **Weigh** (the spool was never weighed; the
+  page says Weigh again) and opens the crown entry pre-filled to label +
+  core. Saved and marked results keep **Weigh again**.
+- Unknown hints: a Flipper link request wins (`Link it on the
+  iPhone.`); a tag without material otherwise reads `Create it on the
+  iPhone.`, also under a Flipper create request; a deleted spool has no hint
   and offers New when the tag has material. A failed New shows `Error:
   <message>` in red under the phrase.
 - Save's tinted fill is the watch blue at 26 % and its text `#4DA2FF`

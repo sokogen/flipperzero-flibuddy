@@ -437,7 +437,7 @@ struct SessionStartupTests {
         #expect(await session.checkBambuddy() == .notConfigured)
         let lookup = await session.handleScan(try fixtureScan())
         #expect(lookup.status == .error)
-        #expect(lookup.lines == ["Bambuddy not set up", "see host settings"])
+        #expect(lookup.lines == ["Bambuddy not set up", "see app settings"])
     }
 
     @Test func reconfiguringResetsTheCheck() async throws {
@@ -568,7 +568,7 @@ struct SessionColorNameTests {
         #expect(lookup.status == .found)
         #expect(await session.bambuddy == .ready)
         let problem = try #require(await session.snapshot.colorNamesProblem)
-        #expect(problem.hasPrefix("Colour names unavailable"))
+        #expect(problem.hasPrefix("Color names unavailable"))
         #expect(problem.contains("inventory:read"))
 
         guard case .create(let sent) = try #require(inventory.creates.first) else { return }

@@ -36,8 +36,8 @@ public struct TagDetails: Equatable, Sendable {
         add("UID", tag.uid, identifier: true)
         add("Bambuddy tag UID", tag.bambuddyTagUid == tag.uid.uppercased() ? nil : tag.bambuddyTagUid, identifier: true)
         add("Tray UUID", tag.trayUuid, identifier: true)
-        add("Colour", item.colorName)
-        add("Colour code", item.colorCode)
+        add("Color", item.colorName)
+        add("Color code", item.colorCode)
         add("Filament ID", tag.materialId, identifier: true)
         add("RGBA", (spool?.rgba ?? tag.rgba).flatMap { $0.isEmpty ? nil : "#\($0)" }, identifier: true)
         add("Diameter", tag.diameter.flatMap(Self.diameter))
@@ -54,7 +54,7 @@ public struct TagDetails: Equatable, Sendable {
         Self.watchLabels.compactMap { label in facts.first { $0.label == label } }
     }
 
-    static let watchLabels = ["Colour", "Colour code", "UID", "Filament ID", "Diameter", "Nozzle", "Spool"]
+    static let watchLabels = ["Color", "Color code", "UID", "Filament ID", "Diameter", "Nozzle", "Spool"]
 
     /// The value of the fact labelled `label`, if the row has it.
     public func value(_ label: String) -> String? {

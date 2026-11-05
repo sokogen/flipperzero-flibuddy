@@ -48,7 +48,7 @@ public final class SpoolsViewModel {
             case .recentlyUpdated: "Recently updated"
             case .leastLeft: "Least left"
             case .material: "Material"
-            case .colour: "Colour"
+            case .colour: "Color"
             }
         }
     }
@@ -123,7 +123,7 @@ public final class SpoolsViewModel {
         static func noMatch(_ query: String) -> Unavailable {
             Unavailable(
                 title: "No spools match \u{201C}\(query)\u{201D}", systemImage: "magnifyingglass",
-                message: "Search looks at material, colour, brand and note.", action: nil, isProblem: false
+                message: "Search looks at material, color, brand and note.", action: nil, isProblem: false
             )
         }
 

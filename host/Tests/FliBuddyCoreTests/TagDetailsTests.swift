@@ -19,14 +19,14 @@ struct TagDetailsTests {
 
         #expect(details.title == "PLA Basic")
         #expect(details.facts.map(\.label) == [
-            "UID", "Bambuddy tag UID", "Tray UUID", "Colour", "Colour code", "Filament ID", "RGBA",
+            "UID", "Bambuddy tag UID", "Tray UUID", "Color", "Color code", "Filament ID", "RGBA",
             "Diameter", "Nozzle", "Label weight", "Core weight", "Spool",
         ])
         #expect(details.value("UID") == "5A3C9E21")
         #expect(details.value("Bambuddy tag UID") == "5A3C9E2100000100")
         #expect(details.value("Tray UUID") == "FCFFA95B29EA71C5A36D7A067DF82014")
-        #expect(details.value("Colour") == "Jade White")
-        #expect(details.value("Colour code") == "10501")
+        #expect(details.value("Color") == "Jade White")
+        #expect(details.value("Color code") == "10501")
         #expect(details.value("Filament ID") == "GFA00")
         #expect(details.value("RGBA") == "#FFFFFFFF")
         #expect(details.value("Diameter") == "1.75 mm")
@@ -44,7 +44,7 @@ struct TagDetailsTests {
         unknown.colorName = "Jade White"
         let details = TagDetails(unknown)
 
-        #expect(details.value("Colour code") == "10100")
+        #expect(details.value("Color code") == "10100")
         #expect(details.value("Label weight") == "1000 g")
         #expect(details.value("Core weight") == nil)
         #expect(details.value("Spool") == nil)

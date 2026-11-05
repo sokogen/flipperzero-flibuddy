@@ -5,10 +5,10 @@ import Foundation
 /// the query, `FeedViewModel` the pick, and the view builds this from them.
 public struct LinkPickerModel: Equatable, Sendable {
     public static let title = "Link to existing spool"
-    public static let placeholder = "material, colour, brand or note"
+    public static let placeholder = "material, color, brand or note"
     /// The iPhone sheet's title and search prompt.
     public static let phoneTitle = "Link to existing"
-    public static let phonePlaceholder = "Material, colour, brand or note"
+    public static let phonePlaceholder = "Material, color, brand or note"
     /// The iPhone alert's confirming button.
     public static let moveButton = "Move link"
 

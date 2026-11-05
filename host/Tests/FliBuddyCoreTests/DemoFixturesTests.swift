@@ -164,8 +164,8 @@ struct DemoFixturesTests {
         #expect(archived.status == .markedEmpty)
         #expect(archived.savedBy == .flipper)
         #expect(archived.spool?.isArchived == true)
-        // No row says "by host" (screenshots never show it).
-        #expect(rows.allSatisfy { !FeedItem($0).statusText.contains("by host") })
+        // No row says "by Mac" (screenshots never show it).
+        #expect(rows.allSatisfy { !FeedItem($0).statusText.contains("by Mac") })
         #expect(FeedItem(saved).statusText == "Saved 15 g left \u{00B7} by Flipper")
     }
 
@@ -265,7 +265,8 @@ struct DemoFixturesTests {
         #expect(await eventually { host.feed.items.count == 7 })
         #expect(await eventually { await host.session.bambuddy == .ready })
         #expect(host.sidebar.flipper.subline == "Atgizo \u{00B7} Bluetooth")
-        #expect(await eventually { host.sidebar.bambuddy.subline == "Ready \u{00B7} bambuddy.example.com" })
+        #expect(await eventually { host.sidebar.bambuddy.subline == "Ready" })
+        #expect(host.sidebar.bambuddy.server == "bambuddy.example.com")
     }
 
     @Test func theDemoCanStartAsAFreshInstallOrWithoutAFlipper() {

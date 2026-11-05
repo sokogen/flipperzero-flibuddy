@@ -87,4 +87,17 @@ struct LookupBuilderTests {
         let failed = LookupBuilder.result(id: "i-1", ok: false, lines: ["Not saved"], error: "boom", spool: knownSpool())
         #expect(failed.spool == nil)
     }
+
+    @Test func namesForTheFlipperAreASCII() {
+        // The Flipper's fonts draw ASCII only.
+        #expect(LookupBuilder.name("Gr\u{00FC}n Caf\u{00E9}") == "Grun Cafe")
+        #expect(LookupBuilder.name("Stra\u{00DF}e \u{00B7} \u{201C}Silk\u{201D}") == "Strasse - \"Silk\"")
+        #expect(LookupBuilder.name("\u{0417}\u{0435}\u{043B}\u{0451}\u{043D}\u{044B}\u{0439}") == "Zelenyj")
+        #expect(LookupBuilder.name("\u{1F525}") == nil)
+        // Transliterated first, then cut to 40.
+        let long = LookupBuilder.name(String(repeating: "\u{00DF}", count: 30))
+        #expect(long == String(repeating: "ss", count: 20))
+        #expect(LookupBuilder.lines("Bambuddy: Gr\u{00FC}n") == ["Bambuddy: Grun"])
+        #expect(LookupBuilder.message("\u{00C9}chec") == "Echec")
+    }
 }

@@ -133,15 +133,15 @@ static void test_waiting_over_usb(void) {
     CHECK_STR_EQ(frame.note, "v0.1.0");
     CHECK(frame.icon == UiIconUsb);
     CHECK(frame.line_icon == UiIconUsb);
-    CHECK_STR_EQ(frame.line[0], "USB: no host app");
-    CHECK_STR_EQ(frame.line[1], "Waiting for host");
+    CHECK_STR_EQ(frame.line[0], "USB: no app");
+    CHECK_STR_EQ(frame.line[1], "Waiting for app");
     check_chips("", "", "Settings");
     env.anim = 3;
     build();
-    CHECK_STR_EQ(frame.line[1], "Waiting for host...");
+    CHECK_STR_EQ(frame.line[1], "Waiting for app...");
     env.anim = 5;
     build();
-    CHECK_STR_EQ(frame.line[1], "Waiting for host.");
+    CHECK_STR_EQ(frame.line[1], "Waiting for app.");
 
     send(AppEventTransportFailed);
     build();
@@ -154,7 +154,7 @@ static void test_waiting_names_the_protocol_of_another_host_app(void) {
     app_reduce(&app, &e);
     build();
     CHECK_STR_EQ(frame.line[0], "App speaks protocol 3");
-    CHECK_STR_EQ(frame.line[1], "Waiting for host");
+    CHECK_STR_EQ(frame.line[1], "Waiting for app");
     CHECK(frame.line_icon == UiIconUsb);
     CHECK(strlen(frame.line[0]) <= 21); /* fits the 108 px beside the icon */
 
@@ -195,7 +195,7 @@ static void test_waiting_over_bluetooth(void) {
     e.ble = AppBleConnected;
     app_reduce(&app, &e);
     build();
-    CHECK_STR_EQ(frame.line[0], "Bluetooth: no host app");
+    CHECK_STR_EQ(frame.line[0], "Bluetooth: no app");
     CHECK(frame.icon == UiIconBt);
 
     e.ble = AppBleAdvertising;
@@ -273,7 +273,7 @@ static void test_reading_and_looking_up(void) {
     CHECK(frame.screen == AppScreenLookingUp);
     CHECK_STR_EQ(frame.title, "Looking up");
     CHECK_STR_EQ(frame.line[0], "PLA Basic"); /* block 4 of the tag */
-    CHECK_STR_EQ(frame.line[1], "Asking the host");
+    CHECK_STR_EQ(frame.line[1], "Asking the app");
 
     press(AppKeyBack);
     send_tag(&ntag);
@@ -462,7 +462,7 @@ static void test_result_without_host(void) {
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK_STR_EQ(frame.line[0], "MIFARE Classic 1K");
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
-    CHECK_STR_EQ(frame.bar, "No host");
+    CHECK_STR_EQ(frame.bar, "No app");
     check_chips("Menu", "", "");
 
     press(AppKeyBack);
@@ -483,7 +483,7 @@ static void test_menu_lists_the_actions(void) {
     CHECK_STR_EQ(frame.item[0], "Weigh");
     CHECK_STR_EQ(frame.item[1], "Mark as new");
     CHECK_STR_EQ(frame.item[2], "Mark as empty");
-    CHECK_STR_EQ(frame.item[3], "Relink on host");
+    CHECK_STR_EQ(frame.item[3], "Relink in app");
     CHECK_STR_EQ(frame.item[4], "Tag details");
     CHECK_STR_EQ(frame.item[5], "Delete spool");
     CHECK_STR_EQ(frame.value[0], "");
@@ -501,12 +501,12 @@ static void test_menu_lists_the_actions(void) {
     CHECK_EQ_INT(frame.count, 4);
     CHECK_STR_EQ(frame.item[0], "Add new");
     CHECK_STR_EQ(frame.item[1], "Add and weigh");
-    CHECK_STR_EQ(frame.item[2], "Link on host");
+    CHECK_STR_EQ(frame.item[2], "Link in app");
     CHECK_STR_EQ(frame.item[3], "Tag details");
 
     app.result_kind = AppResultUnknownBare;
     build();
-    CHECK_STR_EQ(frame.item[0], "Create on host");
+    CHECK_STR_EQ(frame.item[0], "Create in app");
 
     setup();
     send_tag(&ntag);
@@ -769,14 +769,14 @@ static void test_link_on_host(void) {
     CHECK(frame.screen == AppScreenLinkOnHost);
     CHECK_STR_EQ(frame.title, "Link tag");
     CHECK_STR_EQ(frame.line[0], "Pick the spool in");
-    CHECK_STR_EQ(frame.line[1], "FliBuddy on host");
+    CHECK_STR_EQ(frame.line[1], "the FliBuddy app");
     check_chips("Cancel", "", "");
 
     app.result_kind = AppResultUnknownBare;
     press(AppKeyLeft);
     press(AppKeyOk);
     build();
-    CHECK_STR_EQ(frame.title, "Create on host");
+    CHECK_STR_EQ(frame.title, "Create in app");
     CHECK_STR_EQ(frame.line[0], "Finish the spool in");
 }
 
@@ -795,14 +795,14 @@ static void test_errors(void) {
     press(AppKeyRight); /* resend */
     send_at(AppEventTick, APP_RESULT_TIMEOUT_MS);
     build();
-    CHECK_STR_EQ(frame.title, "No host reply");
-    CHECK_STR_EQ(frame.body, "No reply in 10 s. Open FliBuddy on the Mac or iPhone.");
+    CHECK_STR_EQ(frame.title, "No app reply");
+    CHECK_STR_EQ(frame.body, "No reply in 10 s. Open the FliBuddy app.");
 
     press(AppKeyRight);
     send(AppEventHostLost);
     build();
-    CHECK_STR_EQ(frame.title, "Host lost");
-    CHECK_STR_EQ(frame.body, "The host went away before it answered.");
+    CHECK_STR_EQ(frame.title, "App lost");
+    CHECK_STR_EQ(frame.body, "The app went away before it answered.");
     check_chips("Back", "", ""); /* nothing to resend to */
 
     setup();
@@ -844,7 +844,7 @@ static void test_error_titles_follow_the_action(void) {
     send(AppEventSendFailed);
     build();
     CHECK_STR_EQ(frame.title, "Not sent");
-    CHECK_STR_EQ(frame.body, "Could not send to the host.");
+    CHECK_STR_EQ(frame.body, "Could not send to the app.");
 
     ProtoResult r;
     memset(&r, 0, sizeof(r));
@@ -869,7 +869,7 @@ static void test_error_titles_follow_the_action(void) {
     app.error = AppErrorLookup;
     memset(&app.lookup, 0, sizeof(app.lookup));
     build();
-    CHECK_STR_EQ(frame.body, "The host could not look the tag up.");
+    CHECK_STR_EQ(frame.body, "The app could not look the tag up.");
 }
 
 /* ---- Settings, About ---- */
@@ -925,14 +925,14 @@ static void test_about(void) {
     CHECK_STR_EQ(frame.line[0], "for Bambuddy");
     CHECK_STR_EQ(frame.line[1], "Version 0.1.0");
     CHECK_STR_EQ(frame.line[2], "Protocol 2 - fw 1.5.1");
-    CHECK_STR_EQ(frame.line[3], "Host: FliBuddy Mac - USB");
+    CHECK_STR_EQ(frame.line[3], "App: FliBuddy Mac - USB");
 
     app.transport = TransportKindBluetooth;
     build();
-    CHECK_STR_EQ(frame.line[3], "Host: FliBuddy Mac - BLE");
+    CHECK_STR_EQ(frame.line[3], "App: FliBuddy Mac - BLE");
     send(AppEventHostLost);
     build();
-    CHECK_STR_EQ(frame.line[3], "Host: not connected");
+    CHECK_STR_EQ(frame.line[3], "App: not connected");
 }
 
 static void test_fields_of_another_screen_are_cleared(void) {

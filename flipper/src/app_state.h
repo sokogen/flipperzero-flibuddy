@@ -143,7 +143,7 @@ typedef enum {
     AppMenuWeigh,
     AppMenuMarkNew,
     AppMenuMarkEmpty,
-    AppMenuRelink, /* "Relink on host" */
+    AppMenuRelink, /* "Relink in app" */
     AppMenuDetails,
     AppMenuDelete,
     AppMenuAddNew,
