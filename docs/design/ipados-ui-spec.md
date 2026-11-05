@@ -208,10 +208,12 @@ Layout
   (`.adaptive` cannot cap the count at three), measured from the grid's
   own width. By eye: three on a 13", two on an 11", in both orientations.
 - Rotating swaps `NavigationSplitView` and `TabView`, so the feed and the
-  Settings form are built again: a field being typed in Settings commits
-  as it goes, and the focused row takes the keyboard back from the feed.
-  By eye: rotate while typing a weight, while Settings is open, and with
-  the QR cover up.
+  Settings form are built again. The Settings model lives in `RootView`,
+  so a field being typed keeps its draft (and commits as the old form
+  goes); the focused row takes the keyboard back from the feed. Unlike
+  before, leaving the Settings pane keeps the model too, as the iPhone's
+  tab always did. By eye: rotate while typing a weight, while Settings is
+  open, and with the QR cover up.
 
 Sidebar
 - The rows come from `Sidebar` (`FliBuddyCore`), built from the same two

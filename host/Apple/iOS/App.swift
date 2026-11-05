@@ -84,6 +84,10 @@ struct RootView: View {
     @Bindable var navigation: AppNavigation
     @Environment(\.horizontalSizeClass) private var sizeClass
     @ViewState private var size: CGSize = .zero
+    /// The Settings model lives here, not in `SettingsScreen`: rotating an
+    /// iPad swaps the split view and the tabs and builds the screen again,
+    /// and a draft being typed must survive that.
+    @ViewState private var settingsModel: SettingsViewModel?
 
     private var layout: FeedLayout {
         FeedLayout.forWindow(width: size.width, height: size.height, isCompact: sizeClass != .regular)
@@ -123,18 +127,18 @@ struct RootView: View {
 
     private var settings: some View {
         NavigationStack {
-            SettingsScreen(host: host)
+            SettingsScreen(host: host, model: $settingsModel)
                 .navigationTitle("Settings")
         }
     }
 }
 
 /// The settings, applied as they change (no Save on iPhone and iPad). The
-/// model is made once, so a field being typed survives switching tabs; leaving
-/// the tab commits it.
+/// model is made once and kept by `RootView`, so a field being typed
+/// survives switching tabs, panes and layouts; leaving the screen commits it.
 struct SettingsScreen: View {
     let host: HostModel
-    @ViewState private var model: SettingsViewModel?
+    @Binding var model: SettingsViewModel?
 
     var body: some View {
         Group {

@@ -28,9 +28,9 @@ designer proposed.
    settings on change. **Changed in the design (2026-11-05):** settings
    apply on change on every platform, the Mac too, with no Save button.
    The Mac app still has Save and Revert (see "Implemented differently").
-4a. **2026-11-05:** after **New** the spool is simply added at its label
-   weight ("Added to Bambuddy"), with no weight prompt; click the row to
-   weigh it anyway. See "Owner decisions".
+   Also new on the page (2026-11-05): after **New** the spool is simply
+   added at its label weight ("Added to Bambuddy"), with no weight prompt;
+   click the row to weigh it anyway. See "Owner decisions".
 5. "Link to existing" warns when the chosen spool already carries a
    different tag and offers to move the link.
 6. The watch creates Bambu Lab tags in one tap but cannot fill the form;
