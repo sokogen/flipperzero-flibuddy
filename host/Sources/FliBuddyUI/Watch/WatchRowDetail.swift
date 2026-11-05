@@ -106,7 +106,10 @@ struct WatchWeightEntry: View {
                     if await feed.save(id) { onSaved(id) }
                 }
             }
-            .buttonStyle(WatchCapsuleButtonStyle(fill: StatusTint.blue.watchColor))
+            // Tinted, not filled (Watch page): the number is the focus.
+            .buttonStyle(WatchCapsuleButtonStyle(
+                fill: WatchCapsuleButtonStyle.tintedFill, foreground: WatchCapsuleButtonStyle.tintedText
+            ))
             .opacity(canSave ? 1 : 0.45)
             .disabled(!canSave)
         }
@@ -149,6 +152,10 @@ struct WatchModePill: View {
 
 /// A full-width capsule, 40 high, 16 sb white text.
 struct WatchCapsuleButtonStyle: ButtonStyle {
+    /// Save's tinted capsule: the watch blue at 26 % under `#4DA2FF` text.
+    static let tintedFill = StatusTint.blue.watchColor.opacity(0.26)
+    static let tintedText = Color(red: 0x4D / 255, green: 0xA2 / 255, blue: 0xFF / 255)
+
     let fill: Color
     var foreground: Color = .white
     var height: CGFloat = 40

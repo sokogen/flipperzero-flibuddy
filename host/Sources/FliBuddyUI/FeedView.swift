@@ -618,7 +618,7 @@ struct WeightEntry: View {
                 } label: {
                     Text(feed.saveTitle(for: id)).font(.headline).frame(minWidth: 64)
                 }
-                .buttonStyle(.borderedProminent)
+                .saveButtonStyle()
                 .disabled(!feed.canSave(id))
                 .help(saveHelp)
             }
@@ -675,8 +675,7 @@ struct WeightEntry: View {
                     .font(.headline)
                     .frame(minWidth: 52, minHeight: 30)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            .saveButtonStyle()
             .frame(minHeight: 44)
             .disabled(!feed.canSave(id))
             .help("Save (\u{2318}S)")
@@ -701,10 +700,10 @@ struct WeightEntry: View {
             } label: {
                 Text(feed.saveTitle(for: id))
                     .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .frame(maxWidth: .infinity, minHeight: 30)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            // 44 high: tinted, the weight above it is the focus.
+            .saveButtonStyle()
             .controlSize(.large)
             .disabled(!feed.canSave(id))
             .accessibilityHint(saveHelp)
