@@ -4,7 +4,7 @@
 
 FliBuddy is a spool reader for 3D printing filament on a **Flipper Zero**.
 Hold the NFC tag of a Bambu Lab spool (or an NTAG tag) to the back of the
-Flipper and it shows the material, the colour by Bambu's name and code, the
+Flipper and it shows the material, the color by Bambu's name and code, the
 diameter, the label weight and the temperatures, with no phone and no
 network.
 
@@ -20,8 +20,8 @@ Project page, privacy policy and support:
 
 ## What you need
 
-- A Flipper Zero on firmware release **1.5.1** or later (official release
-  channel).
+- A Flipper Zero on the current official firmware release (**1.5.1** at
+  the time of writing).
 - For the phone apps: iOS, iPadOS and watchOS 26.
 - For syncing: a Bambuddy server in internal inventory mode (Spoolman mode
   is not supported), reachable over **HTTPS**, and an API key with

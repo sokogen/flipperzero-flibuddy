@@ -13,8 +13,9 @@ description: "@catalog/description.md"
 changelog: "@CHANGELOG.md"
 # Unedited qFlipper exports; the first is the preview (screenshots/README.md).
 screenshots:
-  - screenshots/1_spool.png
-  - screenshots/2_waiting.png
-  - screenshots/3_new_spool.png
-  - screenshots/4_weight.png
-  - screenshots/5_settings.png
+  - screenshots/1_no_app.png
+  - screenshots/2_spool.png
+  - screenshots/3_waiting.png
+  - screenshots/4_new_spool.png
+  - screenshots/5_weight.png
+  - screenshots/6_settings.png

@@ -144,6 +144,21 @@ def test_the_screenshots_are_listed_in_the_folder_readme():
         assert Path(shot).name in readme
 
 
+def test_the_preview_is_a_screen_the_flipper_shows_alone():
+    # the catalog's first screenshot must not need the phone app
+    first = Path(manifest()["screenshots"][0]).name
+    readme = (SCREENSHOTS / "README.md").read_text(encoding="utf-8")
+    row = next(line for line in readme.splitlines() if line.startswith(f"| `{first}`"))
+    assert "No app" in row and "(preview)" in row
+
+
+@pytest.mark.parametrize("field", ["description", "changelog"])
+def test_the_texts_spell_color_as_the_app_does(field):
+    # the apps are en-US: Color, not colour
+    text = included(manifest()[field]).read_text(encoding="utf-8")
+    assert "colour" not in text.lower()
+
+
 # ---- the screenshots ----
 
 def screenshot_files() -> list[Path]:
@@ -185,6 +200,6 @@ def test_the_description_leads_with_what_the_flipper_shows_alone():
     text = " ".join(included(manifest()["description"]).read_text(encoding="utf-8").split())
     alone = text[text.index("## On the Flipper alone"):text.index("## With the FliBuddy app")]
     # what tag_facts.h reads and the no-app screens show
-    for fact in ("colour name", "code printed on the box", "diameter", "label weight",
+    for fact in ("color name", "code printed on the box", "diameter", "label weight",
                  "nozzle temperature", "drying temperature", "bed temperature"):
         assert fact in alone, fact
