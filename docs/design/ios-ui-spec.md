@@ -179,7 +179,7 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 | Side | State | Phrase | Symbol | Tint | Action |
 |---|---|---|---|---|---|
 | Flipper | none | `No Flipper · searching` | spinner (`antenna.radiowaves.left.and.right.slash` for VoiceOver) | gray | |
-| Flipper | adv | `Flipper nearby` | `antenna.radiowaves.left.and.right` | orange | Connect |
+| Flipper | not started | `Flipper not connected` | `antenna.radiowaves.left.and.right` | orange | Settings |
 | Flipper | ble | `Flipper connected` | `antenna.radiowaves.left.and.right` | green | |
 | Flipper | nohello | `Open FliBuddy on the Flipper` | `app.dashed` | orange | |
 | Flipper | other version | `Flipper speaks protocol 1, host speaks 2` (the side to update in the hint) | `exclamationmark.triangle` | orange | |
@@ -321,8 +321,22 @@ beyond this is the builder's call.
 
 ## Empty and blocking states (`ContentUnavailableView`)
 
-- Empty feed: `wave.3.right` (58 pt, `.secondary`), `No scans yet`,
-  `Hold a spool's tag to the Flipper running FliBuddy.`
+- Empty feed, the first thing missing first (`FeedEmptyState`):
+  - no server (no URL or key): `server.rack`, `Connect Bambuddy`, `Scan the
+    API-key QR code in Bambuddy, or type its address.`, **Open Settings**
+    (the Spools tab's words);
+  - no Flipper connected: `antenna.radiowaves.left.and.right`, `Find your
+    Flipper`, `Open FliBuddy on the Flipper (Apps → NFC).`, **Scan for
+    Flipper**, which opens Settings and starts the scan there;
+  - otherwise `wave.3.right` (58 pt, `.secondary`), `No scans yet`,
+    `Hold a spool's tag to the Flipper running FliBuddy.`
+- First run asks for each permission where it is used: the camera on the
+  first Scan QR code (denied: the footer reads `Camera access is off. Allow
+  it in Settings.` with an **Open Settings** row and Scan dimmed), the local
+  network on the first Bambuddy request (Test connection, or the test a QR
+  read starts), Bluetooth on Scan for Flipper. Without a remembered Flipper
+  the link does not start, so nothing creates the Bluetooth central before
+  that scan; the banner then reads `Flipper not connected` with Settings.
 - Spoolman mode (blocking, replaces the list even with rows): `nosign` in
   red, `Bambuddy is in Spoolman mode`, `FliBuddy works with Bambuddy's own
   inventory. Switch it back from Spoolman in Bambuddy's settings, then

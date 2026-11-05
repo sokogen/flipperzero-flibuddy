@@ -6,6 +6,28 @@ public enum WatchSettingsTexts {
     public static let emptyText = "Open FliBuddy on the iPhone to send its settings."
     public static let changeOnIPhone = "Change these on iPhone."
 
+    /// A search this long without a Flipper hints that another device has it.
+    public static let longSearch: TimeInterval = 30
+
+    public static let holdATag = "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
+
+    /// The watch's empty feed: settings first (they come from the iPhone),
+    /// then a Flipper to choose, then a hint after a long search (a Flipper
+    /// connected to another device stops advertising, so the watch cannot
+    /// tell it apart from one out of range), else hold a tag.
+    public static func emptyFeed(
+        _ state: FeedEmptyState, linkActive: Bool, searchingSince: Date?, now: Date
+    ) -> String {
+        switch state {
+        case .noServer: return "Set up FliBuddy on your iPhone first."
+        case .noFlipper where !linkActive: return "Choose your Flipper in Settings."
+        case .noFlipper:
+            guard let searchingSince, now.timeIntervalSince(searchingSince) >= longSearch else { return holdATag }
+            return "No Flipper found. It may be connected to another device."
+        case .noScans: return holdATag
+        }
+    }
+
     /// The server as host and port, `bambuddy.local:8000`; the URL as typed
     /// when it has no host; `Not set` when empty.
     public static func server(_ url: String) -> String {

@@ -16,9 +16,19 @@ public enum AppPane: String, Hashable, Sendable {
 public final class AppNavigation {
     public var pane: AppPane
     public var confirmingClear = false
+    /// The empty feed's Scan for Flipper: Settings starts a scan when it
+    /// shows, then clears this.
+    public var scanRequested = false
 
     public init(pane: AppPane = .feed) {
         self.pane = pane
+    }
+
+    /// Opens Settings and has it scan for a Flipper; the Bluetooth
+    /// permission prompt comes with that scan.
+    public func scanForFlipper() {
+        scanRequested = true
+        pane = .settings
     }
 
     /// Shows the feed and asks before clearing it.

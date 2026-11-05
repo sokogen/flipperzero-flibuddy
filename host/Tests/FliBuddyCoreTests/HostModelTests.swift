@@ -301,6 +301,142 @@ struct HostModelTests {
         #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: usb))
     }
 
+    // MARK: First run
+
+    /// A host on a Bluetooth-only platform (iPhone, iPad, Watch).
+    private func makeBluetoothOnlyModel(
+        settings: Settings, opened: LockedBox<[TransportChoice]>, defaults: InMemoryKeyValueStore = InMemoryKeyValueStore()
+    ) throws -> HostModel {
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        try store.save(settings)
+        return HostModel(
+            store: store, makeInventory: { _ in FakeInventory() },
+            makeTransport: { choice in
+                opened.mutate { $0.append(choice) }
+                return FakeTransport()
+            },
+            discoverPorts: { [] }, linkWaitsForChosenFlipper: true
+        )
+    }
+
+    @Test func withoutARememberedFlipperTheLinkWaitsForOneToBeChosen() async throws {
+        // Creating the Bluetooth central asks for permission: a fresh
+        // install asks only when the user scans for a Flipper.
+        var fresh = testSettings
+        fresh.transport = .bluetooth
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeBluetoothOnlyModel(settings: fresh, opened: opened)
+
+        model.start()
+        defer { model.link.disconnect() }
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!model.link.isActive)
+        #expect(opened.value.isEmpty)
+        // Bambuddy is still checked.
+        #expect(await eventually { await model.session.bambuddy == .ready })
+    }
+
+    @Test func choosingTheFirstFlipperStartsTheWaitingLink() async throws {
+        var fresh = testSettings
+        fresh.transport = .bluetooth
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeBluetoothOnlyModel(settings: fresh, opened: opened)
+        model.start()
+        defer { model.link.disconnect() }
+
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperA, name: "Flipper Anmaa1", rssi: -50))
+
+        #expect(model.link.isActive)
+        #expect(await eventually { opened.value == [.bluetooth(peripheral: Self.flipperA)] })
+    }
+
+    @Test func aChosenFlipperBeforeStartStillWaitsForStart() async throws {
+        var fresh = testSettings
+        fresh.transport = .bluetooth
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeBluetoothOnlyModel(settings: fresh, opened: opened)
+
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperA, name: "Flipper Anmaa1", rssi: -50))
+
+        #expect(!model.link.isActive)
+        #expect(opened.value.isEmpty)
+    }
+
+    @Test func aRememberedFlipperStartsTheLinkOnABluetoothOnlyPlatform() async throws {
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeBluetoothOnlyModel(settings: bluetoothSettings, opened: opened)
+
+        model.start()
+        defer { model.link.disconnect() }
+
+        #expect(await eventually { opened.value == [.bluetooth(peripheral: Self.flipperA)] })
+    }
+
+    @Test func theMacStartsTheLinkWithoutARememberedFlipper() async throws {
+        var any = testSettings
+        any.transport = .bluetooth
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeModel(InMemoryKeyValueStore(), settings: any, opened: opened)
+
+        model.start()
+        defer { model.link.disconnect() }
+
+        #expect(await eventually { opened.value == [.bluetooth(peripheral: nil)] })
+    }
+
+    @Test func theFeedSaysWhatIsMissingFirst() async throws {
+        let opened = LockedBox<[TransportChoice]>([])
+        var fresh = Settings()
+        fresh.transport = .bluetooth
+        let model = try makeBluetoothOnlyModel(settings: fresh, opened: opened)
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(model.feedEmptyState == .noServer)
+
+        var configured = testSettings
+        configured.transport = .bluetooth
+        try await model.apply(configured)
+        #expect(model.feedEmptyState == .noFlipper)
+
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperA, name: "Flipper Anmaa1", rssi: -50))
+        // Searching for the Flipper is not a Flipper yet.
+        #expect(model.feedEmptyState == .noFlipper)
+    }
+
+    @Test func aConnectedFlipperLeavesTheScanHint() async throws {
+        let transport = FakeTransport()
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(bluetoothSettings)
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in transport },
+            discoverPorts: { [] }, linkWaitsForChosenFlipper: true
+        )
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(await eventually { transport.state == .open })
+        transport.deliver(.flipperHello)
+
+        #expect(await eventually { model.feedEmptyState == .noScans })
+    }
+
+    @Test func theEmptyFeedNamesTheSameServerStateAsTheSpools() {
+        let noServer = FeedEmptyState.noServer.content
+        let spools = SpoolsViewModel.Unavailable.connectBambuddy
+        #expect(noServer.title == spools.title)
+        #expect(noServer.message == spools.message)
+        #expect(noServer.systemImage == spools.systemImage)
+        #expect(noServer.actionTitle == "Open Settings")
+        let noFlipper = FeedEmptyState.noFlipper.content
+        #expect(noFlipper.title == "Find your Flipper")
+        #expect(noFlipper.message == "Open FliBuddy on the Flipper (Apps\u{00A0}\u{2192}\u{00A0}NFC).")
+        #expect(noFlipper.actionTitle == "Scan for Flipper")
+        let noScans = FeedEmptyState.noScans.content
+        #expect(noScans.title == "No scans yet")
+        #expect(noScans.message == "Hold a spool's tag to the Flipper running FliBuddy.")
+        #expect(noScans.actionTitle == nil)
+    }
+
     @Test func theHostHelloNamesTheApp() {
         let hello = HostModel.hostHello
         #expect(hello.app == "flibuddy-mac/0.1.0")

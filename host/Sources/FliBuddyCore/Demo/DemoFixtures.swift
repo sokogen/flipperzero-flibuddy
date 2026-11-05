@@ -29,11 +29,42 @@ public enum DemoFixtures {
         return arguments[index + 1]
     }
 
+    /// What the demo starts as, for the first-run screens:
+    /// `-FliBuddyDemoState fresh` (no settings at all) or `noFlipper`
+    /// (Bambuddy set up, no Flipper chosen); else connected.
+    public static let stateArgument = "-FliBuddyDemoState"
+
+    public enum State: String, Sendable {
+        case connected
+        case fresh
+        case noFlipper
+
+        /// The demo's settings in this state.
+        var settings: Settings {
+            switch self {
+            case .connected: DemoFixtures.settings
+            case .fresh: Settings(transport: .bluetooth)
+            case .noFlipper:
+                Settings(
+                    baseURL: DemoFixtures.settings.baseURL, apiKey: DemoFixtures.settings.apiKey,
+                    catalogEntryId: 1, coreWeight: 242, defaultMode: .gross, transport: .bluetooth
+                )
+            }
+        }
+    }
+
+    /// The state `-FliBuddyDemoState` names, in the demo only.
+    public static func requestedState(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> State {
+        guard isRequested(arguments), let index = arguments.firstIndex(of: stateArgument),
+              index + 1 < arguments.count else { return .connected }
+        return State(rawValue: arguments[index + 1]) ?? .connected
+    }
+
     /// The demo's host: the fixtures' settings, Bambuddy and Flipper; the
     /// feed fills once `start()` connects the Flipper.
     @MainActor
-    public static func makeHost() -> HostModel {
-        makeEnvironment().host
+    public static func makeHost(state: State = requestedState()) -> HostModel {
+        makeEnvironment(state: state).host
     }
 
     // MARK: - Settings
@@ -298,12 +329,14 @@ public enum DemoFixtures {
     // MARK: - The host
 
     @MainActor
-    static func makeEnvironment() -> DemoEnvironment {
+    static func makeEnvironment(
+        state: State = .connected, linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
+    ) -> DemoEnvironment {
         let defaults = InMemoryKeyValueStore()
         let secrets = InMemorySecretStore()
         let store = SettingsStore(defaults: defaults, secrets: secrets)
         do {
-            try store.save(settings)
+            try store.save(state.settings)
         } catch {
             // In-memory stores do not fail.
             Log.error(.settings, "demo: settings not saved: \(Session.describe(error))")
@@ -311,7 +344,11 @@ public enum DemoFixtures {
         let clock = DemoClock()
         let inventory = DemoInventory(now: clock.now)
         let player = DemoPlayer(clock: clock)
-        let makeInventory: @Sendable (Settings) throws -> any SpoolInventory = { _ in inventory }
+        // Settings without a server make no Bambuddy, as the real factory.
+        let makeInventory: @Sendable (Settings) throws -> any SpoolInventory = { settings in
+            _ = try settings.makeClient()
+            return inventory
+        }
         let host = HostModel(
             store: store,
             makeInventory: makeInventory,
@@ -324,10 +361,11 @@ public enum DemoFixtures {
                 }
             },
             bluetoothPower: { .poweredOn },
-            now: { clock.now() }
+            now: { clock.now() },
+            linkWaitsForChosenFlipper: linkWaitsForChosenFlipper
         )
         player.session = host.session
-        Log.notice(.app, "demo: fixture mode, no Bluetooth, no network, settings in memory")
+        Log.notice(.app, "demo: fixture mode, state=\(state.rawValue), no Bluetooth, no network, settings in memory")
         return DemoEnvironment(
             host: host, inventory: inventory, defaults: defaults, secrets: secrets, makeInventory: makeInventory
         )

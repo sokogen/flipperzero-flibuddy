@@ -22,7 +22,15 @@ public struct WatchRootView: View {
     public var body: some View {
         let feed = host.feed
         NavigationStack(path: $navigation.path) {
-            WatchFeedView(feed: feed, glyph: host.watchGlyph) { navigation.open($0) } onSettings: {
+            WatchFeedView(
+                feed: feed, glyph: host.watchGlyph,
+                emptyText: { now in
+                    WatchSettingsTexts.emptyFeed(
+                        host.feedEmptyState, linkActive: host.link.isActive,
+                        searchingSince: host.link.searchingSince, now: now
+                    )
+                }
+            ) { navigation.open($0) } onSettings: {
                 navigation.openSettings()
             }
             .navigationDestination(for: WatchNavigation.Screen.self) { screen in
@@ -58,20 +66,24 @@ public struct WatchRootView: View {
 struct WatchFeedView: View {
     let feed: FeedViewModel
     let glyph: StatusItem
+    /// The empty feed's line at a time (`WatchSettingsTexts.emptyFeed`):
+    /// settings, a Flipper to choose, a long search, or hold a tag.
+    let emptyText: (Date) -> String
     let onOpen: (FeedRow.ID) -> Void
     let onSettings: () -> Void
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
-    static let emptyText = "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
-
     var body: some View {
         Group {
             if feed.items.isEmpty {
-                Text(Self.emptyText)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Ticks so a search that grows long changes the line.
+                TimelineView(.periodic(from: .now, by: 5)) { context in
+                    Text(emptyText(context.date))
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 List(feed.items) { item in
                     if isLuminanceReduced {

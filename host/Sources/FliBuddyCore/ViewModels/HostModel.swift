@@ -27,10 +27,17 @@ public final class HostModel {
     private let store: SettingsStore
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
+    /// See `init`'s `linkWaitsForChosenFlipper`.
+    private let linkWaitsForChosenFlipper: Bool
+    private let requiresHTTPS: Bool
     private var started = false
 
     /// `scanPeripherals` and `bluetoothPower` stand in for CoreBluetooth, `now`
     /// for the clock of the feed's scan times (the demo mode, tests).
+    /// `linkWaitsForChosenFlipper` (the Bluetooth-only iPhone, iPad and
+    /// Watch): without a remembered Flipper the link does not start until
+    /// one is chosen, as creating the Bluetooth central asks for permission
+    /// and that belongs to Scan for Flipper.
     public init(
         store: SettingsStore = SettingsStore(),
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
@@ -38,13 +45,17 @@ public final class HostModel {
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
         scanPeripherals: @escaping @Sendable () -> AsyncStream<DiscoveredPeripheral> = FlipperLink.defaultScan,
         bluetoothPower: @escaping @Sendable () async -> BLEPowerState = FlipperLink.defaultPowerState,
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth],
+        requiresHTTPS: Bool = Settings.requiresHTTPS
     ) {
         let settings = store.load()
         self.settings = settings
         self.store = store
         self.makeInventory = makeInventory
         self.discoverPorts = discoverPorts
+        self.linkWaitsForChosenFlipper = linkWaitsForChosenFlipper
+        self.requiresHTTPS = requiresHTTPS
         session = Session(settings: settings, inventory: try? makeInventory(settings), now: now)
         feed = FeedViewModel(session: session, settings: settings)
         spools = SpoolsViewModel(session: session, feed: feed, settings: settings, now: now)
@@ -55,12 +66,30 @@ public final class HostModel {
     }
 
     /// Connects the Flipper and runs the startup check, once: a later call
-    /// (another window) keeps the running link.
+    /// (another window) keeps the running link. A link that waits for a
+    /// Flipper to be chosen starts when one is (`apply`).
     public func start() {
         guard !started else { return }
         started = true
-        link.connect(settings.transportChoice)
+        if startsLink(settings) {
+            link.connect(settings.transportChoice)
+        } else {
+            Log.info(.link, "start: waits for a Flipper to be chosen")
+        }
         Task { await session.checkBambuddy() }
+    }
+
+    /// Whether the link may run with `settings`: always, unless it waits
+    /// for a chosen Flipper and Bluetooth remembers none.
+    private func startsLink(_ settings: Settings) -> Bool {
+        !linkWaitsForChosenFlipper || settings.transport != .bluetooth || settings.peripheralId != nil
+    }
+
+    /// What the empty feed says: no server, no Flipper, or hold a tag.
+    public var feedEmptyState: FeedEmptyState {
+        FeedEmptyState.of(
+            settings: settings, requiresHTTPS: requiresHTTPS, flipperConnected: link.connectedTransport != nil
+        )
     }
 
     /// Whether the iOS app delegate starts the link at launch, before any
@@ -138,7 +167,13 @@ public final class HostModel {
             await session.update(settings: new)
         }
         Log.info(.settings, "apply: server=\(serverChanged ? "changed" : "same")")
-        if choiceChanged, link.isActive { link.connect(new.transportChoice) }
+        if started, !link.isActive, startsLink(new) {
+            // The first Flipper chosen: the link that waited starts.
+            Log.info(.link, "start: a Flipper was chosen")
+            link.connect(new.transportChoice)
+        } else if choiceChanged, link.isActive {
+            link.connect(new.transportChoice)
+        }
         await session.checkBambuddy()
         if reloadSpools { await spools.refresh() }
     }

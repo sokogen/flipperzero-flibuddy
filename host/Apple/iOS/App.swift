@@ -154,7 +154,10 @@ struct RootView: View {
 
     private var feed: some View {
         NavigationStack {
-            FeedView(host: host, openSettings: { navigation.pane = .settings }, confirmingClear: $navigation.confirmingClear)
+            FeedView(
+                host: host, openSettings: { navigation.pane = .settings },
+                scanForFlipper: { navigation.scanForFlipper() }, confirmingClear: $navigation.confirmingClear
+            )
                 .navigationTitle("Feed")
         }
     }
@@ -168,7 +171,7 @@ struct RootView: View {
 
     private var settings: some View {
         NavigationStack {
-            SettingsScreen(host: host, model: $settingsModel)
+            SettingsScreen(host: host, model: $settingsModel, navigation: navigation)
                 .navigationTitle("Settings")
         }
     }
@@ -180,6 +183,7 @@ struct RootView: View {
 struct SettingsScreen: View {
     let host: HostModel
     @Binding var model: SettingsViewModel?
+    let navigation: AppNavigation
 
     var body: some View {
         Group {
@@ -194,10 +198,20 @@ struct SettingsScreen: View {
             }
         }
         .onAppear {
-            guard model == nil else { return }
-            model = host.makeSettingsViewModel(appliesOnChange: true)
+            if model == nil { model = host.makeSettingsViewModel(appliesOnChange: true) }
+            startRequestedScan()
         }
+        .onChange(of: navigation.scanRequested) { startRequestedScan() }
         // The API key was read again after a launch while locked.
         .onChange(of: host.settings) { _, settings in model?.adoptRestoredAPIKey(settings) }
+    }
+
+    /// The empty feed's Scan for Flipper: the scan, and with it the
+    /// Bluetooth permission prompt, starts here.
+    private func startRequestedScan() {
+        guard navigation.scanRequested, let model else { return }
+        navigation.scanRequested = false
+        Log.info(.settings, "scan for flipper: from the empty feed")
+        if !model.isScanning { model.scanForFlippers() }
     }
 }

@@ -81,7 +81,7 @@ struct WatchGlyphTests {
 
     @Test func eachRowOfTheSpecTable() {
         let cases: [(StatusItem, StatusItem, String, StatusSymbol, StatusTint)] = [
-            (flipper(.disconnected, isActive: false), ready, "Flipper nearby",
+            (flipper(.disconnected, isActive: false), ready, "Flipper not connected",
              .symbol("antenna.radiowaves.left.and.right"), .orange),
             (flipper(.noAnswer), ready, "Open FliBuddy on the Flipper", .symbol("app.dashed"), .orange),
             (connected, BambuddyState.unchecked.statusItem(), "Bambuddy not checked", .symbol("server.rack"), .gray),
@@ -349,5 +349,46 @@ struct WatchNavigationTests {
         #expect(await feed.save(id) == false)
         // nothing to save at all
         #expect(await feed.save(UUID()) == false)
+    }
+}
+
+@Suite("Watch empty feed")
+struct WatchEmptyFeedTests {
+    private let now = Date(timeIntervalSince1970: 10_000)
+
+    @Test func withoutSettingsTheWatchSendsToTheIPhone() {
+        for state in [FeedEmptyState.noServer] {
+            #expect(
+                WatchSettingsTexts.emptyFeed(state, linkActive: false, searchingSince: nil, now: now)
+                    == "Set up FliBuddy on your iPhone first."
+            )
+        }
+    }
+
+    @Test func withoutAChosenFlipperTheWatchSendsToSettings() {
+        #expect(
+            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: false, searchingSince: nil, now: now)
+                == "Choose your Flipper in Settings."
+        )
+    }
+
+    @Test func aLongSearchHintsAtAnotherDevice() {
+        let shortly = now.addingTimeInterval(-WatchSettingsTexts.longSearch + 1)
+        let long = now.addingTimeInterval(-WatchSettingsTexts.longSearch)
+        #expect(
+            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: true, searchingSince: shortly, now: now)
+                == "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
+        )
+        #expect(
+            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: true, searchingSince: long, now: now)
+                == "No Flipper found. It may be connected to another device."
+        )
+    }
+
+    @Test func aConnectedFlipperAsksForATag() {
+        #expect(
+            WatchSettingsTexts.emptyFeed(.noScans, linkActive: true, searchingSince: nil, now: now)
+                == "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
+        )
     }
 }

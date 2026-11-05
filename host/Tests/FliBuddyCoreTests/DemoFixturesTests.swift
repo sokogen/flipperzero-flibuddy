@@ -268,6 +268,41 @@ struct DemoFixturesTests {
         #expect(await eventually { host.sidebar.bambuddy.subline == "Ready \u{00B7} bambuddy.example.com" })
     }
 
+    @Test func theDemoCanStartAsAFreshInstallOrWithoutAFlipper() {
+        let demo = ["FliBuddy", "-FliBuddyDemo", "YES"]
+        #expect(DemoFixtures.requestedState(demo + ["-FliBuddyDemoState", "fresh"]) == .fresh)
+        #expect(DemoFixtures.requestedState(demo + ["-FliBuddyDemoState", "noFlipper"]) == .noFlipper)
+        #expect(DemoFixtures.requestedState(demo) == .connected)
+        #expect(DemoFixtures.requestedState(demo + ["-FliBuddyDemoState", "other"]) == .connected)
+        // Outside the demo the argument does nothing.
+        #expect(DemoFixtures.requestedState(["FliBuddy", "-FliBuddyDemoState", "fresh"]) == .connected)
+    }
+
+    @Test func aFreshDemoAsksForBambuddyAndNoFlipperIsLookedFor() async throws {
+        let host = DemoFixtures.makeEnvironment(state: .fresh, linkWaitsForChosenFlipper: true).host
+        defer { host.link.disconnect() }
+        host.start()
+
+        #expect(await eventually { await host.session.bambuddy == .notConfigured })
+        #expect(!host.link.isActive)
+        #expect(host.feedEmptyState == .noServer)
+    }
+
+    @Test func aDemoWithoutAFlipperConnectsOnceOneIsChosen() async throws {
+        let host = DemoFixtures.makeEnvironment(state: .noFlipper, linkWaitsForChosenFlipper: true).host
+        defer { host.link.disconnect() }
+        host.start()
+        #expect(await eventually { await host.session.bambuddy == .ready })
+        #expect(host.feedEmptyState == .noFlipper)
+        #expect(!host.link.isActive)
+
+        var found: [DiscoveredPeripheral] = []
+        for await peripheral in host.link.discoverFlippers() { found.append(peripheral) }
+        try await host.useFlipper(try #require(found.first))
+
+        #expect(await eventually { host.link.connectedTransport == .bluetooth })
+    }
+
     @Test func aReconnectDoesNotPlayTheScriptAgain() async throws {
         let demo = DemoFixtures.makeEnvironment()
         let host = demo.host
@@ -331,8 +366,9 @@ struct DemoFixturesTests {
         #expect(standardDefaults() == before)
         #expect(try demo.secrets.secret(for: SettingsStore.apiKeyAccount) == "demo-key-2")
         #expect(demo.defaults.object(forKey: "bambuddy.baseURL") as? String == "https://other.example.com")
-        // Every configuration talks to the in-memory Bambuddy, never the network.
+        // Every configuration talks to the in-memory Bambuddy, never the
+        // network; settings without a server make none (the fresh demo).
         #expect(try demo.makeInventory(changed) as? DemoInventory === demo.inventory)
-        #expect(try demo.makeInventory(Settings()) as? DemoInventory === demo.inventory)
+        #expect(throws: (any Error).self) { try demo.makeInventory(Settings()) }
     }
 }

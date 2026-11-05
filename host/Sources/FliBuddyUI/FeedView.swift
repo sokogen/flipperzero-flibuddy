@@ -12,6 +12,8 @@ public struct FeedView: View {
     /// Opens the settings for the banner's Settings chip; macOS uses its
     /// Settings scene instead.
     let openSettings: (() -> Void)?
+    /// The empty feed's Scan for Flipper: opens Settings and scans there.
+    let scanForFlipper: (() -> Void)?
     /// The Clear confirmation, when the app's ⌘⌫ command or the iPad sidebar
     /// asks for it too; else the view keeps its own.
     private let externalConfirmingClear: Binding<Bool>?
@@ -30,9 +32,13 @@ public struct FeedView: View {
         externalConfirmingClear ?? $ownConfirmingClear
     }
 
-    public init(host: HostModel, openSettings: (() -> Void)? = nil, confirmingClear: Binding<Bool>? = nil) {
+    public init(
+        host: HostModel, openSettings: (() -> Void)? = nil, scanForFlipper: (() -> Void)? = nil,
+        confirmingClear: Binding<Bool>? = nil
+    ) {
         self.host = host
         self.openSettings = openSettings
+        self.scanForFlipper = scanForFlipper
         externalConfirmingClear = confirmingClear
     }
 
@@ -137,12 +143,31 @@ public struct FeedView: View {
                 .disabled(feed.isCheckingBambuddy)
             }
         } else if feed.items.isEmpty {
-            ContentUnavailableView(
-                "No scans yet", systemImage: "wave.3.right",
-                description: Text("Hold a spool's tag to the Flipper running FliBuddy.")
-            )
+            emptyFeed(host.feedEmptyState.content)
         } else {
             feedList
+        }
+    }
+
+    /// No server, no Flipper, or no scan yet, with the button that helps.
+    private func emptyFeed(_ content: FeedEmptyState.Content) -> some View {
+        ContentUnavailableView {
+            Label(content.title, systemImage: content.systemImage)
+        } description: {
+            Text(content.message)
+        } actions: {
+            if let title = content.actionTitle {
+                #if os(macOS)
+                SettingsLink { Text(title) }
+                #else
+                Button(title) {
+                    switch content.action {
+                    case .scanForFlipper: (scanForFlipper ?? openSettings)?()
+                    case .openSettings, nil: openSettings?()
+                    }
+                }
+                #endif
+            }
         }
     }
 

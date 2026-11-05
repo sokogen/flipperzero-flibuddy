@@ -391,7 +391,11 @@ added on scan, PETG HF the Flipper asks to link, and PLA Matte marked empty
 and archived, the last scan at 09:41. Save, New and Link to existing work
 on the in-memory inventory, which stamps `updated_at` with the demo clock,
 so the Spools tab follows them; Scan for Flipper finds Atgizo.
-`-FliBuddyDemoPane spools` (or `settings`) opens the demo on that pane. The
+`-FliBuddyDemoPane spools` (or `settings`) opens the demo on that pane.
+`-FliBuddyDemoState fresh` starts it as a fresh install (no settings, no
+Flipper), `-FliBuddyDemoState noFlipper` with Bambuddy set up and no
+Flipper chosen, for the first-run screens; Scan for Flipper then connects
+Atgizo and plays the feed. The
 arguments are not reachable from the UI and nothing user-facing mentions
 them.
 

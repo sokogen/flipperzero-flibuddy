@@ -28,6 +28,11 @@ public final class FlipperLink {
     /// Why the link is down, if it is not just closed.
     public private(set) var problem: String?
     public private(set) var isActive = false
+    /// When the link last started looking for the Flipper (a connect, or
+    /// the Flipper going away); `nil` while it is connected or stopped. A
+    /// Flipper connected to another device stops advertising, which looks
+    /// the same as one out of range: a long search hints at it (watch).
+    public private(set) var searchingSince: Date?
 
     public var statusText: String { Self.statusText(state, problem: problem) }
 
@@ -50,6 +55,7 @@ public final class FlipperLink {
     private let scanPeripherals: @Sendable () -> AsyncStream<DiscoveredPeripheral>
     private let bluetoothPower: @Sendable () async -> BLEPowerState
     private let retryDelay: Duration
+    private let now: @Sendable () -> Date
     private var loop: Task<Void, Never>?
     private var transport: (any Transport)?
     /// Bumped by `connect` and `disconnect`; a stale loop changes nothing.
@@ -61,7 +67,8 @@ public final class FlipperLink {
         discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
         scanPeripherals: @escaping @Sendable () -> AsyncStream<DiscoveredPeripheral> = FlipperLink.defaultScan,
         bluetoothPower: @escaping @Sendable () async -> BLEPowerState = FlipperLink.defaultPowerState,
-        retryDelay: Duration = .seconds(2)
+        retryDelay: Duration = .seconds(2),
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.session = session
         self.hello = hello
@@ -70,6 +77,7 @@ public final class FlipperLink {
         self.scanPeripherals = scanPeripherals
         self.bluetoothPower = bluetoothPower
         self.retryDelay = retryDelay
+        self.now = now
     }
 
     /// `SerialTransport` for USB, `BLETransport` on the shared CoreBluetooth
@@ -110,6 +118,7 @@ public final class FlipperLink {
         disconnect()
         self.choice = choice
         isActive = true
+        searchingSince = now()
         let current = generation
         loop = Task { await self.run(choice, generation: current) }
     }
@@ -137,6 +146,7 @@ public final class FlipperLink {
         problem = nil
         setState(.disconnected)
         port = nil
+        searchingSince = nil
     }
 
     private func run(_ choice: TransportChoice, generation current: Int) async {
@@ -161,6 +171,11 @@ public final class FlipperLink {
         let old = state
         state = new
         guard new != old else { return }
+        if case .connected = new {
+            searchingSince = nil
+        } else if case .connected = old, isActive {
+            searchingSince = now()
+        }
         let problem = new == .disconnected ? problem.map { " problem=\"\($0)\"" } ?? "" : ""
         Log.info(.link, "state: \(old.logName) -> \(new.logName)\(problem)")
     }

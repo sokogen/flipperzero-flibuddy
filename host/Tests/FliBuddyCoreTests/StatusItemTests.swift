@@ -78,19 +78,21 @@ struct StatusItemTests {
         #expect(flipper(.otherVersion(3)).detail == "Update FliBuddy on this device")
     }
 
-    @Test func aStoppedLinkOffersConnect() {
+    @Test func aStoppedLinkSendsToSettings() {
+        // A link not started (no Flipper chosen yet on the iPhone): Connect
+        // would ask for Bluetooth outside Scan for Flipper.
         #expect(
             flipper(.disconnected, choice: nil, isActive: false)
                 == StatusItem(
-                    text: "Flipper nearby, not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                    tint: .orange, action: .connect, short: "Flipper nearby"
+                    text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
+                    tint: .orange, action: .settings
                 )
         )
     }
 
     @Test func theLinkReportsItsOwnItem() {
         let link = FlipperLink(session: Session(settings: testSettings, inventory: nil), hello: Hello(app: "x"))
-        #expect(link.statusItem.action == .connect)
+        #expect(link.statusItem.action == .settings)
     }
 
     // MARK: Bambuddy

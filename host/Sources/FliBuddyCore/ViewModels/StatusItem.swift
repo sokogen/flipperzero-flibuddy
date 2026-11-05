@@ -51,14 +51,16 @@ public struct StatusItem: Equatable, Sendable {
 extension FlipperLink {
     /// The Flipper half of the status bar. Not finding a Flipper is
     /// "searching" (the link keeps retrying); any other reason the link is
-    /// down is shown as it is. A stopped link offers Connect.
+    /// down is shown as it is. A link not started (on the iPhone, iPad and
+    /// Watch until a Flipper is chosen) sends to Settings, where Scan for
+    /// Flipper asks for Bluetooth.
     public static func statusItem(
         _ state: LinkState, choice: TransportChoice?, port: String?, problem: String?, isActive: Bool
     ) -> StatusItem {
         guard isActive else {
             return StatusItem(
-                text: "Flipper nearby, not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                tint: .orange, action: .connect, detail: problem, short: "Flipper nearby"
+                text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
+                tint: .orange, action: .settings, detail: problem
             )
         }
         switch state {

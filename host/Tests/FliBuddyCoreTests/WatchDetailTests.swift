@@ -221,9 +221,9 @@ struct WatchFlipperPlatterTests {
         #expect(status.tint == .green)
     }
 
-    @Test func nearbyDropsTheFlipperPrefix() {
+    @Test func notConnectedDropsTheFlipperPrefix() {
         let status = flipper(.disconnected, isActive: false)
-        #expect(status.text == "nearby")
+        #expect(status.text == "not connected")
         #expect(status.tint == .orange)
     }
 

@@ -1,4 +1,5 @@
 #if os(iOS)
+import AVFoundation
 import FliBuddyCore
 import SwiftUI
 import VisionKit
@@ -7,8 +8,24 @@ import VisionKit
 /// model's `QRScanCover`, which `QRScannerCover` ends.
 @MainActor
 enum CameraQRScanner {
-    /// The camera scanner runs on this device and camera access is not denied.
-    static var isAvailable: Bool { DataScannerViewController.isSupported && DataScannerViewController.isAvailable }
+    /// No scanner on this device, camera access not asked yet, denied
+    /// (or restricted), or allowed.
+    static var access: CameraAccess {
+        guard DataScannerViewController.isSupported else { return .unsupported }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .notDetermined: return .notDetermined
+        case .authorized: return DataScannerViewController.isAvailable ? .authorized : .denied
+        case .denied, .restricted: return .denied
+        @unknown default: return .denied
+        }
+    }
+
+    /// Asks for the camera the first time Scan QR code is tapped; true when allowed.
+    static func requestAccess() async -> Bool {
+        let granted = await AVCaptureDevice.requestAccess(for: .video)
+        Log.info(.settings, "camera: access \(granted ? "allowed" : "denied")")
+        return granted
+    }
 }
 
 /// The camera preview; reports the first QR code with a text payload.

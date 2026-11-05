@@ -227,7 +227,7 @@ optional action button on the right of the item:
 |---|---|---|---|---|
 | none | `No Flipper · searching` | `antenna.radiowaves.left.and.right.slash` (spinning progress) | gray | |
 | usb | `Flipper · USB` | `cable.connector` | green | |
-| adv | `Flipper nearby, not connected` | `antenna.radiowaves.left.and.right` | orange | Connect |
+| not started | `Flipper not connected` | `antenna.radiowaves.left.and.right` | orange | Settings |
 | ble | `Flipper · Bluetooth` | `antenna.radiowaves.left.and.right` | green | |
 | nohello | `Open FliBuddy on the Flipper` | `app.dashed` | orange | |
 | other version | `Flipper speaks protocol 1, host speaks 2` (tooltip: the side to update) | `exclamationmark.triangle` | orange | |
@@ -433,11 +433,12 @@ Status bar
   orange, with the slash symbol; "Checking Bambuddy…" with a spinner while
   a check runs. (Not set up, the rejected key and the other version are in
   the tables above since the Spec page drew them, 2026-11-05.)
-- "Flipper nearby, not connected" (Connect) is shown when the link is
-  stopped, because every other down state already retries every 2 s. The
-  host does not scan for advertising Flippers while disconnected, so
-  "nearby" is not probed, and nothing stops the link today (Forget does
-  not), so the state has no trigger yet.
+- "Flipper not connected" (Settings) is shown while the link is not
+  started. The Mac starts it at launch, so it shows only before that; on
+  the iPhone, iPad and Watch it is the state until a Flipper is chosen
+  (creating the Bluetooth central asks for permission, which belongs to
+  Scan for Flipper). The host does not probe for advertising Flippers, so
+  the design's "nearby" is not claimed.
 
 - New and Link to existing… stand in the 360 pt entry column, bordered,
   the prominent one `.borderedProminent`, sized to their titles; the

@@ -1157,18 +1157,32 @@ struct SettingsApplyOnChangeTests {
     // MARK: iPhone texts
 
     @Test(arguments: [
-        (true, SettingsViewModel.QRStatus?.none, "Scan the QR code Bambuddy shows when you create an API key.", StatusTint.gray),
-        (true, .applied("Filled from the QR code."), "Filled from the QR code.", .green),
-        (true, .failed("Not a Bambuddy QR code"), "Not a Bambuddy QR code", .red),
-        (false, nil, "This device has no camera. Type the URL and API key instead.", .gray),
-        (false, .failed("x"), "This device has no camera. Type the URL and API key instead.", .gray),
+        (CameraAccess.authorized, SettingsViewModel.QRStatus?.none, "Scan the QR code Bambuddy shows when you create an API key.", StatusTint.gray),
+        (.notDetermined, nil, "Scan the QR code Bambuddy shows when you create an API key.", .gray),
+        (.authorized, .applied("Filled from the QR code."), "Filled from the QR code.", .green),
+        (.authorized, .failed("Not a Bambuddy QR code"), "Not a Bambuddy QR code", .red),
+        (.denied, nil, "Camera access is off. Allow it in Settings.", .gray),
+        (.denied, .failed("x"), "Camera access is off. Allow it in Settings.", .gray),
+        (.unsupported, nil, "This device has no camera. Type the URL and API key instead.", .gray),
+        (.unsupported, .failed("x"), "This device has no camera. Type the URL and API key instead.", .gray),
     ])
     func theQRFooterFollowsTheCameraAndTheLastRead(
-        camera: Bool, status: SettingsViewModel.QRStatus?, text: String, tint: StatusTint
+        camera: CameraAccess, status: SettingsViewModel.QRStatus?, text: String, tint: StatusTint
     ) {
-        let footer = SettingsViewModel.qrFooter(cameraAvailable: camera, status: status)
+        let footer = SettingsViewModel.qrFooter(camera: camera, status: status)
         #expect(footer.text == text)
         #expect(footer.tint == tint)
+    }
+
+    @Test func theCameraIsAskedForOnTheFirstScanAndADeniedOneOpensSettings() {
+        // Not determined: Scan QR code asks; denied: Scan is dimmed and
+        // Open Settings leads to the app's settings.
+        #expect(CameraAccess.notDetermined.canScan)
+        #expect(CameraAccess.authorized.canScan)
+        #expect(!CameraAccess.denied.canScan)
+        #expect(!CameraAccess.unsupported.canScan)
+        #expect(CameraAccess.denied.offersOpenSettings)
+        #expect(![CameraAccess.notDetermined, .authorized, .unsupported].contains { $0.offersOpenSettings })
     }
 
     @Test func theFlipperRowNamesTheFlipperAndItsState() async {
@@ -1248,6 +1262,22 @@ struct SettingsApplyOnChangeTests {
         #expect(!model.isScanning)
         #expect(await eventually { scan.stopped.value })
         #expect(applied.value.map(\.baseURL) == ["http://10.0.0.5:8000"])
+    }
+
+    @Test(arguments: [
+        Settings(baseURL: "", apiKey: "bb_test"),
+        Settings(baseURL: "https://bambuddy.example.com", apiKey: ""),
+        Settings(baseURL: "http://bambuddy.example.com", apiKey: "bb_test"),
+    ])
+    func openingSettingsWithoutAServerAndKeySkipsTheCatalog(settings: Settings) async {
+        // Every visit of a fresh install would show a red catalog error.
+        let inventory = FakeInventory()
+        let model = makeModel(inventory, settings: settings, requiresHTTPS: true)
+
+        await model.opened()
+
+        #expect(model.catalogError == nil)
+        #expect(!inventory.calls.contains(.catalog))
     }
 
     @Test func openingSettingsShowsWhyTheCatalogDidNotLoad() async {

@@ -36,6 +36,39 @@ final class LockedBox<Value>: @unchecked Sendable {
 @MainActor
 @Suite("FlipperLink")
 struct FlipperLinkTests {
+    @Test func theLinkKnowsSinceWhenItSearches() async {
+        // The watch hints after a long search that the Flipper may be
+        // connected to another device (it stops advertising then).
+        let transport = FakeTransport()
+        let clock = LockedBox(Date(timeIntervalSince1970: 1000))
+        let session = Session(settings: testSettings, inventory: FakeInventory())
+        let link = FlipperLink(
+            session: session, hello: hostHello, makeTransport: { _ in transport }, discoverPorts: { [] },
+            retryDelay: .milliseconds(50), now: { clock.value }
+        )
+        #expect(link.searchingSince == nil)
+
+        link.connect(.usb(port: nil))
+        #expect(link.searchingSince == Date(timeIntervalSince1970: 1000))
+        clock.mutate { $0 = Date(timeIntervalSince1970: 1060) }
+        try? await Task.sleep(for: .milliseconds(120))
+        // Still the same search.
+        #expect(link.searchingSince == Date(timeIntervalSince1970: 1000))
+
+        link.connect(.usb(port: "/dev/cu.usbmodemflip_A"))
+        #expect(await eventually { transport.state == .open })
+        transport.deliver(.flipperHello)
+        #expect(await eventually { link.connectedTransport == .usb })
+        #expect(link.searchingSince == nil)
+
+        clock.mutate { $0 = Date(timeIntervalSince1970: 2000) }
+        transport.disconnect()
+        #expect(await eventually { link.searchingSince == Date(timeIntervalSince1970: 2000) })
+
+        link.disconnect()
+        #expect(link.searchingSince == nil)
+    }
+
     @Test func connectingSaysHelloAndFollowsTheHandshake() async {
         let transport = FakeTransport()
         let (link, _) = makeLink(transport)

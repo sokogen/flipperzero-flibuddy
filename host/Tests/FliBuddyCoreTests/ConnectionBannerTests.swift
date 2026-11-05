@@ -51,12 +51,12 @@ struct ConnectionBannerTests {
         #expect(line(flipper: flipper(.waitingForHello))?.text == "No Flipper \u{00B7} searching")
     }
 
-    @Test func aStoppedLinkIsNearbyWithConnect() {
+    @Test func aStoppedLinkIsNotConnectedWithSettings() {
         #expect(
             line(flipper: flipper(.disconnected, isActive: false))
                 == StatusItem(
-                    text: "Flipper nearby", symbol: .symbol("antenna.radiowaves.left.and.right"), tint: .orange,
-                    action: .connect
+                    text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"), tint: .orange,
+                    action: .settings
                 )
         )
     }
@@ -151,14 +151,14 @@ struct ConnectionBannerTests {
             bambuddy: BambuddyState.unreachable("timed out").statusItem()
         )
         #expect(banner.isTwoLines)
-        #expect(banner.lines.map(\.text) == ["Flipper nearby", "Bambuddy unreachable"])
-        #expect(banner.lines.map(\.action) == [.connect, .retry])
+        #expect(banner.lines.map(\.text) == ["Flipper not connected", "Bambuddy unreachable"])
+        #expect(banner.lines.map(\.action) == [.settings, .retry])
     }
 
     @Test func theHostModelBuildsItsBanner() {
         let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
         let model = HostModel(store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() })
         #expect(model.connectionBanner == ConnectionBanner(flipper: model.link.statusItem, bambuddy: model.feed.bambuddyStatus))
-        #expect(model.connectionBanner.lines.first?.action == .connect)
+        #expect(model.connectionBanner.lines.first?.action == .settings)
     }
 }

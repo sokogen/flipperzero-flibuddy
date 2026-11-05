@@ -1,6 +1,22 @@
 import Foundation
 import Observation
 
+/// Whether Scan QR code can use the camera: none on this device, not asked
+/// yet (the first Scan asks), denied (Settings can turn it back on), or
+/// allowed.
+public enum CameraAccess: Equatable, Sendable {
+    case unsupported
+    case notDetermined
+    case denied
+    case authorized
+
+    /// Scan QR code is enabled; with `notDetermined` it asks first.
+    public var canScan: Bool { self == .notDetermined || self == .authorized }
+
+    /// Open Settings shows under the footer.
+    public var offersOpenSettings: Bool { self == .denied }
+}
+
 /// Reads one QR code, e.g. with the camera; throws `CancellationError` when
 /// the user gives up.
 @MainActor
@@ -333,9 +349,20 @@ public final class SettingsViewModel {
     /// picker, each time, so a spool type added in Bambuddy shows. There is
     /// no Reload; a failure shows in `catalogError`, and Test connection
     /// loads the catalog again.
+    /// Without an https URL and a key (a fresh install) there is nothing to
+    /// ask, so nothing loads and no error shows.
     public func opened() async {
+        guard hasEndpoint else {
+            Log.debug(.settings, "opened: no server yet, catalog not loaded")
+            return
+        }
         Log.debug(.settings, "opened: loading the catalog")
         await loadCatalog()
+    }
+
+    /// The draft names a usable URL and an API key.
+    private var hasEndpoint: Bool {
+        draft.namesAServer && !draft.apiKeyUnknown && urlError == nil
     }
 
     public func loadCatalog() async {
@@ -600,8 +627,12 @@ public final class SettingsViewModel {
 
     /// The Bambuddy section's footer on the iPhone: what Scan QR code does,
     /// the last read, or why there is no Scan.
-    public static func qrFooter(cameraAvailable: Bool, status: QRStatus?) -> (text: String, tint: StatusTint) {
-        guard cameraAvailable else { return ("This device has no camera. Type the URL and API key instead.", .gray) }
+    public static func qrFooter(camera: CameraAccess, status: QRStatus?) -> (text: String, tint: StatusTint) {
+        switch camera {
+        case .unsupported: return ("This device has no camera. Type the URL and API key instead.", .gray)
+        case .denied: return ("Camera access is off. Allow it in Settings.", .gray)
+        case .notDetermined, .authorized: break
+        }
         return switch status {
         case nil: ("Scan the QR code Bambuddy shows when you create an API key.", .gray)
         case .applied(let message): (message, .green)

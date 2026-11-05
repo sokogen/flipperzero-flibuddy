@@ -16,6 +16,11 @@ public struct SettingsForm: View {
     enum TextFieldID: Hashable {
         case url, apiKey, coreWeight
     }
+
+    /// Read again on appear and when the app returns from Settings.
+    @ViewState private var camera = CameraAccess.unsupported
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
     #endif
 
     public init(model: SettingsViewModel) {
@@ -38,9 +43,12 @@ public struct SettingsForm: View {
             Section {
                 Button("Scan QR code", systemImage: "qrcode.viewfinder") {
                     editing = nil
-                    Task { await model.scanQRCode(with: model.qrCover) }
+                    Task { await scanQRCode() }
                 }
-                .disabled(!CameraQRScanner.isAvailable)
+                .disabled(!camera.canScan)
+                if camera.offersOpenSettings, let url = URL(string: UIApplication.openSettingsURLString) {
+                    Button("Open Settings") { openURL(url) }
+                }
                 LabeledContent("URL") {
                     TextField("URL", text: $model.baseURL, prompt: Text(verbatim: "https://bambuddy.example.com"))
                         .keyboardType(.URL)
@@ -74,7 +82,7 @@ public struct SettingsForm: View {
             } header: {
                 Text("Bambuddy")
             } footer: {
-                let footer = SettingsViewModel.qrFooter(cameraAvailable: CameraQRScanner.isAvailable, status: model.qrStatus)
+                let footer = SettingsViewModel.qrFooter(camera: camera, status: model.qrStatus)
                 Text(footer.text).foregroundStyle(footer.tint == .gray ? .secondary : footer.tint.color)
             }
             Section {
@@ -152,6 +160,10 @@ public struct SettingsForm: View {
             }
         }
         .environment(\.defaultMinListRowHeight, 52)
+        .onAppear { camera = CameraQRScanner.access }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { camera = CameraQRScanner.access }
+        }
         // Return, or another field or control taking the focus, commits the field.
         .onSubmit { model.commit() }
         .onChange(of: editing) { old, _ in
@@ -160,6 +172,15 @@ public struct SettingsForm: View {
         // Leaving Settings commits and stops a scan, and the QR cover hangs
         // off the app's root (`settingsSession`): an iPad rotation builds
         // this form again, which must not stop either.
+    }
+    /// The camera is asked for on the first Scan, not before.
+    private func scanQRCode() async {
+        if camera == .notDetermined {
+            let granted = await CameraQRScanner.requestAccess()
+            camera = CameraQRScanner.access
+            guard granted else { return }
+        }
+        await model.scanQRCode(with: model.qrCover)
     }
     #else
     private var macForm: some View {

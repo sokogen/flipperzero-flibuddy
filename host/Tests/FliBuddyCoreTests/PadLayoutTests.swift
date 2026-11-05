@@ -163,10 +163,10 @@ struct SidebarTests {
 
     @Test func theOtherFlipperStatesKeepTheirPhraseAndAction() {
         let nearby = sidebar(flipper: flipper(.disconnected, isActive: false)).flipper
-        #expect(nearby.subline == "Flipper nearby, not connected")
+        #expect(nearby.subline == "Flipper not connected")
         #expect(nearby.symbol == "antenna.radiowaves.left.and.right")
         #expect(nearby.tint == .orange)
-        #expect(nearby.action == .connect)
+        #expect(nearby.action == .settings)
         let noApp = sidebar(flipper: flipper(.noAnswer)).flipper
         #expect(noApp.subline == "Open FliBuddy on the Flipper")
         #expect(noApp.symbol == "app.dashed")
@@ -261,7 +261,7 @@ struct SidebarTests {
                 serverURL: settings.baseURL, feedCount: 0, spoolCount: nil
             )
         )
-        #expect(host.sidebar.flipper.action == .connect)
+        #expect(host.sidebar.flipper.action == .settings)
         #expect(!host.sidebar.canClear)
     }
 }
