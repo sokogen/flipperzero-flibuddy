@@ -8,10 +8,13 @@
  * then the worker ends, so one start reads at most one tag. Tags of other
  * technologies are ignored. Callbacks run on the worker thread.
  *
- * tag_reader_stop() stops the NFC and joins the worker; it waits for a read
- * in progress to finish (the SDK's sync pollers cannot be cancelled), and
- * no callback runs after it returns. A tag whose read finished that way
- * reported nothing and is not remembered, so the next start reads it.
+ * tag_reader_stop() stops the NFC and joins the worker, and no callback
+ * runs after it returns. Waits for a tag and for it to leave are cut short
+ * at once. A read in progress is not cancelled by the reader: the stop flag
+ * may wake the SDK's sync poller early (it ends with an error or a partial
+ * dump) or not, so stop() can wait for the read to finish. A tag whose read
+ * ended that way reported nothing and is not remembered, so the next start
+ * reads it.
  */
 #pragma once
 

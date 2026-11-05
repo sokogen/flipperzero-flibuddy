@@ -8,15 +8,11 @@
 #include "bambu_keys.h"
 #include "nfc_classify.h"
 #include "nfc_read.h"
+#include "reader_wait.h"
 #include "tag_watch.h"
 
 #define READER_STACK    3072 /* HKDF runs on it */
 #define RESCAN_DELAY_MS 500 /* after a tag of another technology */
-
-typedef enum {
-    ReaderFlagStop = 1 << 0,
-    ReaderFlagDetected = 1 << 1,
-} ReaderFlag;
 
 struct TagReader {
     Nfc* nfc;
@@ -42,13 +38,14 @@ static void on_scanner_event(NfcScannerEvent event, void* ctx) {
             found = true;
     }
     r->found_3a = found;
-    furi_thread_flags_set(furi_thread_get_id(r->worker), ReaderFlagDetected);
+    furi_thread_flags_set(furi_thread_get_id(r->worker), READER_FLAG_DETECTED);
 }
 
 /* Whether a tag still answers; tells "no sector opened" from "tag gone". */
 static bool tag_present(TagReader* r) {
     Iso14443_3aData iso;
-    return iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+    bool ok = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+    return reader_tag_answered(ok, iso.uid_len);
 }
 
 static bool read_mfc(TagReader* r, TagDump* out) {
@@ -97,7 +94,8 @@ static bool read_ntag(TagReader* r, TagDump* out) {
 bool tag_reader_read(TagReader* r, TagDump* out) {
     Iso14443_3aData iso;
     tag_dump_init(out, TagTypeMfc); /* no UID until a tag answers */
-    if(iso14443_3a_poller_sync_read(r->nfc, &iso) != Iso14443_3aErrorNone) return false;
+    bool ok = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+    if(!reader_tag_answered(ok, iso.uid_len)) return false;
     if(!tag_dump_set_uid(out, iso.uid, iso.uid_len)) return false;
     TagType type;
     if(!tag_type_from_sak(iso.sak, &type)) {
@@ -116,29 +114,35 @@ static void report(TagReader* r, TagReaderEvent event) {
 
 /* Waits for an ISO 14443-3A tag; false when asked to stop. */
 static bool wait_for_tag(TagReader* r) {
-    for(;;) {
+    while(!r->stopping) {
         r->found_3a = false;
         nfc_scanner_start(r->scanner, on_scanner_event, r);
-        uint32_t flags = furi_thread_flags_wait(
-            ReaderFlagStop | ReaderFlagDetected, FuriFlagWaitAny, FuriWaitForever);
+        uint32_t flags;
+        do {
+            flags = furi_thread_flags_wait(
+                READER_FLAG_STOP | READER_FLAG_DETECTED, FuriFlagWaitAny, READER_WAIT_MS);
+        } while(flags == (uint32_t)FuriFlagErrorTimeout && !r->stopping);
         nfc_scanner_stop(r->scanner);
-        if(!(flags & FuriFlagError) && (flags & ReaderFlagStop)) return false;
+        if(reader_wait_stop(flags, r->stopping)) return false;
         if(r->found_3a) return true;
-        flags = furi_thread_flags_wait(ReaderFlagStop, FuriFlagWaitAny, RESCAN_DELAY_MS);
-        if(!(flags & FuriFlagError) && (flags & ReaderFlagStop)) return false;
+        flags = furi_thread_flags_wait(READER_FLAG_STOP, FuriFlagWaitAny, RESCAN_DELAY_MS);
+        if(reader_wait_stop(flags, r->stopping)) return false;
     }
+    return false;
 }
 
 /* Waits until the tag read last has left the field (tag_watch.h); false
  * when asked to stop. */
 static bool wait_gone(TagReader* r) {
     while(tag_watch_waiting(&r->watch)) {
+        if(r->stopping) return false;
         Iso14443_3aData iso;
-        bool answered = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+        bool ok = iso14443_3a_poller_sync_read(r->nfc, &iso) == Iso14443_3aErrorNone;
+        bool answered = reader_tag_answered(ok, iso.uid_len);
         tag_watch_poll(&r->watch, iso.uid, answered ? iso.uid_len : 0);
         uint32_t flags =
-            furi_thread_flags_wait(ReaderFlagStop, FuriFlagWaitAny, TAG_WATCH_POLL_MS);
-        if(!(flags & FuriFlagError) && (flags & ReaderFlagStop)) return false;
+            furi_thread_flags_wait(READER_FLAG_STOP, FuriFlagWaitAny, TAG_WATCH_POLL_MS);
+        if(reader_wait_stop(flags, r->stopping)) return false;
     }
     return true;
 }
@@ -187,7 +191,7 @@ void tag_reader_stop(TagReader* r) {
     if(!r->started) return;
     r->stopping = true;
     FuriThreadId id = furi_thread_get_id(r->worker);
-    if(id) furi_thread_flags_set(id, ReaderFlagStop);
+    if(id) furi_thread_flags_set(id, READER_FLAG_STOP);
     furi_thread_join(r->worker);
     r->started = false;
 }
