@@ -102,7 +102,7 @@
 #define APP_SAVED_MS          1300u
 #define APP_TOAST_MS          3000u
 #define APP_READ_RETRY_MS     1500u /* Error{ReadFailed} returns to Ready */
-#define APP_DETAILS_TOP_MAX   6u /* Tag details scroll at most this far (11 rows, 5 show); the frame clamps */
+#define APP_DETAILS_SHOWN     5u /* Tag details rows on screen; ▼ stops at the last (ui_details_count) */
 #define APP_LIST_ROWS         4 /* visible rows of Menu and Settings */
 #define APP_MENU_MAX          6
 #define APP_WEIGHT_DIGITS     4
@@ -290,7 +290,7 @@ typedef struct {
     bool weigh_after_full; /* the `full` in flight opens Weight when done */
     uint8_t sel; /* selected row of Menu / Settings / Recent */
     uint8_t top; /* first visible row of Menu / Settings / Recent */
-    uint8_t details_top; /* first visible row of Tag details, see APP_DETAILS_TOP_MAX */
+    uint8_t details_top; /* first visible row of Tag details, see APP_DETAILS_SHOWN */
     uint32_t timer_start_ms;
     uint32_t timer_ms; /* 0: no deadline on this screen */
     Scan scan; /* the tag on screen */

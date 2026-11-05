@@ -9,6 +9,7 @@
 _Static_assert(APP_MENU_MAX <= UI_LIST_MAX, "every Menu row needs a slot");
 _Static_assert(AppSettingCount <= UI_LIST_MAX, "every Settings row needs a slot");
 _Static_assert(APP_RECENT_MAX <= UI_LIST_MAX, "every Recent row needs a slot");
+_Static_assert(APP_DETAILS_SHOWN <= UI_LINES, "every visible Tag details row needs a line");
 
 /* Append-only text into a fixed buffer; stops quietly when full. */
 typedef struct {
@@ -142,7 +143,6 @@ static void put_colour(Text* t, const AppState* s, const ProtoTagInfo* info) {
 
 static void result_title(const AppState* s, char* out, size_t cap) {
     Text t = text_start(out, cap);
-    char local[TAG_BLOCK_TEXT_MAX];
     switch(s->result_kind) {
     case AppResultKnown:
         if(host_line(s, 0)) {
@@ -160,9 +160,16 @@ static void result_title(const AppState* s, char* out, size_t cap) {
     case AppResultBlank:
         put(&t, "Blank tag");
         break;
-    case AppResultNoHost:
-        put(&t, local_name(s, local) ? local : ui_tag_type_name(&s->scan.tag));
+    case AppResultNoHost: {
+        /* the tag's own reading (tag_facts.h), as the rest of the screen */
+        TagFacts own;
+        char name[UI_TEXT_MAX] = "";
+        if(tag_facts_read(&s->scan.tag, &own)) {
+            ui_spool_name(own.info.material, own.info.subtype, name, sizeof(name));
+        }
+        put(&t, name[0] ? name : ui_tag_type_name(&s->scan.tag));
         break;
+    }
     }
 }
 
@@ -456,19 +463,37 @@ typedef struct {
     char value[UI_TEXT_MAX];
 } DetailRow;
 
+/* The Tag details rows, in order; each shows when known. */
+enum {
+    DetailType,
+    DetailUid,
+    DetailData,
+    DetailCode,
+    DetailFila,
+    DetailRgba,
+    DetailLabel,
+    DetailDiam,
+    DetailNozzle,
+    DetailDry,
+    DetailBed,
+    DetailKinds,
+};
+_Static_assert(DetailKinds == UI_DETAILS_ROWS, "one slot per Tag details row");
+
+/* `rows` holds UI_DETAILS_ROWS + 1: should a row ever come past the last
+ * slot, it is written into the extra one, which is never shown. */
 static Text detail(DetailRow* rows, uint8_t* n, const char* key) {
-    DetailRow* row = &rows[(*n)++];
+    DetailRow* row = &rows[*n < UI_DETAILS_ROWS ? (*n)++ : UI_DETAILS_ROWS];
     SET(row->key, key);
     return TEXT(row->value);
 }
 
-static void build_details(UiFrame* f, const AppState* s) {
+/* Fills the Tag details rows of the tag on screen; returns their count. */
+static uint8_t details_rows(const AppState* s, DetailRow rows[UI_DETAILS_ROWS + 1]) {
     const TagDump* tag = &s->scan.tag;
     TagFacts own;
     const ProtoTagInfo* info = tag_info(s, &own);
-    SET(f->title, "Tag details");
-    DetailRow rows[UI_DETAILS_ROWS];
-    memset(rows, 0, sizeof(rows));
+    memset(rows, 0, (UI_DETAILS_ROWS + 1) * sizeof(rows[0]));
     uint8_t n = 0;
     Text t = detail(rows, &n, "Type");
     put(&t, ui_tag_type_name(tag));
@@ -531,10 +556,23 @@ static void build_details(UiFrame* f, const AppState* s) {
         put_uint(&t, own.bed_temp);
         put(&t, " C");
     }
-    uint8_t top = n > UI_LINES ? (uint8_t)(n - UI_LINES) : 0;
+    return n;
+}
+
+uint8_t ui_details_count(const AppState* s) {
+    DetailRow rows[UI_DETAILS_ROWS + 1];
+    return details_rows(s, rows);
+}
+
+static void build_details(UiFrame* f, const AppState* s) {
+    SET(f->title, "Tag details");
+    DetailRow rows[UI_DETAILS_ROWS + 1];
+    uint8_t n = details_rows(s, rows);
+    /* the state stops at the last row; this only guards the frame */
+    uint8_t top = n > APP_DETAILS_SHOWN ? (uint8_t)(n - APP_DETAILS_SHOWN) : 0;
     if(s->details_top < top) top = s->details_top;
     uint8_t shown = 0;
-    for(uint8_t i = top; i < n && shown < UI_LINES; i++, shown++) {
+    for(uint8_t i = top; i < n && shown < APP_DETAILS_SHOWN; i++, shown++) {
         SET(f->key[shown], rows[i].key);
         SET(f->line[shown], rows[i].value);
     }

@@ -2,6 +2,10 @@
 
 #include <string.h>
 
+/* The row count of Tag details, which the frame builds from the state:
+ * a pure function, so the reducer stops ▼ at the last row. */
+#include "ui_frame.h"
+
 void app_state_init(AppState* s, IntentStore* intents, uint32_t first_scan, uint32_t first_intent) {
     memset(s, 0, sizeof(*s));
     s->screen = AppScreenWaiting;
@@ -770,7 +774,9 @@ static AppEffect on_key(AppState* s, AppKey key, uint32_t now_ms) {
     case AppScreenDetails:
         if(key == AppKeyOk || key == AppKeyBack) go(s, AppScreenMenu);
         if(key == AppKeyUp && s->details_top > 0) s->details_top--;
-        if(key == AppKeyDown && s->details_top < APP_DETAILS_TOP_MAX) s->details_top++;
+        if(key == AppKeyDown && s->details_top + APP_DETAILS_SHOWN < ui_details_count(s)) {
+            s->details_top++;
+        }
         break;
     case AppScreenConfirmDelete:
         return key_confirm_delete(s, key, now_ms);

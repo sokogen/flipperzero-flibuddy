@@ -42,7 +42,8 @@ def c_rows(header: str) -> list[dict]:
     names = re.findall(r'"((?:[^"\\]|\\.)*)\\0"', blob)
     rows = []
     for m in re.finditer(
-        r"\{(\d+), (\d+), \"(\w+)\", \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}, \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}\}",
+        r"\{\.filament = (\d+), \.name = (\d+), \.color = \"(\w+)\", "
+        r"\.rgb = \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}, \.code = \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}\}",
         header.split("bambu_color_rows")[1],
     ):
         f, n, color, r, g, b, c0, c1, c2 = m.groups()
@@ -63,6 +64,9 @@ def test_the_flipper_gets_the_same_table_in_c():
     header = outputs[make_color_codes.C_HEADER]
     assert c_rows(header) == make_color_codes.load()
     assert header.isascii()
+    # the rows keep the JSON's order, as the Swift table does: the first
+    # match wins on both sides
+    assert "in the order of the JSON" in header
 
 
 def test_the_c_table_stays_small():

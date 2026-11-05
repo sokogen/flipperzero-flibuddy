@@ -109,3 +109,7 @@ typedef struct {
 } UiFrame;
 
 void ui_frame_build(UiFrame* frame, const AppState* s, const UiEnv* env);
+
+/* How many Tag details rows the tag on screen has (the frame shows
+ * APP_DETAILS_SHOWN of them); the reducer stops ▼ at the last one. */
+uint8_t ui_details_count(const AppState* s);

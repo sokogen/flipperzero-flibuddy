@@ -94,8 +94,9 @@ def _c_table(rows: list[dict]) -> str:
     lines += [
         "};",
         "",
-        "/* filament, name, colour id, RGB, code (24 bits, little endian); sorted by",
-        " * filament and colour id, the first match wins as on the host. */",
+        "/* One colour each: indexes into the tables above, the colour id, RGB and",
+        " * the code (24 bits, little endian), in the order of the JSON, as in the",
+        " * host's table, so that the first match is the same on both sides. */",
         "static const BambuColorRow bambu_color_rows[BAMBU_COLOR_ROWS] = {",
     ]
     for r in rows:
@@ -103,8 +104,8 @@ def _c_table(rows: list[dict]) -> str:
         code = int(r["code"])
         code_bytes = ", ".join(f"0x{(code >> (8 * i)) & 0xFF:02X}" for i in range(3))
         lines.append(
-            f'    {{{filaments.index(r["filament_id"])}, {names.index(r["name"])}, "{r["color_id"]}", '
-            f"{{{rgb}}}, {{{code_bytes}}}}},"
+            f'    {{.filament = {filaments.index(r["filament_id"])}, .name = {names.index(r["name"])}, '
+            f'.color = "{r["color_id"]}", .rgb = {{{rgb}}}, .code = {{{code_bytes}}}}},'
         )
     lines += ["};", ""]
     return "\n".join(lines)

@@ -621,6 +621,102 @@ static void test_with_the_host_only_its_answer_shows(void) {
     CHECK(!frame.more_down);
 }
 
+static void set_block_hex(TagDump* d, uint8_t block, const char* hex) {
+    uint8_t data[TAG_DUMP_BLOCK_LEN];
+    for(int i = 0; i < TAG_DUMP_BLOCK_LEN; i++) {
+        unsigned v;
+        sscanf(hex + 2 * i, "%2x", &v);
+        data[i] = (uint8_t)v;
+    }
+    CHECK(tag_dump_set_block(d, block, data));
+}
+
+/* The no-app title follows tag_facts.h, the host's reading, not the raw
+ * block text. */
+static void test_the_no_app_title_is_the_tags_own_reading(void) {
+    TagDump odd = mfc;
+    odd.block_present &= ~((uint64_t)1 << 6); /* sector 1 incomplete: no block 4 */
+    setup_no_host();
+    send_tag(&odd);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA");
+
+    odd = mfc;
+    set_block_hex(&odd, 4, "504C4120426173" "FF6300000000000000"); /* "PLA Bas\xFFc" */
+    setup_no_host();
+    send_tag(&odd);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA");
+
+    odd = mfc;
+    set_block_hex(&odd, 2, "504C41FF000000000000000000000000"); /* "PLA\xFF" */
+    setup_no_host();
+    send_tag(&odd);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA Basic");
+    press(AppKeyLeft);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA Basic"); /* the menu's title too */
+}
+
+/* A spool shown with the host, then the host goes: the result and details
+ * show the tag's own facts, not the spool's. */
+static void test_a_lost_host_leaves_the_tags_own_facts(void) {
+    setup();
+    scan_found();
+    CHECK(app.has_spool);
+    send(AppEventHostLost);
+    CHECK(app.result_kind == AppResultNoHost);
+    CHECK(app.has_spool);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA Basic");
+    CHECK(!frame.in_base);
+    CHECK_STR_EQ(frame.line[1], "10100 - 1.75 mm - 1000 g");
+    CHECK_STR_EQ(frame.bar, "No app");
+    choose(AppMenuDetails);
+    build();
+    CHECK_STR_EQ(frame.key[3], "Code");
+    CHECK_STR_EQ(frame.line[3], "10100");
+    for(int i = 0; i < 10; i++)
+        press(AppKeyDown);
+    build();
+    CHECK_STR_EQ(frame.key[4], "Bed");
+}
+
+/* ▲ right after scrolling to the end moves at once: the state stops at the
+ * last row, with the host's rows and with the tag's own. */
+static void test_details_scroll_stops_at_the_last_row(void) {
+    setup();
+    send_tag(&mfc);
+    send_fixture_lookup("lookup_unknown.json");
+    choose(AppMenuDetails);
+    for(int i = 0; i < 8; i++)
+        press(AppKeyDown);
+    CHECK_EQ_INT(app.details_top, 4); /* 9 rows, 5 show */
+    press(AppKeyUp);
+    build();
+    CHECK_EQ_INT(app.details_top, 3);
+    CHECK_STR_EQ(frame.key[0], "Code");
+
+    setup_no_host();
+    send_tag(&mfc);
+    choose(AppMenuDetails);
+    for(int i = 0; i < 10; i++)
+        press(AppKeyDown);
+    CHECK_EQ_INT(app.details_top, 6); /* 11 rows */
+    press(AppKeyUp);
+    build();
+    CHECK_STR_EQ(frame.key[0], "RGBA");
+
+    setup();
+    send_tag(&ntag);
+    send_fixture_lookup("lookup_unknown_blank.json");
+    choose(AppMenuDetails);
+    press(AppKeyDown); /* 3 rows: nothing to scroll */
+    CHECK_EQ_INT(app.details_top, 0);
+    CHECK_EQ_INT(ui_details_count(&app), 3);
+}
+
 static void test_tag_details_without_host(void) {
     setup_no_host();
     send_tag(&mfc);
@@ -1264,6 +1360,9 @@ int main(void) {
     RUN_TEST(test_result_without_host_and_tag_data);
     RUN_TEST(test_with_the_host_only_its_answer_shows);
     RUN_TEST(test_tag_details_without_host);
+    RUN_TEST(test_the_no_app_title_is_the_tags_own_reading);
+    RUN_TEST(test_a_lost_host_leaves_the_tags_own_facts);
+    RUN_TEST(test_details_scroll_stops_at_the_last_row);
     RUN_TEST(test_confirm_delete);
     RUN_TEST(test_weight);
     RUN_TEST(test_weight_without_a_core);
