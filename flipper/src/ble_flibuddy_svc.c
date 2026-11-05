@@ -6,6 +6,7 @@
 
 #include "ble_lines.h"
 #include "ble_flibuddy_svc.h"
+#include "ble_sdk_pin.h"
 #include "ble_wire.h"
 
 #define TAG "FliBuddyBle"

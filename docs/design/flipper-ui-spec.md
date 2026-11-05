@@ -39,7 +39,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    `Visible as <name>` (Bluetooth, advertising), `Bluetooth: no app`
    (a central subscribed without a `hello`) or `Bluetooth off`. A host app
    whose `hello` speaks another protocol version replaces the line with
-   `App speaks protocol N` until a host connects or the port closes. ▶ Settings,
+   `App protocol N` until a host connects or the port closes. ▶ Settings,
    Back exits the app. A tag read here shows Result · no host.
 2. **Ready** (host connected): spool picture with animated waves, "Ready",
    "Hold spool tag to the back". After an action an inverted bar with a
@@ -146,7 +146,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     About). Leaving with another Connection, or after the transport in use
     failed to open, restarts the transport.
 22. **About**: app icon, "FliBuddy", "for Bambuddy", `Version 0.1.0`,
-    `Protocol 2 - fw 1.5.1`, `App: <app> - USB` / `- BLE` or
+    `Protocol 2 - fw 1.5.1`, `USB app: <app>` / `BLE app: <app>` (the
+    transport first, so a long app name is cut, not the transport) or
     `App: not connected`. OK / Back to Settings.
 
 ## Mark as new, Mark as empty and Undo

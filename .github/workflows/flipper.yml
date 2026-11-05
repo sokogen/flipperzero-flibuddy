@@ -6,11 +6,13 @@ on:
     paths:
       - "flipper/**"
       - "protocol/**"
+      - "tools/tests/test_sdk_pin.py"
       - ".github/workflows/flipper.yml"
   pull_request:
     paths:
       - "flipper/**"
       - "protocol/**"
+      - "tools/tests/test_sdk_pin.py"
       - ".github/workflows/flipper.yml"
   workflow_dispatch:
 
@@ -28,6 +30,12 @@ jobs:
       - name: Fetch the 1.5.1 SDK
         working-directory: flipper
         run: ufbt update --branch=1.5.1
+      - uses: astral-sh/setup-uv@v6
+      # The BLE workarounds were verified on one SDK API version; this
+      # fails when the fetched SDK reports another (src/ble_sdk_pin.h).
+      - name: SDK pin
+        working-directory: tools
+        run: uv run pytest tests/test_sdk_pin.py
       - name: Build the FAP
         working-directory: flipper
         run: ufbt

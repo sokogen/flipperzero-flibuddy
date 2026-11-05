@@ -158,7 +158,7 @@ static void build_waiting(UiFrame* f, const AppState* s, const UiEnv* env) {
     f->line_icon = f->icon;
     t = TEXT(f->line[0]);
     if(s->other_version != 0) {
-        put(&t, "App speaks protocol ");
+        put(&t, "App protocol ");
         put_uint(&t, s->other_version);
     } else if(s->transport == TransportKindUsb) {
         put(&t, s->transport_failed ? "USB unavailable" : "USB: no app");
@@ -696,9 +696,9 @@ static void build_about(UiFrame* f, const AppState* s, const UiEnv* env) {
     put(&t, env->firmware);
     t = TEXT(f->line[3]);
     if(s->connected) {
-        put(&t, "App: ");
+        /* the transport first: a long app name is cut, not the transport */
+        put(&t, s->transport == TransportKindBluetooth ? "BLE app: " : "USB app: ");
         put(&t, env->host_app[0] ? env->host_app : "connected");
-        put(&t, s->transport == TransportKindBluetooth ? " - BLE" : " - USB");
     } else {
         put(&t, "App: not connected");
     }

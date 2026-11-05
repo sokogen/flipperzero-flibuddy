@@ -11,6 +11,10 @@
 #include "reader_wait.h"
 #include "tag_watch.h"
 
+_Static_assert(
+    READER_FLAG_ERROR_BIT == (uint32_t)FuriFlagError,
+    "reader_wait.h must name the SDK's error bit");
+
 #define READER_STACK    3072 /* HKDF runs on it */
 #define RESCAN_DELAY_MS 500 /* after a tag of another technology */
 

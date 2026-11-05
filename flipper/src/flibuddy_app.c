@@ -283,7 +283,10 @@ static void handle_message(FliBuddyApp* app, const ProtoMessage* msg) {
     switch(msg->type) {
     case ProtoMsgHello:
         sync_port(app);
-        strlcpy(app->host_app, msg->hello.app, sizeof(app->host_app));
+        /* a stale hello (the port closed) is ignored and names no app */
+        if(app->link.state != HostLinkStateClosed) {
+            strlcpy(app->host_app, msg->hello.app, sizeof(app->host_app));
+        }
         apply_link(app, host_link_host_hello(&app->link, now_ms()));
         break;
     case ProtoMsgOtherVersion:

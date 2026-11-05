@@ -11,11 +11,11 @@
  *
  * tag_reader_stop() stops the NFC and joins the worker, and no callback
  * runs after it returns. Waits for a tag and for it to leave are cut short
- * at once. A read in progress is not cancelled by the reader: the stop flag
- * may wake the SDK's sync poller early (it ends with an error or a partial
- * dump) or not, so stop() can wait for the read to finish. A tag whose read
- * ended that way reported nothing and is not remembered, so the next start
- * reads it.
+ * at once. A read in progress is not: the SDK's sync pollers wait on
+ * thread flag bit 0, which the reader's flags stay off (reader_wait.h), so
+ * the stop flag cannot wake them and stop() waits for the read in progress
+ * to finish. A tag whose read was stopped that way reports nothing and is
+ * not remembered, so the next start reads it.
  */
 #pragma once
 

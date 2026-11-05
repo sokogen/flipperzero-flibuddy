@@ -69,6 +69,23 @@ def test_flipper_workflow_builds_the_fap_with_ufbt_1_5_1_and_runs_c_tests():
     assert [s["with"]["path"] for s in uploads] == ["flipper/dist/*.fap"]
 
 
+def test_flipper_workflow_checks_the_sdk_pin_against_the_fetched_sdk():
+    # tools/tests/test_sdk_pin.py skips without flipper/.ufbt, so only the
+    # flipper job, which fetches the SDK, can fail it on a firmware bump.
+    wf = workflow("flipper")
+    (job,) = wf["jobs"].values()
+    steps = job["steps"]
+    uses = [s.get("uses", "") for s in steps]
+    assert any(u.startswith("astral-sh/setup-uv@") for u in uses)
+    runs = [s.get("run", "").strip() for s in steps]
+    fetch = runs.index("ufbt update --branch=1.5.1")
+    pin = runs.index("uv run pytest tests/test_sdk_pin.py")
+    assert fetch < pin
+    assert steps[pin].get("working-directory") == "tools"
+    setup_uv = next(i for i, u in enumerate(uses) if u.startswith("astral-sh/setup-uv@"))
+    assert setup_uv < pin
+
+
 def test_host_workflow_runs_swift_test_on_macos_with_the_lint_and_coverage_gates():
     wf = workflow("host")
     assert set(wf["jobs"]) == {"test", "apple"}

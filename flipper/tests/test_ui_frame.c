@@ -3,6 +3,7 @@
 #include "dump_loaders.h"
 
 #include "ui_frame.h"
+#include "ui_text.h"
 
 #define FIXTURE_CAP 16384
 
@@ -117,6 +118,20 @@ static AppEffect choose(AppMenuItem item) {
     return choose_at(item, 0);
 }
 
+/* FontSecondary is about 5 px a character; the draw code cuts with the
+ * real widths (ui_text_fit). */
+#define BESIDE_ICON_W 108 /* Waiting: right of the transport icon */
+#define ABOUT_W       126
+
+static uint16_t measure5(void* ctx, const char* text) {
+    (void)ctx;
+    return (uint16_t)(5 * strlen(text));
+}
+
+static bool fits(const char* text, uint16_t width) {
+    return measure5(NULL, text) <= width;
+}
+
 static void check_chips(const char* left, const char* center, const char* right) {
     CHECK_STR_EQ(frame.left, left);
     CHECK_STR_EQ(frame.center, center);
@@ -153,19 +168,20 @@ static void test_waiting_names_the_protocol_of_another_host_app(void) {
     AppEvent e = {.type = AppEventOtherVersion, .version = 3};
     app_reduce(&app, &e);
     build();
-    CHECK_STR_EQ(frame.line[0], "App speaks protocol 3");
+    CHECK_STR_EQ(frame.line[0], "App protocol 3");
     CHECK_STR_EQ(frame.line[1], "Waiting for app");
     CHECK(frame.line_icon == UiIconUsb);
-    CHECK(strlen(frame.line[0]) <= 21); /* fits the 108 px beside the icon */
+    CHECK(fits(frame.line[0], BESIDE_ICON_W));
 
     e.version = 12;
     app_reduce(&app, &e);
     build();
-    CHECK_STR_EQ(frame.line[0], "App speaks protocol 12");
+    CHECK_STR_EQ(frame.line[0], "App protocol 12");
+    CHECK(fits(frame.line[0], BESIDE_ICON_W));
 
     app.transport = TransportKindBluetooth;
     build();
-    CHECK_STR_EQ(frame.line[0], "App speaks protocol 12");
+    CHECK_STR_EQ(frame.line[0], "App protocol 12");
 
     e.version = 0;
     app_reduce(&app, &e);
@@ -925,11 +941,19 @@ static void test_about(void) {
     CHECK_STR_EQ(frame.line[0], "for Bambuddy");
     CHECK_STR_EQ(frame.line[1], "Version 0.1.0");
     CHECK_STR_EQ(frame.line[2], "Protocol 2 - fw 1.5.1");
-    CHECK_STR_EQ(frame.line[3], "App: FliBuddy Mac - USB");
+    CHECK_STR_EQ(frame.line[3], "USB app: FliBuddy Mac");
 
     app.transport = TransportKindBluetooth;
     build();
-    CHECK_STR_EQ(frame.line[3], "App: FliBuddy Mac - BLE");
+    CHECK_STR_EQ(frame.line[3], "BLE app: FliBuddy Mac");
+
+    /* a long app is cut at its end: the transport stays in view */
+    env.host_app = "flibuddy-watch/1.0.0";
+    build();
+    char shown[UI_TEXT_MAX];
+    strcpy(shown, frame.line[3]);
+    ui_text_fit(shown, ABOUT_W, measure5, NULL);
+    CHECK(strncmp(shown, "BLE app: flibuddy", 17) == 0);
     send(AppEventHostLost);
     build();
     CHECK_STR_EQ(frame.line[3], "App: not connected");
