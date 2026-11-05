@@ -6,6 +6,7 @@ import Testing
 final class FakeSessionMessaging: SessionMessaging, @unchecked Sendable {
     var isSupported = true
     var isActivated = true
+    var isPaired = true
     var isCounterpartInstalled = true
     var failure: (any Error)?
     private(set) var sent: [[String: Any]] = []
@@ -334,7 +335,7 @@ struct WatchSettingsSenderLogTests {
         session.isCounterpartInstalled = false
         let sender = WatchSettingsSender(session: session)
 
-        let sink = await capturingLog(level: .debug) {
+        let sink = await capturingLog {
             sender.settingsSaved(testSettings)
             session.isCounterpartInstalled = true
             session.failure = SendFailed()
@@ -342,7 +343,7 @@ struct WatchSettingsSenderLogTests {
         }
 
         #expect(sink.events == ["sync held: reason=no watch app", "sync send failed: error=Watch not reachable"])
-        #expect(sink.lines.map(\.level) == [.debug, .error])
+        #expect(sink.lines.map(\.level) == [.notice, .error])
     }
 
     @Test func aSendHeldOnAnUnsupportedOrInactiveSessionIsLoggedWithTheReason() async {
@@ -350,7 +351,7 @@ struct WatchSettingsSenderLogTests {
         session.isSupported = false
         let sender = WatchSettingsSender(session: session)
 
-        let sink = await capturingLog(level: .debug) {
+        let sink = await capturingLog {
             sender.settingsSaved(testSettings)
             session.isSupported = true
             session.isActivated = false
@@ -358,6 +359,25 @@ struct WatchSettingsSenderLogTests {
         }
 
         #expect(sink.events == ["sync held: reason=unsupported", "sync held: reason=not activated"])
+    }
+
+    @Test func aHoldReasonIsLoggedOnceUntilItChanges() async {
+        let session = FakeSessionMessaging()
+        session.isCounterpartInstalled = false
+        let sender = WatchSettingsSender(session: session)
+
+        let sink = await capturingLog {
+            sender.settingsSaved(testSettings)
+            sender.sessionStateChanged()
+            sender.settingsSaved(testSettings)
+            // Sent, then held for the same reason again: logged again.
+            session.isCounterpartInstalled = true
+            sender.sessionStateChanged()
+            session.isCounterpartInstalled = false
+            sender.settingsSaved(testSettings)
+        }
+
+        #expect(sink.events == ["sync held: reason=no watch app", "sync sent: v=1", "sync held: reason=no watch app"])
     }
 }
 
@@ -399,6 +419,181 @@ extension WatchSettingsReceiverTests {
             "apply failed: error=\(Session.describe(SecretStoreError.status(-25300)))",
         ])
         #expect(lines.map(\.level) == [.error, .info, .error])
+    }
+}
+
+@MainActor
+@Suite("Watch sync state")
+struct WatchSyncStateTests {
+    @Test func noWatchPairedShowsNothing() {
+        let session = FakeSessionMessaging()
+        session.isPaired = false
+        session.isCounterpartInstalled = false
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(testSettings)
+
+        #expect(sender.state == nil)
+    }
+
+    @Test func aWatchWithoutTheAppNeedsItInstalled() {
+        let session = FakeSessionMessaging()
+        session.isCounterpartInstalled = false
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(testSettings)
+
+        #expect(sender.state == .installApp)
+    }
+
+    @Test func settingsHeldBeforeActivationWaitForTheWatchApp() {
+        let session = FakeSessionMessaging()
+        session.isActivated = false
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(testSettings)
+
+        #expect(sender.state == .openWatchApp)
+    }
+
+    @Test func aSentSendIsSentAndAFailedOneIsFailed() {
+        let session = FakeSessionMessaging()
+        session.failure = SendFailed()
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(testSettings)
+        #expect(sender.state == .failed)
+
+        session.failure = nil
+        sender.sessionStateChanged()
+        #expect(sender.state == .sent)
+    }
+
+    @Test func nothingToSendShowsNothing() {
+        let sender = WatchSettingsSender(session: FakeSessionMessaging())
+
+        sender.sessionStateChanged()
+
+        #expect(sender.state == nil)
+    }
+
+    @Test func theSettingsScreenTextFollowsTheState() {
+        #expect(SettingsViewModel.watchSyncText(.sent) == "Apple Watch: settings sent")
+        #expect(SettingsViewModel.watchSyncText(.openWatchApp) == "Apple Watch: open FliBuddy on the watch")
+        #expect(SettingsViewModel.watchSyncText(.installApp) == "Apple Watch: install FliBuddy on the watch")
+        #expect(SettingsViewModel.watchSyncText(.failed) == "Apple Watch: couldn't send settings")
+        #expect(SettingsViewModel.watchSyncText(nil) == nil)
+    }
+
+    @Test func theSettingsViewModelReadsTheHostsState() {
+        let model = SettingsViewModel(settings: testSettings, watchSync: { .sent }, apply: { _ in })
+        #expect(model.watchSyncText == "Apple Watch: settings sent")
+        let none = SettingsViewModel(settings: testSettings, apply: { _ in })
+        #expect(none.watchSyncText == nil)
+    }
+}
+
+@MainActor
+@Suite("Settings sync start and reliability")
+struct WatchSettingsStartTests {
+    @Test func startingWithoutAKeySendsTheKeyOnceItIsRestored() async throws {
+        // A launch while the Keychain is locked: the key is unknown, nothing is queued.
+        let secrets = LockableSecretStore()
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: secrets)
+        try store.save(testSettings)
+        secrets.locked = true
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        #expect(model.settings.apiKeyUnknown)
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        model.onSettingsSaved = { sender.settingsSaved($0) }
+        sender.seed(model.settings)
+        #expect(session.sent.isEmpty)
+
+        secrets.locked = false
+        await model.reloadSettings()
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test"])
+    }
+
+    @Test func seedingDoesNotQueueASend() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+
+        sender.seed(testSettings)
+        sender.sessionStateChanged()
+
+        #expect(session.sent.isEmpty)
+    }
+
+    @Test func aClearAfterAnUnconfiguredLaunchStillPropagates() {
+        // The saved key exists but the URL is invalid, so the launch queued nothing.
+        var invalid = testSettings
+        invalid.baseURL = "not a url"
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        sender.seed(invalid)
+
+        var cleared = invalid
+        cleared.apiKey = ""
+        sender.settingsSaved(cleared)
+
+        #expect(session.sentPayloads.map(\.apiKey) == [""])
+    }
+
+    @Test func aHeldSendIsBuiltFromTheCurrentSettings() {
+        let session = FakeSessionMessaging()
+        session.isActivated = false
+        let sender = WatchSettingsSender(session: session)
+        var current = testSettings
+        sender.settingsProvider = { current }
+        sender.settingsSaved(testSettings)
+
+        current.coreWeight = 333
+        session.isActivated = true
+        sender.sessionStateChanged()
+
+        #expect(session.sentPayloads == [SettingsSyncPayload(current)])
+    }
+
+    @Test func aWhitespaceKeyIsEmptyForTheSender() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        sender.settingsSaved(testSettings)
+        var blank = testSettings
+        blank.apiKey = "   "
+
+        sender.settingsSaved(blank)
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test", ""])
+    }
+
+    @Test func aPaddedKeyIsSentTrimmed() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        var padded = testSettings
+        padded.apiKey = " bb_test \n"
+
+        sender.settingsSaved(padded)
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test"])
+    }
+
+    @Test func aWhitespaceKeyWhileUnknownKeepsTheRealKey() throws {
+        let secrets = InMemorySecretStore()
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: secrets)
+        try store.save(testSettings)
+        var unknown = testSettings
+        unknown.apiKey = ""
+        unknown.apiKeyUnknown = true
+
+        unknown.apiKey = "   "
+        #expect(unknown.apiKeyUnknown)
+        try store.save(unknown)
+
+        #expect(try secrets.secret(for: SettingsStore.apiKeyAccount) == "bb_test")
     }
 }
 
@@ -501,6 +696,27 @@ struct WatchSettingsKeySyncTests {
         #expect(store.load().apiKey == "bb_test")
         #expect(store.load().coreWeight == 400)
         #expect(model.settings.apiKey == "bb_test")
+    }
+
+    @Test func aWatchWithAnUnknownKeyClearsItOnAnExplicitEmptyKey() async throws {
+        let secrets = LockableSecretStore()
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: secrets)
+        try store.save(testSettings)
+        secrets.locked = true
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        #expect(model.settings.apiKeyUnknown)
+        secrets.locked = false
+        let receiver = WatchSettingsReceiver(host: model)
+        var payload = SettingsSyncPayload(testSettings)
+        payload.apiKey = ""
+
+        await receiver.receive(.success(payload))
+
+        #expect(!model.settings.apiKeyUnknown)
+        #expect(store.load().apiKey == "")
+        #expect(secrets.stored == nil)
     }
 
     @Test func theWatchClearsItsKeyWhenThePayloadSaysEmpty() async throws {

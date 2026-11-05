@@ -128,7 +128,13 @@ public struct SettingsForm: View {
             } footer: {
                 // The iPad draws no footer under the Flipper rows (iPadOS spec).
                 if UIDevice.current.userInterfaceIdiom != .pad {
-                    Text("Bluetooth only on iPhone. The Flipper must be running FliBuddy.")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Bluetooth only on iPhone. The Flipper must be running FliBuddy.")
+                        // Only with a paired watch.
+                        if let watch = model.watchSyncText {
+                            Text(watch)
+                        }
+                    }
                 }
             }
             if let error = model.saveError {

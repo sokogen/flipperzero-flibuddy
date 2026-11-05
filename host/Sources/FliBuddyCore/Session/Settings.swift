@@ -39,7 +39,9 @@ public struct Settings: Equatable, Sendable {
     /// Empty while `apiKeyUnknown`.
     public var apiKey: String {
         // A different key is a key someone typed, scanned or received.
-        didSet { if apiKey != oldValue { apiKeyUnknown = false } }
+        // Whitespace is not a key: typing it while the key is unknown must
+        // not turn "unknown" into "empty" and delete the saved key.
+        didSet { if Self.trimmed(apiKey) != Self.trimmed(oldValue) { apiKeyUnknown = false } }
     }
     /// The Keychain could not be read (the iPhone is locked and the item is
     /// not available before the first unlock), so the saved key is not known;
@@ -87,6 +89,11 @@ public struct Settings: Equatable, Sendable {
         }
     }
 
+    static func trimmed(_ key: String) -> String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// The API key without surrounding whitespace; what is saved and sent.
+    public var trimmedAPIKey: String { Self.trimmed(apiKey) }
+
     /// An http(s) base URL and an API key are set.
     public var isConfigured: Bool { (try? makeClient()) != nil }
 
@@ -94,7 +101,7 @@ public struct Settings: Equatable, Sendable {
     public func makeClient(session: URLSession? = nil) throws -> BambuddyClient {
         let text = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: text) else { throw BambuddyError.invalidBaseURL(text) }
-        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = trimmedAPIKey
         let client = try BambuddyClient(baseURL: url, apiKey: key, session: session)
         guard !key.isEmpty else { throw SettingsError.missingAPIKey }
         return client
@@ -165,7 +172,7 @@ public struct SettingsStore: Sendable {
     /// unknown API key (`apiKeyUnknown`) leaves the item as it is.
     public func save(_ settings: Settings) throws {
         if !settings.apiKeyUnknown {
-            let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = settings.trimmedAPIKey
             do {
                 try secrets.setSecret(key.isEmpty ? nil : key, for: Self.apiKeyAccount)
             } catch {
@@ -190,7 +197,7 @@ public struct SettingsStore: Sendable {
 
     /// The settings for the log: whether there is an API key, never the key.
     static func summary(_ settings: Settings) -> String {
-        let empty = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let empty = settings.trimmedAPIKey.isEmpty
         let key = settings.apiKeyUnknown ? "unknown" : empty ? "absent" : "present"
         return "url=\(settings.baseURL) key=\(key) catalog=\(settings.catalogEntryId.map(String.init) ?? "none") "
             + "core=\(settings.coreWeight) mode=\(settings.defaultMode.rawValue) transport=\(settings.transport.rawValue)"

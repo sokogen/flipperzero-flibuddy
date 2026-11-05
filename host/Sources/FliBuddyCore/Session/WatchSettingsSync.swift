@@ -1,6 +1,19 @@
 import Foundation
 import Observation
 
+/// Where the settings sync stands, for the iPhone's Settings screen. `nil`
+/// (see `WatchSettingsSender.state`) when there is no paired watch or nothing to send.
+public enum WatchSyncState: Equatable, Sendable {
+    /// The last settings went to the watch.
+    case sent
+    /// A watch is paired but FliBuddy is not installed on it.
+    case installApp
+    /// The settings wait until the watch app runs.
+    case openWatchApp
+    /// The last send failed.
+    case failed
+}
+
 /// The part of `WCSession` the settings sync uses, so the sync logic is
 /// tested with a fake. `WatchConnectivitySession` is the real one.
 public protocol SessionMessaging: AnyObject, Sendable {
@@ -8,6 +21,8 @@ public protocol SessionMessaging: AnyObject, Sendable {
     var isSupported: Bool { get }
     /// Activation finished; sending before that fails.
     var isActivated: Bool { get }
+    /// On the iPhone, a watch is paired with it (the watch app may be missing).
+    var isPaired: Bool { get }
     /// The other side has the app: on the iPhone, a paired watch with the
     /// watch app installed.
     var isCounterpartInstalled: Bool { get }
@@ -27,6 +42,12 @@ public final class WatchSettingsSender {
 
     /// Why the last send failed, until one succeeds.
     public private(set) var lastError: String?
+    /// The sync for the Settings screen; `nil` without a paired watch, and
+    /// until there is something to send.
+    public private(set) var state: WatchSyncState?
+    /// The settings as they are now. A held send is built from them when it
+    /// goes out, so it never carries what was current at an earlier save.
+    @ObservationIgnored public var settingsProvider: (@MainActor () -> Settings)?
 
     private let session: any SessionMessaging
     private let debounce: Duration
@@ -36,6 +57,9 @@ public final class WatchSettingsSender {
     /// The key was cleared and the watch has not been told yet.
     private var clearPending = false
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    /// The reason the last flush was held, so each is logged once.
+    private var lastHold: String?
+    private var hasSent = false
 
     /// `debounce` zero sends each save at once.
     public init(session: any SessionMessaging, debounce: Duration = .zero) {
@@ -43,19 +67,15 @@ public final class WatchSettingsSender {
         self.debounce = debounce
     }
 
+    /// Remembers the key the settings loaded with, without sending: an
+    /// unconfigured launch queues nothing, but a later clear must still
+    /// propagate.
+    public func seed(_ settings: Settings) {
+        if !settings.apiKeyUnknown { lastKey = settings.trimmedAPIKey }
+    }
+
     public func settingsSaved(_ settings: Settings) {
-        var payload = SettingsSyncPayload(settings)
-        if !settings.apiKeyUnknown {
-            if !settings.apiKey.isEmpty {
-                clearPending = false
-            } else if !lastKey.isEmpty {
-                clearPending = true
-            }
-            lastKey = settings.apiKey
-            // An empty key is sent only as the user's clear, never as "not known".
-            if settings.apiKey.isEmpty { payload.apiKey = clearPending ? "" : nil }
-        }
-        pending = payload
+        pending = payload(for: settings)
         guard debounce > .zero else { return flush() }
         debounceTask?.cancel()
         let delay = debounce
@@ -64,6 +84,24 @@ public final class WatchSettingsSender {
             guard !Task.isCancelled else { return }
             self?.flush()
         }
+    }
+
+    /// The payload for `settings`; follows the key: an empty key after a
+    /// non-empty one is a clear, sent until it goes out.
+    private func payload(for settings: Settings) -> SettingsSyncPayload {
+        var payload = SettingsSyncPayload(settings)
+        if !settings.apiKeyUnknown {
+            let key = settings.trimmedAPIKey
+            if !key.isEmpty {
+                clearPending = false
+            } else if !lastKey.isEmpty {
+                clearPending = true
+            }
+            lastKey = key
+            // An empty key is sent only as the user's clear, never as "not known".
+            if key.isEmpty { payload.apiKey = clearPending ? "" : nil }
+        }
+        return payload
     }
 
     /// Returns once a debounced send has run.
@@ -77,7 +115,8 @@ public final class WatchSettingsSender {
     }
 
     private func flush() {
-        guard let pending else { return }
+        if pending != nil, let settings = settingsProvider?() { pending = payload(for: settings) }
+        guard let pending else { return refreshState() }
         let held: String? = if !session.isSupported {
             "unsupported"
         } else if !session.isActivated {
@@ -88,13 +127,16 @@ public final class WatchSettingsSender {
             nil
         }
         if let held {
-            Log.debug(.sync, "held: reason=\(held)")
-            return
+            if held != lastHold { Log.notice(.sync, "held: reason=\(held)") }
+            lastHold = held
+            return refreshState()
         }
+        lastHold = nil
         do {
             // The payload carries the API key: only its version is logged.
             try session.updateApplicationContext(pending.dictionary)
             self.pending = nil
+            hasSent = true
             if pending.apiKey == "" { clearPending = false }
             lastError = nil
             Log.info(.sync, "sent: v=\(SettingsSyncPayload.version)")
@@ -102,6 +144,23 @@ public final class WatchSettingsSender {
             lastError = error.localizedDescription
             Log.error(.sync, "send failed: error=\(error.localizedDescription)")
         }
+        refreshState()
+    }
+
+    private func refreshState() {
+        let new: WatchSyncState?
+        if !session.isSupported || !session.isPaired {
+            new = nil
+        } else if lastError != nil {
+            new = .failed
+        } else if pending == nil {
+            new = hasSent ? .sent : nil
+        } else if !session.isCounterpartInstalled {
+            new = .installApp
+        } else {
+            new = .openWatchApp
+        }
+        if state != new { state = new }
     }
 }
 
@@ -188,6 +247,14 @@ public final class WatchConnectivitySession: NSObject, SessionMessaging, WCSessi
     public var isSupported: Bool { WCSession.isSupported() }
     public var isActivated: Bool { session.activationState == .activated }
 
+    public var isPaired: Bool {
+        #if os(iOS)
+        session.isPaired
+        #else
+        true
+        #endif
+    }
+
     public var isCounterpartInstalled: Bool {
         #if os(iOS)
         session.isPaired && session.isWatchAppInstalled
@@ -200,12 +267,22 @@ public final class WatchConnectivitySession: NSObject, SessionMessaging, WCSessi
         try session.updateApplicationContext(context)
     }
 
+    /// What the session knows about the other side, for the log.
+    private func watchFacts(_ session: WCSession) -> String {
+        #if os(iOS)
+        "paired=\(session.isPaired) watch_app_installed=\(session.isWatchAppInstalled)"
+        #else
+        "companion_installed=\(session.isCompanionAppInstalled)"
+        #endif
+    }
+
     private var handlers: (StateHandler, ContextHandler) {
         lock.withLock { (onStateChange, onContext) }
     }
 
     public func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: (any Error)?) {
         let (onStateChange, onContext) = handlers
+        Log.notice(.sync, "activation: state=\(state.rawValue) error=\(error.map { Session.describe($0) } ?? "none") \(watchFacts(session))")
         onStateChange()
         let context = session.receivedApplicationContext
         if !context.isEmpty { onContext(SettingsSyncPayload.decode(context)) }
@@ -224,6 +301,7 @@ public final class WatchConnectivitySession: NSObject, SessionMessaging, WCSessi
     }
 
     public func sessionWatchStateDidChange(_ session: WCSession) {
+        Log.notice(.sync, "watch state: \(watchFacts(session))")
         handlers.0()
     }
     #endif
@@ -236,10 +314,15 @@ extension WatchSettingsSender {
         let session = WatchConnectivitySession()
         let sender = WatchSettingsSender(session: session, debounce: defaultDebounce)
         host.onSettingsSaved = { [weak sender] in sender?.settingsSaved($0) }
+        sender.settingsProvider = { [weak host] in host?.settings ?? Settings() }
+        host.watchSyncState = { [weak sender] in sender?.state }
         session.activate(
             onStateChange: { [weak sender] in Task { @MainActor in sender?.sessionStateChanged() } },
             onContext: { _ in }
         )
+        // Even when nothing is sent yet, a later clear must propagate. Reading
+        // the key again (`reloadSettings`) saves, which queues the send.
+        sender.seed(host.settings)
         // A watch app installed after the last save still gets the settings.
         if host.settings.isConfigured { sender.settingsSaved(host.settings) }
         return sender

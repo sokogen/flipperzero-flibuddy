@@ -123,6 +123,7 @@ public final class SettingsViewModel {
     private let bluetoothPower: @MainActor () async -> BLEPowerState
     private let scanDuration: Duration
     private let connectedTransport: @MainActor () -> TransportKind?
+    private let watchSync: @MainActor () -> WatchSyncState?
     private let apply: @MainActor (Settings) async throws -> Void
     /// The last applied change; each one waits for the one before it.
     private var applying: Task<Void, Never>?
@@ -150,6 +151,7 @@ public final class SettingsViewModel {
         scanDuration: Duration = .seconds(15),
         connectedTransport: @escaping @MainActor () -> TransportKind? = { nil },
         appliesOnChange: Bool = false,
+        watchSync: @escaping @MainActor () -> WatchSyncState? = { nil },
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
         saved = settings
@@ -169,6 +171,7 @@ public final class SettingsViewModel {
         self.scanDuration = scanDuration
         self.connectedTransport = connectedTransport
         self.appliesOnChange = appliesOnChange
+        self.watchSync = watchSync
         self.apply = apply
     }
 
@@ -571,6 +574,19 @@ public final class SettingsViewModel {
         case nil: ("Scan the QR code Bambuddy shows when you create an API key.", .gray)
         case .applied(let message): (message, .green)
         case .failed(let message): (message, .red)
+        }
+    }
+
+    /// The iPhone's Settings footer line about the Apple Watch; `nil` without a paired watch.
+    public var watchSyncText: String? { Self.watchSyncText(watchSync()) }
+
+    public static func watchSyncText(_ state: WatchSyncState?) -> String? {
+        switch state {
+        case nil: nil
+        case .sent: "Apple Watch: settings sent"
+        case .openWatchApp: "Apple Watch: open FliBuddy on the watch"
+        case .installApp: "Apple Watch: install FliBuddy on the watch"
+        case .failed: "Apple Watch: couldn't send settings"
         }
     }
 

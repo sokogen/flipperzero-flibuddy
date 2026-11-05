@@ -7,7 +7,9 @@ import Foundation
 /// `catalogEntryId` is left out when no catalog entry is chosen. `apiKey` is
 /// left out when the sender does not know the key (its Keychain is locked) or
 /// has not changed it; the receiver then keeps its own. An empty `apiKey`
-/// means the user cleared it.
+/// means the user cleared it. So a missing `apiKey` means "keep your key"
+/// and `""` means "deliberately cleared": the sender sends `""` only after
+/// a non-empty key became empty, never for a key it does not know.
 public struct SettingsSyncPayload: Equatable, Sendable {
     public static let version = 1
 
@@ -29,7 +31,7 @@ public struct SettingsSyncPayload: Equatable, Sendable {
     /// The synced fields of `settings`.
     public init(_ settings: Settings) {
         self.init(
-            baseURL: settings.baseURL, apiKey: settings.apiKeyUnknown ? nil : settings.apiKey, coreWeight: settings.coreWeight,
+            baseURL: settings.baseURL, apiKey: settings.apiKeyUnknown ? nil : settings.trimmedAPIKey, coreWeight: settings.coreWeight,
             catalogEntryId: settings.catalogEntryId, defaultMode: settings.defaultMode
         )
     }
@@ -38,7 +40,11 @@ public struct SettingsSyncPayload: Equatable, Sendable {
     public func applied(to settings: Settings) -> Settings {
         var settings = settings
         settings.baseURL = baseURL
-        if let apiKey { settings.apiKey = apiKey }
+        if let apiKey {
+            settings.apiKey = Settings.trimmed(apiKey)
+            // A deliberate clear is an answer even where the key was unknown.
+            if settings.trimmedAPIKey.isEmpty { settings.apiKeyUnknown = false }
+        }
         settings.coreWeight = coreWeight
         settings.catalogEntryId = catalogEntryId
         settings.defaultMode = defaultMode

@@ -18,6 +18,10 @@ public final class HostModel {
     /// Runs after `apply` saved new settings (the iPhone sends them to the watch).
     @ObservationIgnored public var onSettingsSaved: (@MainActor (Settings) -> Void)?
 
+    /// The watch sync state for the Settings screen (iPhone only); set by
+    /// `WatchSettingsSender.start(for:)`.
+    @ObservationIgnored public var watchSyncState: (@MainActor () -> WatchSyncState?)?
+
     private let store: SettingsStore
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
     private let discoverPorts: @Sendable () -> [String]
@@ -102,7 +106,7 @@ public final class HostModel {
         var new = new
         // A screen that still shows the key as unknown must not put it back
         // after the key was read again.
-        if new.apiKeyUnknown, !settings.apiKeyUnknown, new.apiKey.isEmpty {
+        if new.apiKeyUnknown, !settings.apiKeyUnknown, new.trimmedAPIKey.isEmpty {
             new.apiKey = settings.apiKey
             new.apiKeyUnknown = false
         }
@@ -172,6 +176,7 @@ public final class HostModel {
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
             connectedTransport: { [link] in link.connectedTransport },
             appliesOnChange: appliesOnChange,
+            watchSync: { [weak self] in self?.watchSyncState?() },
             apply: { [weak self] in try await self?.apply($0) }
         )
     }
