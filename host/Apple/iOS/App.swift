@@ -128,13 +128,17 @@ struct RootView: View {
         }
         .environment(\.feedLayout, layout)
         .settingsSession(settingsModel, showing: navigation.pane == .settings)
-        // The whole window, the keyboard's area included: the number pad
-        // rising on a portrait iPad must not make it look landscape.
-        .background {
-            Color.clear
-                .ignoresSafeArea()
-                .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
-        }
+        // The whole window, the safe areas and the keyboard included: the
+        // keyboard rising on a portrait iPad must not make it look landscape
+        // (`ignoresSafeArea` does not change what the geometry reports).
+        .onGeometryChange(for: CGSize.self) { proxy in
+            let insets = proxy.safeAreaInsets
+            let window = FeedLayout.windowSize(
+                width: proxy.size.width, height: proxy.size.height, top: insets.top, bottom: insets.bottom,
+                leading: insets.leading, trailing: insets.trailing
+            )
+            return CGSize(width: window.width, height: window.height)
+        } action: { size = $0 }
         .onChange(of: size) { updateLayout() }
         .onChange(of: sizeClass, initial: true) { updateLayout() }
     }

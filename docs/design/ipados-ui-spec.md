@@ -204,9 +204,11 @@ Layout
   gets `.sidebar`, else `.tabs`. Within 20 pt of square either way
   (`squareDeadBand`, 40) the layout keeps what it had, so a Stage Manager
   resize across square does not flip it at every point. The window is
-  measured at the root with `onGeometryChange` on a background that
-  ignores the safe areas, so the keyboard rising on a portrait iPad
-  (1024 × about 930 left) does not make it look landscape. The first frame
+  measured at the root with `onGeometryChange` as the view's size plus its
+  safe-area insets (`FeedLayout.windowSize`), because the keyboard is a
+  bottom inset: a 13" iPad in portrait reports 1032 × 941 with the
+  keyboard up, which alone read as landscape. `ignoresSafeArea` on the
+  measuring view does not change what the geometry reports. The first frame
   (size zero) is the portrait layout until the size arrives.
 - The grid has as many flexible columns as `FeedLayout.tileColumns` allows
   (`.adaptive` cannot cap the count at three), measured from the grid's

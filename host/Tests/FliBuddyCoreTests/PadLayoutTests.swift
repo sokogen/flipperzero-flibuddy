@@ -43,6 +43,19 @@ struct FeedLayoutTests {
         #expect(FeedLayout.forWindow(width: 900, height: 600, isCompact: true, previous: .sidebar) == .cards)
     }
 
+    @Test func theWindowIsTheViewWithItsSafeAreasAndTheKeyboard() {
+        // Simulator, 13" portrait: SwiftUI reports 1032 × 1324 inside the
+        // safe areas, and 1032 × 941 with the keyboard up (its height is a
+        // bottom inset). Either way the window is 1032 × 1376: portrait.
+        let plain = FeedLayout.windowSize(width: 1032, height: 1324, top: 24, bottom: 28, leading: 0, trailing: 0)
+        #expect(plain == FeedLayout.Size(width: 1032, height: 1376))
+        let keyboard = FeedLayout.windowSize(width: 1032, height: 941, top: 24, bottom: 411, leading: 0, trailing: 0)
+        #expect(keyboard == FeedLayout.Size(width: 1032, height: 1376))
+        #expect(FeedLayout.forWindow(width: keyboard.width, height: keyboard.height, isCompact: false, previous: .tabs) == .tabs)
+        // side insets count too
+        #expect(FeedLayout.windowSize(width: 1300, height: 1000, top: 24, bottom: 0, leading: 38, trailing: 38).width == 1376)
+    }
+
     @Test func whatEachLayoutShows() {
         #expect(FeedLayout.sidebar.hasSidebar)
         #expect(!FeedLayout.tabs.hasSidebar)

@@ -25,6 +25,27 @@ public enum FeedLayout: Equatable, Sendable {
     /// A row holds at most three tiles (a 13" iPad); wider windows widen them.
     public static let maximumTileColumns = 3
 
+    /// A width and a height in points.
+    public struct Size: Equatable, Sendable {
+        public var width: Double
+        public var height: Double
+
+        public init(width: Double, height: Double) {
+            self.width = width
+            self.height = height
+        }
+    }
+
+    /// The window from a view's geometry: SwiftUI's size excludes the safe
+    /// areas, and the keyboard is a bottom safe area, so the size alone makes
+    /// a portrait iPad with the keyboard up look landscape. The insets put
+    /// back make it the whole window either way.
+    public static func windowSize(
+        width: Double, height: Double, top: Double, bottom: Double, leading: Double, trailing: Double
+    ) -> Size {
+        Size(width: width + leading + trailing, height: height + top + bottom)
+    }
+
     /// Around a square window the layout keeps what it had until the
     /// window is this much (in total) past square, so a resize across it
     /// does not flip the layout at every point.
