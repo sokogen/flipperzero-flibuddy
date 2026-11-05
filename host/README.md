@@ -283,6 +283,7 @@ sidebar (`NavigationSplitView`) when the window is wider than tall and
 `TabView` (iPadOS draws its tab bar at the top) otherwise, both with the
 feed as tiles in a `LazyVGrid`: at least 300 pt wide, at most three to a
 row (`FeedLayout.tileColumns`), so a 13" iPad fits three and an 11" two.
+The iPhone is portrait only (`project.yml`): no landscape iPhone is designed.
 
 The iPhone and the portrait iPad show a glass banner over the feed
 (`ConnectionBanner`) in place of the Mac's status bar: one line when one

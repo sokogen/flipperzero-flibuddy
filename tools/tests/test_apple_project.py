@@ -84,6 +84,21 @@ def test_the_ios_target_has_the_usage_descriptions_and_bundle_id():
     assert settings["INFOPLIST_KEY_NSCameraUsageDescription"].strip()
 
 
+def test_the_iphone_is_portrait_only_and_the_ipad_turns_every_way():
+    # FliBuddy 1.0 has no landscape iPhone design; the iPad page draws both
+    # orientations.
+    settings = ios_settings()
+    assert settings["INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone"].split() == [
+        "UIInterfaceOrientationPortrait"
+    ]
+    assert set(settings["INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"].split()) == {
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight",
+    }
+
+
 def test_the_ios_app_asks_for_local_network_access():
     # Bambuddy runs on the local network; iOS asks before the first request.
     assert ios_settings()["INFOPLIST_KEY_NSLocalNetworkUsageDescription"].strip()

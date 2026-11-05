@@ -186,8 +186,8 @@ carries its material; other tags are created, and tags linked
 to an existing spool, on the iPhone, iPad or Mac. The iPad has no watch to
 sync to.
 
-The iPhone shows the feed as cards with a connection banner at the top.
-An iPad shows the feed as tiles, three to a row on a 13"
+The iPhone shows the feed as cards with a connection banner at the top,
+in portrait only. An iPad shows the feed as tiles, three to a row on a 13"
 iPad and two on an 11": in landscape beside a sidebar with both
 connections, in portrait under a top tab bar and the banner; a narrow
 multitasking window gets the iPhone's cards. ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, are
