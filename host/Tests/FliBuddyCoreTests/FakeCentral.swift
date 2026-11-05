@@ -137,6 +137,8 @@ final class FakePeripheral: BLEPeripheralLink, @unchecked Sendable {
     var onSubscribe: Data?
     /// The connection drops while `open` subscribes.
     var dropsWhileOpening = false
+    /// `open` waits until it is cancelled (service discovery that stalls).
+    var openHangs = false
 
     init(identifier: UUID, hasService: Bool, autoConfirm: Bool) {
         self.identifier = identifier
@@ -160,6 +162,7 @@ final class FakePeripheral: BLEPeripheralLink, @unchecked Sendable {
         guard hasService, service == FliBuddyGATT.service, rx == FliBuddyGATT.rx, tx == FliBuddyGATT.tx else {
             throw TransportError.serviceNotFound
         }
+        if openHangs { try await Task.sleep(for: .seconds(3600)) }
         lock.withLock {
             self.events = events
             openedWith = events

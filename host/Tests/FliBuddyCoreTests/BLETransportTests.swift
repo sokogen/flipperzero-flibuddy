@@ -225,14 +225,38 @@ struct BLETransportTests {
         #expect(await eventually { central.activeScans == 0 })
     }
 
-    @Test func aConnectionThatNeverCompletesTimesOutAndIsCancelled() async {
+    @Test func aRememberedFlipperThatNeverConnectsIsNotFoundAndTheAttemptCancelled() async {
+        // The system knows a Flipper seen before even when it is off or away.
         let central = FakeCentral()
         central.known = [flipperA]
         central.connectHangs = true
         let transport = makeTransport(central, peripheral: flipperA)
 
+        await #expect(throws: TransportError.peripheralNotFound) { try await transport.connect() }
+        #expect(central.cancelled == [flipperA])
+        #expect(transport.state == .closed)
+    }
+
+    @Test func aFlipperFoundByTheScanThatNeverConnectsDidNotAnswer() async {
+        let central = FakeCentral()
+        central.advertise(found(flipperA))
+        central.connectHangs = true
+        let transport = makeTransport(central, peripheral: flipperA)
+
         await #expect(throws: TransportError.connectTimedOut) { try await transport.connect() }
         #expect(central.cancelled == [flipperA])
+        #expect(transport.state == .closed)
+    }
+
+    @Test func aConnectedFlipperWhoseServiceNeverOpensDidNotAnswer() async {
+        let central = FakeCentral()
+        central.known = [flipperA]
+        central.peripheral(flipperA).openHangs = true
+        let transport = makeTransport(central, peripheral: flipperA)
+
+        await #expect(throws: TransportError.connectTimedOut) { try await transport.connect() }
+        #expect(central.connected == [flipperA])
+        #expect(central.disconnectedLinks.map(\.identifier) == [flipperA])
         #expect(transport.state == .closed)
     }
 

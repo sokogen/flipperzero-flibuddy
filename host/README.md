@@ -199,8 +199,10 @@ GATT service (UUIDs in `FliBuddyGATT.swift`, the table in
 `flipper/README.md`). `connect()` waits for Bluetooth to power on,
 connects to the remembered peripheral if the system still knows it, else
 scans for the service (a scan that finds nothing gives up after 10 s with
-`peripheralNotFound`, "No Flipper found over Bluetooth"; a Flipper found
-that does not connect and open the service within 10 s fails with
+`peripheralNotFound`, "No Flipper found over Bluetooth", and so does a
+remembered Flipper that never connects: the system knows it even when it
+is off or away; a Flipper this scan found that does not connect, or one
+that connected and does not open the service, within 10 s fails with
 `connectTimedOut`, "Flipper did not answer"), discovers RX and TX, subscribes to TX and only then
 reports `.open`, so the `hello` the Flipper sends on subscription is kept.
 `BLEChunker` cuts outgoing lines into writes of

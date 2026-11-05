@@ -26,14 +26,19 @@ public struct BambuddyClient: Sendable {
         self.session = session ?? Self.sharedSession
     }
 
-    /// Clients of other URLs and keys share the session, so nothing is
-    /// answered from a cache: one key's answer must not stand for another's.
+    /// Clients of other URLs and keys share the session, so it keeps
+    /// nothing between requests: no cache (one key's answer must not stand
+    /// for another's), no cookies and no credentials (a URL may carry
+    /// `user:password@`; the API key is the only authentication).
     private static var defaultConfiguration: URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = timeout
         configuration.timeoutIntervalForResource = timeout * 2
         configuration.urlCache = nil
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
         return configuration
     }
 

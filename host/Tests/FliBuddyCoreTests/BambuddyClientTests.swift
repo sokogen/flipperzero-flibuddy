@@ -548,6 +548,10 @@ struct BambuddyClientTests {
         // One key's answer is never served from a cache to another key.
         #expect(configuration.urlCache == nil)
         #expect(configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+        // Nor are cookies or credentials (a URL may carry user:password@).
+        #expect(!configuration.httpShouldSetCookies)
+        #expect(configuration.httpCookieStorage == nil)
+        #expect(configuration.urlCredentialStorage == nil)
     }
 
     @Test func baseURLMustBeHTTP() {

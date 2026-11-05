@@ -56,9 +56,8 @@ public final class BLETransport: Transport, @unchecked Sendable {
         guard state == .closed else { return }
         do {
             if let problem = await central.powerState().problem { throw problem }
-            let id = try await findPeripheral()
+            let (id, scanned) = try await findPeripheral()
             do {
-                // Found, so a timeout here is a Flipper that does not answer.
                 try await Self.withDeadline(connectTimeout, else: .connectTimedOut) { [self] in
                     try await open(try await central.connect(id))
                 }
@@ -66,7 +65,15 @@ public final class BLETransport: Transport, @unchecked Sendable {
             } catch {
                 // An attempt that never connected was abandoned by the cancelled
                 // `central.connect`; a connection that did not open is dropped here.
-                if let link = drop(where: { $0.identifier == id }) { central.disconnect(link) }
+                let connected = drop(where: { $0.identifier == id })
+                if let connected { central.disconnect(connected) }
+                // The system keeps knowing a Flipper seen before, in range or
+                // not, and a connect to one that is off never completes: that
+                // is no Flipper found. One found by this scan, or one that
+                // connected and did not open its service, did not answer.
+                if case TransportError.connectTimedOut = error, !scanned, connected == nil {
+                    throw TransportError.peripheralNotFound
+                }
                 throw error
             }
         } catch {
@@ -92,10 +99,12 @@ public final class BLETransport: Transport, @unchecked Sendable {
         central.disconnect(link)
     }
 
-    private func findPeripheral() async throws -> UUID {
+    /// The peripheral to connect, and whether this scan found it (rather
+    /// than the system knowing it from before).
+    private func findPeripheral() async throws -> (id: UUID, scanned: Bool) {
         if let requestedPeripheral, central.knowsPeripheral(requestedPeripheral) {
             Log.info(.link, "bluetooth known: peripheral=\(requestedPeripheral.uuidString)")
-            return requestedPeripheral
+            return (requestedPeripheral, false)
         }
         Log.info(.link, "bluetooth scan: peripheral=\(Self.name(requestedPeripheral))")
         let found = central.scan(service: FliBuddyGATT.service)
@@ -106,7 +115,7 @@ public final class BLETransport: Transport, @unchecked Sendable {
             throw TransportError.peripheralNotFound
         }
         Log.info(.link, "bluetooth found: peripheral=\(peripheral.id.uuidString) name=\(peripheral.name) rssi=\(peripheral.rssi)")
-        return peripheral.id
+        return (peripheral.id, true)
     }
 
     private static func name(_ peripheral: UUID?) -> String {
