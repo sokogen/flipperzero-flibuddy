@@ -174,7 +174,7 @@ class Component extends DCLogic {
       ['about', 'About', 'Version, protocol, firmware and the current host.', S({screen: 'about'}), null],
       ['recent', 'Recent', 'The last 6 spools of the session. OK opens the result, for example to weigh again without another scan.', S({screen: 'recent', sel: 0}), null],
       ['details', 'Tag details', 'The full UID and the raw data, only on request from the menu.', S({screen: 'details', tag: T.known}), null],
-      ['apps', 'Icon in Apps → Tools', 'A 10×10 icon: a spool with its hub.', S({screen: 'apps'}), null],
+      ['apps', 'Icon in Apps → NFC', 'A 10×10 icon: a spool with its hub.', S({screen: 'apps'}), null],
     ];
     return list.map(([key, label, d, st, fb, fbk], i) => ({key, n: String(i + 1).padStart(2, '0'), label, d, st, fb: fb || '', hasFb: !!fb, fbc: fbk ? LEDC[fbk] : '#C7C7CC'}));
   }

@@ -6,19 +6,20 @@ on:
     paths:
       - "tools/**"
       - "protocol/**"
-      # tools/tests check these against their generators.
-      - "flipper/tests/vectors/**"
+      # tools/tests check these: the generated C vectors, icons and images,
+      # the fam and version, the app's strings and the catalog files.
+      - "flipper/**"
       - "docs/design/icons/**"
-      - "flipper/icons/**"
+      - "docs/design/source/flipper-ui.js"
       - "host/Apple/**/Assets.xcassets/**"
       - ".github/workflows/tools.yml"
   pull_request:
     paths:
       - "tools/**"
       - "protocol/**"
-      - "flipper/tests/vectors/**"
+      - "flipper/**"
       - "docs/design/icons/**"
-      - "flipper/icons/**"
+      - "docs/design/source/flipper-ui.js"
       - "host/Apple/**/Assets.xcassets/**"
       - ".github/workflows/tools.yml"
   workflow_dispatch:

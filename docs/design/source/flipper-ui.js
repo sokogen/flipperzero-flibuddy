@@ -318,7 +318,7 @@ export function frame(s, t = 1, now = 0) {
       list(g, s.recent, s.sel, s.top, 12, 4, it => I[it.mark]);
     },
     apps() {
-      g.bmp(2, 2, I.aL); g.text(0, 2, 'Tools', {bold: 1, align: 'center'}); g.bmp(123, 2, I.aR); g.dots(0, 10, W);
+      g.bmp(2, 2, I.aL); g.text(0, 2, 'NFC', {bold: 1, align: 'center'}); g.bmp(123, 2, I.aR); g.dots(0, 10, W);
       const items = [['Clock', I.clock], ['Counter', I.count], ['Dice', I.dice], ['FliBuddy', I.app]];
       items.forEach(([l, ic], k) => { const y = 12 + k * 13, on = k === 3, c = on ? 0 : 1; if (on) g.rbox(0, y, 128, 12, 2); g.bmp(3, y + 1, ic, c); g.text(17, y + 4, l, {c}); });
     },

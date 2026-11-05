@@ -65,7 +65,7 @@ typedef enum {
 typedef struct {
     uint32_t now_ms; /* for the toast's progress */
     uint32_t anim; /* animation step, one per tick */
-    const char* version; /* "0.1.0" */
+    const char* version; /* "1.0" */
     const char* firmware; /* "1.5.1" */
     const char* device_name; /* the Bluetooth name */
     const char* host_app; /* the host's hello `app`, "" before one */

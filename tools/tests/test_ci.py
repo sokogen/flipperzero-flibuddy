@@ -49,10 +49,14 @@ def test_workflow_is_path_filtered(name, part):
         assert f".github/workflows/{name}.yml" in paths
 
 
-def test_tools_workflow_also_watches_the_generated_c_vectors():
-    # tools/tests check that flipper/tests/vectors match their generators.
+def test_tools_workflow_also_watches_the_flipper_files_it_checks():
+    # tools/tests check flipper/ (the C vectors, the icons and images against
+    # their generators, the fam, the app's strings, the catalog files) and
+    # the design table the images come from.
     for event in ("push", "pull_request"):
-        assert "flipper/tests/vectors/**" in triggers(workflow("tools"))[event]["paths"]
+        paths = triggers(workflow("tools"))[event]["paths"]
+        assert "flipper/**" in paths
+        assert "docs/design/source/flipper-ui.js" in paths
 
 
 def test_flipper_workflow_builds_the_fap_with_ufbt_1_5_1_and_runs_c_tests():

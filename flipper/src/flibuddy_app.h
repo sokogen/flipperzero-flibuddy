@@ -35,7 +35,8 @@
 #include "proto_decode.h"
 #include "transport.h"
 
-#define FLIBUDDY_VERSION   "0.1.0"
+/* The fap_version of application.fam (tools/tests/test_flipper_app.py). */
+#define FLIBUDDY_VERSION   "1.0"
 #define FLIBUDDY_HELLO_APP "flibuddy-fap/" FLIBUDDY_VERSION
 
 typedef enum {

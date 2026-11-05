@@ -14,8 +14,8 @@ ufbt                         # builds dist/flibuddy.fap
 ufbt launch                  # builds, installs and starts it on a Flipper
 ```
 
-`ufbt launch` installs the app as `/ext/apps/Tools/flibuddy.fap`; the
-Flipper lists it as **FliBuddy** under Apps → Tools.
+`ufbt launch` installs the app as `/ext/apps/NFC/flibuddy.fap`; the
+Flipper lists it as **FliBuddy** under Apps → NFC.
 
 Bumping the SDK (`ufbt update --branch=...`) means re-verifying the two
 BLE workarounds (the inverted `ble_gatt_characteristic_update` result and

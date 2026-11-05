@@ -76,7 +76,7 @@ static void env_init(void) {
     env = (UiEnv){
         .now_ms = 0,
         .anim = 0,
-        .version = "0.1.0",
+        .version = "1.0",
         .firmware = "1.5.1",
         .device_name = "Workshop",
         .host_app = "",
@@ -163,7 +163,7 @@ static void test_waiting_over_usb(void) {
     build();
     CHECK(frame.screen == AppScreenWaiting);
     CHECK_STR_EQ(frame.title, "FliBuddy");
-    CHECK_STR_EQ(frame.note, "v0.1.0");
+    CHECK_STR_EQ(frame.note, "v1.0");
     CHECK(frame.icon == UiIconUsb);
     CHECK(frame.line_icon[0] == UiIconUsb);
     CHECK_STR_EQ(frame.line[0], "USB: no app");
@@ -1005,7 +1005,7 @@ static void test_settings(void) {
     CHECK_STR_EQ(frame.item[5], "Sound");
     CHECK_STR_EQ(frame.value[5], "Off");
     CHECK_STR_EQ(frame.item[6], "Version");
-    CHECK_STR_EQ(frame.value[6], "0.1.0");
+    CHECK_STR_EQ(frame.value[6], "1.0");
     CHECK(!frame.fixed[0]);
     CHECK(!frame.fixed[5]);
     CHECK(frame.fixed[6]);
@@ -1049,7 +1049,7 @@ static void test_about(void) {
     CHECK(frame.screen == AppScreenAbout);
     CHECK_STR_EQ(frame.title, "FliBuddy");
     CHECK_STR_EQ(frame.line[0], "for Bambuddy");
-    CHECK_STR_EQ(frame.line[1], "Version 0.1.0");
+    CHECK_STR_EQ(frame.line[1], "Version 1.0");
     CHECK_STR_EQ(frame.line[2], "Protocol 2 - fw 1.5.1");
     CHECK_STR_EQ(frame.line[3], "USB app: FliBuddy Mac");
 

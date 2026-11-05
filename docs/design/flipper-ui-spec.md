@@ -157,7 +157,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     About). Leaving with another Connection closes the transports it no
     longer uses and opens the new ones; a transport in use that failed to
     open is opened again. A host on a transport that keeps running stays.
-22. **About**: app icon, "FliBuddy", "for Bambuddy", `Version 0.1.0`,
+22. **About**: app icon, "FliBuddy", "for Bambuddy", `Version 1.0`,
     `Protocol 2 - fw 1.5.1`, `USB app: <app>` / `BLE app: <app>` (the
     transport first, so a long app name is cut, not the transport) or
     `App: not connected`. OK / Back to Settings.

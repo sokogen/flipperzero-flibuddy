@@ -2,8 +2,9 @@
 
 Path-filtered CI: one workflow each for `flipper/`, `host/` and `tools/`.
 Each also runs when `protocol/` (the shared contract) or the workflow file
-changes; `tools` also watches `flipper/tests/vectors/`, which its tests
-compare against the generators. `make test` at the repository root runs
+changes; `tools` also watches `flipper/` and the design's
+`flipper-ui.js`, which its tests check (generated vectors and images, the
+fam and version, the app's strings, the catalog files). `make test` at the repository root runs
 the same three suites locally; `tools/tests/test_ci.py` checks that the
 workflows and the Makefile stay in line.
 
