@@ -36,6 +36,15 @@ or Ready screen leaves the app and hands the port back to the CLI. A host
 that opens the port gets a `hello`; a host `hello` within 2 s marks it
 connected (`src/host_link.h`).
 
+## Without the app
+
+A tag read with no app connected shows what the tag itself carries
+(`src/tag_facts.h`, the host's TagParser layout): for a Bambu Lab tag the
+filament, a colour swatch, Bambu's colour name and code (from the generated
+`src/bambu_color_table.h`), diameter and label weight, and in Tag details
+the filament id, RGBA, nozzle, drying and bed temperatures. With an app the
+screens show only what it sends; nothing changes in the protocol.
+
 ## Get app
 
 OK on the Waiting screen opens **Get app**: a QR code of

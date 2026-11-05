@@ -550,21 +550,106 @@ static void test_result_blank(void) {
     check_chips("Menu", "Link", "");
 }
 
+/* Without the app a Bambu tag shows what it carries, as the host's
+ * tag_info would: swatch, colour name, code - diameter - label. */
 static void test_result_without_host(void) {
     setup_no_host();
     send_tag(&mfc);
     build();
     CHECK(frame.kind == AppResultNoHost);
     CHECK_STR_EQ(frame.title, "PLA Basic");
-    CHECK_STR_EQ(frame.line[0], "MIFARE Classic 1K");
-    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+    CHECK(frame.mark == UiMarkSwatch);
+    CHECK_EQ_INT(frame.lum, 255);
+    CHECK_STR_EQ(frame.line[0], "Jade White");
+    CHECK_STR_EQ(frame.line[1], "10100 - 1.75 mm - 1000 g");
+    CHECK(fits(frame.line[1], 126));
+    CHECK(!frame.in_base);
     CHECK_STR_EQ(frame.bar, "No app");
     check_chips("Menu", "", "");
 
+    /* an NTAG carries nothing the app reads: its type and UID */
     press(AppKeyBack);
     send_tag(&ntag);
     build();
     CHECK_STR_EQ(frame.title, "NTAG215");
+    CHECK(frame.mark == UiMarkBlank);
+    CHECK_STR_EQ(frame.line[0], "NTAG215");
+    CHECK_STR_EQ(frame.line[1], "Tag 0411...5566");
+
+    /* the real dump: Bambu's name for its colour ids */
+    press(AppKeyBack);
+    TagDump real;
+    load_mfc_real(&real);
+    send_tag(&real);
+    build();
+    CHECK_STR_EQ(frame.title, "PLA Pure");
+    CHECK_STR_EQ(frame.line[0], "Baby Blue");
+    CHECK_STR_EQ(frame.line[1], "17600 - 1.75 mm - 1000 g");
+}
+
+/* A Bambu tag without its data sectors: its type and UID, as before. */
+static void test_result_without_host_and_tag_data(void) {
+    setup_no_host();
+    TagDump bare = mfc;
+    bare.block_present &= ~(uint64_t)0xFF;
+    send_tag(&bare);
+    build();
+    CHECK(frame.mark == UiMarkBlank);
+    CHECK_STR_EQ(frame.title, "MIFARE Classic 1K");
+    CHECK_STR_EQ(frame.line[0], "MIFARE Classic 1K");
+    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+}
+
+/* The tag's own facts never mix into what the host sent. */
+static void test_with_the_host_only_its_answer_shows(void) {
+    setup();
+    send_tag(&mfc);
+    ProtoLookup l = fixture_message("lookup_unknown_blank.json")->lookup;
+    strcpy(l.scan_id, app.scan.id);
+    send_lookup(&l);
+    build();
+    CHECK(frame.kind == AppResultBlank);
+    CHECK(frame.mark == UiMarkBlank);
+    CHECK_STR_EQ(frame.line[0], "MIFARE Classic 1K");
+    CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
+    choose(AppMenuDetails);
+    build();
+    for(int i = 0; i < 8; i++)
+        press(AppKeyDown);
+    build();
+    CHECK_EQ_INT(frame.count, 3); /* Type, UID, Data */
+    CHECK(!frame.more_down);
+}
+
+static void test_tag_details_without_host(void) {
+    setup_no_host();
+    send_tag(&mfc);
+    choose(AppMenuDetails);
+    build();
+    CHECK_STR_EQ(frame.key[0], "Type");
+    CHECK_STR_EQ(frame.key[3], "Code");
+    CHECK_STR_EQ(frame.line[3], "10100");
+    CHECK_STR_EQ(frame.key[4], "Fila");
+    CHECK_STR_EQ(frame.line[4], "GFA00");
+    CHECK(frame.more_down);
+    for(int i = 0; i < 10; i++)
+        press(AppKeyDown); /* past the end: clamped */
+    build();
+    CHECK(frame.more_up);
+    CHECK(!frame.more_down);
+    CHECK_EQ_INT(frame.count, 5);
+    CHECK_STR_EQ(frame.key[0], "Label");
+    CHECK_STR_EQ(frame.line[0], "1000 g");
+    CHECK_STR_EQ(frame.key[1], "Diam");
+    CHECK_STR_EQ(frame.line[1], "1.75 mm");
+    CHECK_STR_EQ(frame.key[2], "Nozzle");
+    CHECK_STR_EQ(frame.line[2], "190-230 C");
+    CHECK_STR_EQ(frame.key[3], "Dry");
+    CHECK_STR_EQ(frame.line[3], "55 C 8 h");
+    CHECK_STR_EQ(frame.key[4], "Bed");
+    CHECK_STR_EQ(frame.line[4], "35 C");
+    for(int i = 0; i < 5; i++)
+        CHECK(fits(frame.line[i], 90));
 }
 
 /* ---- Menu, Details, Delete ---- */
@@ -1176,6 +1261,9 @@ int main(void) {
     RUN_TEST(test_result_without_host);
     RUN_TEST(test_menu_lists_the_actions);
     RUN_TEST(test_tag_details);
+    RUN_TEST(test_result_without_host_and_tag_data);
+    RUN_TEST(test_with_the_host_only_its_answer_shows);
+    RUN_TEST(test_tag_details_without_host);
     RUN_TEST(test_confirm_delete);
     RUN_TEST(test_weight);
     RUN_TEST(test_weight_without_a_core);

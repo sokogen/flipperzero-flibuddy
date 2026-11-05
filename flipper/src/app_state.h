@@ -102,7 +102,7 @@
 #define APP_SAVED_MS          1300u
 #define APP_TOAST_MS          3000u
 #define APP_READ_RETRY_MS     1500u /* Error{ReadFailed} returns to Ready */
-#define APP_DETAILS_TOP_MAX   4u /* Tag details scroll at most this far; the frame clamps */
+#define APP_DETAILS_TOP_MAX   6u /* Tag details scroll at most this far (11 rows, 5 show); the frame clamps */
 #define APP_LIST_ROWS         4 /* visible rows of Menu and Settings */
 #define APP_MENU_MAX          6
 #define APP_WEIGHT_DIGITS     4

@@ -31,3 +31,44 @@ def test_trim_keeps_complete_rows_only():
     assert make_color_codes.trim(source) == [
         {"filament_id": "GFA01", "color_id": "N3", "code": "11803", "name": "Caramel", "rgb": "AE835B"},
     ]
+
+
+def c_rows(header: str) -> list[dict]:
+    """The rows of the generated C table, unpacked as bambu_colors.c reads them."""
+    import re
+
+    filaments = re.findall(r'^    "(\w+)",$', header.split("bambu_color_filaments")[1].split("};")[0], re.MULTILINE)
+    blob = header.split("bambu_color_names[] =")[1].split(";")[0]
+    names = re.findall(r'"((?:[^"\\]|\\.)*)\\0"', blob)
+    rows = []
+    for m in re.finditer(
+        r"\{(\d+), (\d+), \"(\w+)\", \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}, \{0x(\w\w), 0x(\w\w), 0x(\w\w)\}\}",
+        header.split("bambu_color_rows")[1],
+    ):
+        f, n, color, r, g, b, c0, c1, c2 = m.groups()
+        rows.append({
+            "filament_id": filaments[int(f)],
+            "color_id": color,
+            "code": str(int(c0, 16) | int(c1, 16) << 8 | int(c2, 16) << 16),
+            "name": names[int(n)],
+            "rgb": (r + g + b).upper(),
+        })
+    return rows
+
+
+def test_the_flipper_gets_the_same_table_in_c():
+    outputs = make_color_codes.build()
+    assert set(outputs) == {make_color_codes.SWIFT, make_color_codes.C_HEADER}
+    assert make_color_codes.C_HEADER == "flipper/src/bambu_color_table.h"
+    header = outputs[make_color_codes.C_HEADER]
+    assert c_rows(header) == make_color_codes.load()
+    assert header.isascii()
+
+
+def test_the_c_table_stays_small():
+    # The FAP is loaded into RAM: names are stored once, a row is 12 bytes.
+    rows = make_color_codes.load()
+    names = {r["name"] for r in rows}
+    assert len(names) < 256 and len({r["filament_id"] for r in rows}) < 256
+    size = 12 * len(rows) + sum(len(n) + 1 for n in names) + 2 * len(names)
+    assert size < 8 * 1024

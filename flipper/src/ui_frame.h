@@ -45,7 +45,7 @@
 #define UI_ITEM_MAX  24
 #define UI_KEY_MAX   8
 #define UI_LINES     5
-#define UI_DETAILS_ROWS 9 /* every Tag details row; UI_LINES of them show */
+#define UI_DETAILS_ROWS 11 /* every Tag details row; UI_LINES of them show */
 #define UI_LIST_MAX  7 /* the longest of APP_MENU_MAX, AppSettingCount, APP_RECENT_MAX */
 #define UI_BODY_MAX  (PROTO_LINES_MAX * (PROTO_LINE_CHARS + 1) + PROTO_ERROR_MAX + 1)
 #define UI_TOAST_MAX 1000 /* progress when the whole toast time is left */

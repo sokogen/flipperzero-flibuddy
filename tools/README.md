@@ -42,6 +42,14 @@ catalogs (`host/Apple/*/Assets.xcassets`) and the Flipper's 10x10 1-bit
 not need it. `tests/test_app_icons.py` fails when a file is stale (skipped
 without `rsvg-convert`).
 
+`uv run python -m fixtures.make_color_codes` writes Bambu's colour codes and
+names from `data/bambu_color_codes.json` (refresh it from Bambu Studio with
+`--source`) to the host's `BambuColorCodes.swift` and, packed, to the
+Flipper's `flipper/src/bambu_color_table.h` (a 12-byte row each, names stored
+once, about 6 KB), which names a tag's colour without the app.
+`tests/test_color_codes.py` fails when either is stale and unpacks the C
+table back to the rows.
+
 `tests/test_fixtures.py` fails when a committed synthetic fixture differs
 from what its generator produces.
 

@@ -186,6 +186,7 @@ export const SETTINGS = [
 export function menuItems(kind) {
   if (kind === 'known') return [['Weigh', 'weigh'], ['Mark as new', 'new'], ['Mark as empty', 'empty'], ['Relink on host', 'link'], ['Tag details', 'details'], ['Delete spool', 'delete']];
   if (kind === 'unknown') return [['Add new', 'add'], ['Add and weigh', 'addw'], ['Link on host', 'link'], ['Tag details', 'details']];
+  if (kind === 'local') return [['Tag details', 'details']];
   return [['Link on host', 'link'], ['Tag details', 'details']];
 }
 const ERR = {
@@ -235,10 +236,11 @@ export function frame(s, t = 1, now = 0) {
     },
     result() {
       const kind = tag.kind;
-      if (kind === 'blank') g.circle(6, 5, 4); else swatch(g, 6, 5, 4, tag.lum);
-      header(g, s, t, kind === 'blank' ? 'Blank tag' : tag.material, {x: 14});
+      if (kind === 'blank' || !tag.rgba) g.circle(6, 5, 4); else swatch(g, 6, 5, 4, tag.lum);
+      header(g, s, t, kind === 'blank' ? 'Blank tag' : tag.material || tag.type, {x: 14});
       g.text(2, 15, tag.color || (tag.rgba ? 'Color #' + tag.rgba.slice(0, 6) : tag.type));
-      g.text(2, 24, 'Tag ' + uidShort(tag.uid));
+      g.text(2, 24, kind === 'local' && tag.specs ? tag.specs : 'Tag ' + uidShort(tag.uid));
+      if (kind === 'local') { const l = 'No app', w = g.measure(l) + 6; g.rbox(0, 31, w, 9, 2); g.text(3, 33, l, {c: 0}); bL(g, 'Menu'); return; }
       if (kind === 'known') g.text(2, 33, `${tag.remaining} g left of ${tag.label}`);
       else { const l = kind === 'unknown' ? 'Not in Bambuddy' : 'No spool data', w = g.measure(l) + 6; g.rbox(0, 31, w, 9, 2); g.text(3, 33, l, {c: 0}); }
       bL(g, 'Menu');
@@ -253,8 +255,11 @@ export function frame(s, t = 1, now = 0) {
     details() {
       header(g, s, t, 'Tag details');
       const rows = [['Type', tag.type], ['UID', tag.uid.match(/.{2}/g).join(':')]];
-      if (tag.rgba) rows.push(['Data', 'Bambu Lab'], ['RGBA', tag.rgba], ['Label', tag.label + ' g']); else rows.push(['Data', 'Empty NDEF']);
-      rows.forEach(([k, v], i) => { g.text(2, 14 + i * 9, k); g.text(35, 14 + i * 9, v); });
+      if (tag.details) rows.push(['Data', '15/16 sectors'], ...tag.details);
+      else if (tag.rgba) rows.push(['Data', 'Bambu Lab'], ['RGBA', tag.rgba], ['Label', tag.label + ' g']); else rows.push(['Data', 'Empty NDEF']);
+      const top = Math.min(s.dtop || 0, Math.max(0, rows.length - 5));
+      rows.slice(top, top + 5).forEach(([k, v], i) => { g.text(2, 14 + i * 9, k); g.text(35, 14 + i * 9, v); });
+      if (top > 0) g.bmp(123, 14, I.aU); if (top + 5 < rows.length) g.bmp(123, 56, I.aD);
     },
     confirm() {
       g.bmp(4, 3, I.warn); g.text(17, 4, 'Delete spool?', {bold: 1}); g.dots(0, 13, W);
@@ -345,6 +350,9 @@ export const TAGS = {
   known2: {kind: 'known', material: 'PETG HF', color: 'Black', lum: 0, uid: '5B21C0DE', type: 'MIFARE Classic 1K', rgba: '000000FF', remaining: 742, label: 1000, id: 12},
   unknown: {kind: 'unknown', material: 'PLA Silk+', color: null, lum: 0.75, uid: '8C33F05D', type: 'MIFARE Classic 1K', rgba: 'F4A925FF', label: 1000},
   blank: {kind: 'blank', material: null, uid: '04B7E2116A3C80', type: 'NTAG215'},
+  // No app: what a Bambu tag says by itself (colour name from Bambu's code table).
+  local: {kind: 'local', material: 'PLA Basic', color: 'Jade White', lum: 1, uid: '5A3C9E21', type: 'MIFARE Classic 1K', rgba: 'FFFFFFFF', label: 1000,
+    specs: '10100 - 1.75 mm - 1000 g', details: [['Code', '10100'], ['Fila', 'GFA00'], ['RGBA', 'FFFFFFFF'], ['Label', '1000 g'], ['Diam', '1.75 mm'], ['Nozzle', '190-230 C'], ['Dry', '55 C 8 h'], ['Bed', '35 C']]},
 };
 export const ERRS = ERR;
 export function initState() {
@@ -378,8 +386,11 @@ export class FZApp {
     else this.set({conn: c});
   }
   scan(kind) {
-    if (!['ready', 'result', 'saved', 'toast'].includes(this.s.screen)) return false;
-    const tag = kind === 'bad' ? null : {...TAGS[kind]};
+    if (!['waiting', 'getapp', 'ready', 'result', 'saved', 'toast'].includes(this.s.screen)) return false;
+    const host = this.s.conn === 'usb' || this.s.conn === 'ble';
+    // without the app a Bambu tag shows its own facts; other tags their type and UID
+    const own = kind === 'bad' ? null : host ? TAGS[kind] : kind === 'blank' ? {...TAGS.blank, kind: 'local'} : TAGS.local;
+    const tag = own && {...own};
     this.set({screen: 'reading', tag: tag || this.s.tag}); this.flash('blue', 400);
     this.after(700, () => {
       if (kind === 'bad') { this.set({screen: 'error', err: ERR.notSpool, errBack: 'ready'}); this.flash('red', 700, true); return; }
@@ -457,7 +468,10 @@ export class FZApp {
         if (a === 'addw') this.create(true);
         break;
       }
-      case 'details': if (k === 'back' || k === 'ok') this.set({screen: 'menu'}); break;
+      case 'details':
+        if (k === 'back' || k === 'ok') this.set({screen: 'menu', dtop: 0});
+        if (k === 'up' || k === 'down') this.set({dtop: Math.max(0, Math.min(6, (s.dtop || 0) + (k === 'down' ? 1 : -1)))});
+        break;
       case 'confirm':
         if (k === 'left' || k === 'back') this.set({screen: 'menu'});
         if (k === 'right') { this.set({screen: 'saving', saving: 'Deleting'}); this.after(700, () => this.toast('deleted')); }

@@ -81,8 +81,19 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    create it), ▶ Link.
 7. **Result · blank tag**: `Blank tag`; the tag type; UID; inverted
    `No spool data`. OK Link (asks the host), ◀ Menu, Back home.
-8. **Result · no host**: the tag's own text or type as title, the type, UID,
-   inverted `No app`. ◀ Menu (Tag details only), Back home.
+8. **Result · no host**: what the tag itself says, read on the Flipper
+   (`flipper/src/tag_facts.h`, the block layout of the host's TagParser).
+   A Bambu Lab tag: its detailed type or material as title, the swatch of
+   its RGBA, the colour name (Bambu's English name for the tag's filament
+   and colour ids, from `flipper/src/bambu_color_table.h`, generated from
+   `tools/data/bambu_color_codes.json` as the host's table is; else
+   `Color #RRGGBB`) and `10100 - 1.75 mm - 1000 g` (Bambu's colour code,
+   diameter, label weight), as Result · unknown shows them from the host.
+   Any other tag, or one without those blocks, shows its type and
+   `Tag 04B7...3C80`. Inverted `No app`. ◀ Menu (Tag details only), Back
+   home. Result · no host (no app, or the app went away) and its Menu and
+   Tag details show only the tag's own facts; every other result only what
+   the host sent.
 9. **Menu** (▲▼ wrap, OK chooses, Back to the result; four rows visible):
    known: Weigh, Reset to full, Mark as empty, Relink in app, Tag details,
    Delete spool. Unknown Bambu: Save as new, Save with weight, Link in
@@ -90,8 +101,10 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    Link in app, Tag details. No app: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
     `135 pages`), then what is known: Code (`11803`), Fila (filament id
-    `GFA01`), RGBA, Label (`1000 g`), Diam (`1.75 mm`), Nozzle (`190-230 C`).
-    Five rows show; ▲▼ scroll, with arrows at the right when there is more.
+    `GFA01`), RGBA, Label (`1000 g`), Diam (`1.75 mm`), Nozzle (`190-230 C`),
+    from the host, or without the app from the tag, which then also gives
+    Dry (`55 C 8 h`, drying temperature and hours) and Bed (`35 C`). Five
+    rows show; ▲▼ scroll, with arrows at the right when there is more.
     OK / Back to the menu.
 11. **Delete spool?**: warning icon, the spool and colour, "Removes it from
     Bambuddy for good." ◀ Cancel and Back to the menu, ▶ Delete (far from

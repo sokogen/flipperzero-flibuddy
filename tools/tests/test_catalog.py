@@ -179,3 +179,12 @@ def test_the_description_promises_nothing_unfinished():
     assert "Feedback setting" in text
     # no developer-only tools in the catalog text
     assert "bridge" not in text
+
+
+def test_the_description_leads_with_what_the_flipper_shows_alone():
+    text = " ".join(included(manifest()["description"]).read_text(encoding="utf-8").split())
+    alone = text[text.index("## On the Flipper alone"):text.index("## With the FliBuddy app")]
+    # what tag_facts.h reads and the no-app screens show
+    for fact in ("colour name", "code printed on the box", "diameter", "label weight",
+                 "nozzle temperature", "drying temperature", "bed temperature"):
+        assert fact in alone, fact

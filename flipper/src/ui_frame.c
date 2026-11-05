@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "nfc_classify.h"
+#include "tag_facts.h"
 #include "ui_text.h"
 
 _Static_assert(APP_MENU_MAX <= UI_LIST_MAX, "every Menu row needs a slot");
@@ -59,13 +60,32 @@ static void set(char* out, size_t cap, const char* s) {
 
 /* ---- facts about the tag and spool on screen ---- */
 
-static bool rgba_of(const AppState* s, uint32_t* rgba) {
-    if(s->has_spool) {
+/* Result · no host (no app, or it went away) shows only what the tag
+ * itself says; every other result only what the host sent. */
+static bool own_facts(const AppState* s) {
+    return s->result_kind == AppResultNoHost;
+}
+
+static bool shows_spool(const AppState* s) {
+    return s->has_spool && !own_facts(s);
+}
+
+/* What is known about a tag that is not a Bambuddy spool: the tag's own
+ * facts (tag_facts.h, read into `own`) without the host, else the host's
+ * `tag_info`. NULL when it says nothing. */
+static const ProtoTagInfo* tag_info(const AppState* s, TagFacts* own) {
+    if(own_facts(s)) return tag_facts_read(&s->scan.tag, own) ? &own->info : NULL;
+    if(s->has_spool || !s->lookup.has_tag_info) return NULL;
+    return &s->lookup.tag_info;
+}
+
+static bool rgba_of(const AppState* s, const ProtoTagInfo* info, uint32_t* rgba) {
+    if(shows_spool(s)) {
         *rgba = s->spool.rgba;
         return s->spool.has_rgba;
     }
-    *rgba = s->lookup.tag_info.rgba;
-    return s->lookup.has_tag_info && s->lookup.tag_info.has_rgba;
+    *rgba = info ? info->rgba : 0;
+    return info && info->has_rgba;
 }
 
 /* Line `i` the host sent for a found spool it gave no `spool` for (the
@@ -106,13 +126,13 @@ static void put_name_and_colour(Text* t, const AppState* s) {
     }
 }
 
-static void put_colour(Text* t, const AppState* s) {
+static void put_colour(Text* t, const AppState* s, const ProtoTagInfo* info) {
     uint32_t rgba;
-    if(s->has_spool && s->spool.color_name[0]) {
+    if(shows_spool(s) && s->spool.color_name[0]) {
         put(t, s->spool.color_name);
-    } else if(!s->has_spool && s->lookup.has_tag_info && s->lookup.tag_info.color_name[0]) {
-        put(t, s->lookup.tag_info.color_name);
-    } else if(rgba_of(s, &rgba)) {
+    } else if(info && info->color_name[0]) {
+        put(t, info->color_name);
+    } else if(rgba_of(s, info, &rgba)) {
         put(t, "Color #");
         put_hex(t, rgba >> 8, 6);
     } else {
@@ -298,9 +318,8 @@ static void build_recent(UiFrame* f, const AppState* s) {
 /* An unknown tag's own facts in place of its UID: `11803 - 1.75 mm -
  * 1000 g` (Bambu's colour code, diameter, label weight). False when it
  * has none. */
-static bool put_tag_specs(Text* t, const AppState* s) {
-    if(s->has_spool || !s->lookup.has_tag_info) return false;
-    const ProtoTagInfo* i = &s->lookup.tag_info;
+static bool put_tag_specs(Text* t, const ProtoTagInfo* i) {
+    if(i == NULL) return false;
     bool any = false;
     if(i->code[0]) {
         put(t, i->code);
@@ -323,18 +342,18 @@ static bool put_tag_specs(Text* t, const AppState* s) {
 
 static void build_result(UiFrame* f, const AppState* s) {
     result_title(s, f->title, sizeof(f->title));
+    TagFacts own;
+    const ProtoTagInfo* info = tag_info(s, &own);
     uint32_t rgba;
-    if(rgba_of(s, &rgba)) {
+    if(rgba_of(s, info, &rgba)) {
         f->mark = UiMarkSwatch;
         f->lum = ui_luminance(rgba);
     }
     Text t = TEXT(f->line[0]);
-    if(s->result_kind == AppResultNoHost) {
-        put(&t, ui_tag_type_name(&s->scan.tag));
-    } else if(host_line(s, 1)) {
+    if(s->result_kind != AppResultNoHost && host_line(s, 1)) {
         put(&t, host_line(s, 1));
     } else {
-        put_colour(&t, s);
+        put_colour(&t, s, info);
     }
     t = TEXT(f->line[1]);
     f->level = -1;
@@ -343,7 +362,7 @@ static void build_result(UiFrame* f, const AppState* s) {
         f->in_base = true;
         put(&t, "In Bambuddy #");
         put_uint(&t, (uint32_t)s->spool.id);
-    } else if(!put_tag_specs(&t, s)) {
+    } else if(!put_tag_specs(&t, info)) {
         put(&t, "Tag ");
         char uid[2 * TAG_DUMP_MAX_UID + 1];
         ui_uid_short(s->scan.tag.uid, s->scan.tag.uid_len, uid, sizeof(uid));
@@ -445,7 +464,8 @@ static Text detail(DetailRow* rows, uint8_t* n, const char* key) {
 
 static void build_details(UiFrame* f, const AppState* s) {
     const TagDump* tag = &s->scan.tag;
-    const ProtoTagInfo* info = s->lookup.has_tag_info && !s->has_spool ? &s->lookup.tag_info : NULL;
+    TagFacts own;
+    const ProtoTagInfo* info = tag_info(s, &own);
     SET(f->title, "Tag details");
     DetailRow rows[UI_DETAILS_ROWS];
     memset(rows, 0, sizeof(rows));
@@ -473,14 +493,14 @@ static void build_details(UiFrame* f, const AppState* s) {
         put(&t, info->filament_id);
     }
     uint32_t rgba;
-    if(rgba_of(s, &rgba)) {
+    if(rgba_of(s, info, &rgba)) {
         t = detail(rows, &n, "RGBA");
         put_hex(&t, rgba, 8);
     }
-    bool has_label = s->has_spool || (info && info->has_label);
+    bool has_label = shows_spool(s) || (info && info->has_label);
     if(has_label) {
         t = detail(rows, &n, "Label");
-        put_uint(&t, s->has_spool ? s->spool.label : info->label);
+        put_uint(&t, shows_spool(s) ? s->spool.label : info->label);
         put(&t, " g");
     }
     if(info && info->diameter[0]) {
@@ -493,6 +513,22 @@ static void build_details(UiFrame* f, const AppState* s) {
         if(info->has_nozzle_min) put_uint(&t, info->nozzle_min);
         if(info->has_nozzle_min && info->has_nozzle_max) put(&t, "-");
         if(info->has_nozzle_max) put_uint(&t, info->nozzle_max);
+        put(&t, " C");
+    }
+    /* only the tag itself tells these; the host does not send them */
+    if(info == &own.info && own.drying_temp) {
+        t = detail(rows, &n, "Dry");
+        put_uint(&t, own.drying_temp);
+        put(&t, " C");
+        if(own.drying_hours) {
+            put(&t, " ");
+            put_uint(&t, own.drying_hours);
+            put(&t, " h");
+        }
+    }
+    if(info == &own.info && own.bed_temp) {
+        t = detail(rows, &n, "Bed");
+        put_uint(&t, own.bed_temp);
         put(&t, " C");
     }
     uint8_t top = n > UI_LINES ? (uint8_t)(n - UI_LINES) : 0;

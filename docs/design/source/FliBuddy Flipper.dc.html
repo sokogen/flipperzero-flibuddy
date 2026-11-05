@@ -61,7 +61,7 @@
           <sc-for list="{{ sim.conns }}" as="c" hint-placeholder-count="4"><button onClick="{{ c.on }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ c.bg }};color:{{ c.fg }}">{{ c.label }}</button></sc-for>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag (works on Ready and on results)</span>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag (works on Waiting, Ready and on results; without a host it shows the tag's own facts)</span>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           <button onClick="{{ sim.known }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">1 · Spool in Bambuddy</button>
           <button onClick="{{ sim.unknown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">2 · New Bambu tag</button>
@@ -158,6 +158,7 @@ class Component extends DCLogic {
       ['result', 'Result: spool in Bambuddy', 'Only what matters: the material, the colour (a dot dithered by brightness), the start…end of the UID, what is left. OK weighs, ▶ marks it as new (full), ◀ opens the menu.', S({screen: 'result', tag: T.known}), null],
       ['result2', 'Result: new Bambu tag', 'Bambuddy does not have it. OK adds it with one press, ▶ links it to an existing spool on the host.', S({screen: 'result', tag: T.unknown}), null],
       ['result3', 'Result: blank NTAG', 'No spool data, so the main action is to link it on the host.', S({screen: 'result', tag: T.blank}), null],
+      ['result4', 'Result: no app', 'Without the phone app a Bambu Lab tag still shows what it carries: material, colour (Bambu’s name for its colour ids), colour code, diameter and label weight; Tag details adds the filament id, nozzle, drying and bed temperatures. Any other tag shows its type and UID.', S({screen: 'result', conn: 'none', tag: T.local}), null],
       ['menu', 'Spool menu', 'The rare actions: mark as empty, relink, tag details, delete from Bambuddy. ▲▼ and OK.', S({screen: 'menu', tag: T.known, sel: 1, top: 0}), null],
       ['weight', 'Weight entry · gross', 'The suggestion is filled in (what is left + the empty spool). If it matches, just OK. Otherwise ◀▶ move between digits and ▲▼ change one. Leading zeros are dimmed. The line below says how much net will be saved.', S({screen: 'weight', tag: T.known, w: W(832, 2, 'gross')}), null],
       ['weight2', 'Weight entry · net/gross switch', 'The switch is the leftmost cursor position (◀ from the first digit). ▲▼ switches the mode; an untouched suggestion is recalculated.', S({screen: 'weight', tag: T.known, w: W(590, 0, 'net')}), null],
