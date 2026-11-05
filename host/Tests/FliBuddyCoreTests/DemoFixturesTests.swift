@@ -16,6 +16,12 @@ struct DemoFixturesTests {
         #expect(!DemoFixtures.isRequested(["FliBuddy", "YES", "-FliBuddyDemo"]))
     }
 
+    @Test func aReleaseBuildIgnoresTheLaunchArgument() {
+        // The tests are a Debug build, where the demo is available.
+        #expect(DemoFixtures.isAvailable)
+        #expect(!DemoFixtures.isRequested(["FliBuddy", "-FliBuddyDemo", "YES"], available: false))
+    }
+
     @Test func theDemoCanOpenOnAPane() {
         #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemo", "YES", "-FliBuddyDemoPane", "spools"]) == "spools")
         #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemo", "YES"]) == nil)

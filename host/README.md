@@ -385,9 +385,12 @@ to type them instead.
 
 ### Demo mode and simulator screenshots
 
-Launched with `-FliBuddyDemo YES`, the iPhone/iPad and watch apps run on
-fixtures instead of Bluetooth and Bambuddy (`FliBuddyCore/Demo`,
-`DemoFixtures.makeHost()`): a connected Flipper "Atgizo" (`DemoTransport`)
+Launched with `-FliBuddyDemo YES`, a Debug build of the iPhone/iPad and
+watch apps (`make apple-build`, `tools/sim_shot.sh`,
+`tools/store_shots.sh`) runs on fixtures instead of Bluetooth and Bambuddy
+(`DemoFixtures.isAvailable`; a Release build, the App Store one, ignores
+every demo argument). The fixtures (`FliBuddyCore/Demo`,
+`DemoFixtures.makeHost()`) are a connected Flipper "Atgizo" (`DemoTransport`)
 and an in-memory Bambuddy in internal mode (`DemoInventory`, twelve spools,
 a catalog and colour names), with settings in in-memory stores
 (`https://bambuddy.example.com`, key `demo-key`), so nothing reaches the

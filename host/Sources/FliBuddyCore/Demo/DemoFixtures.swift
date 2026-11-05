@@ -1,7 +1,7 @@
 import Foundation
 
-/// The hidden demo mode: the iPhone, iPad and watch apps started with
-/// `-FliBuddyDemo YES` run against a connected demo Flipper ("Atgizo") and an
+/// The hidden demo mode, in Debug builds only: the iPhone, iPad and watch
+/// apps started with `-FliBuddyDemo YES` run against a connected demo Flipper ("Atgizo") and an
 /// in-memory Bambuddy instead of Bluetooth and the network, so the screens
 /// can be checked (and screenshotted) in the simulator. Nothing is persisted:
 /// the settings live in memory stores, never in `UserDefaults` or the
@@ -11,9 +11,21 @@ public enum DemoFixtures {
     /// The launch argument, followed by `YES`.
     public static let launchArgument = "-FliBuddyDemo"
 
-    /// Whether the process was launched with `-FliBuddyDemo YES` (or `1`, `true`).
-    public static func isRequested(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
-        guard let index = arguments.firstIndex(of: launchArgument), index + 1 < arguments.count else { return false }
+    /// Whether this build has the demo: Debug builds (the simulator
+    /// screenshots, the tests) only. A Release build, the one the App Store
+    /// gets, ignores every demo argument.
+    #if DEBUG
+    public static let isAvailable = true
+    #else
+    public static let isAvailable = false
+    #endif
+
+    /// Whether the process was launched with `-FliBuddyDemo YES` (or `1`,
+    /// `true`) in a build that has the demo (`available`).
+    public static func isRequested(
+        _ arguments: [String] = ProcessInfo.processInfo.arguments, available: Bool = isAvailable
+    ) -> Bool {
+        guard available, let index = arguments.firstIndex(of: launchArgument), index + 1 < arguments.count else { return false }
         return ["yes", "1", "true"].contains(arguments[index + 1].lowercased())
     }
 
