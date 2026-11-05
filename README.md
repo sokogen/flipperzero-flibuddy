@@ -263,8 +263,8 @@ iPad and two on an 11": in landscape beside a sidebar with both
 connections, in portrait under a top tab bar and the banner; a narrow
 multitasking window gets the iPhone's cards. ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, are
 menu commands. On
-every host, Net/Gross converts the number on screen, the colour line
-carries Bambu's colour code, and the technical tag facts (UID, tray UUID,
+every host, Net/Gross converts the number on screen, the color line
+carries Bambu's color code, and the technical tag facts (UID, tray UUID,
 filament id, diameter, nozzle range) sit in **Tag details**, a row's
 context menu on the Mac, iPhone and iPad and the row detail on the watch.
 See `host/README.md`.
