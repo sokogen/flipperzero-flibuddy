@@ -12,7 +12,7 @@
  *
  *   all         screen, anim, icon (the header's transport icon), title
  *   Waiting     note (version), line_icon[0] + line[0] (USB),
- *               line_icon[1] + line[1] (Bluetooth), line[2]
+ *               line_icon[1] + line[1] (Bluetooth), line[2], center, right
  *   Ready       bar (last outcome, "" none), line[0..2], right
  *   Reading     line[0]
  *   LookingUp   line[0] (material from the tag, "" when unknown), line[1]
@@ -32,6 +32,7 @@
  *   Recent      item[] / value[] / fixed[], checks, count, sel, top; line[0]
  *               when there is none
  *   About       line[0..3]
+ *   GetApp      line[0..4] (left of the QR code), left
  */
 #pragma once
 

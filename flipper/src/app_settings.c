@@ -20,10 +20,17 @@ static bool valid_v2(const AppSettingsV2* s) {
            known_feedback(s->feedback) && s->sound <= 1;
 }
 
+static bool valid_v3(const AppSettingsV3* s) {
+    return s->version == 3 && known_connection(s->connection) && s->autosave <= 1 &&
+           known_feedback(s->feedback) && s->sound <= 1 && s->after_scan <= AppAfterScanWeigh &&
+           s->weigh_as <= AppWeighAsNet;
+}
+
 static bool valid(const AppSettings* s) {
     return s->version == APP_SETTINGS_VERSION && known_connection(s->connection) &&
            s->autosave <= 1 && known_feedback(s->feedback) && s->sound <= 1 &&
-           s->after_scan <= AppAfterScanWeigh && s->weigh_as <= AppWeighAsNet;
+           s->after_scan <= AppAfterScanWeigh && s->weigh_as <= AppWeighAsNet &&
+           s->first_run_done <= 1;
 }
 
 void app_settings_defaults(AppSettings* settings) {
@@ -34,17 +41,28 @@ void app_settings_defaults(AppSettings* settings) {
     settings->sound = 0;
     settings->after_scan = AppAfterScanShow;
     settings->weigh_as = AppWeighAsGross;
+    settings->first_run_done = 0;
 }
 
 void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage) {
     AppSettings stored;
+    AppSettingsV3 v3;
     AppSettingsV2 v2;
     AppSettingsV1 v1;
     if(storage->load(storage->ctx, APP_SETTINGS_VERSION, &stored, sizeof(stored)) &&
        valid(&stored)) {
         *settings = stored;
+        return;
+    }
+    app_settings_defaults(settings);
+    if(storage->load(storage->ctx, 3, &v3, sizeof(v3)) && valid_v3(&v3)) {
+        settings->connection = v3.connection;
+        settings->autosave = v3.autosave;
+        settings->feedback = v3.feedback;
+        settings->sound = v3.sound;
+        settings->after_scan = v3.after_scan;
+        settings->weigh_as = v3.weigh_as;
     } else if(storage->load(storage->ctx, 2, &v2, sizeof(v2)) && valid_v2(&v2)) {
-        app_settings_defaults(settings);
         settings->connection = v2.transport; /* the same numbers */
         settings->autosave = v2.autosave;
         settings->feedback = v2.feedback;
@@ -52,11 +70,11 @@ void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage)
     } else if(
         storage->load(storage->ctx, 1, &v1, sizeof(v1)) && v1.version == 1 &&
         known_transport(v1.transport)) {
-        app_settings_defaults(settings);
         settings->connection = v1.transport;
     } else {
-        app_settings_defaults(settings);
+        return; /* no file, or none that reads: a first run */
     }
+    settings->first_run_done = 1; /* an older file: a run before */
 }
 
 bool app_settings_save(const AppSettings* settings, const AppSettingsStorage* storage) {
@@ -123,4 +141,12 @@ void app_settings_set_weigh_as(AppSettings* settings, AppWeighAs weigh_as) {
     if(weigh_as == AppWeighAsGross || weigh_as == AppWeighAsNet) {
         settings->weigh_as = (uint8_t)weigh_as;
     }
+}
+
+bool app_settings_first_run_done(const AppSettings* settings) {
+    return settings->first_run_done != 0;
+}
+
+void app_settings_set_first_run_done(AppSettings* settings) {
+    settings->first_run_done = 1;
 }

@@ -5,14 +5,22 @@ The bitmaps come from the `I` table of the design prototype
 XBM packs each row LSB first into whole bytes, which is the layout
 `canvas_draw_xbm` expects; flipper/src/ui_icons.c includes the files.
 The canvas does not scale bitmaps, so the About screen's double-size app
-icon is generated as `app_2x`. `tests/test_flipper_icons.py` fails when a
-file is stale.
+icon is generated as `app_2x`.
+
+The Get app screen's QR code is made here from GET_APP_URL (segno: version
+3, error correction L, mask pinned so that it does not drift with segno),
+drawn at 2 px a module as `qr_get_app`, and written into the design's
+table as its `qr` line, so the prototype shows the same code.
+`tests/test_flipper_icons.py` fails when a file is stale and decodes the
+QR bitmap back to the URL.
 
 Run from tools/: `uv run python -m fixtures.make_flipper_icons`.
 """
 
 import re
 from pathlib import Path
+
+import segno
 
 REPO = Path(__file__).resolve().parents[2]
 DESIGN = REPO / "docs" / "design" / "source" / "flipper-ui.js"
@@ -29,7 +37,13 @@ ICONS = {
     "arrow_up": "aU",
     "arrow_down": "aD",
     "app": "app",
+    "ok_button": "okBtn",
 }
+
+GET_APP_URL = "https://sokogen.github.io/flipperzero-flibuddy/"
+QR_VERSION = 3  # 29 modules: 58 px at 2 px a module, in the 64 px screen
+QR_MASK = 6  # what segno picks for GET_APP_URL; pinned
+QR_LINE = re.compile(r"^  qr: \[.*\],$", re.MULTILINE)
 
 
 def load_bitmaps(path: Path = DESIGN) -> dict[str, list[str]]:
@@ -47,6 +61,20 @@ def load_bitmaps(path: Path = DESIGN) -> dict[str, list[str]]:
         if entry:
             bitmaps[entry.group(1)] = re.findall(r"'([.#]+)'", entry.group(2))
     return bitmaps
+
+
+def qr_rows(url: str) -> list[str]:
+    """The QR code's modules, '#' dark, without the quiet zone."""
+    code = segno.make_qr(url, error="L", version=QR_VERSION, mask=QR_MASK, boost_error=False)
+    return ["".join("#" if module else "." for module in row) for row in code.matrix]
+
+
+def with_qr_line(js: str, rows: list[str]) -> str:
+    """The design source with its table's `qr` line holding these rows."""
+    if not QR_LINE.search(js):
+        raise ValueError("no `qr:` line in the design's icon table")
+    line = "  qr: [" + ", ".join(f"'{row}'" for row in rows) + "],"
+    return QR_LINE.sub(lambda _: line, js, count=1)
 
 
 def scale(rows: list[str], factor: int) -> list[str]:
@@ -85,7 +113,11 @@ def build() -> dict[str, str]:
     bitmaps = load_bitmaps()
     icons = {name: bitmaps[key] for name, key in ICONS.items()}
     icons["app_2x"] = scale(bitmaps["app"], 2)
-    return {f"{OUTPUT_DIR}/{name}.xbm": xbm(name, rows) for name, rows in icons.items()}
+    qr = qr_rows(GET_APP_URL)
+    icons["qr_get_app"] = scale(qr, 2)
+    outputs = {f"{OUTPUT_DIR}/{name}.xbm": xbm(name, rows) for name, rows in icons.items()}
+    outputs[DESIGN.relative_to(REPO).as_posix()] = with_qr_line(DESIGN.read_text(encoding="utf-8"), qr)
+    return outputs
 
 
 if __name__ == "__main__":

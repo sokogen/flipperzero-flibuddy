@@ -464,6 +464,7 @@ static void on_tick(AppState* s, uint32_t now_ms, AppEffect* effect) {
 static AppEffect key_home(AppState* s, AppKey key) {
     if(key == AppKeyBack) return AppEffectExit;
     if(key == AppKeyLeft && s->screen == AppScreenReady) list_open(s, AppScreenRecent);
+    if(key == AppKeyOk && s->screen == AppScreenWaiting) go(s, AppScreenGetApp);
     if(key == AppKeyRight) {
         s->settings_entered = s->settings;
         list_open(s, AppScreenSettings);
@@ -797,6 +798,9 @@ static AppEffect on_key(AppState* s, AppKey key, uint32_t now_ms) {
         if(key == AppKeyOk) recent_open(s, s->sel);
         if(key == AppKeyBack) go_home(s, s->last);
         break;
+    case AppScreenGetApp:
+        if(key == AppKeyLeft || key == AppKeyBack) go_home(s, s->last);
+        break;
     }
     return AppEffectNone;
 }
@@ -804,6 +808,7 @@ static AppEffect on_key(AppState* s, AppKey key, uint32_t now_ms) {
 bool app_reader_wanted(const AppState* s) {
     switch(s->screen) {
     case AppScreenWaiting:
+    case AppScreenGetApp:
     case AppScreenReady:
     case AppScreenReading:
     case AppScreenResult:
@@ -834,7 +839,13 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         s->via = e->via;
         memset(s->other_version, 0, sizeof(s->other_version));
         s->cue = AppCueConnected;
-        if(s->screen == AppScreenWaiting) go_home(s, AppOutcomeNone);
+        if(s->screen == AppScreenWaiting || s->screen == AppScreenGetApp) {
+            go_home(s, AppOutcomeNone);
+        }
+        if(!app_settings_first_run_done(&s->settings)) {
+            app_settings_set_first_run_done(&s->settings);
+            effect = AppEffectSaveSettings;
+        }
         break;
     case AppEventHostLost:
         on_host_lost(s);
@@ -878,6 +889,13 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         break;
     case AppEventOtherVersion:
         if(e->via < TRANSPORT_KINDS) s->other_version[e->via] = s->connected ? 0 : e->version;
+        break;
+    case AppEventStart:
+        if(s->screen == AppScreenWaiting && !app_settings_first_run_done(&s->settings)) {
+            app_settings_set_first_run_done(&s->settings);
+            go(s, AppScreenGetApp);
+            effect = AppEffectSaveSettings;
+        }
         break;
     }
     return effect;

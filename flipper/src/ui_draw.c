@@ -15,6 +15,18 @@
 #define LIST_ROW_H   12
 #define TITLE_MAX_W  114 /* left of the transport icon */
 #define ERROR_LINES  3
+#define QR_X         67 /* Get app: 58x58, 3 px clear to the right, top and bottom */
+#define QR_Y         3
+#define GET_APP_W    62 /* the text left of the QR code */
+
+/* The firmware's chips (gui/elements.c): 12 px on the bottom row, the
+ * label 3 px above the bottom, three slanted corner columns on either side.
+ * A side chip is the label + 13 px wide, the OK chip the label + 12 px. */
+#define CHIP_H        12
+#define CHIP_SIDE_PAD 13
+#define CHIP_OK_PAD   12
+#define CHIP_CORNER   3
+#define CHIP_CLEAR    2 /* blank columns kept between an OK chip moved aside and its neighbour */
 
 /* ---- text ---- */
 
@@ -71,10 +83,51 @@ static void header(Canvas* c, const UiFrame* f) {
     header_at(c, f, 2);
 }
 
+/* elements_button_center at x in place of the centre. */
+static void chip_ok_at(Canvas* c, int32_t x, const char* s) {
+    const int32_t y = H;
+    const int32_t w = canvas_string_width(c, s) + CHIP_OK_PAD;
+    canvas_draw_box(c, x, y - CHIP_H, w, CHIP_H);
+    for(int32_t k = 0; k < CHIP_CORNER; k++) {
+        canvas_draw_line(c, x - 1 - k, y, x - 1 - k, y - CHIP_H + k);
+        canvas_draw_line(c, x + w + k, y, x + w + k, y - CHIP_H + k);
+    }
+    canvas_invert_color(c);
+    bitmap(c, x + 1, y - ui_icon_ok_button.height - 3, &ui_icon_ok_button);
+    canvas_draw_str(c, x + 1 + ui_icon_ok_button.width + 3, y - 3, s);
+    canvas_invert_color(c);
+}
+
+/* The OK chip is centred unless that brings it closer than CHIP_CLEAR to
+ * the ◀ or ▶ chip: then it moves aside (Waiting's Get app and Settings). */
+static int32_t chip_ok_x(Canvas* c, const UiFrame* f) {
+    int32_t w = canvas_string_width(c, f->center) + CHIP_OK_PAD;
+    int32_t x = (W - w) / 2;
+    if(f->right[0]) {
+        int32_t right_starts = W - (canvas_string_width(c, f->right) + CHIP_SIDE_PAD) - CHIP_CORNER;
+        int32_t max_x = right_starts - CHIP_CLEAR - 1 - CHIP_CORNER - w + 1;
+        if(x > max_x) x = max_x;
+    }
+    if(f->left[0]) {
+        int32_t left_ends = canvas_string_width(c, f->left) + CHIP_SIDE_PAD + CHIP_CORNER - 1;
+        int32_t min_x = left_ends + CHIP_CLEAR + 1 + CHIP_CORNER;
+        if(x < min_x) x = min_x;
+    }
+    return x;
+}
+
 static void chips(Canvas* c, const UiFrame* f) {
     canvas_set_font(c, FontSecondary);
     if(f->left[0]) elements_button_left(c, f->left);
-    if(f->center[0]) elements_button_center(c, f->center);
+    if(f->center[0]) {
+        int32_t centred = (W - (canvas_string_width(c, f->center) + CHIP_OK_PAD)) / 2;
+        int32_t x = chip_ok_x(c, f);
+        if(x == centred) {
+            elements_button_center(c, f->center);
+        } else {
+            chip_ok_at(c, x, f->center);
+        }
+    }
     if(f->right[0]) elements_button_right(c, f->right);
 }
 
@@ -420,6 +473,18 @@ static void draw_error(Canvas* c, const UiFrame* f) {
     chips(c, f);
 }
 
+static void draw_get_app(Canvas* c, const UiFrame* f) {
+    canvas_set_font(c, FontPrimary);
+    text_fit(c, 2, 1, GET_APP_W, f->line[0]);
+    canvas_set_font(c, FontSecondary);
+    for(int i = 1; i < 4; i++)
+        text_fit(c, 2, 13 + (i - 1) * LINE_H, GET_APP_W, f->line[i]);
+    canvas_set_font(c, FontPrimary);
+    text_fit(c, 2, 40, GET_APP_W, f->line[4]);
+    bitmap(c, QR_X, QR_Y, &ui_icon_qr_get_app);
+    chips(c, f);
+}
+
 static void draw_about(Canvas* c, const UiFrame* f) {
     bitmap(c, 6, 5, &ui_icon_app_2x);
     canvas_set_font(c, FontPrimary);
@@ -482,6 +547,9 @@ void ui_draw(Canvas* c, const UiFrame* f) {
         break;
     case AppScreenAbout:
         draw_about(c, f);
+        break;
+    case AppScreenGetApp:
+        draw_get_app(c, f);
         break;
     case AppScreenRecent:
         header(c, f);

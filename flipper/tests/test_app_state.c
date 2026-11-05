@@ -190,7 +190,9 @@ static void test_init_waits_for_a_host(void) {
     CHECK(!app_settings_sound(&app.settings));
     CHECK(app_settings_after_scan(&app.settings) == AppAfterScanShow);
     CHECK(app_settings_weigh_as(&app.settings) == AppWeighAsGross);
-    CHECK(send(AppEventHostConnected) == AppEffectNone);
+    /* the first app ever connected: recorded, so Get app never opens by itself */
+    CHECK(send(AppEventHostConnected) == AppEffectSaveSettings);
+    CHECK(app_settings_first_run_done(&app.settings));
     CHECK(app.cue == AppCueConnected);
     CHECK(app.screen == AppScreenReady);
     CHECK(app.last == AppOutcomeNone);
@@ -204,7 +206,10 @@ static void test_waiting_and_ready_keys(void) {
     single_slot_intent_store_init(&store);
     app_state_init(&app, &store.base, 1, 1);
     CHECK(press(AppKeyLeft) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting);
     CHECK(press(AppKeyOk) == AppEffectNone);
+    CHECK(app.screen == AppScreenGetApp);
+    CHECK(press(AppKeyBack) == AppEffectNone);
     CHECK(app.screen == AppScreenWaiting);
     CHECK(press(AppKeyBack) == AppEffectExit);
     CHECK(press(AppKeyRight) == AppEffectNone);
@@ -216,6 +221,81 @@ static void test_waiting_and_ready_keys(void) {
     CHECK(press(AppKeyBack) == AppEffectExit);
     CHECK(press(AppKeyRight) == AppEffectNone);
     CHECK(app.screen == AppScreenSettings);
+}
+
+/* ---- Get app ---- */
+
+static void test_get_app_keys(void) {
+    setup_no_host();
+    press(AppKeyOk);
+    CHECK(app.screen == AppScreenGetApp);
+    CHECK(press(AppKeyOk) == AppEffectNone);
+    CHECK(press(AppKeyRight) == AppEffectNone);
+    CHECK(press(AppKeyUp) == AppEffectNone);
+    CHECK(press(AppKeyDown) == AppEffectNone);
+    CHECK(app.screen == AppScreenGetApp);
+    CHECK(press(AppKeyLeft) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting);
+    press(AppKeyOk);
+    CHECK(press(AppKeyBack) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting);
+}
+
+static void test_a_connecting_app_moves_get_app_on_to_ready(void) {
+    setup_no_host();
+    press(AppKeyOk);
+    send(AppEventHostConnected);
+    CHECK(app.connected);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.cue == AppCueConnected);
+}
+
+static void test_the_first_start_opens_get_app_once(void) {
+    setup_no_host();
+    CHECK(!app_settings_first_run_done(&app.settings));
+    CHECK(send(AppEventStart) == AppEffectSaveSettings);
+    CHECK(app.screen == AppScreenGetApp);
+    CHECK(app_settings_first_run_done(&app.settings));
+    CHECK(app.cue == AppCueNone);
+    /* the next start, with the saved flag */
+    AppSettings saved = app.settings;
+    setup_no_host();
+    app.settings = saved;
+    CHECK(send(AppEventStart) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting);
+}
+
+static void test_start_after_an_app_connected_stays_on_waiting(void) {
+    setup_no_host();
+    app_settings_set_first_run_done(&app.settings);
+    CHECK(send(AppEventStart) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting);
+    /* only from Waiting: a start event on another screen changes nothing */
+    setup();
+    app.settings.first_run_done = 0;
+    CHECK(send(AppEventStart) == AppEffectNone);
+    CHECK(app.screen == AppScreenReady);
+}
+
+static void test_a_later_connection_saves_nothing(void) {
+    setup_no_host();
+    app_settings_set_first_run_done(&app.settings);
+    CHECK(send(AppEventHostConnected) == AppEffectNone);
+    CHECK(send(AppEventHostLost) == AppEffectNone);
+    CHECK(send(AppEventHostConnected) == AppEffectNone);
+}
+
+static void test_a_tag_on_get_app_shows_its_facts(void) {
+    setup_no_host();
+    press(AppKeyOk);
+    CHECK(app_reader_wanted(&app));
+    CHECK(send(AppEventTagDetected) == AppEffectNone);
+    CHECK(app.screen == AppScreenReading);
+    CHECK(send_tag(&mfc) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultNoHost);
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenWaiting);
 }
 
 static void test_scan_gets_a_new_id_and_a_copy_of_the_tag(void) {
@@ -1828,6 +1908,7 @@ static void test_settings_version_opens_about(void) {
 static void test_settings_returns_where_the_host_says(void) {
     single_slot_intent_store_init(&store);
     app_state_init(&app, &store.base, 1, 1);
+    app_settings_set_first_run_done(&app.settings); /* not the first connection */
     press(AppKeyRight);
     CHECK(send(AppEventHostConnected) == AppEffectNone);
     CHECK(app.screen == AppScreenSettings);
@@ -1925,6 +2006,12 @@ static void test_cue_is_reset_by_every_event(void) {
 int main(void) {
     RUN_TEST(test_init_waits_for_a_host);
     RUN_TEST(test_waiting_and_ready_keys);
+    RUN_TEST(test_get_app_keys);
+    RUN_TEST(test_a_connecting_app_moves_get_app_on_to_ready);
+    RUN_TEST(test_the_first_start_opens_get_app_once);
+    RUN_TEST(test_start_after_an_app_connected_stays_on_waiting);
+    RUN_TEST(test_a_later_connection_saves_nothing);
+    RUN_TEST(test_a_tag_on_get_app_shows_its_facts);
     RUN_TEST(test_scan_gets_a_new_id_and_a_copy_of_the_tag);
     RUN_TEST(test_scan_carries_the_autosave_setting);
     RUN_TEST(test_read_failed_returns_to_ready_by_itself);

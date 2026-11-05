@@ -36,6 +36,16 @@ or Ready screen leaves the app and hands the port back to the CLI. A host
 that opens the port gets a `hello`; a host `hello` within 2 s marks it
 connected (`src/host_link.h`).
 
+## Get app
+
+OK on the Waiting screen opens **Get app**: a QR code of
+`https://sokogen.github.io/flipperzero-flibuddy/` (the project page with the
+App Store link) beside "No app yet? Scan for the iPhone app, App Store:
+FliBuddy". It opens by itself once, on the first start before any app has
+connected; ◀ or Back returns to Waiting, and an app that connects moves on
+to Ready. The bitmap is generated, with the URL, by
+`tools/fixtures/make_flipper_icons.py`.
+
 ## Settings
 
 ▶ on the Waiting or Ready screen opens **Settings**: ▲▼ select a row, ◀▶
@@ -81,17 +91,22 @@ longer uses and opens the new ones (a host on a backend that keeps
 running stays connected), and retries a backend in use that did not
 open.
 The settings are saved with `saved_struct` in
-`/ext/apps_data/flibuddy/settings.bin`, version 3: one byte each for the
+`/ext/apps_data/flibuddy/settings.bin`, version 4: one byte each for the
 connection (`0` = USB, `1` = Bluetooth, `2` = Auto), Auto-save new, Feedback (`0` =
 Vibro+LED, `1` = LED, `2` = Off), Sound, After scan (`0` = Show, `1` =
-Weigh) and Weigh as (`0` = Gross, `1` = Net). A version 2 file (no After
-scan, no Weigh as) keeps its four values and a version 1 file (transport
-only) its transport (the same numbers); both take the defaults for the
-rest and are rewritten as version 3 on the next save, so an older file
-keeps USB or Bluetooth and only a new install starts on Auto. A missing
-or unreadable file, one of another version or with any value out of
-range loads the defaults (`src/app_settings.h`, the SDK side in
-`src/app_settings_file.c`). Only the chosen backends run: with Bluetooth
+Weigh), Weigh as (`0` = Gross, `1` = Net) and whether the first run is
+over (`1` once **Get app** has opened by itself or an app has connected).
+A version 3 file (no first-run byte) keeps its six values, a version 2
+file (no After scan, no Weigh as) its four and a version 1 file
+(transport only) its transport (the same numbers); they take the
+defaults for the rest, count as past their first run (they come from a
+run before, so Get app does not open by itself after an update) and are
+rewritten as version 4 on the next save, so an older file keeps USB or
+Bluetooth and only a new install starts on Auto. A missing or unreadable
+file, one of another version or with any value out of range loads the
+defaults (`src/app_settings.h`, the SDK side in
+`src/app_settings_file.c`). The app writes nothing else, and nowhere
+outside `/ext/apps_data/flibuddy/`. Only the chosen backends run: with Bluetooth
 alone the USB port stays with the CLI and qFlipper.
 
 Without a host the Waiting screen shows a line for each transport, USB

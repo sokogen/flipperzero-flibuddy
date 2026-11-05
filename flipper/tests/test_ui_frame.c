@@ -68,8 +68,41 @@ static void send_fixture_result(const char* name) {
     app_reduce(&app, &e);
 }
 
+/* The firmware fonts are ASCII only: every text a frame holds is printable
+ * ASCII (the body's line breaks aside). */
+static bool printable_ascii(const char* text, size_t cap, bool breaks) {
+    for(size_t i = 0; i < cap && text[i]; i++) {
+        unsigned char ch = (unsigned char)text[i];
+        if(ch == '\n' && breaks) continue;
+        if(ch < 0x20 || ch > 0x7E) return false;
+    }
+    return true;
+}
+
+#define ASCII(field) printable_ascii((field), sizeof(field), false)
+
+static void check_frame_ascii(void) {
+    CHECK(ASCII(frame.title));
+    CHECK(ASCII(frame.note));
+    CHECK(ASCII(frame.bar));
+    CHECK(ASCII(frame.left));
+    CHECK(ASCII(frame.center));
+    CHECK(ASCII(frame.right));
+    CHECK(printable_ascii(frame.body, sizeof(frame.body), true));
+    for(int i = 0; i < UI_LINES; i++) {
+        CHECK(ASCII(frame.line[i]));
+        CHECK(ASCII(frame.key[i]));
+    }
+    for(int i = 0; i < UI_LIST_MAX; i++) {
+        CHECK(ASCII(frame.item[i]));
+        CHECK(ASCII(frame.value[i]));
+    }
+}
+
+/* Every frame a test builds is checked for ASCII. */
 static void build(void) {
     ui_frame_build(&frame, &app, &env);
+    check_frame_ascii();
 }
 
 static void env_init(void) {
@@ -170,7 +203,7 @@ static void test_waiting_over_usb(void) {
     CHECK(frame.line_icon[1] == UiIconBt);
     CHECK_STR_EQ(frame.line[1], "Bluetooth off");
     CHECK_STR_EQ(frame.line[2], "Waiting for app");
-    check_chips("", "", "Settings");
+    check_chips("", "Get app", "Settings");
     env.anim = 3;
     build();
     CHECK_STR_EQ(frame.line[2], "Waiting for app...");
@@ -1071,6 +1104,46 @@ static void test_about(void) {
     CHECK_STR_EQ(frame.line[3], "App: not connected");
 }
 
+/* FontPrimary is wider than measure5; the left column ends 5 px before the
+ * QR code (x 67). */
+#define GET_APP_TEXT_W 62
+
+static void test_get_app(void) {
+    setup_no_host();
+    press(AppKeyOk);
+    build();
+    CHECK(frame.screen == AppScreenGetApp);
+    CHECK_STR_EQ(frame.line[0], "No app yet?");
+    CHECK_STR_EQ(frame.line[1], "Scan for the");
+    CHECK_STR_EQ(frame.line[2], "iPhone app");
+    CHECK_STR_EQ(frame.line[3], "App Store:");
+    CHECK_STR_EQ(frame.line[4], "FliBuddy");
+    CHECK_STR_EQ(frame.title, "");
+    check_chips("Back", "", "");
+    for(int i = 0; i < 5; i++)
+        CHECK(fits(frame.line[i], GET_APP_TEXT_W));
+}
+
+/* Host texts reach the screen through the decoder, which turns every
+ * non-ASCII character into '?'. */
+static void test_host_texts_reach_the_screen_as_ascii(void) {
+    setup();
+    send_tag(&mfc);
+    CHECK(fixture_read_compact("fixtures/messages/lookup_found.json", text, sizeof(text)));
+    char* name = strstr(text, "\"Jade White\"");
+    CHECK(name != NULL);
+    if(name == NULL) return;
+    /* "Jade White" -> "Jad\u00e9 Wh\u00df" as raw UTF-8, the same 10 bytes */
+    memcpy(name + 1, "Jad\xc3\xa9 Wh\xc3\x9f", 10);
+    CHECK(proto_decode_line(text, &msg) == ProtoDecodeOk);
+    ProtoLookup l = msg.lookup;
+    strcpy(l.scan_id, app.scan.id);
+    send_lookup(&l);
+    CHECK(app.screen == AppScreenResult);
+    build();
+    CHECK_STR_EQ(frame.line[0], "Jad? Wh?");
+}
+
 static void test_fields_of_another_screen_are_cleared(void) {
     setup();
     scan_found();
@@ -1116,6 +1189,8 @@ int main(void) {
     RUN_TEST(test_recent);
     RUN_TEST(test_settings);
     RUN_TEST(test_about);
+    RUN_TEST(test_get_app);
+    RUN_TEST(test_host_texts_reach_the_screen_as_ascii);
     RUN_TEST(test_fields_of_another_screen_are_cleared);
     return MINITEST_RESULT();
 }

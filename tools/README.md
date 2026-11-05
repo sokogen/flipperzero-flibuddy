@@ -25,8 +25,13 @@ stale.
 `uv run python -m fixtures.make_flipper_icons` writes the Flipper app's XBM
 icons to `flipper/images/` from the icon table of
 `docs/design/source/flipper-ui.js` (`flipper/src/ui_icons.c` includes them).
-Edit the table and regenerate; do not edit the `.xbm` files.
-`tests/test_flipper_icons.py` fails when a file is stale.
+Edit the table and regenerate; do not edit the `.xbm` files. It also
+encodes the Get app screen's QR code from `GET_APP_URL` with `segno`
+(version 3, error correction L, mask pinned) into `qr_get_app.xbm` at 2 px
+a module and into the table's `qr` line, so the design shows the same
+code. `tests/test_flipper_icons.py` fails when a file is stale and reads
+the QR bitmap back with `zxing-cpp` (both are dev dependencies); a URL that
+no longer fits version 3 fails the generator.
 
 `uv run python -m fixtures.make_app_icons` (or `make icons`) writes the app
 icons from the formulas of `docs/design/source/FliBuddy App Icon.dc.html`:

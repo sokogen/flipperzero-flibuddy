@@ -14,8 +14,10 @@ places the frame on the canvas. Keep this file current when either changes.
 Screen 128×64, 1 bit. OK always does the screen's main action, ◀ opens the
 menu or cancels, ▶ is the quick second action, Back goes back. The bottom
 row holds up to three button chips (◀ label left, OK label centre, label ▶
-right; the firmware's `elements_button_left/center/right`). A key without a
-chip does nothing, except where a screen says so below.
+right; the firmware's `elements_button_left/center/right`). An OK chip too
+wide for the gap beside a ▶ (or ◀) chip moves aside to keep 2 px clear of
+it, drawn as the firmware draws it (Waiting's `Get app` beside `Settings`).
+A key without a chip does nothing, except where a screen says so below.
 
 Titles use FontPrimary with a dotted rule under them, body text
 FontSecondary, the weight digits FontBigNumbers. The transport icon (USB or
@@ -23,7 +25,9 @@ Bluetooth) sits top right on every screen with a header: the connected
 host's transport, else USB for Connection = USB and Bluetooth otherwise;
 the Bluetooth icon blinks while the Flipper advertises without a host. Icons are XBM files in
 `flipper/images/`, generated from the design's bitmaps by
-`tools/fixtures/make_flipper_icons.py` (a pytest fails when they are stale).
+`tools/fixtures/make_flipper_icons.py` (a pytest fails when they are stale);
+the Get app QR code is generated from its URL by the same script, which
+also writes it into the design's table.
 
 The firmware fonts are ASCII only: `...` stands for the ellipsis and ` - `
 for the design's middle dot (`PLA Basic - 590 g left`). A spool is titled
@@ -45,8 +49,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    protocol version replaces its transport's line with `App protocol N`
    until a host connects or that port closes. The design's "Cable OK, no
    app" (a cable without the app) is not told apart from no cable: the
-   Flipper only sees the port opened. ▶ Settings, Back exits the app. A
-   tag read here shows Result · no host.
+   Flipper only sees the port opened. OK Get app (screen 24), ▶ Settings,
+   Back exits the app. A tag read here shows Result · no host.
 2. **Ready** (host connected): spool picture with animated waves, "Ready",
    "Hold spool tag to the back". After an action an inverted bar with a
    check names the last outcome (`Saved PLA Basic 590 g`, `Added PLA
@@ -173,6 +177,17 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     listed tag updates its row in place, a delete removes it. The list
     lives in RAM and is gone when the app exits. Losing the host goes to
     Waiting; the list stays. The reader is off here.
+24. **Get app** (Waiting's OK): no header; on the left "No app yet?"
+    (FontPrimary), "Scan for the", "iPhone app", "App Store:" and
+    **FliBuddy** (FontPrimary); on the right a QR code of
+    `https://sokogen.github.io/flipperzero-flibuddy/` (version 3, 29
+    modules at 2 px: 58×58 at x 67, y 3, so 3 px stay clear to the edges),
+    generated into `flipper/images/qr_get_app.xbm`. ◀ Back and Back return
+    to Waiting; OK and ▶ do nothing. A host that connects moves on to
+    Ready. A tag read here shows Result · no host, as from Waiting. It
+    opens by itself once, when the app starts on a Flipper where no app
+    has ever connected: the settings file then records that it was shown,
+    and so does an app's first connection.
 
 ## Mark as new, Mark as empty and Undo
 
@@ -187,7 +202,8 @@ afterwards; this app holds the change for the 3 s instead.
 
 ## Reading tags
 
-The reader runs on Waiting, Ready, Reading, Result, Saved and the toasts. A
+The reader runs on Waiting, Get app, Ready, Reading, Result, Saved and the
+toasts. A
 tag that was read is not read again until it has left the field (three
 150 ms polls in a row without an answer) or another tag answers, so a spool
 left on the Flipper does not rescan in a loop. Only one intent is ever in

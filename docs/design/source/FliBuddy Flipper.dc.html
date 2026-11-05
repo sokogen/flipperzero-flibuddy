@@ -149,7 +149,8 @@ class Component extends DCLogic {
     const S = (o) => ({...base, conn: 'usb', ...o});
     const W = (d, cur, mode) => ({d: String(d).padStart(4, '0').split('').map(Number), cur, mode, touched: false, base: 590});
     const list = [
-      ['waiting', 'Waiting for host', 'First run. Both links show at once: the USB cable and Bluetooth (the icon blinks while the Flipper is visible to hosts). ▶ opens Settings.', S({screen: 'waiting', conn: 'none'}), 'LED off', null],
+      ['waiting', 'Waiting for host', 'Both links show at once: the USB cable and Bluetooth (the icon blinks while the Flipper is visible to hosts). OK opens Get app (the chip sits left of Settings, which it would touch centred), ▶ Settings.', S({screen: 'waiting', conn: 'none'}), 'LED off', null],
+      ['getapp', 'Get app', 'Where the phone app comes from: a QR code (version 3, 2 px a module) of the project page with the App Store link. Opens by itself once, on the first run before any app has connected; a host that connects moves on to Ready. ◀ and Back return to Waiting.', S({screen: 'getapp', conn: 'none'}), null],
       ['waiting2', 'Cable in, no app', 'USB is connected but FliBuddy on the computer does not answer: the screen says what to do.', S({screen: 'waiting', conn: 'usbNoApp'}), null],
       ['ready', 'Ready to scan', 'The host is connected (the USB/BT icon top right). The spool with waves says: hold the tag to the back. ◀ opens Recent, ▶ Settings.', S({screen: 'ready', conn: 'usb'}), 'On connect: blue LED ×1 + a short vibro', 'blue'],
       ['next', 'Ready for the next spool', 'After a save: a black bar with the outcome of the last spool and a large “Next spool”. It is clear at once that the next one can go.', S({screen: 'ready', conn: 'ble', last: 'Saved PLA Basic 590 g'}), 'Green LED ×1 + vibro', 'green'],
@@ -187,7 +188,8 @@ class Component extends DCLogic {
       {ev: 'Feedback = LED / Off', d: 'the vibro goes off / everything goes off', c: '#C7C7CC'},
     ];
     const keymap = [
-      {s: 'Waiting', ok: '—', l: '—', r: 'Settings', ud: '—', b: 'Exit'},
+      {s: 'Waiting', ok: 'Get app', l: '—', r: 'Settings', ud: '—', b: 'Exit'},
+      {s: 'Get app', ok: '—', l: 'Back', r: '—', ud: '—', b: 'Back'},
       {s: 'Ready', ok: '—', l: 'Recent', r: 'Settings', ud: '—', b: 'Exit'},
       {s: 'Result · in Bambuddy', ok: 'Weigh', l: 'Menu', r: 'Mark as new', ud: '—', b: 'Back to scanning'},
       {s: 'Result · new', ok: 'Add', l: 'Menu', r: 'Link', ud: '—', b: 'Back to scanning'},

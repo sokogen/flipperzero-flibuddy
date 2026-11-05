@@ -503,8 +503,8 @@ int32_t flibuddy_app(void* p) {
     UNUSED(p);
     FliBuddyApp* app = flibuddy_app_alloc();
     view_dispatcher_switch_to_view(app->view_dispatcher, FliBuddyViewMain);
-    sync_reader(app);
-    refresh(app);
+    /* the first run opens Get app; this also starts the reader and draws */
+    flibuddy_reduce_type(app, AppEventStart);
     view_dispatcher_run(app->view_dispatcher);
     flibuddy_app_free(app);
     return 0;

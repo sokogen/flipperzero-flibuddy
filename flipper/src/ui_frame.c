@@ -205,7 +205,18 @@ static void build_waiting(UiFrame* f, const AppState* s, const UiEnv* env) {
     put(&t, "Waiting for app");
     for(uint32_t i = 0; i < env->anim % 4; i++)
         put(&t, ".");
+    SET(f->center, "Get app");
     SET(f->right, "Settings");
+}
+
+/* The QR code beside these lines is drawn by ui_draw.c. */
+static void build_get_app(UiFrame* f) {
+    SET(f->line[0], "No app yet?");
+    SET(f->line[1], "Scan for the");
+    SET(f->line[2], "iPhone app");
+    SET(f->line[3], "App Store:");
+    SET(f->line[4], "FliBuddy");
+    SET(f->left, "Back");
 }
 
 static void put_outcome(Text* t, const AppState* s) {
@@ -834,6 +845,9 @@ void ui_frame_build(UiFrame* f, const AppState* s, const UiEnv* env) {
         break;
     case AppScreenRecent:
         build_recent(f, s);
+        break;
+    case AppScreenGetApp:
+        build_get_app(f);
         break;
     }
 }

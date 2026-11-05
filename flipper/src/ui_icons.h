@@ -20,3 +20,5 @@ extern const UiBitmap ui_icon_arrow_up;
 extern const UiBitmap ui_icon_arrow_down;
 extern const UiBitmap ui_icon_app;
 extern const UiBitmap ui_icon_app_2x;
+extern const UiBitmap ui_icon_ok_button; /* the firmware's ButtonCenter_7x7 */
+extern const UiBitmap ui_icon_qr_get_app; /* Get app's QR code, 2 px a module */

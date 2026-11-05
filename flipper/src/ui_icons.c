@@ -10,6 +10,8 @@
 #include "../images/arrow_down.xbm"
 #include "../images/app.xbm"
 #include "../images/app_2x.xbm"
+#include "../images/ok_button.xbm"
+#include "../images/qr_get_app.xbm"
 
 #define UI_ICON(name) {name##_width, name##_height, name##_bits}
 
@@ -23,3 +25,5 @@ const UiBitmap ui_icon_arrow_up = UI_ICON(arrow_up);
 const UiBitmap ui_icon_arrow_down = UI_ICON(arrow_down);
 const UiBitmap ui_icon_app = UI_ICON(app);
 const UiBitmap ui_icon_app_2x = UI_ICON(app_2x);
+const UiBitmap ui_icon_ok_button = UI_ICON(ok_button);
+const UiBitmap ui_icon_qr_get_app = UI_ICON(qr_get_app);

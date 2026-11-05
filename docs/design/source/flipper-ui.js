@@ -13,11 +13,14 @@ const I = {
   aU: ['..#..', '.###.', '#####'],
   aD: ['#####', '.###.', '..#..'],
   ok: ['.###.', '#...#', '#...#', '#...#', '.###.'],
+  okBtn: ['..###..', '.#...#.', '#.###.#', '#.###.#', '#.###.#', '.#...#.', '..###..'],
   warn: ['....#....', '...#.#...', '...#.#...', '..#.#.#..', '..#.#.#..', '.#.....#.', '.#..#..#.', '#########'],
   app: ['..######..', '.#......#.', '#..####..#', '#.#....#.#', '#.#.##.#.#', '#.#.##.#.#', '#.#....#.#', '#..####..#', '.#......#.', '..######..'],
   clock: ['..######..', '.#......#.', '#...#....#', '#...#....#', '#...###..#', '#........#', '#........#', '#........#', '.#......#.', '..######..'],
   dice: ['##########', '#........#', '#.##..##.#', '#.##..##.#', '#........#', '#........#', '#.##..##.#', '#.##..##.#', '#........#', '##########'],
   count: ['..........', '.##..###..', '#..#....#.', '...#..##..', '..#.....#.', '.#...#..#.', '####..##..', '..........', '..........', '..........'],
+  // Get app: https://sokogen.github.io/flipperzero-flibuddy/, written by tools/fixtures/make_flipper_icons.py
+  qr: ['#######.#..##.#...#.#.#######', '#.....#..##......#.##.#.....#', '#.###.#...#.###.#.#...#.###.#', '#.###.#.....###..#..#.#.###.#', '#.###.#..#.#.##.#.##..#.###.#', '#.....#...#.#.#..##.#.#.....#', '#######.#.#.#.#.#.#.#.#######', '........#.##.#..#..#.........', '##.##.#..####.####.##.#.....#', '#..#...#.#..#.##.###...##.##.', '#.#######.####.#....#.....#..', '#......#.####..###...#...#..#', '..#...##.#.##.....#.#.##....#', '.#......#...#.#####...#######', '.###..#.#.#..#####.#..##..#.#', '##.###.#...#..###....##...#.#', '..##.##..##.##.##......#.#...', '#.#.##.##...##.#.####...#.##.', '##..#.#....#.###...#.....#..#', '##.....##.#.##..#.###.##.##..', '###.#.##..##..####..########.', '........#..#..##.##.#...##...', '#######..#.#####.#.##.#.##...', '#.....#..###....#####...#..#.', '#.###.#.##.##..#...#######...', '#.###.#.####.#.####.........#', '#.###.#.....#####.#..#.##.###', '#.....#.#.......#....#.#.##.#', '#######.######.##..#######...'],
 };
 export const APP_ICON = I.app;
 const SPECIAL = {'…': ['.....', '.....', '.....', '.....', '#.#.#'], '·': ['...', '...', '.#.', '...', '...']};
@@ -136,7 +139,9 @@ function conn(g, s, t) {
 function header(g, s, t, title, o = {}) { g.text(o.x ?? 2, 2, title, {bold: 1}); if (!o.noConn) conn(g, s, t); g.dots(0, 10, W); }
 function bL(g, l) { const w = g.measure(l) + 13; g.rbox(0, 53, w, 14, 3); g.bmp(3, 56, I.aL, 0); g.text(9, 56, l, {c: 0}); }
 function bR(g, l) { const w = g.measure(l) + 13, x = W - w; g.rbox(x, 53, w, 14, 3); g.text(x + 4, 56, l, {c: 0}); g.bmp(W - 6, 56, I.aR, 0); }
-function bC(g, l) { const w = g.measure(l) + 15, x = Math.round((W - w) / 2); g.rbox(x, 53, w, 14, 3); g.bmp(x + 3, 56, I.ok, 0); g.text(x + 10, 56, l, {c: 0}); }
+// An OK chip beside a ▶ chip it would touch moves left, 2 px clear of it.
+function bCR(g, c, r) { const w = g.measure(c) + 15, x = Math.min(Math.round((W - w) / 2), W - (g.measure(r) + 13) - 2 - w); bC(g, c, x); bR(g, r); }
+function bC(g, l, at) { const w = g.measure(l) + 15, x = at ?? Math.round((W - w) / 2); g.rbox(x, 53, w, 14, 3); g.bmp(x + 3, 56, I.ok, 0); g.text(x + 10, 56, l, {c: 0}); }
 function spool(g, cx, cy, r) {
   g.disc(cx, cy, r, 0); g.circle(cx, cy, r);
   for (let rr = r - 3; rr > r * 0.45; rr -= 2) g.circle(cx, cy, rr);
@@ -201,7 +206,14 @@ export function frame(s, t = 1, now = 0) {
       if (!bleOff && t % 2) g.bmp(6, 25, I.bt); else if (bleOff) g.bmp(6, 25, I.bt);
       g.text(18, 27, bleOff ? 'Bluetooth off' : 'Visible: Workshop');
       center(g, 40, usbOK ? 'Open FliBuddy on host' : 'Waiting for host' + '.'.repeat(t % 4));
-      bR(g, 'Settings');
+      bCR(g, 'Get app', 'Settings');
+    },
+    getapp() {
+      g.text(2, 2, 'No app yet?', {bold: 1});
+      g.text(2, 15, 'Scan for the'); g.text(2, 24, 'iPhone app'); g.text(2, 33, 'App Store:');
+      g.text(2, 42, 'FliBuddy', {bold: 1});
+      g.bmp(67, 3, I.qr, 1, 2);
+      bL(g, 'Back');
     },
     ready() {
       header(g, s, t, 'FliBuddy');
@@ -361,8 +373,8 @@ export class FZApp {
   connect(c) {
     const host = c === 'usb' || c === 'ble', sc = this.s.screen;
     if (['settings', 'about'].includes(sc)) return this.set({conn: c, back: host ? 'ready' : 'waiting'});
-    if (host && sc === 'waiting') { this.set({conn: c, screen: 'ready', last: null}); this.flash('blue', 500, true); }
-    else if (!host) this.set({conn: c, screen: 'waiting'});
+    if (host && (sc === 'waiting' || sc === 'getapp')) { this.set({conn: c, screen: 'ready', last: null}); this.flash('blue', 500, true); }
+    else if (!host) this.set({conn: c, screen: sc === 'getapp' ? 'getapp' : 'waiting'});
     else this.set({conn: c});
   }
   scan(kind) {
@@ -413,7 +425,11 @@ export class FZApp {
     const s = this.s, sc = s.screen, kind = s.tag && s.tag.kind;
     const nav = (n, cb) => { if (k === 'up' || k === 'down') { const sel = (s.sel + (k === 'up' ? n - 1 : 1)) % n; this.set({sel, top: keepTop(sel, s.top)}); return true; } return false; };
     switch (sc) {
-      case 'waiting': if (k === 'right') this.set({screen: 'settings', back: 'waiting', sel: 0, top: 0}); break;
+      case 'waiting':
+        if (k === 'ok') this.set({screen: 'getapp'});
+        if (k === 'right') this.set({screen: 'settings', back: 'waiting', sel: 0, top: 0});
+        break;
+      case 'getapp': if (k === 'left' || k === 'back') this.set({screen: 'waiting'}); break;
       case 'ready':
         if (k === 'left') this.set({screen: 'recent', sel: 0, top: 0});
         if (k === 'right') this.set({screen: 'settings', back: 'ready', sel: 0, top: 0});

@@ -1,14 +1,17 @@
 /* The app's persisted settings: the connection (USB, Bluetooth or both),
- * Auto-save new, After scan, Weigh as, Feedback and Sound.
+ * Auto-save new, After scan, Weigh as, Feedback and Sound, and whether the
+ * first run is over (Get app opened by itself, or an app connected).
  *
  * The file is a saved_struct (magic APP_SETTINGS_MAGIC, version
  * APP_SETTINGS_VERSION) at APP_SETTINGS_PATH. The file access sits behind
  * AppSettingsStorage so that the choice logic here is tested on the host;
  * app_settings_file.c is the SDK backend. An older file keeps what it has
- * and takes the defaults for the rest: version 2 lacks After scan and
- * Weigh as, version 1 holds only the transport. A missing or unreadable
- * file, another version or any out-of-range field loads the defaults (Auto,
- * Auto-save off, After scan Show, Weigh as Gross, Vibro+LED, Sound off).
+ * and takes the defaults for the rest: version 3 lacks the first-run flag,
+ * version 2 also After scan and Weigh as, version 1 holds only the
+ * transport. An older file comes from a run before, so its first run is
+ * over. A missing or unreadable file, another version or any out-of-range
+ * field loads the defaults (Auto, Auto-save off, After scan Show, Weigh as
+ * Gross, Vibro+LED, Sound off, first run not over).
  */
 #pragma once
 
@@ -22,7 +25,7 @@
 #define APP_SETTINGS_DIR     APP_SETTINGS_PARENT "/flibuddy"
 #define APP_SETTINGS_PATH    APP_SETTINGS_DIR "/settings.bin"
 #define APP_SETTINGS_MAGIC   0x5B
-#define APP_SETTINGS_VERSION 3
+#define APP_SETTINGS_VERSION 4
 
 /* Stored in the settings file, so the numbers never change. USB and
  * Bluetooth are the TransportKind numbers older files stored. */
@@ -58,9 +61,20 @@ typedef struct {
     uint8_t sound; /* 0 or 1 */
     uint8_t after_scan; /* AppAfterScan */
     uint8_t weigh_as; /* AppWeighAs */
+    uint8_t first_run_done; /* 0 or 1 */
 } AppSettings;
 
 /* The older files, read only to migrate them. */
+typedef struct {
+    uint8_t version; /* 3 */
+    uint8_t connection;
+    uint8_t autosave;
+    uint8_t feedback;
+    uint8_t sound;
+    uint8_t after_scan;
+    uint8_t weigh_as;
+} AppSettingsV3;
+
 typedef struct {
     uint8_t version; /* 2 */
     uint8_t transport; /* TransportKind */
@@ -122,3 +136,9 @@ AppWeighAs app_settings_weigh_as(const AppSettings* settings);
 
 /* Unknown values are ignored. */
 void app_settings_set_weigh_as(AppSettings* settings, AppWeighAs weigh_as);
+
+/* Whether Get app has opened by itself or an app has connected: Get app
+ * then no longer opens by itself. */
+bool app_settings_first_run_done(const AppSettings* settings);
+
+void app_settings_set_first_run_done(AppSettings* settings);
