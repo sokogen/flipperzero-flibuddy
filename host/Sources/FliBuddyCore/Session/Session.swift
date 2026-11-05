@@ -128,6 +128,8 @@ public actor Session {
     /// (`APP_RESULT_TIMEOUT_MS`). The host measures its own latency against it,
     /// so a weigh it saved later counts as `savedAfterTimeout`.
     public static let flipperResultTimeout: TimeInterval = 10
+    /// The feed keeps this many rows; a scan beyond it drops the oldest.
+    public static let maxRows = 200
 
     public private(set) var rows: [FeedRow] = []
     public private(set) var bambuddy: BambuddyState = .unchecked
@@ -181,6 +183,13 @@ public actor Session {
             if rows[index].spool != nil { staleSpools.insert(rows[index].id) }
         }
         setBambuddy(.unchecked)
+    }
+
+    /// Settings that keep the Bambuddy URL and key (weight mode, core
+    /// weight, catalog entry, transport): the next action uses them, and the
+    /// rows, the startup check and the colour map stay as they are.
+    public func update(settings: Settings) {
+        self.settings = settings
     }
 
     /// The current snapshot, then one per change, until the session goes away.
@@ -344,6 +353,7 @@ public actor Session {
     /// Adds a row for the scan, newest last. A tag already in the feed (same
     /// tray UUID or UID) moves its row to the end and starts it over, so the
     /// feed never holds the same tag twice. The row keeps the scan's autosave.
+    /// Beyond `maxRows` the oldest rows go, as Clear would drop them.
     @discardableResult
     public func record(_ scan: Scan) -> FeedRow.ID {
         var row = FeedRow(scanId: scan.scanId, scannedAt: now(), autosave: scan.autosave, dump: scan.tag)
@@ -362,6 +372,10 @@ public actor Session {
         }
         row.colorName = colorNames?.name(for: row.tag) ?? row.tag.bambuColor?.name
         rows.append(row)
+        if rows.count > Self.maxRows {
+            for dropped in rows.prefix(rows.count - Self.maxRows) { staleSpools.remove(dropped.id) }
+            rows.removeFirst(rows.count - Self.maxRows)
+        }
         publish()
         return row.id
     }
@@ -746,7 +760,14 @@ public actor Session {
         } catch {
             let error = outlived(guarded, startedUnder: started) ? SessionError.settingsChanged : error
             let message = Self.describe(error)
-            updateRow(id) { $0.status = .error(message) }
+            updateRow(id) {
+                $0.status = .error(message)
+                // No spool carries the tag (any spool the row knew is gone).
+                if case SessionError.spoolNotFound = error {
+                    $0.spool = nil
+                    $0.createdSpoolId = nil
+                }
+            }
             throw error
         }
     }

@@ -31,6 +31,8 @@ struct IntentHandler {
                 return Outcome(result: result(intent, ok: true, ["Saved", "\(left) g left"], spool: saved.spool), row: saved)
             } catch SessionError.spoolNotFound(let uid) {
                 var row = row
+                row.spool = nil
+                row.createdSpoolId = nil
                 row.status = .unknown(prefill: row.tag.hasPrefill)
                 let error = "no spool for tag \(uid)"
                 return Outcome(result: result(intent, ok: false, ["Not saved", "Spool not found"], error), row: row)
@@ -54,28 +56,48 @@ struct IntentHandler {
             return Outcome(result: result(intent, ok: true, ["Created", "spool #\(id)"], spool: created.spool), row: created)
 
         case .full, .empty, .delete:
-            let known: Spool? = if let spool = row.spool { spool } else { try await find(row.tag) }
-            guard let spool = known else {
-                var row = row
-                row.status = .unknown(prefill: row.tag.hasPrefill)
-                let lines = [Self.failureLine(intent.action), "Spool not found"]
-                return Outcome(result: result(intent, ok: false, lines, "no spool for tag \(row.tag.uid)"), row: row)
-            }
-            switch intent.action {
-            case .full:
-                let marked = try await markFull(row, spool, by: .flipper)
-                let left = marked.spool?.remaining ?? 0
-                return Outcome(
-                    result: result(intent, ok: true, ["Marked as new", "\(left) g left"], spool: marked.spool), row: marked
-                )
-            case .empty:
-                let marked = try await markEmpty(row, spool, by: .flipper)
-                return Outcome(result: result(intent, ok: true, ["Marked as empty", "archived"], spool: marked.spool), row: marked)
-            default:
-                let deleted = try await delete(row, spool, by: .flipper)
-                return Outcome(result: result(intent, ok: true, ["Deleted", "spool #\(spool.id)"]), row: deleted)
+            do {
+                return try await mark(intent, on: row)
+            } catch BambuddyError.spoolNotFound(let id) where intent.action != .delete && row.spool?.id == id {
+                return try await mark(intent, on: Self.lookingUpAgain(row, spool: id))
             }
         }
+    }
+
+    /// Mark as new, Mark as empty or Delete, looking the spool up when the
+    /// row has none.
+    private func mark(_ intent: Intent, on row: FeedRow) async throws -> Outcome {
+        let known: Spool? = if let spool = row.spool { spool } else { try await find(row.tag) }
+        guard let spool = known else {
+            var row = row
+            row.status = .unknown(prefill: row.tag.hasPrefill)
+            let lines = [Self.failureLine(intent.action), "Spool not found"]
+            return Outcome(result: result(intent, ok: false, lines, "no spool for tag \(row.tag.uid)"), row: row)
+        }
+        switch intent.action {
+        case .full:
+            let marked = try await markFull(row, spool, by: .flipper)
+            let left = marked.spool?.remaining ?? 0
+            return Outcome(
+                result: result(intent, ok: true, ["Marked as new", "\(left) g left"], spool: marked.spool), row: marked
+            )
+        case .empty:
+            let marked = try await markEmpty(row, spool, by: .flipper)
+            return Outcome(result: result(intent, ok: true, ["Marked as empty", "archived"], spool: marked.spool), row: marked)
+        default:
+            let deleted = try await delete(row, spool, by: .flipper)
+            return Outcome(result: result(intent, ok: true, ["Deleted", "spool #\(spool.id)"]), row: deleted)
+        }
+    }
+
+    /// The row without its spool, which Bambuddy no longer has (deleted
+    /// elsewhere): the next call looks the tag up again.
+    private static func lookingUpAgain(_ row: FeedRow, spool id: Int) -> FeedRow {
+        Log.notice(.session, "spool gone: id=\(row.scanId) spool=\(id); looking the tag up again")
+        var row = row
+        row.spool = nil
+        row.createdSpoolId = nil
+        return row
     }
 
     /// The first result line when the action fails.
@@ -110,7 +132,17 @@ struct IntentHandler {
     /// first every time, so a retry after the create went through and the
     /// weight did not weighs that spool instead of creating another. An
     /// archived spool is restored first.
+    /// A spool the row knows that Bambuddy no longer has is looked up again
+    /// by tag, once.
     func weigh(_ row: FeedRow, grams: Int, mode: Intent.WeightMode, by side: FeedRow.Side) async throws -> FeedRow {
+        do {
+            return try await weighOnce(row, grams: grams, mode: mode, by: side)
+        } catch BambuddyError.spoolNotFound(let id) where row.spool?.id == id {
+            return try await weighOnce(Self.lookingUpAgain(row, spool: id), grams: grams, mode: mode, by: side)
+        }
+    }
+
+    private func weighOnce(_ row: FeedRow, grams: Int, mode: Intent.WeightMode, by side: FeedRow.Side) async throws -> FeedRow {
         var row = row
         let known: Spool? = if let spool = row.spool { spool } else { try await find(row.tag) }
         var spool: Spool

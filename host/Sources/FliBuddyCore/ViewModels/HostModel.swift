@@ -86,7 +86,9 @@ public final class HostModel {
 
     /// Saves new settings, points the session at them and checks Bambuddy
     /// again; a changed transport choice (kind, USB port or Bluetooth
-    /// peripheral) reconnects a running link.
+    /// peripheral) reconnects a running link. Only another URL or key
+    /// reconfigures the session (its rows' spools may belong to the old
+    /// Bambuddy); other changes leave the feed as it is.
     public func apply(_ new: Settings) async throws {
         var new = new
         // A screen that still shows the key as unknown must not put it back
@@ -97,12 +99,25 @@ public final class HostModel {
         }
         try store.save(new)
         let choiceChanged = new.transportChoice != settings.transportChoice
+        let serverChanged = Self.serverChanged(from: settings, to: new)
         settings = new
         onSettingsSaved?(new)
         feed.settings = new
-        await session.reconfigure(settings: new, inventory: try? makeInventory(new))
+        if serverChanged {
+            await session.reconfigure(settings: new, inventory: try? makeInventory(new))
+        } else {
+            // Reconfiguring would forget the spools created on scan (Link
+            // could no longer delete them) and reload the colour map.
+            await session.update(settings: new)
+        }
+        Log.info(.settings, "apply: server=\(serverChanged ? "changed" : "same")")
         if choiceChanged, link.isActive { link.connect(new.transportChoice) }
         await session.checkBambuddy()
+    }
+
+    /// Whether `new` may name another Bambuddy or another key than `old`.
+    static func serverChanged(from old: Settings, to new: Settings) -> Bool {
+        old.baseURL != new.baseURL || old.apiKey != new.apiKey
     }
 
     /// Reads the API key again when it was unknown (the Keychain was locked at

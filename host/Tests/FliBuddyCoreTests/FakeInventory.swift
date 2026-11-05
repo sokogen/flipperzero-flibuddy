@@ -198,6 +198,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         lock.withLock { stored.removeAll { $0.id == id } }
     }
 
+    /// Adds a spool without recording a call, as another client would.
+    func addQuietly(_ spool: Spool) {
+        lock.withLock { stored.append(spool) }
+    }
+
     func spoolmanEnabled() async throws -> Bool {
         record(.spoolman)
         if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }

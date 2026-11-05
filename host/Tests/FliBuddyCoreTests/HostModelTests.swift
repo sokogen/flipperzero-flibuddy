@@ -68,6 +68,50 @@ struct HostModelTests {
         #expect(inventory.calls.contains(.spoolman))
     }
 
+    @Test func aChangeThatKeepsTheServerAndKeyKeepsTheFeedAsItIs() async throws {
+        let defaults = InMemoryKeyValueStore()
+        let picked = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
+        let inventory = FakeInventory(spools: [picked])
+        let model = try makeModel(defaults, inventory: inventory)
+        _ = await model.session.handleScan(try autosaveScan())
+        let row = try #require(await model.session.rows.first)
+        #expect(row.createdSpoolId == 100)
+        #expect(inventory.colorMapLoads == 1)
+        var changed = testSettings
+        changed.defaultMode = .net
+        changed.coreWeight = 200
+        changed.catalogEntryId = nil
+
+        try await model.apply(changed)
+
+        #expect(await model.session.settings == changed)
+        #expect(await model.session.rows.first?.createdSpoolId == 100)
+        #expect(await model.session.bambuddy == .ready)
+        #expect(inventory.colorMapLoads == 1)
+        // Link still deletes the spool created on scan, so Bambuddy takes the tag.
+        try await model.session.link(row: row.id, toSpool: 7, from: try await model.session.listSpools())
+        #expect(inventory.calls.contains(.delete(spoolId: 100)))
+        #expect(inventory.calls.last == .link(spoolId: 7, TagLink(tag: row.tag)))
+    }
+
+    @Test func anotherServerOrKeyReconfiguresTheSession() async throws {
+        for change in [\Settings.baseURL, \Settings.apiKey] {
+            let defaults = InMemoryKeyValueStore()
+            let inventory = FakeInventory()
+            let model = try makeModel(defaults, inventory: inventory)
+            _ = await model.session.handleScan(try autosaveScan())
+            #expect(await model.session.rows.first?.createdSpoolId == 100)
+            var changed = testSettings
+            changed[keyPath: change] += "x"
+
+            try await model.apply(changed)
+
+            #expect(await model.session.settings == changed)
+            #expect(await model.session.rows.first?.createdSpoolId == nil)
+            #expect(inventory.colorMapLoads == 2)
+        }
+    }
+
     @Test func settingsWithoutAClientLeaveBambuddyNotConfigured() async throws {
         let defaults = InMemoryKeyValueStore()
         let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())

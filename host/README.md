@@ -91,8 +91,8 @@ first "Bambu Lab" catalog entry in Bambuddy, so set that entry to 242 g as
 well to keep both kinds of spool consistent.
 
 After the startup check the session loads Bambuddy's colour map
-(`GET /inventory/colors/map`, inventory read) once and keeps it; a settings
-change reloads it. New items get `color_name` from it: the detailed type
+(`GET /inventory/colors/map`, inventory read) once and keeps it; another
+URL or API key reloads it (other settings changes leave the feed as it is). New items get `color_name` from it: the detailed type
 and RGB first (`by_material`, e.g. `pla basic|ff9016`), then the RGB alone
 (`colors`); with no match `color_name` is left out rather than set to the
 hex. A failed load shows in the status bar, leaves names empty and never
@@ -369,9 +369,9 @@ finds them for a short while at best; the file keeps them.
 | `app` | the start line, written whatever the level; a log file that cannot be written (unified log only, once) |
 | `link` | connect and disconnect, link state changes with the problem, retries, the serial port opening and closing (with `errno`), Bluetooth scan, peripherals found (name, RSSI), services, MTU, disconnects, the hello handshake |
 | `wire` | each protocol line sent (`tx`) and received (`rx`) at `debug`, cut to 300 characters; dropped lines at `error` with the reason |
-| `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, colour map failures |
+| `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, a spool gone from Bambuddy and looked up again by tag, colour map failures |
 | `bambuddy` | each request's method, path, status and time; errors with Bambuddy's `detail`; response bodies at `debug` |
-| `settings` | settings load and save (`key=present`, `absent` or `unknown`: the Keychain could not be read, e.g. a launch while the iPhone is locked; the key is kept and read again on unlock), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
+| `settings` | settings load and save (`key=present`, `absent` or `unknown`: the Keychain could not be read, e.g. a launch while the iPhone is locked; the key is kept and read again on unlock), each apply (`server=changed` reconfigures the session, `same` keeps the feed), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
 | `sync` | watch settings sync: payloads sent, held, received, applied or rejected, by version only |
 | `ui` | reserved; nothing logs to it yet |
 
