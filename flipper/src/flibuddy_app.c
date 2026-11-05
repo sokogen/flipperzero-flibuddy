@@ -14,6 +14,8 @@
 #include "ui_frame.h"
 
 #define TICK_PERIOD_MS 250
+/* about 770 bytes a slot (a ProtoMessage); the host sends one answer per
+ * request and the GUI thread drains the queue on each event */
 #define RX_QUEUE_LEN   4
 
 /* 1 tick = 1 ms on f7 (configTICK_RATE_HZ 1000); host_link copes with wrap. */
@@ -367,6 +369,10 @@ static void on_rx_line(const char* line, size_t len, void* ctx) {
     slot->rx.session = slot->session;
     if(furi_message_queue_put(slot->app->rx_queue, &slot->rx, 0) == FuriStatusOk) {
         view_dispatcher_send_custom_event(slot->app->view_dispatcher, FliBuddyEventRx);
+    } else {
+        /* the GUI thread is behind by RX_QUEUE_LEN messages; the host
+         * answers one per request, so a full queue is rare: say so */
+        FURI_LOG_W("FliBuddy", "rx queue full, %s message dropped", kind_name(slot->kind));
     }
 }
 
