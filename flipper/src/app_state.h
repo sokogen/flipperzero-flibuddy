@@ -9,6 +9,7 @@
  *   Result → LinkOnHost → (fresh lookup) Result
  *   any intent failure → Error → Retry (same id) / Back
  *   Waiting / Ready → Settings ⇄ About
+ *   Ready → Recent → Result{Known}
  *
  * app_reduce() applies one event to the state and returns the I/O the
  * caller must perform; it never touches the GUI, NFC or the transport. The
@@ -60,6 +61,13 @@
  * spool on screen, falling back to the lookup defaults (gross: last gross,
  * else label + core; net: gross - core, else label).
  *
+ * Recent lists the spools whose weight was saved this session, newest
+ * first, one entry per tag, APP_RECENT_MAX at most. OK on an entry shows
+ * its Result{Known} from the stored scan and spool, as if just scanned: its
+ * intents carry that scan's id and tag (the host finds the row or the
+ * tag). A later lookup or result for a listed tag refreshes its entry in
+ * place, a delete drops it.
+ *
  * After scan = Weigh opens Weight in place of Result{Known} when a scan's
  * lookup finds the spool (not one created on the scan, not a fresh lookup
  * replacing a result); Back from it shows the result.
@@ -91,6 +99,7 @@
 #define APP_LIST_ROWS         4 /* visible rows of Menu and Settings */
 #define APP_MENU_MAX          6
 #define APP_WEIGHT_DIGITS     4
+#define APP_RECENT_MAX        6
 
 typedef enum {
     AppScreenWaiting, /* no host */
@@ -109,6 +118,7 @@ typedef enum {
     AppScreenError,
     AppScreenSettings,
     AppScreenAbout,
+    AppScreenRecent,
 } AppScreen;
 
 typedef enum {
@@ -240,6 +250,12 @@ typedef struct {
     bool touched; /* a digit was changed */
 } AppWeight;
 
+/* A Recent entry: the scan and the spool as last known. */
+typedef struct {
+    Scan scan;
+    ProtoSpool spool;
+} AppRecent;
+
 typedef struct {
     AppScreen screen;
     AppResultKind result_kind; /* of the Result the other screens return to */
@@ -263,8 +279,8 @@ typedef struct {
     WeightMode mode; /* on Weight: Weigh as when it opened, then the chip's */
     AppWeight weight; /* on Weight */
     bool weigh_after_full; /* the `full` in flight opens Weight when done */
-    uint8_t sel; /* selected row of Menu / Settings */
-    uint8_t top; /* first visible row of Menu / Settings */
+    uint8_t sel; /* selected row of Menu / Settings / Recent */
+    uint8_t top; /* first visible row of Menu / Settings / Recent */
     uint8_t details_top; /* first visible row of Tag details, see APP_DETAILS_TOP_MAX */
     uint32_t timer_start_ms;
     uint32_t timer_ms; /* 0: no deadline on this screen */
@@ -277,6 +293,8 @@ typedef struct {
     IdSeq intent_ids;
     IntentStore* intents;
     Intent held; /* the last intent built: the one sent, failed or held by a toast */
+    AppRecent recent[APP_RECENT_MAX]; /* newest first */
+    uint8_t recent_count;
 } AppState;
 
 /* Waiting, no host, the default settings and their connection (Auto) with

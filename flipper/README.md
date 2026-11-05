@@ -224,6 +224,11 @@ same id. Without a host a scan shows the tag's own detailed type or
 material, the type and the UID; Tag details adds how many sectors or pages
 were read.
 
+◀ on Ready opens **Recent**: the last six spools whose weight was saved
+while the app ran, newest first. OK on one shows its result again from
+the scan the app kept, so a spool can be weighed again without holding
+it to the Flipper; the list is in RAM only.
+
 Every screen change goes through the pure reducer in `src/app_state.h`. The
 app has one custom View: after every state change and tick
 `ui_frame_build()` (`src/ui_frame.h`, SDK-free) turns the state into a

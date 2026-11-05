@@ -51,8 +51,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    "Hold spool tag to the back". After an action an inverted bar with a
    check names the last outcome (`Saved PLA Basic 590 g`, `Added PLA
    Silk+`, `New PLA Basic 1000 g`, `Empty PLA Basic`, `Deleted PLA Basic`)
-   and the text reads "Next spool". ▶ Settings, Back exits the app. ◀ does
-   nothing (the design's Recent screen is not built).
+   and the text reads "Next spool". ◀ Recent, ▶ Settings, Back exits the
+   app.
 3. **Reading tag**: spool and waves, "Keep still". Back goes home.
 4. **Looking up**: while the `lookup` is pending (no timeout): the tag's own
    detailed type or material when it has one, "Asking the app". Back goes
@@ -161,6 +161,18 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     `Protocol 2 - fw 1.5.1`, `USB app: <app>` / `BLE app: <app>` (the
     transport first, so a long app name is cut, not the transport) or
     `App: not connected`. OK / Back to Settings.
+23. **Recent** (Ready's ◀; ▲▼ select, wrapping, four rows show; OK opens;
+    Back to Ready): the spools whose weight was saved this session, newest
+    first, one row per tag, six at most (the oldest goes). A row has a
+    check, the spool's name and, right-aligned, what is left (`PLA Basic`
+    … `484 g`), so a long name is cut, not the grams; the design writes
+    `PLA Matte 410 g` as one label. With none: "No scans yet". OK shows
+    the row's Result · known from the scan and spool it keeps, so the spool
+    can be weighed again (or marked, deleted, ...) without a scan; its
+    intents carry that scan's id and tag. A later lookup or result for a
+    listed tag updates its row in place, a delete removes it. The list
+    lives in RAM and is gone when the app exits. Losing the host goes to
+    Waiting; the list stays. The reader is off here.
 
 ## Mark as new, Mark as empty and Undo
 
@@ -194,9 +206,7 @@ Per the Feedback and Sound settings (`flipper/src/feedback.h`):
 Feedback = LED drops the vibro; Off drops the LED and the vibro. Sound = On
 adds the beeps whatever Feedback says. Every event wakes the backlight.
 
-## Not built
-
-The design's Recent screen (Ready's ◀).
+## Wording
 
 The Flipper's own texts say "app" for the FliBuddy app on the phone or
 watch (`Waiting for app`, `No app`, `Create in app`, `Pick the spool in the

@@ -103,6 +103,11 @@ static void list(Canvas* c, const UiFrame* f) {
             canvas_set_color(c, ColorWhite);
         }
         int32_t value_x = 117;
+        int32_t item_x = 5;
+        if(f->checks) {
+            bitmap(c, 4, y + 3, &ui_icon_check);
+            item_x = 13;
+        }
         if(f->value[i][0]) {
             value_x -= canvas_string_width(c, f->value[i]);
             canvas_draw_str_aligned(c, value_x, y + 2, AlignLeft, AlignTop, f->value[i]);
@@ -111,7 +116,7 @@ static void list(Canvas* c, const UiFrame* f) {
                 bitmap(c, 119, y + 3, &ui_icon_arrow_right);
             }
         }
-        text_fit(c, 5, y + 2, (uint16_t)(value_x - 5 - 8), f->item[i]);
+        text_fit(c, item_x, y + 2, (uint16_t)(value_x - item_x - 8), f->item[i]);
         canvas_set_color(c, ColorBlack);
     }
     if(scroll) elements_scrollbar_pos(c, W, LIST_Y, H - LIST_Y, f->sel, f->count);
@@ -477,6 +482,15 @@ void ui_draw(Canvas* c, const UiFrame* f) {
         break;
     case AppScreenAbout:
         draw_about(c, f);
+        break;
+    case AppScreenRecent:
+        header(c, f);
+        if(f->count == 0) {
+            text_center(c, 30, f->line[0]);
+        } else {
+            list(c, f);
+        }
+        chips(c, f);
         break;
     }
 }

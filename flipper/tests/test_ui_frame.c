@@ -276,7 +276,7 @@ static void test_ready(void) {
     CHECK_STR_EQ(frame.line[0], "Ready");
     CHECK_STR_EQ(frame.line[1], "Hold spool tag");
     CHECK_STR_EQ(frame.line[2], "to the back");
-    check_chips("", "", "Settings");
+    check_chips("Recent", "", "Settings");
     env.anim = 1;
     build();
     CHECK(frame.icon == UiIconUsb); /* the host's transport; only Bluetooth blinks */
@@ -935,6 +935,55 @@ static void test_error_titles_follow_the_action(void) {
     CHECK_STR_EQ(frame.body, "The app could not look the tag up.");
 }
 
+/* ---- Recent ---- */
+
+static void save_weight_of(const TagDump* tag) {
+    send_tag(tag);
+    send_fixture_lookup("lookup_found.json");
+    press(AppKeyOk);
+    press(AppKeyOk);
+    send_fixture_result("result_ok.json");
+    press(AppKeyOk);
+}
+
+static void test_recent(void) {
+    setup();
+    press(AppKeyLeft);
+    build();
+    CHECK(frame.screen == AppScreenRecent);
+    CHECK_STR_EQ(frame.title, "Recent");
+    CHECK(frame.icon == UiIconUsb);
+    CHECK_EQ_INT(frame.count, 0);
+    CHECK_STR_EQ(frame.line[0], "No scans yet");
+    check_chips("", "", "");
+    press(AppKeyBack);
+
+    TagDump other = mfc;
+    other.uid[0] ^= 0xFF;
+    save_weight_of(&mfc);
+    save_weight_of(&other);
+    press(AppKeyLeft);
+    build();
+    CHECK_STR_EQ(frame.line[0], "");
+    CHECK_EQ_INT(frame.count, 2);
+    CHECK(frame.checks);
+    CHECK_STR_EQ(frame.item[0], "PLA Basic");
+    CHECK_STR_EQ(frame.value[0], "484 g");
+    CHECK(frame.fixed[0]); /* no arrows: nothing to change */
+    CHECK_STR_EQ(frame.item[1], "PLA Basic");
+    CHECK(frame.fixed[1]);
+    CHECK_EQ_INT(frame.sel, 0);
+    press(AppKeyDown);
+    build();
+    CHECK_EQ_INT(frame.sel, 1);
+    press(AppKeyOk);
+    build();
+    CHECK(frame.screen == AppScreenResult);
+    CHECK_STR_EQ(frame.title, "PLA Basic");
+    CHECK_STR_EQ(frame.line[2], "484 / 1000 g");
+    check_chips("Menu", "Weigh", "New");
+}
+
 /* ---- Settings, About ---- */
 
 static void test_settings(void) {
@@ -1029,8 +1078,9 @@ static void test_fields_of_another_screen_are_cleared(void) {
     CHECK_STR_EQ(frame.line[2], "484 / 1000 g");
     press(AppKeyBack);
     build();
-    CHECK_STR_EQ(frame.left, "");
+    CHECK_STR_EQ(frame.left, "Recent"); /* Ready's, not the result's Menu */
     CHECK_STR_EQ(frame.center, "");
+    CHECK_STR_EQ(frame.line[2], "to the back");
     CHECK(frame.count == 0);
 }
 
@@ -1063,6 +1113,7 @@ int main(void) {
     RUN_TEST(test_link_on_host);
     RUN_TEST(test_errors);
     RUN_TEST(test_error_titles_follow_the_action);
+    RUN_TEST(test_recent);
     RUN_TEST(test_settings);
     RUN_TEST(test_about);
     RUN_TEST(test_fields_of_another_screen_are_cleared);

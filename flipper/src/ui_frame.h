@@ -29,6 +29,8 @@
  *   Error       body (wrapped, at most three lines), left / right,
  *               progress (a failed read's countdown, 0 none)
  *   Settings    item[] / value[] / fixed[], count, sel, top
+ *   Recent      item[] / value[] / fixed[], checks, count, sel, top; line[0]
+ *               when there is none
  *   About       line[0..3]
  */
 #pragma once
@@ -43,7 +45,7 @@
 #define UI_KEY_MAX   8
 #define UI_LINES     5
 #define UI_DETAILS_ROWS 9 /* every Tag details row; UI_LINES of them show */
-#define UI_LIST_MAX  7 /* the longest of APP_MENU_MAX and AppSettingCount */
+#define UI_LIST_MAX  7 /* the longest of APP_MENU_MAX, AppSettingCount, APP_RECENT_MAX */
 #define UI_BODY_MAX  (PROTO_LINES_MAX * (PROTO_LINE_CHARS + 1) + PROTO_ERROR_MAX + 1)
 #define UI_TOAST_MAX 1000 /* progress when the whole toast time is left */
 
@@ -93,6 +95,7 @@ typedef struct {
     char item[UI_LIST_MAX][UI_ITEM_MAX];
     char value[UI_LIST_MAX][UI_ITEM_MAX];
     bool fixed[UI_LIST_MAX]; /* a value without ◀▶ */
+    bool checks; /* a check before every row */
     uint8_t digit[APP_WEIGHT_DIGITS];
     uint8_t cursor; /* 0: the net/gross chip, 1..4: a digit */
     bool net;

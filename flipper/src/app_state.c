@@ -153,6 +153,56 @@ static void open_weight(AppState* s) {
     weight_fill(s);
 }
 
+/* ---- Recent ---- */
+
+static int recent_find(const AppState* s, const TagDump* tag) {
+    for(uint8_t i = 0; i < s->recent_count; i++) {
+        const TagDump* t = &s->recent[i].scan.tag;
+        if(t->uid_len == tag->uid_len && memcmp(t->uid, tag->uid, tag->uid_len) == 0) return i;
+    }
+    return -1;
+}
+
+static void recent_remove(AppState* s, int i) {
+    if(i < 0) return;
+    s->recent_count--;
+    memmove(
+        &s->recent[i], &s->recent[i + 1], (size_t)(s->recent_count - i) * sizeof(s->recent[0]));
+}
+
+/* The spool on screen was weighed: it goes on top, once. */
+static void recent_push(AppState* s) {
+    if(!s->has_spool) return;
+    int i = recent_find(s, &s->scan.tag);
+    if(i >= 0) {
+        recent_remove(s, i);
+    } else if(s->recent_count == APP_RECENT_MAX) {
+        s->recent_count--; /* the oldest goes */
+    }
+    memmove(&s->recent[1], &s->recent[0], s->recent_count * sizeof(s->recent[0]));
+    s->recent[0].scan = s->scan;
+    s->recent[0].spool = s->spool;
+    s->recent_count++;
+}
+
+/* Newer facts about a listed tag replace the entry's, in place. */
+static void recent_refresh(AppState* s) {
+    int i = recent_find(s, &s->scan.tag);
+    if(i < 0 || !s->has_spool) return;
+    s->recent[i].scan = s->scan;
+    s->recent[i].spool = s->spool;
+}
+
+static void recent_open(AppState* s, uint8_t i) {
+    if(i >= s->recent_count) return;
+    s->scan = s->recent[i].scan;
+    memset(&s->lookup, 0, sizeof(s->lookup));
+    memset(&s->result, 0, sizeof(s->result));
+    take_spool(s, &s->recent[i].spool);
+    s->last = AppOutcomeNone;
+    go_result(s, AppResultKnown);
+}
+
 /* ---- intents ---- */
 
 static AppEffect send_held(AppState* s, uint32_t now_ms) {
@@ -259,6 +309,7 @@ static void on_lookup(AppState* s, const ProtoLookup* lookup, uint32_t now_ms) {
     switch(lookup->status) {
     case ProtoLookupFound:
         if(lookup->has_spool) take_spool(s, &lookup->spool);
+        recent_refresh(s);
         if(lookup->created) {
             s->result_kind = AppResultKnown;
             go_toast(s, AppToastAdded, now_ms);
@@ -297,6 +348,13 @@ static bool accepts_lookup(AppScreen screen) {
 
 static void on_result_ok(AppState* s, const ProtoResult* result, uint32_t now_ms) {
     if(result->has_spool) take_spool(s, &result->spool);
+    if(s->held.action == IntentActionWeigh) {
+        recent_push(s);
+    } else if(s->held.action == IntentActionDelete) {
+        recent_remove(s, recent_find(s, &s->scan.tag));
+    } else {
+        recent_refresh(s);
+    }
     switch(s->held.action) {
     case IntentActionWeigh:
         go(s, AppScreenSaved);
@@ -349,6 +407,7 @@ static void on_host_lost(AppState* s) {
     s->connected = false;
     switch(s->screen) {
     case AppScreenReady:
+    case AppScreenRecent:
         go_home(s, s->last);
         break;
     case AppScreenLookingUp:
@@ -404,6 +463,7 @@ static void on_tick(AppState* s, uint32_t now_ms, AppEffect* effect) {
 
 static AppEffect key_home(AppState* s, AppKey key) {
     if(key == AppKeyBack) return AppEffectExit;
+    if(key == AppKeyLeft && s->screen == AppScreenReady) list_open(s, AppScreenRecent);
     if(key == AppKeyRight) {
         s->settings_entered = s->settings;
         list_open(s, AppScreenSettings);
@@ -731,6 +791,11 @@ static AppEffect on_key(AppState* s, AppKey key, uint32_t now_ms) {
         return key_settings(s, key);
     case AppScreenAbout:
         if(key == AppKeyOk || key == AppKeyBack) go(s, AppScreenSettings);
+        break;
+    case AppScreenRecent:
+        if(key == AppKeyUp || key == AppKeyDown) list_move(s, key, s->recent_count);
+        if(key == AppKeyOk) recent_open(s, s->sel);
+        if(key == AppKeyBack) go_home(s, s->last);
         break;
     }
     return AppEffectNone;

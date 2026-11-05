@@ -7,6 +7,7 @@
 
 _Static_assert(APP_MENU_MAX <= UI_LIST_MAX, "every Menu row needs a slot");
 _Static_assert(AppSettingCount <= UI_LIST_MAX, "every Settings row needs a slot");
+_Static_assert(APP_RECENT_MAX <= UI_LIST_MAX, "every Recent row needs a slot");
 
 /* Append-only text into a fixed buffer; stops quietly when full. */
 typedef struct {
@@ -257,7 +258,30 @@ static void build_ready(UiFrame* f, const AppState* s) {
         SET(f->line[1], "Hold spool tag");
         SET(f->line[2], "to the back");
     }
+    SET(f->left, "Recent");
     SET(f->right, "Settings");
+}
+
+/* A saved spool per row: its name, and what was left right-aligned so a
+ * long name is cut, not the grams. */
+static void build_recent(UiFrame* f, const AppState* s) {
+    SET(f->title, "Recent");
+    if(s->recent_count == 0) {
+        SET(f->line[0], "No scans yet");
+        return;
+    }
+    f->count = s->recent_count;
+    f->checks = true;
+    for(uint8_t i = 0; i < s->recent_count; i++) {
+        const ProtoSpool* spool = &s->recent[i].spool;
+        ui_spool_name(spool->material, spool->subtype, f->item[i], sizeof(f->item[i]));
+        Text t = TEXT(f->value[i]);
+        put_uint(&t, spool->remaining);
+        put(&t, " g");
+        f->fixed[i] = true;
+    }
+    f->sel = s->sel;
+    f->top = s->top;
 }
 
 /* An unknown tag's own facts in place of its UID: `11803 - 1.75 mm -
@@ -807,6 +831,9 @@ void ui_frame_build(UiFrame* f, const AppState* s, const UiEnv* env) {
         break;
     case AppScreenAbout:
         build_about(f, s, env);
+        break;
+    case AppScreenRecent:
+        build_recent(f, s);
         break;
     }
 }

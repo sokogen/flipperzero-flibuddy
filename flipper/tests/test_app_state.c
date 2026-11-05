@@ -211,7 +211,6 @@ static void test_waiting_and_ready_keys(void) {
     CHECK(app.screen == AppScreenSettings);
 
     setup();
-    CHECK(press(AppKeyLeft) == AppEffectNone); /* no Recent screen */
     CHECK(press(AppKeyOk) == AppEffectNone);
     CHECK(app.screen == AppScreenReady);
     CHECK(press(AppKeyBack) == AppEffectExit);
@@ -1573,6 +1572,155 @@ static void test_host_lost_on_other_screens(void) {
     CHECK(app.screen == AppScreenAbout);
 }
 
+/* ---- Recent ---- */
+
+/* Scans `tag`, weighs it as pre-filled and saves; the host answers with
+ * result_ok (484 g left). Ends on Ready. */
+static void weigh_and_save(const TagDump* tag) {
+    send(AppEventTagDetected);
+    CHECK(send_tag(tag) == AppEffectSendScan);
+    send_fixture_lookup("lookup_found.json");
+    CHECK(press(AppKeyOk) == AppEffectNone); /* Weight */
+    CHECK(press(AppKeyOk) == AppEffectSendIntent);
+    send_fixture_result("result_ok.json");
+    CHECK(app.screen == AppScreenSaved);
+    press(AppKeyOk);
+    CHECK(app.screen == AppScreenReady);
+}
+
+static TagDump with_uid(uint8_t first) {
+    TagDump t = mfc;
+    t.uid[0] = first;
+    return t;
+}
+
+static void test_recent_opens_from_ready_and_starts_empty(void) {
+    setup_no_host();
+    CHECK(press(AppKeyLeft) == AppEffectNone);
+    CHECK(app.screen == AppScreenWaiting); /* no host, nothing to do with one */
+    send(AppEventHostConnected);
+    CHECK(press(AppKeyLeft) == AppEffectNone);
+    CHECK(app.screen == AppScreenRecent);
+    CHECK_EQ_INT(app.recent_count, 0);
+    CHECK(!app_reader_wanted(&app));
+    CHECK(press(AppKeyOk) == AppEffectNone);
+    press(AppKeyDown);
+    CHECK(app.screen == AppScreenRecent);
+    CHECK_EQ_INT(app.sel, 0);
+    CHECK(press(AppKeyBack) == AppEffectNone);
+    CHECK(app.screen == AppScreenReady);
+}
+
+static void test_a_saved_weight_goes_to_the_top_of_recent(void) {
+    setup();
+    TagDump a = with_uid(0xA1), b = with_uid(0xB2);
+    weigh_and_save(&a);
+    CHECK_EQ_INT(app.recent_count, 1);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], 0xA1);
+    CHECK_STR_EQ(app.recent[0].scan.id, "s-000012");
+    CHECK_EQ_INT(app.recent[0].spool.remaining, 484);
+    CHECK_EQ_INT(app.recent[0].spool.id, 42);
+    weigh_and_save(&b);
+    CHECK_EQ_INT(app.recent_count, 2);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], 0xB2);
+    CHECK_EQ_INT(app.recent[1].scan.tag.uid[0], 0xA1);
+    /* the same tag again moves up, it is not listed twice */
+    weigh_and_save(&a);
+    CHECK_EQ_INT(app.recent_count, 2);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], 0xA1);
+    CHECK_STR_EQ(app.recent[0].scan.id, "s-000014");
+    CHECK_EQ_INT(app.recent[1].scan.tag.uid[0], 0xB2);
+}
+
+static void test_recent_keeps_the_last_six(void) {
+    setup();
+    for(uint8_t i = 1; i <= APP_RECENT_MAX + 1; i++) {
+        TagDump t = with_uid(i);
+        weigh_and_save(&t);
+    }
+    CHECK_EQ_INT(APP_RECENT_MAX, 6);
+    CHECK_EQ_INT(app.recent_count, APP_RECENT_MAX);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], APP_RECENT_MAX + 1);
+    CHECK_EQ_INT(app.recent[APP_RECENT_MAX - 1].scan.tag.uid[0], 2); /* the first went */
+}
+
+/* OK on an entry shows its result as if just scanned: weighing it again
+ * needs no scan, and the intent names the entry's scan and tag. */
+static void test_recent_entry_opens_its_result(void) {
+    setup();
+    TagDump a = with_uid(0xA1), b = with_uid(0xB2);
+    weigh_and_save(&a);
+    weigh_and_save(&b);
+    press(AppKeyLeft);
+    press(AppKeyDown);
+    CHECK_EQ_INT(app.sel, 1);
+    press(AppKeyDown); /* wraps */
+    CHECK_EQ_INT(app.sel, 0);
+    press(AppKeyUp);
+    CHECK(press(AppKeyOk) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultKnown);
+    CHECK(app.has_spool);
+    CHECK_EQ_INT(app.spool.remaining, 484);
+    CHECK_EQ_INT(app.scan.tag.uid[0], 0xA1);
+    CHECK_STR_EQ(app.scan.id, "s-000012");
+    CHECK(app.last == AppOutcomeNone);
+    CHECK(press(AppKeyOk) == AppEffectNone); /* Weight */
+    CHECK(app.screen == AppScreenWeight);
+    CHECK_EQ_INT(app_weight_grams(&app), 734); /* 484 + the 250 g core */
+    CHECK(press(AppKeyOk) == AppEffectSendIntent);
+    CHECK_STR_EQ(in_flight()->scan_id, "s-000012");
+    CHECK_EQ_INT(in_flight()->tag.uid[0], 0xA1);
+    send_fixture_result("result_ok.json");
+    press(AppKeyOk);
+    press(AppKeyLeft);
+    press(AppKeyOk);
+    CHECK(app.screen == AppScreenResult);
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenReady);
+}
+
+static void test_recent_follows_marks_and_deletes(void) {
+    setup();
+    TagDump a = with_uid(0xA1), b = with_uid(0xB2);
+    weigh_and_save(&a);
+    weigh_and_save(&b);
+    /* B marked empty: its entry says so, in place */
+    press(AppKeyLeft);
+    press(AppKeyOk);
+    CHECK_EQ_INT(app.scan.tag.uid[0], 0xB2);
+    choose(AppMenuMarkEmpty);
+    CHECK(press(AppKeyBack) == AppEffectSendIntent); /* commits */
+    send_fixture_result("result_empty.json");
+    CHECK_EQ_INT(app.recent_count, 2);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], 0xB2);
+    CHECK_EQ_INT(app.recent[0].spool.remaining, 0);
+    CHECK(app.recent[0].spool.archived);
+    /* a later scan of A refreshes its entry */
+    send(AppEventTagDetected);
+    send_tag(&a);
+    ProtoLookup l = fixture_lookup("lookup_found.json");
+    l.spool.remaining = 300;
+    send_lookup(&l);
+    CHECK_EQ_INT(app.recent[1].spool.remaining, 300);
+    CHECK_STR_EQ(app.recent[1].scan.id, app.scan.id);
+    /* A deleted: its entry goes */
+    choose(AppMenuDelete);
+    CHECK(press(AppKeyRight) == AppEffectSendIntent);
+    send_fixture_result("result_delete.json");
+    CHECK_EQ_INT(app.recent_count, 1);
+    CHECK_EQ_INT(app.recent[0].scan.tag.uid[0], 0xB2);
+}
+
+static void test_losing_the_host_leaves_recent(void) {
+    setup();
+    weigh_and_save(&mfc);
+    press(AppKeyLeft);
+    send(AppEventHostLost);
+    CHECK(app.screen == AppScreenWaiting);
+    CHECK_EQ_INT(app.recent_count, 1); /* kept for the next host */
+}
+
 /* ---- Settings, About, transport ---- */
 
 static AppEffect send_ble(AppBleStatus status) {
@@ -1799,6 +1947,12 @@ int main(void) {
     RUN_TEST(test_weight_digits_and_cursor);
     RUN_TEST(test_mode_chip_converts_the_number);
     RUN_TEST(test_mode_chip_floors_net_at_zero);
+    RUN_TEST(test_recent_opens_from_ready_and_starts_empty);
+    RUN_TEST(test_a_saved_weight_goes_to_the_top_of_recent);
+    RUN_TEST(test_recent_keeps_the_last_six);
+    RUN_TEST(test_recent_entry_opens_its_result);
+    RUN_TEST(test_recent_follows_marks_and_deletes);
+    RUN_TEST(test_losing_the_host_leaves_recent);
     RUN_TEST(test_weight_opens_in_the_weigh_as_mode);
     RUN_TEST(test_after_scan_weigh_opens_weight_for_a_known_spool);
     RUN_TEST(test_save_below_core_is_refused);
