@@ -86,8 +86,11 @@ show without a grouping separator (`1000 g`), as on the Flipper.
 ## Layout
 
 ```
+LICENSE                   MIT
 docs/superpowers/specs/   design docs
+docs/design/              UI specs (Flipper, Mac, iPhone, iPad, watch)
 docs/plans/               implementation plans
+site/                     the GitHub Pages site: landing, privacy, support
 protocol/                 PROTOCOL.md, JSON schema, fixtures (tag dumps,
                           sample messages) shared by all test suites
 flipper/                  the FAP: application.fam, src/, host-compiled
@@ -99,7 +102,8 @@ host/Apple/               XcodeGen project.yml for the iPhone/iPad app
                           (iOS/) and its Apple Watch companion (Watch/),
                           Base.xcconfig, Signing.example.xcconfig
 tools/                    Python dev bridge (Phase 0 spike, kept as a
-                          debugging tool), fixture generators
+                          debugging tool), fixture and icon generators,
+                          simulator screenshot scripts
 .github/workflows/        flipper, host and tools CI, path-filtered
 ```
 
@@ -137,14 +141,16 @@ ufbt                          # builds dist/flibuddy.fap
 ufbt launch                   # builds, installs and starts it over USB
 ```
 
-While the app runs on USB (the default transport) it owns the USB serial
-port, so qFlipper and the Flipper CLI are unavailable until you leave it.
-The app opens on **Waiting for host** (`USB: no host app`) and turns to
-**Ready** once a host has said hello; Bluetooth is described below. Without
-a host a scan shows the tag's local facts only.
+While the app uses USB (Connection USB, or Auto, the default) it owns the
+USB serial port, so qFlipper and the Flipper CLI are unavailable until you
+leave it. The app opens on **Waiting for app** (`USB: no app`) and turns to
+**Ready** once an app has said hello; Bluetooth is described below. OK
+there opens **Get app**, a QR code of the project page. Without an app a
+scan shows what the tag itself carries.
 
-▶ opens the Flipper's **Settings**: Connection (USB / Bluetooth),
-**Auto-save new** (default Off), Feedback (Vibro+LED / LED / Off) and Sound.
+▶ opens the Flipper's **Settings**: Connection (Auto / USB / Bluetooth),
+**Auto-save new** (default Off), After scan (Show / Weigh), Weigh as
+(Gross / Net), Feedback (Vibro+LED / LED / Off) and Sound.
 With Auto-save new on, the host creates a scanned Bambu tag that Bambuddy
 does not know at once ("Added to Bambuddy"); off, the tag shows "Not in
 Bambuddy" and nothing is created until **Add** on the Flipper or **New** on
@@ -162,7 +168,8 @@ cd host
 swift run FliBuddyMac
 ```
 
-Open Settings (⌘,), enter the Bambuddy URL (`http://<BAMBUDDY_LAN_IP>:8000`)
+Open Settings (⌘,), enter the Bambuddy URL (`http://<BAMBUDDY_LAN_IP>:8000`;
+the Mac accepts plain http, the iPhone, iPad and Watch only https)
 and an API key with inventory read + update and settings read, pick the
 empty-spool catalog entry for new items, and press **Test connection**. The
 Flipper port defaults to the first `/dev/cu.usbmodemflip_*`. Every scan
@@ -185,11 +192,13 @@ catalog entry in Bambuddy, so set that entry to 242 g too.
 
 The transport is a setting on both sides; nothing negotiates it.
 
-- Flipper: Settings → **Connection**, **USB** or **Bluetooth**. The choice
-  is saved in `/ext/apps_data/flibuddy/settings.bin` and the app starts
-  that backend only; with Bluetooth the USB port stays with the CLI and
-  qFlipper. The Waiting screen shows `Visible as <name>` while advertising,
-  and Ready follows once a host has said hello. See `flipper/README.md`.
+- Flipper: Settings → **Connection**, **Auto** (the default), **USB** or
+  **Bluetooth**. The choice is saved in `/ext/apps_data/flibuddy/settings.bin`;
+  Auto starts both backends and the first app to say hello wins, USB or
+  Bluetooth alone starts that one (with Bluetooth the USB port stays with
+  the CLI and qFlipper). The Waiting screen shows `Visible as <name>` while
+  advertising, and Ready follows once an app has said hello. See
+  `flipper/README.md`.
 - Host: Settings → Connection. The Mac offers USB and Bluetooth (USB stays
   the default); the iPhone, iPad and Watch use Bluetooth only. **Scan for
   Flipper** lists the Flippers nearby by name; the chosen one is
@@ -217,9 +226,8 @@ app cannot connect; leaving the app restores the default profile.
 
 ### Installing on an iPhone, iPad or Apple Watch
 
-There is no paid Apple Developer account yet, so the apps run from Xcode
-with free provisioning (a personal team; the install expires after 7 days
-and has to be repeated):
+To run the apps from Xcode with free provisioning (a personal team; the
+install expires after 7 days and has to be repeated):
 
 ```
 cp host/Apple/Signing.example.xcconfig host/Apple/Signing.xcconfig
@@ -271,7 +279,10 @@ make apple-build              # FliBuddyiOS and FliBuddyWatch for the
 
 Both need Xcode, not the Command Line Tools. The project is generated, not
 checked in (`host/Apple/*.xcodeproj` and `Signing.xcconfig` are
-git-ignored); CI runs the same two targets. See `host/README.md`.
+git-ignored); CI runs the same two targets. `make apple-archive` builds the
+signed App Store export; `-FliBuddyDemo YES` runs the apps on demo
+fixtures, which `tools/sim_shot.sh` and `tools/store_shots.sh` capture. See
+`host/README.md`.
 
 ## Python dev bridge
 

@@ -67,18 +67,17 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    details); a remaining bar against the label with `590 / 1000 g`, or
    inverted `Unused - 1000 g` when nothing was printed from it yet
    (remaining = label), or inverted `Archived` for a spool marked empty.
-   OK Weigh, ◀ Menu, Back home; ▶ does nothing (the rare actions are in
-   the menu). Without the host's spool fields: `Tag 04B7...3C80` (a 4-byte
+   OK Weigh, ▶ New (Marked as new, screen 16), ◀ Menu, Back home. Without the host's spool fields: `Tag 04B7...3C80` (a 4-byte
    UID is shown whole) and the host's lines.
 6. **Result · unknown Bambu tag** (Auto-save new off): swatch and the tag's
    material as title; the colour name (Bambuddy's, else Bambu's own);
    `11803 - 1.75 mm - 1000 g` (Bambu's colour code, diameter, label weight;
-   the UID when the tag has none of them); inverted `New spool`. OK Save (saves
-   this spool as new and full), ▶ Weigh (Weight, whose Save saves it as new
-   with that weight, for a started spool), ◀ Menu, Back home (nothing is
-   saved). Link is in the menu. A tag with data but no material is titled
-   `Spool tag`, inverted `Not in Bambuddy`, OK Create (asks the host to
-   create it), ▶ Link.
+   the UID when the tag has none of them); inverted `Not in Bambuddy`. OK Add
+   (adds this spool to Bambuddy as new and full), ▶ Link, ◀ Menu (Add and
+   weigh: Weight, whose Save adds it with that weight, for a started
+   spool), Back home (nothing is added). A tag with data but no material is
+   titled `Spool tag`, inverted `Not in Bambuddy`, OK Create (asks the host
+   to create it), ▶ Link.
 7. **Result · blank tag**: `Blank tag`; the tag type; UID; inverted
    `No spool data`. OK Link (asks the host), ◀ Menu, Back home.
 8. **Result · no host**: what the tag itself says, read on the Flipper
@@ -95,8 +94,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    Tag details show only the tag's own facts; every other result only what
    the host sent.
 9. **Menu** (▲▼ wrap, OK chooses, Back to the result; four rows visible):
-   known: Weigh, Reset to full, Mark as empty, Relink in app, Tag details,
-   Delete spool. Unknown Bambu: Save as new, Save with weight, Link in
+   known: Weigh, Mark as new, Mark as empty, Relink in app, Tag details,
+   Delete spool. Unknown Bambu: Add new, Add and weigh, Link in
    app, Tag details. No material: Create in app, Link in app, Tag details. Blank:
    Link in app, Tag details. No app: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
@@ -127,17 +126,17 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     With After scan = Weigh a scan of a spool in Bambuddy opens Weight at
     once (not one Auto-save new just added, not a fresh lookup after a
     link); Back shows its result.
-13. **Saving / Deleting / Updating** (title per action): the spool
+13. **Saving / Adding / Deleting / Updating** (title per action): the spool
     (`- 590 g` net when saving), an indeterminate bar, "Waiting for
     Bambuddy". No keys; Error · No app reply after 10 s.
 14. **Saved**: big check, "Saved", `PLA Basic - 590 g left`; after 1.3 s
     (or OK / Back) Ready with the Saved bar.
-15. **Saved as new**: the spool and colour, `Spool #31 - 1000 g`. OK
-    Weigh, ▶ Next (Ready with the `Saved new ...` bar), Back Ready. No time
-    limit. Shown after Save on a new spool, and at once after a scan when
+15. **Added to Bambuddy**: the spool and colour, `Spool #31 - 1000 g`. OK
+    Weigh, ▶ Next (Ready with the `Added ...` bar), Back Ready. No time
+    limit. Shown after Add on a new spool, and at once after a scan when
     Auto-save new is on and the host created the spool.
-16. **Reset to full** (menu item of the same name): `1000 g left`, a 3 s progress bar and
-    "Next spool in 3 s". ◀ Undo, OK Weigh, Back Ready.
+16. **Marked as new** (Mark as new, in the menu or ▶ on a known result):
+    `1000 g left - full`, a 3 s progress bar and "Next spool in 3 s". ◀ Undo, OK Weigh, Back Ready.
 17. **Marked as empty**: `0 g left - archived`, the same bar. ◀ Undo; OK and
     Back go to Ready.
 18. **Deleted**: "Tag is free to reuse", the same bar, no Undo. When the
@@ -167,7 +166,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     resends the same intent under its id; otherwise there is no Retry chip
     and ◀, ▶ and Back go home.
 21. **Settings** (▲▼ select, ◀▶ change the value in place, Back saves and
-    returns home; four rows show): Connection (Auto / USB / Bluetooth; Auto
+    returns home; four rows show): Connection (Auto, the default / USB / Bluetooth; Auto
     runs both and the first host to say hello wins), Auto-save
     new (Off / On), After scan (Show / Weigh), Weigh as (Gross / Net),
     Feedback (Vibro+LED / LED / Off), Sound (Off / On), Version (OK opens

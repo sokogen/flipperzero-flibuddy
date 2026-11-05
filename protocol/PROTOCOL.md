@@ -1,8 +1,9 @@
 # flipper-flibuddy wire protocol, version 2
 
-The Flipper app and the host (Mac now, iPad/iPhone later) exchange
-newline-delimited JSON over a byte stream: USB CDC in Phase 1, BLE serial
-later. The Flipper is a thin client: it sends raw tag dumps and user
+The Flipper app and the host (the Mac, iPhone, iPad and Apple Watch apps)
+exchange newline-delimited JSON over a byte stream: USB CDC (the Mac) or
+Bluetooth LE (FliBuddy's own GATT service; the Flipper's Connection setting
+picks one or, by default, runs both). The Flipper is a thin client: it sends raw tag dumps and user
 actions, the host parses tags, talks to Bambuddy and sends back the spool's
 fields, which the Flipper lays out itself, and display strings for errors.
 

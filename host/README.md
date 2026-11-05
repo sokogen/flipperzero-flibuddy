@@ -262,6 +262,10 @@ Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
                                  set DEVELOPMENT_TEAM
 ```
 
+The iPhone, iPad and watch accept only `https://` Bambuddy addresses
+(`Settings.requiresHTTPS`; no App Transport Security exception, an `http://`
+address is refused with a message); the Mac also accepts plain http.
+
 The apps have no logic of their own: everything is in `FliBuddyCore`
 and `FliBuddyUI`, used as local package products. The Info.plists are
 generated from `INFOPLIST_KEY_*` settings (Bluetooth on both, camera on the
@@ -282,6 +286,12 @@ sidebar (`NavigationSplitView`) when the window is wider than tall and
 feed as tiles in a `LazyVGrid`: at least 300 pt wide, at most three to a
 row (`FeedLayout.tileColumns`), so a 13" iPad fits three and an 11" two.
 The iPhone is portrait only (`project.yml`): no landscape iPhone is designed.
+
+On a first run the feed shows an empty state per missing step (no Bambuddy
+set up, no Flipper chosen). The iPhone and iPad do not start Bluetooth, so
+do not show its permission prompt, until a Flipper is chosen with **Scan for
+Flipper** (`linkWaitsForChosenFlipper`); the watch connects to the first
+Flipper found.
 
 The iPhone and the portrait iPad show a glass banner over the feed
 (`ConnectionBanner`) in place of the Mac's status bar: one line when one

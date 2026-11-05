@@ -53,6 +53,14 @@ table back to the rows.
 `tests/test_fixtures.py` fails when a committed synthetic fixture differs
 from what its generator produces.
 
+## Simulator screenshots
+
+`sim_shot.sh` screenshots the iOS, iPadOS or watchOS app in its demo mode
+(`-FliBuddyDemo YES`) on a simulator, after `make apple-project
+apple-build`; run it without arguments for its usage. `store_shots.sh [dir]`
+takes the App Store set with it. Both are described in "Demo mode and
+simulator screenshots" and "App Store packaging" of `host/README.md`.
+
 ## Dev bridge
 
 `bridge/` connects the Flipper app to Bambuddy over USB serial, for the

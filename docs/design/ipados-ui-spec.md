@@ -69,8 +69,9 @@ NavigationSplitView {
       .keyboardShortcut(.delete) }                    // shows "⌘⌫" trailing
 } detail: {
   ScrollView {
-    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300))]) {
-      ForEach(feed) { FeedTile($0) } } }              // at most 3 columns
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible()),
+                             count: FeedLayout.tileColumns(width: w))) {
+      ForEach(feed) { FeedTile($0) } } }              // min 300 pt, at most 3 columns
 }
 // portrait: TabView (top tab bar), banner, same tiles
 // compact width: the iPhone TabView and cards
@@ -97,7 +98,7 @@ Symbols and tints for the status rows are the macOS status-bar table
 
 ## Feed tiles (both orientations)
 
-The tiles sit in an adaptive grid on `systemGroupedBackground`: at least
+The tiles sit in a grid of `.flexible()` columns (`FeedLayout.tileColumns`) on `systemGroupedBackground`: at least
 300 pt wide, 12 apart across and down, 28 pt side margins, top-aligned (a
 tile is as tall as its content), **at most three to a row**. That makes
 three on a 13" iPad (1366 / 1376 pt landscape beside the sidebar, 1024 /
@@ -248,12 +249,11 @@ Layout
   measuring view does not change what the geometry reports. The first frame
   (size zero) is the portrait layout until the size arrives.
 - The grid has as many flexible columns as `FeedLayout.tileColumns` allows
-  (`.adaptive` cannot cap the count at three), measured from the grid's
+  (`.adaptive` cannot cap the count at three: min 300 pt, max 3), measured from the grid's
   own width. By eye: three on a 13", two on an 11", in both orientations.
 - Rotating swaps `NavigationSplitView` and `TabView`, so the feed and the
   Settings form are built again. The Settings model lives in `RootView`,
-  so a field being typed keeps its draft (and commits as the old form
-  goes); the focused row takes the keyboard back from the feed. Unlike
+  so a field being typed keeps its draft; the focused row takes the keyboard back from the feed. Unlike
   before, leaving the Settings pane keeps the model too, as the iPhone's
   tab always did. The QR cover hangs off the root (`settingsSession`) and
   its scan lives in the model (`QRScanCover`), so a rotation keeps both;
