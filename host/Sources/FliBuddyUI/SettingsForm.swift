@@ -412,8 +412,9 @@ private struct SettingsSession: ViewModifier {
                     get: { model?.qrCover.isPresenting ?? false },
                     set: { if !$0 { model?.qrCover.dismissed() } }
                 ),
-                // However the cover goes, a scan still open ends.
-                onDismiss: { model?.qrCover.dismissed() }
+                // However the cover goes, a scan still open ends; but not one
+                // started while the cover was animating away.
+                onDismiss: { model?.qrCover.dismissAnimationEnded() }
             ) {
                 if let model {
                     QRScannerCover(scanner: model.qrCover)

@@ -30,6 +30,14 @@ public final class QRScanCover: QRScanning {
         continuation = nil
     }
 
+    /// The cover's dismissal animation ended (`onDismiss`). A scan started
+    /// during the animation raised the cover again: the dismissal belongs
+    /// to the scan before it, so it ends nothing.
+    public func dismissAnimationEnded() {
+        guard !isPresenting else { return }
+        dismissed()
+    }
+
     /// The cover went away (closed, swiped down, or its presenter torn
     /// down): a scan still open ends as cancelled.
     public func dismissed() {

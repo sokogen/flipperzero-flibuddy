@@ -18,7 +18,10 @@ enum AppHost {
     static let model: HostModel = {
         // Before the host model: loading the settings already logs.
         Log.bootstrap(appName: "FliBuddy", level: .info)
-        if isDemo { return DemoFixtures.makeHost() }
+        if isDemo {
+            CameraQRScanner.accessOverride = .authorized
+            return DemoFixtures.makeHost()
+        }
         // Bluetooth is the only transport on iOS; there are no serial ports.
         return HostModel(makeTransport: FlipperLink.defaultTransport, discoverPorts: { [] })
     }()

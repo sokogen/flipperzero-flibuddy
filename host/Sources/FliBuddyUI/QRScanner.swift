@@ -7,13 +7,16 @@ import VisionKit
 /// Whether the camera scanner can run. The scan itself is the settings
 /// model's `QRScanCover`, which `QRScannerCover` ends.
 @MainActor
-enum CameraQRScanner {
+public enum CameraQRScanner {
+    /// Replaces the device's answer: the demo (a simulator has no camera)
+    /// sets `.authorized` so the Settings screenshots read as on a phone;
+    /// nothing in the demo starts the scanner. `nil` asks the device.
+    public static var accessOverride: CameraAccess?
+
     /// No scanner on this device, camera access not asked yet, denied
     /// (or restricted), or allowed.
     static var access: CameraAccess {
-        // The demo's Settings screenshots (a simulator has no camera) read
-        // as on a phone; nothing in the demo starts the scanner.
-        if DemoFixtures.isRequested() { return .authorized }
+        if let accessOverride { return accessOverride }
         guard DataScannerViewController.isSupported else { return .unsupported }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .notDetermined: return .notDetermined

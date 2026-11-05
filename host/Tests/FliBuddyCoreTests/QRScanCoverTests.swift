@@ -32,6 +32,31 @@ struct QRScanCoverTests {
         cover.finish(.success("late"))
     }
 
+    @Test func theOldCoversDismissalDoesNotCancelANewScan() async throws {
+        // The first cover is still animating away when a new scan raises it again;
+        // the dismissal that follows belongs to the first scan.
+        let cover = QRScanCover()
+        let first = Task { try await cover.scan() }
+        #expect(await eventually { cover.isPresenting })
+        cover.finish(.success("first"))
+        #expect(try await first.value == "first")
+        let second = Task { try await cover.scan() }
+        #expect(await eventually { cover.isPresenting })
+
+        cover.dismissAnimationEnded()
+
+        #expect(cover.isPresenting)
+        cover.finish(.success("second"))
+        #expect(try await second.value == "second")
+    }
+
+    @Test func aDismissalWithNothingPresentedIsHarmless() async {
+        // Torn down with the cover already lowered: nothing open, harmless.
+        let cover = QRScanCover()
+        cover.dismissAnimationEnded()
+        #expect(!cover.isPresenting)
+    }
+
     @Test func aNewScanEndsTheOneBefore() async throws {
         let cover = QRScanCover()
         let first = Task { try await cover.scan() }
