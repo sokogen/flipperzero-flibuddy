@@ -214,3 +214,25 @@ public struct Sidebar: Equatable, Sendable {
         )
     }
 }
+
+/// Where the iPhone's card list scrolls a row whose weight field takes the
+/// number pad, so the field and Save stay above it.
+public enum FocusScrollAnchor: Equatable, Sendable {
+    /// The card's top at the top of the list: the whole card fits above
+    /// the number pad.
+    case rowTop
+    /// The card's bottom, its entry block with Save last, just above the
+    /// number pad: at the accessibility text sizes the card is taller than
+    /// the space left, and its top would push Save under the keyboard.
+    case entryAboveKeyboard
+
+    public static func forCard(isAccessibilitySize: Bool) -> FocusScrollAnchor {
+        isAccessibilitySize ? .entryAboveKeyboard : .rowTop
+    }
+
+    /// The space above the number pad is only known once it is up, so the
+    /// list scrolls again then.
+    public var rescrollsWhenKeyboardShows: Bool {
+        self == .entryAboveKeyboard
+    }
+}

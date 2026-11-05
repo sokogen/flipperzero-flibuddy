@@ -284,3 +284,18 @@ struct SettingsWidthTests {
         #expect(FeedLayout.settingsSideMargin(width: 680) == FeedLayout.settingsMinimumMargin)
     }
 }
+
+@Suite("Scrolling to the focused card")
+struct FocusScrollAnchorTests {
+    @Test func aCardThatFitsGoesToTheTop() {
+        #expect(FocusScrollAnchor.forCard(isAccessibilitySize: false) == .rowTop)
+    }
+
+    /// At the accessibility text sizes a card is taller than the space above
+    /// the number pad: its bottom, the field and Save, goes just above it.
+    @Test func aTallCardShowsItsEntryAboveTheKeyboard() {
+        #expect(FocusScrollAnchor.forCard(isAccessibilitySize: true) == .entryAboveKeyboard)
+        #expect(FocusScrollAnchor.entryAboveKeyboard.rescrollsWhenKeyboardShows)
+        #expect(!FocusScrollAnchor.rowTop.rescrollsWhenKeyboardShows)
+    }
+}

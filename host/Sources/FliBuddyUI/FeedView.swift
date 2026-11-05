@@ -24,6 +24,8 @@ public struct FeedView: View {
     @Environment(\.feedLayout) private var layout
     /// Scrolling to the focused row jumps instead of gliding.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// At the accessibility sizes the focused card shows its entry block.
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// The tile grid's width, which sets its columns.
     @ViewState private var gridWidth: CGFloat = 0
     #endif
@@ -215,7 +217,9 @@ public struct FeedView: View {
     }
 
     /// One card per row; the focused row scrolls to the top so its entry
-    /// block, Save included, stays clear of the number pad.
+    /// block, Save included, stays clear of the number pad. A card taller
+    /// than that space (accessibility sizes) puts its bottom, the entry
+    /// block, just above the number pad instead, again once the pad is up.
     private var cardList: some View {
         ScrollViewReader { proxy in
             List {
@@ -230,11 +234,24 @@ public struct FeedView: View {
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
             .scrollDismissesKeyboard(.immediately)
-            .onChange(of: focusedField) { _, row in
-                guard let row else { return }
-                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .top) }
+            .onChange(of: focusedField) { _, row in scrollToFocused(row, proxy: proxy) }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
+                if focusAnchor.rescrollsWhenKeyboardShows { scrollToFocused(focusedField, proxy: proxy) }
             }
         }
+    }
+
+    private var focusAnchor: FocusScrollAnchor {
+        FocusScrollAnchor.forCard(isAccessibilitySize: typeSize.isAccessibilitySize)
+    }
+
+    private func scrollToFocused(_ row: FeedRow.ID?, proxy: ScrollViewProxy) {
+        guard let row else { return }
+        let anchor: UnitPoint = switch focusAnchor {
+        case .rowTop: .top
+        case .entryAboveKeyboard: .bottom
+        }
+        withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: anchor) }
     }
     #endif
 }
@@ -607,6 +624,7 @@ struct WeightEntry: View {
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                 .lineLimit(Self.readoutLines)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

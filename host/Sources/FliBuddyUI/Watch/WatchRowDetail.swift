@@ -61,8 +61,6 @@ struct WatchWeightEntry: View {
     let onSaved: (FeedRow.ID) -> Void
     @ViewState private var velocity = 0.0
     @FocusState private var isFocused: Bool
-    /// The weight is the one custom-sized type: 50 pt at the default size.
-    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 50
 
     var body: some View {
         let id = item.id
@@ -71,27 +69,22 @@ struct WatchWeightEntry: View {
         let line = WatchRowScreen.entryLine(item, value: grams, mode: mode, hostError: feed.error(for: id))
         let canSave = feed.canSave(id)
         VStack(spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(grams.map(String.init) ?? "0")
-                    .font(.system(size: weightSize, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(grams == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                Text("g")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .focusable()
-            .focused($isFocused)
-            .digitalCrownRotation(
-                detent: crown,
-                from: Double(CrownWeight.range.lowerBound), through: Double(CrownWeight.range.upperBound), by: 1,
-                sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true,
-                onChange: { velocity = $0.velocity }
-            )
-            .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
-            .accessibilityValue(grams.map { "\($0) grams" } ?? WatchRowScreen.turnTheCrownText)
+            WatchWeightNumber(grams: grams)
+                // "9999 g" stays whole on a 41 mm watch at the largest
+                // sizes: it stops growing at the third accessibility size
+                // and shrinks to fit below that.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                .frame(maxWidth: .infinity, minHeight: 54)
+                .focusable()
+                .focused($isFocused)
+                .digitalCrownRotation(
+                    detent: crown,
+                    from: Double(CrownWeight.range.lowerBound), through: Double(CrownWeight.range.upperBound), by: 1,
+                    sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true,
+                    onChange: { velocity = $0.velocity }
+                )
+                .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
+                .accessibilityValue(grams.map { "\($0) grams" } ?? WatchRowScreen.turnTheCrownText)
             Text(line.text)
                 .font(.footnote)
                 .lineLimit(1)
@@ -130,6 +123,27 @@ struct WatchWeightEntry: View {
                 feed.setWeightText(weight.text, for: id)
             }
         )
+    }
+}
+
+/// The weight and its `g`, on one line, shrinking to 40 % before it would
+/// be cut.
+struct WatchWeightNumber: View {
+    let grams: Int?
+    /// The weight is the one custom-sized type: 50 pt at the default size.
+    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 50
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(grams.map(String.init) ?? "0")
+                .font(.system(size: weightSize, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(grams == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+            Text("g")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.4)
     }
 }
 

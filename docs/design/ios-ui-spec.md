@@ -314,7 +314,9 @@ weight; the row reads `Saving…` meanwhile, with no field and no buttons.
 
 1. A row turns Enter weight (a scan of a known spool, or a tap on a saved
    or added row; a row not in Bambuddy raises nothing). The list scrolls it
-   to the top and its field takes focus; the system number pad
+   to the top (at the accessibility text sizes, where the card is taller
+   than the space above the pad, its entry block goes just above the pad
+   instead) and its field takes focus; the system number pad
    (`.numberPad`) rises with the suggestion selected.
 2. The first key replaces the selection (a lone `0` is replaced too); ⌫
    (`delete.left`) deletes one digit; at most four digits (0…9999).

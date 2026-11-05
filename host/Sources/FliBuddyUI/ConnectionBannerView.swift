@@ -27,6 +27,7 @@ struct ConnectionBannerView: View {
         // Wraps up to the second accessibility size, so the capsule leaves
         // the feed room; VoiceOver and Large Content read the full phrase.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        .accessibilityShowsLargeContentViewer()
         .glassEffect(.regular, in: Self.shape)
         .overlay { Self.shape.strokeBorder(.separator, lineWidth: 0.5) }
         .padding(.horizontal, 16)
