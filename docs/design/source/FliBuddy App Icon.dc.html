@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FliBuddy App Icon</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>body{margin:0;background:#E4E2DE;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}</style>
+</helmet>
+<div style="width:1880px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:56px">
+
+<header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
+  <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
+  <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">Иконка приложения</h1>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">NFC-метка катушки во весь диаметр: светлый диск со стальным ободом, стальные кольца антенны, которые слева огибают контактную площадку, и чип с площадкой в серповидном окне — как настоящая метка с алюминиевой антенной. Чип и площадки оранжевые — акцент от подсветки экрана Flipper. Одна форма на всех платформах, от 1024 px до 10×10 пикселей на Flipper.</p>
+</header>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">00</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Как пришли к метке</h2></div>
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="padding:28px;border-radius:28px;background:#D8DEE8">
+        <div style="width:240px;height:240px;border-radius:54px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 14px 30px rgba(0,0,0,.16)">
+          <svg viewBox="0 0 1024 1024" width="240" height="240" style="display:block">
+            <rect width="1024" height="1024" fill="#F5F1EA"></rect>
+            <circle cx="512" cy="512" r="352" fill="#2A2B2E"></circle><circle cx="512" cy="512" r="312" fill="#FF7A1A"></circle>
+            <g fill="none" stroke="#E0600A" stroke-width="9"><circle cx="512" cy="512" r="282"></circle><circle cx="512" cy="512" r="252"></circle><circle cx="512" cy="512" r="222"></circle><circle cx="512" cy="512" r="192"></circle></g>
+            <circle cx="512" cy="512" r="166" fill="#2A2B2E"></circle><circle cx="512" cy="512" r="44" fill="#F5F1EA"></circle>
+            <g fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"><path d="M576.3 458 A84 84 0 0 1 576.3 566"></path><path d="M607 432.3 A124 124 0 0 1 607 591.7"></path><path d="M447.7 458 A84 84 0 0 0 447.7 566"></path><path d="M417 432.3 A124 124 0 0 0 417 591.7"></path></g>
+          </svg>
+        </div>
+      </div>
+      <span style="font-size:16px;font-weight:600">Катушка с волнами</span>
+      <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:296px">Первый вариант: абстрактный знак «радио» в ступице.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="padding:28px;border-radius:28px;background:#D8DEE8">
+        <div style="width:240px;height:240px;border-radius:54px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 14px 30px rgba(0,0,0,.16)">
+          <svg viewBox="0 0 1024 1024" width="240" height="240" style="display:block">
+            <rect width="1024" height="1024" fill="#F5F1EA"></rect>
+            <circle cx="512" cy="512" r="352" fill="#2A2B2E"></circle><circle cx="512" cy="512" r="312" fill="#FF7A1A"></circle>
+            <g fill="none" stroke="#E0600A" stroke-width="9"><circle cx="512" cy="512" r="282"></circle><circle cx="512" cy="512" r="252"></circle><circle cx="512" cy="512" r="222"></circle><circle cx="512" cy="512" r="192"></circle></g>
+            <circle cx="512" cy="512" r="166" fill="#2A2B2E"></circle>
+            <circle cx="512" cy="512" r="150" fill="#FBF8F3"></circle>
+            <path d="{{ hubCoil }}" fill="none" stroke="#2A2B2E" stroke-width="6"></path><g fill="#2A2B2E"><circle cx="412" cy="512" r="18"></circle><rect x="518" y="468" width="44" height="40" rx="5"></rect><rect x="533" y="500" width="14" height="34"></rect><circle cx="540" cy="546" r="16"></circle></g><path d="M546 561 Q557 571 552 581" fill="none" stroke="#2A2B2E" stroke-width="4" stroke-linecap="round"></path>
+          </svg>
+        </div>
+      </div>
+      <span style="font-size:16px;font-weight:600">Метка в ступице</span>
+      <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:296px">Рисунок метки по фото, но маленький: на экране «Домой» антенна сливается в серое пятно.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="padding:28px;border-radius:28px;background:#D8DEE8;box-shadow:inset 0 0 0 3px #0066CC">
+        <div style="width:240px;height:240px;border-radius:54px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 14px 30px rgba(0,0,0,.16)">
+          <svg viewBox="0 0 1024 1024" width="240" height="240" style="display:block">
+            <rect width="1024" height="1024" fill="#EEF1F4"></rect>
+            <circle cx="512" cy="512" r="372" fill="#E1E6EC"></circle>
+            <circle cx="512" cy="512" r="352" fill="#FAFBFC"></circle><circle cx="512" cy="512" r="345" fill="none" stroke="#6B7682" stroke-width="14"></circle>
+            <path d="{{ coil }}" fill="none" stroke="#8C97A3" stroke-width="12"></path>
+            <g fill="#FF7A1A"><circle cx="297" cy="512" r="40"></circle><rect x="520" y="424" width="76" height="72" rx="10"></rect><rect x="546" y="490" width="24" height="60"></rect><circle cx="558" cy="570" r="28"></circle></g>
+            <g fill="#FAFBFC"><circle cx="284" cy="499" r="7"></circle><circle cx="310" cy="499" r="7"></circle><circle cx="284" cy="525" r="7"></circle><circle cx="310" cy="525" r="7"></circle><circle cx="547" cy="559" r="6"></circle><circle cx="569" cy="559" r="6"></circle><circle cx="547" cy="581" r="6"></circle><circle cx="569" cy="581" r="6"></circle></g>
+            <path d="M562 597 Q577 611 572 628" fill="none" stroke="#FF7A1A" stroke-width="8" stroke-linecap="round"></path>
+          </svg>
+        </div>
+      </div>
+      <span style="font-size:16px;font-weight:600">Метка во весь диаметр — выбрано</span>
+      <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:296px">Светлый диск со стальным ободом, восемь стальных колец антенны, оранжевые площадка слева и чип справа от центра.</span>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">01</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">iOS и iPadOS · варианты</h2></div>
+  <div style="display:flex;gap:40px;flex-wrap:wrap">
+    <sc-for list="{{ ios }}" as="v" hint-placeholder-count="3">
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <div style="padding:36px;border-radius:32px;background:{{ v.stage }}">
+          <div style="width:320px;height:320px;border-radius:72px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 18px 40px rgba(0,0,0,.18)">
+            <svg viewBox="0 0 1024 1024" width="320" height="320" style="display:block">
+              <rect width="1024" height="1024" fill="{{ v.bg }}"></rect>
+              <circle cx="512" cy="512" r="372" fill="{{ v.glow }}"></circle>
+              <circle cx="512" cy="512" r="352" fill="{{ v.disk }}"></circle><circle cx="512" cy="512" r="345" fill="none" stroke="{{ v.rim }}" stroke-width="14"></circle>
+              <path d="{{ coil }}" fill="none" stroke="{{ v.coil }}" stroke-width="12"></path>
+              <g fill="{{ v.chip }}"><circle cx="297" cy="512" r="40"></circle><rect x="520" y="424" width="76" height="72" rx="10"></rect><rect x="546" y="490" width="24" height="60"></rect><circle cx="558" cy="570" r="28"></circle></g>
+              <g fill="{{ v.disk }}"><circle cx="284" cy="499" r="7"></circle><circle cx="310" cy="499" r="7"></circle><circle cx="284" cy="525" r="7"></circle><circle cx="310" cy="525" r="7"></circle><circle cx="547" cy="559" r="6"></circle><circle cx="569" cy="559" r="6"></circle><circle cx="547" cy="581" r="6"></circle><circle cx="569" cy="581" r="6"></circle></g>
+              <path d="M562 597 Q577 611 572 628" fill="none" stroke="{{ v.chip }}" stroke-width="8" stroke-linecap="round"></path>
+            </svg>
+          </div>
+        </div>
+        <span style="font-size:16px;font-weight:600">{{ v.name }}</span>
+        <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:390px">{{ v.d }}</span>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">02</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">macOS и watchOS</h2></div>
+  <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="width:392px;height:392px;border-radius:32px;background:linear-gradient(160deg,#C9D3E0,#8EA0B8);display:flex;align-items:center;justify-content:center">
+        <div style="width:322px;height:322px;display:flex;align-items:center;justify-content:center">
+          <div style="width:258px;height:258px;border-radius:58px;overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.2),0 10px 24px rgba(0,0,0,.28)">
+            <svg viewBox="0 0 1024 1024" width="258" height="258" style="display:block">
+              <rect width="1024" height="1024" fill="#E6EAEF"></rect><rect width="1024" height="512" fill="#FFFFFF" opacity=".35"></rect>
+              <circle cx="512" cy="512" r="352" fill="#FAFBFC"></circle><circle cx="512" cy="512" r="345" fill="none" stroke="#6B7682" stroke-width="14"></circle>
+              <path d="{{ coil }}" fill="none" stroke="#8C97A3" stroke-width="12"></path>
+              <g fill="#FF7A1A"><circle cx="297" cy="512" r="40"></circle><rect x="520" y="424" width="76" height="72" rx="10"></rect><rect x="546" y="490" width="24" height="60"></rect><circle cx="558" cy="570" r="28"></circle></g>
+              <g fill="#FAFBFC"><circle cx="284" cy="499" r="7"></circle><circle cx="310" cy="499" r="7"></circle><circle cx="284" cy="525" r="7"></circle><circle cx="310" cy="525" r="7"></circle><circle cx="547" cy="559" r="6"></circle><circle cx="569" cy="559" r="6"></circle><circle cx="547" cy="581" r="6"></circle><circle cx="569" cy="581" r="6"></circle></g>
+              <path d="M562 597 Q577 611 572 628" fill="none" stroke="#FF7A1A" stroke-width="8" stroke-linecap="round"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <span style="font-size:16px;font-weight:600">macOS</span>
+      <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:392px">Сетка 1024 с полем 100 px, квадрат-сквиркл 824 px и системная тень. В тёмном Dock — тёмный вариант из 01.</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="width:392px;height:392px;border-radius:32px;background:#0B0B0C;display:flex;align-items:center;justify-content:center">
+        <div style="width:236px;height:236px;border-radius:50%;overflow:hidden">
+          <svg viewBox="0 0 1024 1024" width="236" height="236" style="display:block">
+            <rect width="1024" height="1024" fill="#141416"></rect>
+            <g transform="translate(512 512) scale(1.1) translate(-512 -512)">
+              <circle cx="512" cy="512" r="352" fill="#1C1E21"></circle><circle cx="512" cy="512" r="345" fill="none" stroke="#5E6873" stroke-width="14"></circle>
+              <path d="{{ coil }}" fill="none" stroke="#9AA5B1" stroke-width="13"></path>
+              <g fill="#FF8A2B"><circle cx="297" cy="512" r="40"></circle><rect x="520" y="424" width="76" height="72" rx="10"></rect><rect x="546" y="490" width="24" height="60"></rect><circle cx="558" cy="570" r="28"></circle></g>
+              <path d="M562 597 Q577 611 572 628" fill="none" stroke="#FF8A2B" stroke-width="9" stroke-linecap="round"></path>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <span style="font-size:16px;font-weight:600">watchOS</span>
+      <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:392px">Круг на всю площадь, без светлого фона. Графитовый диск, стальная антенна, оранжевые чип и площадки. Метка крупнее на 10%, точки на площадках убраны — на часах они не видны.</span>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">03</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Мелкие размеры</h2></div>
+  <div style="display:flex;gap:36px;align-items:flex-end;background:#fff;border-radius:18px;padding:32px">
+    <sc-for list="{{ sizes }}" as="z" hint-placeholder-count="5">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="width:{{ z.px }};height:{{ z.px }};border-radius:{{ z.r }};overflow:hidden;box-shadow:0 0 0 .5px rgba(0,0,0,.15)">
+          <svg viewBox="0 0 1024 1024" width="100%" height="100%" style="display:block">
+            <rect width="1024" height="1024" fill="#EEF1F4"></rect>
+            <circle cx="512" cy="512" r="352" fill="#FAFBFC"></circle><circle cx="512" cy="512" r="342" fill="none" stroke="#6B7682" stroke-width="20"></circle>
+            <path d="{{ coilS }}" fill="none" stroke="#8C97A3" stroke-width="24"></path>
+            <g fill="#FF7A1A"><circle cx="302" cy="512" r="44"></circle><rect x="520" y="420" width="92" height="80" rx="12"></rect><rect x="552" y="494" width="28" height="50"></rect><circle cx="566" cy="575" r="34"></circle></g>
+          </svg>
+        </div>
+        <span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">{{ z.label }}</span>
+      </div>
+    </sc-for>
+    <span style="font-size:13.5px;line-height:1.45;color:#424245;max-width:360px;margin-left:auto">Ниже 64 px — четыре толстых кольца вместо восьми, площадки без точек, без дорожки. Обод толще. Силуэт «стальные кольца, загиб слева, оранжевый чип» держится до 29 px.</span>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">04</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Flipper Zero · 10×10, 1 бит</h2></div>
+  <div style="display:flex;gap:40px;align-items:center;background:#fff;border-radius:18px;padding:32px">
+    <div style="display:grid;grid-template-columns:repeat(10,24px);gap:2px;padding:20px;background:#FF8A2A;border-radius:12px">
+      <sc-for list="{{ fz }}" as="p" hint-placeholder-count="100"><span style="width:24px;height:24px;background:{{ p.c }}"></span></sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:520px">
+      <span style="font-size:16px;font-weight:600">Тот же силуэт в пикселях</span>
+      <span style="font-size:13.5px;line-height:1.5;color:#424245">Контур и концентрические кольца. В 10×10 загиб антенны и чип не помещаются, поэтому остаются только круги. Файл <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace">icon.png</span> 10×10 для <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace">application.fam</span> (fap_icon). Так он выглядит в списке Apps → Tools — см. <a href="FliBuddy Flipper.dc.html">экран 26</a>.</span>
+    </div>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const APP = ['..######..', '.#......#.', '#..####..#', '#.#....#.#', '#.#.##.#.#', '#.#.##.#.#', '#.#....#.#', '#..####..#', '.#......#.', '..######..'];
+// NFC antenna loops: outer loops are full circles around the centre; inner loops follow the centre
+// circle on the right and bend into ")" arcs around the left contact pad, leaving a crescent for the chip.
+function antenna(R0, pitch, n, d, r0) {
+  const C = 512, f = x => x.toFixed(1);
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const R = R0 - pitch * i, r = r0 + pitch * i;
+    if (r <= R - d) { s += `M${C + R} ${C} A${R} ${R} 0 1 1 ${C - R} ${C} A${R} ${R} 0 1 1 ${C + R} ${C} Z `; continue; }
+    const a = (R * R - r * r + d * d) / (2 * d), h = Math.sqrt(R * R - a * a), x = C - a;
+    s += `M${f(x)} ${f(C - h)} A${R} ${R} 0 ${a > 0 ? 1 : 0} 1 ${f(x)} ${f(C + h)} A${r} ${r} 0 ${a > d ? 1 : 0} 0 ${f(x)} ${f(C - h)} Z `;
+  }
+  return s;
+}
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      coil: antenna(300, 24, 8, 215, 34),
+      coilS: antenna(296, 44, 4, 210, 40),
+      hubCoil: antenna(140, 12, 6, 100, 16),
+      ios: [
+        {name: 'Светлый', d: 'Холодный светлый фон, почти белый диск метки со стальным ободом. Антенна — светлая сталь, чип и площадки — оранжевые, от подсветки экрана Flipper.', stage: '#D8DEE8', bg: '#EEF1F4', glow: '#E1E6EC', disk: '#FAFBFC', rim: '#6B7682', coil: '#8C97A3', chip: '#FF7A1A'},
+        {name: 'Тёмный', d: 'Для тёмного режима: диск графитовый, антенна и обод — сталь, чип и площадки — чуть более яркий оранжевый.', stage: '#26272B', bg: '#121314', glow: '#1A1B1D', disk: '#1C1E21', rim: '#5E6873', coil: '#9AA5B1', chip: '#FF8A2B'},
+        {name: 'Тонированный', d: 'Монохромный слой в оттенках серого — система окрашивает его в цвет пользователя. Чип белый, самый яркий элемент.', stage: '#3A4A5E', bg: '#0B0B0C', glow: '#141415', disk: '#1C1C1E', rim: '#6A6A6E', coil: '#BDBDBD', chip: '#FFFFFF'},
+      ],
+      sizes: [['180', '180px', '40px'], ['120', '120px', '27px'], ['60', '60px', '13px'], ['40', '40px', '9px'], ['29', '29px', '7px']].map(([label, px, r]) => ({label: label + ' px', px, r})),
+      fz: APP.join('').split('').map(ch => ({c: ch === '#' ? 'rgba(12,8,4,.92)' : 'rgba(0,0,0,.04)'})),
+    };
+  }
+}
+</script>
+</body>
+</html>

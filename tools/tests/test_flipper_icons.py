@@ -1,5 +1,5 @@
 """The Flipper app's XBM icons in flipper/images/, generated from the
-bitmaps of the design prototype (docs/design/flipper/flipper-ui.js)."""
+bitmaps of the design prototype (docs/design/source/flipper-ui.js)."""
 
 from pathlib import Path
 

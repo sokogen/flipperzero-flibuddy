@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>body{margin:0;background:#D9DBE0;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}@keyframes fb-spin{to{transform:rotate(360deg)}}input::placeholder{color:rgba(128,128,134,.7)}</style>
+</helmet>
+<div style="width:2580px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:64px">
+
+<header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
+  <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
+  <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">macOS</h1>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">One main window and a Settings window. USB or Bluetooth to the Flipper. Built for a keyboard on the bench: the weight field takes focus by itself, ⌘S saves. Use the Tweaks panel to switch between the macOS 27 and macOS 14 rendering.</p>
+</header>
+
+<section style="display:flex;gap:40px;align-items:flex-start">
+  <div style="width:340px;flex:none;display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">Main window</span><span style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">Live prototype; both windows show the same session. Type in the focused field, Tab to Net/Gross, Return or ⌘S to save. Click a saved row to weigh it again.</span></div>
+    <pre style="margin:0;padding:16px;border-radius:14px;background:#fff;font:12px/1.55 ui-monospace,'SF Mono',Menlo,monospace;color:#1D1D1F;white-space:pre-wrap">WindowGroup("FliBuddy") {
+  FeedView()
+    List(selection: $focusedRow) {
+      ForEach(feed) { FeedRow($0) }
+    }.listStyle(.inset)
+    .toolbar {
+      Button("Clear", systemImage: "trash")
+        .keyboardShortcut(.delete)
+      SettingsLink { Label("Settings",
+        systemImage: "gearshape") }
+    }
+    .safeAreaInset(edge: .bottom) {
+      StatusBar()   // Flipper · Bambuddy
+    }
+    .overlay { ContentUnavailableView }
+    .sheet(item: $sheet) {
+      NewSpoolForm / LinkPicker }
+    .confirmationDialog("Clear the feed?")
+}
+Settings { SettingsForm()
+  .formStyle(.grouped) }</pre>
+    <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Prototype controls</span><button onClick="{{ ctl.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Reset</button></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag to the Flipper</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.scanKnown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Known spool</button>
+          <button onClick="{{ ctl.scanUnknown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">New Bambu tag</button>
+          <button onClick="{{ ctl.scanBlank }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Blank NTAG</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">On the Flipper</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.flipperSave }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Save waiting row</button>
+          <button onClick="{{ ctl.askCreate }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Ask to create</button>
+          <button onClick="{{ ctl.askLink }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">Ask to link</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Next save</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ ctl.toggleFail }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ ctl.failBg }};color:{{ ctl.failFg }}">Fails</button>
+          <button onClick="{{ ctl.toggleTimeout }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ ctl.toBg }};color:{{ ctl.toFg }}">Flipper times out</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px;align-items:center;font-size:13px">
+        <span style="color:#6E6E73">Flipper</span>
+        <select value="{{ ctl.flipper }}" onChange="{{ ctl.setFlipper }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="none">No Flipper</option><option value="usb">USB</option><option value="adv">BLE advertising</option><option value="ble">BLE connected</option><option value="nohello">Connected, no hello</option></select>
+        <span style="color:#6E6E73">Bambuddy</span>
+        <select value="{{ ctl.bambuddy }}" onChange="{{ ctl.setBambuddy }}" style="font-size:13px;padding:4px;border-radius:6px"><option value="unchecked">Not checked yet</option><option value="ready">Ready</option><option value="unreachable">Unreachable</option><option value="noperm">Key lacks permission</option><option value="spoolman">Spoolman mode</option><option value="nocolors">Colour names unavailable</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <sc-for list="{{ windows }}" as="w" hint-placeholder-count="2">
+      <div style="{{ w.vars }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">{{ w.label }}</span>
+          <div style="position:relative;width:{{ w.w }};height:{{ w.h }};border-radius:{{ w.radius }};overflow:hidden;background:var(--fb-win);box-shadow:0 0 0 .5px rgba(0,0,0,.4),0 22px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;color:var(--fb-l1)">
+            <div style="height:52px;flex:none;display:flex;align-items:center;gap:12px;padding:0 10px 0 20px;box-shadow:{{ w.barLine }}">
+              <div style="display:flex;gap:8px"><span style="width:12px;height:12px;border-radius:50%;background:#FF5F57;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)"></span><span style="width:12px;height:12px;border-radius:50%;background:#FEBC2E;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)"></span><span style="width:12px;height:12px;border-radius:50%;background:#28C840;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.12)"></span></div>
+              <span style="margin-left:14px;font-size:15px;font-weight:700">FliBuddy</span>
+              <span style="flex:1"></span>
+              <sc-if value="{{ w.glass }}">
+                <div style="display:flex;align-items:center;height:36px;padding:0 3px;border-radius:18px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 1px 8px rgba(0,0,0,.08)">
+                  <button onClick="{{ w.onClear }}" title="Clear (⌘⌫)" aria-label="Clear feed" style="width:40px;height:30px;border:0;border-radius:15px;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:default" style-hover="background:var(--fb-fill)"><i class="ph ph-trash" title="trash" style="font-size:17px"></i></button>
+                  <button onClick="{{ w.onSettings }}" title="Settings (⌘,)" aria-label="Settings" style="width:40px;height:30px;border:0;border-radius:15px;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:default" style-hover="background:var(--fb-fill)"><i class="ph ph-gear-six" title="gearshape" style="font-size:17px"></i></button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ w.classic }}">
+                <div style="display:flex;gap:2px">
+                  <button onClick="{{ w.onClear }}" title="Clear (⌘⌫)" aria-label="Clear feed" style="width:34px;height:28px;border:0;border-radius:6px;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--fb-l2);cursor:default" style-hover="background:var(--fb-fill)"><i class="ph ph-trash" title="trash" style="font-size:17px"></i></button>
+                  <button onClick="{{ w.onSettings }}" title="Settings (⌘,)" aria-label="Settings" style="width:34px;height:28px;border:0;border-radius:6px;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--fb-l2);cursor:default" style-hover="background:var(--fb-fill)"><i class="ph ph-gear-six" title="gearshape" style="font-size:17px"></i></button>
+                </div>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{ w.showCUV }}">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px;text-align:center">
+                <i class="{{ w.cuv.icon }}" title="{{ w.cuv.sym }}" style="font-size:46px;color:{{ w.cuv.color }}"></i>
+                <div style="font-size:20px;font-weight:700;margin-top:4px">{{ w.cuv.title }}</div>
+                <div style="font-size:13px;line-height:18px;color:var(--fb-l2);max-width:380px;text-wrap:pretty">{{ w.cuv.desc }}</div>
+                <sc-if value="{{ w.cuv.hasAct }}"><button style="margin-top:8px;height:28px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;font-weight:500">{{ w.cuv.act }}</button></sc-if>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ w.showList }}">
+              <div style="flex:1;overflow:auto;padding:2px 10px 10px">
+                <sc-for list="{{ w.rows }}" as="r" hint-placeholder-count="4">
+                  <div onClick="{{ r.onRow }}" style="display:grid;grid-template-columns:26px minmax(0,1fr) 250px 356px;column-gap:14px;align-items:center;padding:10px 12px;min-height:62px;box-sizing:border-box;border-radius:10px;background:{{ r.rowBg }};box-shadow:inset 0 -.5px 0 var(--fb-sep)">
+                    <sc-if value="{{ r.hasSwatch }}"><div aria-hidden="true" style="width:24px;height:24px;border-radius:50%;background:{{ r.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></div></sc-if>
+                    <sc-if value="{{ r.noSwatch }}"><div aria-hidden="true" style="width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--fb-l3);box-sizing:border-box"></div></sc-if>
+                    <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+                      <span style="font-size:15px;line-height:20px;font-weight:600">{{ r.title }}</span>
+                      <sc-if value="{{ r.hasSub }}"><span style="font-size:13px;line-height:17px;color:var(--fb-l2)">{{ r.sub }}</span></sc-if>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                      <div style="display:flex;align-items:center;gap:5px;font-size:12px;line-height:16px;color:{{ r.statusColor }}">
+                        <sc-if value="{{ r.spin }}"><span style="width:11px;height:11px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                        <sc-if value="{{ r.hasIcon }}"><i class="{{ r.icon }}" title="{{ r.sym }}" style="font-size:14px;color:{{ r.iconColor }}"></i></sc-if>
+                        <span>{{ r.statusText }}</span>
+                      </div>
+                      <sc-if value="{{ r.hasNote }}"><div style="display:flex;gap:4px;font-size:11px;line-height:14px;color:var(--fb-l2)"><i class="ph-fill ph-warning" title="exclamationmark.triangle.fill" style="font-size:12px;color:var(--fb-orange)"></i><span>{{ r.note }}</span></div></sc-if>
+                      <span style="font:10px/14px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">{{ r.uid }}</span>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end">
+                      <sc-if value="{{ r.entry }}">
+                        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <div style="display:flex;align-items:center;gap:5px">
+                              <input data-wid="{{ r.wid }}" data-rid="{{ r.id }}" value="{{ r.raw }}" onChange="{{ r.onInput }}" onFocus="{{ r.onFocus }}" onBlur="{{ r.onBlur }}" onKeyDown="{{ r.onKey }}" aria-label="{{ r.aria }}" placeholder="0" style="width:96px;height:34px;box-sizing:border-box;border:0;outline:none;border-radius:{{ w.fieldR }};padding:0 10px;text-align:right;font:600 22px/34px -apple-system,BlinkMacSystemFont,system-ui;font-variant-numeric:tabular-nums;color:var(--fb-l1);background:var(--fb-field);box-shadow:{{ r.fieldSh }}">
+                              <span style="font-size:15px;color:var(--fb-l2)">g</span>
+                            </div>
+                            <div role="radiogroup" aria-label="Weight mode" style="display:flex;height:28px;padding:2px;box-sizing:border-box;border-radius:{{ w.segR }};background:var(--fb-fill)">
+                              <button onClick="{{ r.setNet }}" role="radio" style="border:0;padding:0 12px;border-radius:{{ w.segRi }};font-size:13px;font-weight:500;color:var(--fb-l1);background:{{ r.netBg }};box-shadow:{{ r.netSh }};cursor:default">Net</button>
+                              <button onClick="{{ r.setGross }}" role="radio" style="border:0;padding:0 12px;border-radius:{{ w.segRi }};font-size:13px;font-weight:500;color:var(--fb-l1);background:{{ r.grossBg }};box-shadow:{{ r.grossSh }};cursor:default">Gross</button>
+                            </div>
+                            <button onClick="{{ r.onSave }}" title="Save (⌘S)" style="height:28px;min-width:64px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-tint);color:var(--fb-blue);font-size:13px;font-weight:600;opacity:{{ r.saveOp }};cursor:default">{{ r.saveLabel }}</button>
+                          </div>
+                          <span style="font-size:11px;line-height:14px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readout }}</span>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ r.hasActs }}">
+                        <div style="display:flex;gap:8px">
+                          <sc-for list="{{ r.acts }}" as="a" hint-placeholder-count="2"><button onClick="{{ a.on }}" style="height:28px;padding:0 14px;border:0;border-radius:{{ w.btnR }};font-size:13px;font-weight:{{ a.fw }};background:{{ a.bg }};color:{{ a.fg }};cursor:default">{{ a.label }}</button></sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <div style="height:28px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--fb-winbar);box-shadow:inset 0 .5px 0 var(--fb-sep);font-size:11.5px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <sc-if value="{{ w.st.flip.spin }}"><span style="width:10px;height:10px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                <i class="{{ w.st.flip.icon }}" title="{{ w.st.flip.sym }}" style="font-size:14px;color:{{ w.st.flip.color }}"></i><span>{{ w.st.flip.text }}</span>
+                <sc-if value="{{ w.st.flip.hasAct }}"><button style="height:18px;padding:0 8px;border:0;border-radius:9px;background:var(--fb-fill2);color:var(--fb-l1);font-size:11px;font-weight:500">{{ w.st.flip.act }}</button></sc-if>
+              </div>
+              <span style="width:1px;height:14px;background:var(--fb-sep)"></span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <i class="{{ w.st.bambu.icon }}" title="{{ w.st.bambu.sym }}" style="font-size:14px;color:{{ w.st.bambu.color }}"></i><span>{{ w.st.bambu.text }}</span>
+                <sc-if value="{{ w.st.bambu.hasAct }}"><button style="height:18px;padding:0 8px;border:0;border-radius:9px;background:var(--fb-fill2);color:var(--fb-l1);font-size:11px;font-weight:500">{{ w.st.bambu.act }}</button></sc-if>
+              </div>
+              <span style="flex:1"></span>
+              <span style="color:var(--fb-l3)">bambuddy.local:8000</span>
+            </div>
+
+            <sc-if value="{{ w.isNew }}">
+              <div style="position:absolute;inset:0;z-index:20;background:var(--fb-dim);display:flex;justify-content:center;align-items:flex-start;padding-top:60px">
+                <div style="width:440px;border-radius:{{ w.sheetR }};background:var(--fb-sheet);box-shadow:0 0 0 .5px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.35);padding:20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">New spool</span><span style="font:11px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">NTAG 7-byte · {{ w.sh.uid }}</span></div>
+                  <div style="border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep);font-size:13px">
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Material <span style="color:var(--fb-red)">*</span></span>
+                      <div style="position:relative;display:flex;align-items:center;gap:6px;height:24px;padding:0 6px 0 10px;border-radius:6px;background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb),0 .5px 1.5px rgba(0,0,0,.08)"><span style="color:{{ w.sh.matColor }}">{{ w.sh.matText }}</span><i class="ph ph-caret-up-down" style="font-size:12px;color:var(--fb-l2)"></i>
+                        <select value="{{ w.sh.material }}" onChange="{{ w.sh.onMaterial }}" aria-label="Material" style="position:absolute;inset:0;opacity:0;cursor:default"><option value="">Choose…</option><option>PLA</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option><option>PA</option><option>PC</option><option>PVA</option></select></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Subtype</span><input value="{{ w.sh.subtype }}" onChange="{{ w.sh.onSubtype }}" placeholder="Basic, Matte, HF…" style="width:200px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;font-size:13px;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"></div>
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Colour</span><input type="color" value="{{ w.sh.rgba }}" onChange="{{ w.sh.onRgba }}" aria-label="Colour" style="width:40px;height:24px;padding:0;border:0;border-radius:6px;background:none"><input value="{{ w.sh.colorName }}" onChange="{{ w.sh.onColorName }}" placeholder="Name, optional" style="width:150px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;font-size:13px;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"></div>
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Brand</span><input value="{{ w.sh.brand }}" onChange="{{ w.sh.onBrand }}" placeholder="Optional" style="width:200px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;font-size:13px;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"></div>
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px"><span style="flex:1">Label weight</span><input value="{{ w.sh.label }}" onChange="{{ w.sh.onLabel }}" style="width:70px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"><span style="color:var(--fb-l2)">g</span></div>
+                  </div>
+                  <span style="font-size:11px;line-height:15px;color:var(--fb-l2)">Material is required. The spool is added at its label weight.</span>
+                  <div style="display:flex;justify-content:flex-end;gap:8px">
+                    <button onClick="{{ w.closeSheet }}" style="height:28px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;font-weight:500;cursor:default">Cancel</button>
+                    <button onClick="{{ w.sh.onCreate }}" style="height:28px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600;opacity:{{ w.sh.createOp }};cursor:default">Create</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ w.isLink }}">
+              <div style="position:absolute;inset:0;z-index:20;background:var(--fb-dim);display:flex;justify-content:center;align-items:flex-start;padding-top:60px">
+                <div style="width:520px;border-radius:{{ w.sheetR }};background:var(--fb-sheet);box-shadow:0 0 0 .5px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.35);padding:20px;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">Link to existing spool</span><span style="font:11px ui-monospace,'SF Mono',Menlo,monospace;color:var(--fb-l3)">Tag {{ w.sh.uid }}</span></div>
+                  <div style="display:flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:8px;background:var(--fb-fill)"><i class="ph ph-magnifying-glass" title="magnifyingglass" style="font-size:14px;color:var(--fb-l2)"></i><input value="{{ w.sh.q }}" onChange="{{ w.sh.onQ }}" placeholder="Filter by material, colour, brand or note" style="flex:1;border:0;background:transparent;outline:none;font-size:13px;color:var(--fb-l1)"></div>
+                  <div style="height:236px;overflow:auto;border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep);padding:4px">
+                    <sc-for list="{{ w.sh.list }}" as="s" hint-placeholder-count="5">
+                      <div onClick="{{ s.onPick }}" style="display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-radius:7px;background:{{ s.bg }};cursor:default">
+                        <span style="width:16px;height:16px;border-radius:50%;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                        <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13px;font-weight:600;color:{{ s.fg }}">{{ s.title }}</span><span style="font-size:11.5px;color:{{ s.fg2 }}">{{ s.sub }}</span><sc-if value="{{ s.hasNote }}"><span style="font-size:11px;color:{{ s.fg2 }};font-style:italic">{{ s.note }}</span></sc-if></div>
+                        <sc-if value="{{ s.tagged }}"><span style="font:10px ui-monospace,'SF Mono',Menlo,monospace;padding:2px 6px;border-radius:5px;background:var(--fb-fill2);color:{{ s.fg }}">{{ s.tagText }}</span></sc-if>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ w.sh.none }}"><div style="padding:40px 12px;text-align:center;font-size:13px;color:var(--fb-l2)">No spools match “{{ w.sh.q }}”.</div></sc-if>
+                  </div>
+                  <sc-if value="{{ w.sh.warn }}"><div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:16px;color:var(--fb-l1)"><i class="ph-fill ph-warning" title="exclamationmark.triangle.fill" style="font-size:15px;color:var(--fb-orange)"></i><span>{{ w.sh.warnText }}</span></div></sc-if>
+                  <div style="display:flex;justify-content:flex-end;gap:8px">
+                    <button onClick="{{ w.closeSheet }}" style="height:28px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;font-weight:500;cursor:default">Cancel</button>
+                    <button onClick="{{ w.sh.onLink }}" style="height:28px;padding:0 16px;border:0;border-radius:{{ w.btnR }};background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600;opacity:{{ w.sh.linkOp }};cursor:default">{{ w.sh.linkLabel }}</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ w.confirm }}">
+              <div style="position:absolute;inset:0;z-index:20;background:var(--fb-dim);display:flex;justify-content:center;align-items:flex-start;padding-top:60px">
+                <div style="width:280px;border-radius:{{ w.sheetR }};background:var(--fb-sheet);box-shadow:0 0 0 .5px rgba(0,0,0,.3),0 24px 60px rgba(0,0,0,.35);padding:20px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;box-sizing:border-box">
+                  <i class="ph ph-trash" title="trash" style="font-size:34px;color:var(--fb-l2)"></i>
+                  <span style="font-size:13px;font-weight:700">Clear the feed?</span>
+                  <span style="font-size:11px;line-height:15px;color:var(--fb-l2)">This clears the session log only. Nothing changes in Bambuddy.</span>
+                  <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+                    <button onClick="{{ w.doClear }}" style="height:28px;border:0;border-radius:{{ w.btnR }};background:var(--fb-red);color:#fff;font-size:13px;font-weight:600;cursor:default">Clear</button>
+                    <button onClick="{{ w.closeSheet }}" style="height:28px;border:0;border-radius:{{ w.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;font-weight:500;cursor:default">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;gap:40px;align-items:flex-start">
+  <div style="width:340px;flex:none;display:flex;flex-direction:column;gap:10px">
+    <span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">Settings window</span>
+    <span style="font-size:15px;line-height:1.5;color:#424245;text-wrap:pretty">Grouped Form, four sections, opened with ⌘, or the toolbar. Light shows USB and a passing test; dark shows Bluetooth and a failed test. Changes apply as you make them, like any macOS Settings window; there is no Save button.</span>
+    <pre style="margin:0;padding:16px;border-radius:14px;background:#fff;font:12px/1.55 ui-monospace,'SF Mono',Menlo,monospace;white-space:pre-wrap">Form {
+  Section("Bambuddy") { TextField URL
+    SecureField API key
+    Button("Test connection") + result }
+  Section("New items") { Picker spool
+    TextField core weight } footer: {…}
+  Section("Weighing") { Picker
+    .pickerStyle(.segmented) }
+  Section("Flipper") { Picker transport
+    Picker port | Button("Scan…")
+    Button("Forget", role: .destructive) }
+}.formStyle(.grouped)
+// applies on change; no Save</pre>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+    <sc-for list="{{ settings }}" as="s" hint-placeholder-count="2">
+      <div style="{{ s.vars }}">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">{{ s.label }}</span>
+          <div style="width:580px;border-radius:{{ s.radius }};overflow:hidden;background:var(--fb-formbg);box-shadow:{{ s.shadow }};display:flex;flex-direction:column;color:var(--fb-l1);font-size:13px">
+            <div style="height:52px;display:flex;align-items:center;padding:0 20px;position:relative">
+              <div style="display:flex;gap:8px"><span style="width:12px;height:12px;border-radius:50%;background:#FF5F57"></span><span style="width:12px;height:12px;border-radius:50%;background:#FEBC2E"></span><span style="width:12px;height:12px;border-radius:50%;background:#28C840"></span></div>
+              <span style="position:absolute;left:0;right:0;text-align:center;font-size:13px;font-weight:600;pointer-events:none">Settings</span>
+            </div>
+            <div style="padding:4px 20px 20px;display:flex;flex-direction:column;gap:18px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:700;padding:0 4px">Bambuddy</span>
+                <div style="border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep)">
+                  <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Server URL</span><input value="{{ s.url }}" onChange="{{ s.onUrl }}" aria-label="Server URL" style="width:280px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;font-size:13px;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"></div>
+                  <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">API key</span><input type="password" value="{{ s.key }}" onChange="{{ s.onKey }}" aria-label="API key" style="width:280px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;font-size:13px;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"></div>
+                  <div style="display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px">
+                    <span style="flex:1;display:flex;align-items:center;gap:6px;color:{{ s.testColor }}">
+                      <sc-if value="{{ s.testing }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                      <sc-if value="{{ s.testHasIcon }}"><i class="{{ s.testIcon }}" style="font-size:15px"></i></sc-if>
+                      <span>{{ s.testText }}</span>
+                    </span>
+                    <button onClick="{{ s.onTest }}" style="height:24px;padding:0 12px;border:0;border-radius:{{ s.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;cursor:default">Test connection</button>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:700;padding:0 4px">New items</span>
+                <div style="border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep)">
+                  <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Empty spool</span>
+                    <div style="position:relative;display:flex;align-items:center;gap:6px;height:24px;padding:0 6px 0 10px;border-radius:6px;background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb),0 .5px 1.5px rgba(0,0,0,.08)"><span>{{ s.spool }}</span><i class="ph ph-caret-up-down" style="font-size:12px;color:var(--fb-l2)"></i>
+                      <select value="{{ s.spool }}" onChange="{{ s.onSpool }}" aria-label="Empty spool" style="position:absolute;inset:0;opacity:0"><option>Bambu reusable spool + refill core</option><option>Bambu cardboard spool</option><option>Generic 1 kg plastic spool</option><option>Custom</option></select></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;min-height:38px;padding:0 12px"><span style="flex:1">Core weight</span><input value="{{ s.core }}" onChange="{{ s.onCore }}" aria-label="Core weight, grams" style="width:70px;height:24px;box-sizing:border-box;border:0;outline:none;border-radius:6px;padding:0 8px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fb-l1);background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb)"><span style="color:var(--fb-l2)">g</span></div>
+                </div>
+                <span style="font-size:11px;line-height:15px;color:var(--fb-l2);padding:0 4px">Weight of everything that is not filament; 242 g = Bambu reusable spool 215 g + refill core 27 g.</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:700;padding:0 4px">Weighing</span>
+                <div style="border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep)">
+                  <div style="display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px"><span style="flex:1">I type the weight as</span>
+                    <div style="display:flex;height:24px;padding:2px;box-sizing:border-box;border-radius:{{ s.segR }};background:var(--fb-fill)">
+                      <button onClick="{{ s.setNet }}" style="border:0;padding:0 14px;border-radius:{{ s.segRi }};font-size:12.5px;font-weight:500;color:var(--fb-l1);background:{{ s.netBg }};box-shadow:{{ s.netSh }};cursor:default">Net</button>
+                      <button onClick="{{ s.setGross }}" style="border:0;padding:0 14px;border-radius:{{ s.segRi }};font-size:12.5px;font-weight:500;color:var(--fb-l1);background:{{ s.grossBg }};box-shadow:{{ s.grossSh }};cursor:default">Gross</button>
+                    </div>
+                  </div>
+                </div>
+                <span style="font-size:11px;line-height:15px;color:var(--fb-l2);padding:0 4px">Gross is the whole spool on the scale. Each row can still switch.</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:13px;font-weight:700;padding:0 4px">Flipper</span>
+                <div style="border-radius:10px;background:var(--fb-formbox);box-shadow:0 0 0 .5px var(--fb-sep)">
+                  <div style="display:flex;align-items:center;gap:10px;min-height:40px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Connection</span>
+                    <div style="display:flex;height:24px;padding:2px;box-sizing:border-box;border-radius:{{ s.segR }};background:var(--fb-fill)">
+                      <button onClick="{{ s.setUsb }}" style="border:0;padding:0 14px;border-radius:{{ s.segRi }};font-size:12.5px;font-weight:500;color:var(--fb-l1);background:{{ s.usbBg }};box-shadow:{{ s.usbSh }};cursor:default">USB</button>
+                      <button onClick="{{ s.setBle }}" style="border:0;padding:0 14px;border-radius:{{ s.segRi }};font-size:12.5px;font-weight:500;color:var(--fb-l1);background:{{ s.bleBg }};box-shadow:{{ s.bleSh }};cursor:default">Bluetooth</button>
+                    </div>
+                  </div>
+                  <sc-if value="{{ s.isUsb }}">
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Port</span>
+                      <div style="position:relative;display:flex;align-items:center;gap:6px;height:24px;padding:0 6px 0 10px;border-radius:6px;background:var(--fb-field);box-shadow:0 0 0 .5px var(--fb-fieldb),0 .5px 1.5px rgba(0,0,0,.08)"><span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px">{{ s.port }}</span><i class="ph ph-caret-up-down" style="font-size:12px;color:var(--fb-l2)"></i>
+                        <select value="{{ s.port }}" onChange="{{ s.onPort }}" aria-label="Port" style="position:absolute;inset:0;opacity:0"><option>/dev/cu.usbmodemflip_Workshop1</option><option>/dev/cu.usbmodemflip_Bench2</option></select></div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ s.isBle }}">
+                    <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span style="flex:1">Flipper</span>
+                      <sc-if value="{{ s.scanning }}"><span style="display:flex;align-items:center;gap:6px;color:var(--fb-l2)"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span>Searching…</span></sc-if>
+                      <sc-if value="{{ s.notScanning }}"><span style="color:var(--fb-l2)">{{ s.bleName }}</span></sc-if>
+                      <button onClick="{{ s.onScan }}" style="height:24px;padding:0 12px;border:0;border-radius:{{ s.btnR }};background:var(--fb-fill2);color:var(--fb-l1);font-size:13px;cursor:default">Scan for Flipper</button>
+                    </div>
+                  </sc-if>
+                  <div style="display:flex;align-items:center;gap:10px;min-height:38px;padding:0 12px"><span style="flex:1;display:flex;align-items:center;gap:6px"><i class="{{ s.connIcon }}" style="font-size:14px;color:var(--fb-green)"></i>{{ s.connText }}</span><button onClick="{{ s.onForget }}" style="height:24px;padding:0 12px;border:0;border-radius:{{ s.btnR }};background:var(--fb-fill2);color:var(--fb-red);font-size:13px;cursor:default">Forget</button></div>
+                </div>
+              </div>
+              <span style="text-align:center;font-size:11px;color:var(--fb-l3)">FliBuddy 1.0 (42)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;osStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;macOS 27&quot;,&quot;macOS 14&quot;],&quot;default&quot;:&quot;macOS 27&quot;,&quot;tsType&quot;:&quot;'macOS 27' | 'macOS 14'&quot;}}">
+const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', spool: 'Bambu reusable spool + refill core', core: '242', mode: 'gross', transport: 'usb', port: '/dev/cu.usbmodemflip_Workshop1', bleName: 'Workshop · connected'};
+
+class Component extends DCLogic {
+  state = {ready: false, ui: {}, focus: null, flash: false,
+    set: {sl: {...SET0, test: 'ok', saved: {...SET0}}, sd: {...SET0, transport: 'ble', url: 'http://192.168.1.50:8000', test: 'fail', saved: {...SET0, transport: 'ble', url: 'http://192.168.1.50:8000'}}}};
+
+  componentDidMount() {
+    import(new URL('flibuddy-core.js', document.baseURI).href).then(C => {
+      this.C = C;
+      this.S = new C.Session(() => this.forceUpdate());
+      this.S.cfg.flipper = 'usb';
+      this.S.onFocus = id => this.focusRow(id);
+      this.setState({ready: true}, () => this.focusRow('r3'));
+    });
+    this.onKey = e => {
+      if (!this.S) return;
+      const mod = e.metaKey || e.ctrlKey, k = (e.key || '').toLowerCase();
+      if (mod && k === 's') { e.preventDefault(); const rid = this.activeRid(); if (rid) this.S.save(rid); }
+      else if (mod && k === 'backspace') { e.preventDefault(); this.ui('ml', {sheet: 'confirm'}); }
+      else if (mod && k === ',') { e.preventDefault(); this.flash(); }
+    };
+    document.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { document.removeEventListener('keydown', this.onKey); }
+
+  activeRid() {
+    const a = document.activeElement;
+    if (a && a.dataset && a.dataset.rid) return a.dataset.rid;
+    const r = this.S.rows.find(x => ['enter', 'created', 'error'].includes(x.status));
+    return r && r.id;
+  }
+  focusRow(id) {
+    if (!id) return;
+    const a = document.activeElement;
+    if (a && a.dataset && a.dataset.rid && a.dataset.rid !== id) {
+      const cur = this.S.find(a.dataset.rid);
+      if (cur && cur.touched && ['enter', 'created', 'error'].includes(cur.status)) return;
+    }
+    setTimeout(() => {
+      const el = document.querySelector('[data-wid="ml-' + id + '"]');
+      if (el) { el.focus({preventScroll: true}); el.select(); }
+    }, 60);
+  }
+  ui(win, p) { this.setState(s => ({ui: {...s.ui, [win]: p ? {...(s.ui[win] || {}), ...p} : {}}})); }
+  flash() { this.setState({flash: true}); clearTimeout(this.ft); this.ft = setTimeout(() => this.setState({flash: false}), 1400); }
+  setS(id, p) { this.setState(s => ({set: {...s.set, [id]: {...s.set[id], ...p}}})); }
+
+  rowsFor(w, rows, cfg, live) {
+    const C = this.C, S = this.S, st = C.statusVM(cfg), f = this.state.focus;
+    return rows.map(r => {
+      const v = C.vm(r, {noColors: st.noColors});
+      const wid = w + '-' + r.id, foc = f && f.wid === wid;
+      const noop = () => {};
+      return {
+        ...v, wid,
+        rowBg: f && f.rid === r.id && (f.wid || '').startsWith(w) ? 'var(--fb-rowsel)' : 'transparent',
+        fieldSh: foc ? '0 0 0 .5px var(--fb-fieldb),0 0 0 3.5px var(--fb-ring)' : '0 0 0 .5px var(--fb-fieldb),inset 0 .5px 1px rgba(0,0,0,.06)',
+        aria: (r.mode === 'gross' ? 'Gross' : 'Net') + ' weight, grams',
+        onInput: live ? e => S.setValue(r.id, e.target.value) : noop,
+        onFocus: live ? e => { e.target.select(); this.setState({focus: {wid, rid: r.id}}); } : noop,
+        onBlur: live ? () => this.setState(s => (s.focus && s.focus.wid === wid ? {focus: null} : null)) : noop,
+        onKey: live ? e => { if (e.key === 'Enter') { e.preventDefault(); S.save(r.id); } } : noop,
+        setNet: live ? e => { e.stopPropagation(); S.setMode(r.id, 'net'); } : noop,
+        setGross: live ? e => { e.stopPropagation(); S.setMode(r.id, 'gross'); } : noop,
+        onSave: live ? e => { e.stopPropagation(); S.save(r.id); } : noop,
+        onRow: live ? () => { if (v.reopenable) S.reopen(r.id); } : noop,
+        acts: v.acts.map(a => ({...a, fw: a.p ? 600 : 500, bg: a.p ? 'var(--fb-blue)' : 'var(--fb-fill2)', fg: a.p ? '#fff' : 'var(--fb-l1)',
+          on: live ? e => { e.stopPropagation(); if (a.key === 'new') { if (v.hasMaterial) S.create(r.id); else this.ui(w, {sheet: 'new', rowId: r.id, form: {material: '', subtype: '', colorName: '', rgba: '#8E8E93', brand: '', label: '1000'}}); } else this.ui(w, {sheet: 'link', rowId: r.id, q: '', pick: null}); } : noop})),
+      };
+    });
+  }
+
+  sheetVM(w) {
+    const C = this.C, S = this.S, u = this.state.ui[w] || {};
+    const r = u.rowId && S.find(u.rowId);
+    const close = () => this.ui(w, null);
+    if (!r) return {sh: {}, isNew: false, isLink: false};
+    const form = u.form || {};
+    const setF = k => e => this.ui(w, {form: {...form, [k]: e.target.value}});
+    const pick = u.pick != null ? S.inv.find(x => x.id === u.pick) : null;
+    const list = S.filterInv(u.q).map(s => {
+      const iv = C.invVM(s, r.uid), on = s.id === u.pick;
+      return {...iv, bg: on ? 'var(--fb-blue)' : 'transparent', fg: on ? '#fff' : 'var(--fb-l1)', fg2: on ? 'rgba(255,255,255,.8)' : 'var(--fb-l2)', onPick: () => this.ui(w, {pick: s.id})};
+    });
+    const moving = pick && pick.tag && pick.tag !== r.uid;
+    return {
+      isNew: u.sheet === 'new', isLink: u.sheet === 'link',
+      sh: {
+        uid: r.uid, ...form, matText: form.material || 'Choose…', matColor: form.material ? 'var(--fb-l1)' : 'var(--fb-l2)',
+        onMaterial: setF('material'), onSubtype: setF('subtype'), onRgba: setF('rgba'), onColorName: setF('colorName'), onBrand: setF('brand'),
+        onLabel: e => this.ui(w, {form: {...form, label: e.target.value.replace(/\D/g, '').slice(0, 4)}}),
+        createOp: form.material ? 1 : 0.45,
+        onCreate: () => { if (!form.material) return; S.create(r.id, {...form, label: parseInt(form.label, 10) || 1000}); close(); },
+        q: u.q || '', onQ: e => this.ui(w, {q: e.target.value}), list, none: list.length === 0,
+        warn: !!moving, warnText: moving ? pick.material + (pick.subtype ? ' ' + pick.subtype : '') + ' ' + pick.colorName + ' is linked to tag ' + pick.tag + '. Linking moves it to ' + r.uid + '.' : '',
+        linkLabel: moving ? 'Move link' : 'Link', linkOp: pick ? 1 : 0.45,
+        onLink: () => { if (!pick) return; S.link(r.id, pick.id); close(); },
+      },
+    };
+  }
+
+  renderVals() {
+    const os = this.props.osStyle ?? 'macOS 27', glass = os !== 'macOS 14';
+    const shape = {glass, classic: !glass, radius: glass ? '26px' : '10px', segR: glass ? '14px' : '7px', segRi: glass ? '12px' : '5px', btnR: glass ? '14px' : '6px', fieldR: glass ? '8px' : '5px', sheetR: glass ? '22px' : '12px', barLine: glass ? 'none' : 'inset 0 -.5px 0 var(--fb-sep)'};
+    if (!this.state.ready) return {windows: [], settings: [], ctl: {}};
+    const C = this.C, S = this.S;
+    const L = {...C.LIGHT, '--fb-formbg': '#F2F2F4', '--fb-formbox': '#FFFFFF'}, D = {...C.DARK, '--fb-formbg': '#1E1E1E', '--fb-formbox': 'rgba(255,255,255,0.05)'};
+    const G = {uid: '91B4E7C2', rgba: '#00AE42', material: 'PLA', subtype: 'Basic', colorName: 'Bambu Green', known: true, remaining: 590, label: 1000, base: 590, mode: 'gross'};
+    const P = {id: 'p1', uid: '7EF1AB04', rgba: '#FF9016', material: 'PLA', subtype: 'Basic', colorName: 'Pumpkin Orange', known: true, remaining: 15, label: 1000, status: 'saved', savedLeft: 15, savedBy: 'host', mode: 'gross'};
+    const defs = [
+      {id: 'ml', label: 'Main window · light', vars: L, w: '1000px', h: '600px', live: true, cfg: S.cfg, rows: S.rows},
+      {id: 'md', label: 'Main window · dark', vars: D, w: '1000px', h: '600px', live: true, cfg: S.cfg, rows: S.rows},
+      {id: 'se', label: 'Empty feed · No Flipper', vars: L, w: '640px', h: '400px', cfg: {flipper: 'none', bambuddy: 'unchecked'}, rows: []},
+      {id: 'ss', label: 'Blocking · Spoolman mode', vars: D, w: '640px', h: '400px', cfg: {flipper: 'usb', bambuddy: 'spoolman'}, rows: []},
+      {id: 'sp', label: 'Key lacks permission · save failed', vars: L, w: '1000px', h: '400px', cfg: {flipper: 'ble', bambuddy: 'noperm'}, rows: [{...G, id: 'p2', status: 'error', error: 'API key lacks inventory permission', value: '832', touched: true}, P]},
+    ];
+    const windows = defs.map(d => {
+      const st = C.statusVM(d.cfg);
+      const cuv = st.blocking ? {icon: 'ph ph-prohibit', sym: 'nosign', color: 'var(--fb-red)', title: 'Bambuddy is in Spoolman mode', desc: 'FliBuddy works with Bambuddy’s own inventory. Switch Bambuddy’s inventory back from Spoolman in its settings, then retry.', act: 'Retry', hasAct: true}
+        : {icon: 'ph ph-broadcast', sym: 'wave.3.right', color: 'var(--fb-l2)', title: 'No scans yet', desc: 'Hold a spool’s tag to the Flipper running FliBuddy.', hasAct: false};
+      const showCUV = st.blocking || d.rows.length === 0;
+      const sv = d.live ? this.sheetVM(d.id) : {sh: {}, isNew: false, isLink: false};
+      const u = this.state.ui[d.id] || {};
+      return {
+        ...shape, ...d, ...sv, st, cuv, showCUV, showList: !showCUV,
+        rows: this.rowsFor(d.id, d.rows, d.cfg, d.live),
+        confirm: d.live && u.sheet === 'confirm',
+        onClear: d.live ? () => this.ui(d.id, {sheet: 'confirm'}) : undefined,
+        onSettings: () => this.flash(),
+        closeSheet: () => this.ui(d.id, null),
+        doClear: () => { S.clear(); this.ui(d.id, null); },
+      };
+    });
+    const sb = (on) => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 .5px 2px rgba(0,0,0,.2)' : 'none'});
+    const settings = [['sl', 'Settings · light', L], ['sd', 'Settings · dark', D]].map(([id, label, vars]) => {
+      const s = this.state.set[id];
+      const keys = ['url', 'key', 'spool', 'core', 'mode', 'transport', 'port'];
+      const dirty = keys.some(k => s[k] !== s.saved[k]);
+      const ed = k => e => this.setS(id, {[k]: k === 'core' ? e.target.value.replace(/\D/g, '').slice(0, 4) : e.target.value});
+      const T = {idle: ['Not tested', '', 'var(--fb-l2)'], testing: ['Testing…', '', 'var(--fb-l2)'], ok: ['Ready · inventory access OK', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable: no answer within 5 s', 'ph-fill ph-x-circle', 'var(--fb-red)']}[s.test];
+      const n = sb(s.mode === 'net'), g = sb(s.mode === 'gross'), us = sb(s.transport === 'usb'), bl = sb(s.transport === 'ble');
+      return {
+        id, label, vars, ...shape, ...s,
+        shadow: this.state.flash ? '0 0 0 .5px rgba(0,0,0,.4),0 0 0 4px #0071E3,0 22px 60px rgba(0,0,0,.25)' : '0 0 0 .5px rgba(0,0,0,.4),0 22px 60px rgba(0,0,0,.25)',
+        onUrl: ed('url'), onKey: ed('key'), onSpool: ed('spool'), onCore: ed('core'), onPort: ed('port'),
+        testText: T[0], testIcon: T[1], testHasIcon: !!T[1], testColor: T[2], testing: s.test === 'testing',
+        onTest: () => { this.setS(id, {test: 'testing'}); setTimeout(() => this.setS(id, {test: /bambuddy/.test(this.state.set[id].url) ? 'ok' : 'fail'}), 1300); },
+        netBg: n.bg, netSh: n.sh, grossBg: g.bg, grossSh: g.sh, usbBg: us.bg, usbSh: us.sh, bleBg: bl.bg, bleSh: bl.sh,
+        setNet: () => this.setS(id, {mode: 'net'}), setGross: () => this.setS(id, {mode: 'gross'}),
+        setUsb: () => this.setS(id, {transport: 'usb'}), setBle: () => this.setS(id, {transport: 'ble'}),
+        isUsb: s.transport === 'usb', isBle: s.transport === 'ble', notScanning: !s.scanning, scanning: !!s.scanning,
+        onScan: () => { this.setS(id, {scanning: true}); setTimeout(() => this.setS(id, {scanning: false, bleName: 'Workshop · connected'}), 1600); },
+        connIcon: s.transport === 'usb' ? 'ph ph-usb' : 'ph ph-broadcast',
+        connText: s.bleName === 'Not paired' && s.transport === 'ble' ? 'No Flipper paired' : s.transport === 'usb' ? 'Connected over USB' : 'Connected over Bluetooth',
+        onForget: () => this.setS(id, {bleName: 'Not paired'}),
+        dirtyText: dirty ? 'Unsaved changes' : 'All changes saved', saveOp: dirty ? 1 : 0.45,
+        onSave: () => { const c = this.state.set[id]; const saved = {}; keys.forEach(k => { saved[k] = c[k]; }); this.setS(id, {saved}); },
+        onRevert: () => this.setS(id, {...this.state.set[id].saved}),
+      };
+    });
+    const cfg = S.cfg;
+    return {
+      windows, settings,
+      ctl: {
+        reset: () => { S.reset(); this.setState({ui: {}}); this.focusRow('r3'); },
+        scanKnown: () => S.scan('known'), scanUnknown: () => S.scan('unknown'), scanBlank: () => S.scan('blank'),
+        flipperSave: () => S.flipperSave(), askCreate: () => S.flipperAsk('create'), askLink: () => S.flipperAsk('link'),
+        toggleFail: () => S.setCfg({failNext: !cfg.failNext}), toggleTimeout: () => S.setCfg({timeoutNext: !cfg.timeoutNext}),
+        failBg: cfg.failNext ? '#1D1D1F' : '#EDEDF0', failFg: cfg.failNext ? '#fff' : '#1D1D1F',
+        toBg: cfg.timeoutNext ? '#1D1D1F' : '#EDEDF0', toFg: cfg.timeoutNext ? '#fff' : '#1D1D1F',
+        flipper: cfg.flipper, bambuddy: cfg.bambuddy,
+        setFlipper: e => S.setCfg({flipper: e.target.value}), setBambuddy: e => S.setCfg({bambuddy: e.target.value}),
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

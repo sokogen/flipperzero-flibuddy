@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>body{margin:0;background:#E4E2DE;-webkit-font-smoothing:antialiased}a{color:#0066CC;text-decoration:none}a:hover{color:#004C99;text-decoration:underline}</style>
+</helmet>
+<div style="width:1880px;padding:56px 64px 120px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;color:#1D1D1F;display:flex;flex-direction:column;gap:64px">
+
+<header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
+  <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
+  <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">Flipper Zero</h1>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">Экран 128×64, 1 бит, шесть кнопок. Принцип: одна катушка — одно нажатие. OK всегда делает главное действие экрана, ◀ открывает меню или отменяет, ▶ — быстрое второе действие, Back — назад. Каждое событие подтверждается светодиодом и вибро, поэтому на экран можно не смотреть.</p>
+</header>
+
+<section style="display:flex;gap:48px;align-items:flex-start">
+  <div style="display:flex;flex-direction:column;gap:18px;align-items:flex-start">
+    <span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.06em;text-transform:uppercase;color:#6E6E73">Живой прототип · кликайте по кнопкам или используйте клавиатуру</span>
+    <div style="position:relative;width:1080px;height:430px;border-radius:120px;background:linear-gradient(180deg,#FAFAF8,#E7E6E1);box-shadow:inset 0 2px 0 #fff,inset 0 -8px 18px rgba(0,0,0,.08),0 30px 60px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.12)">
+      <div style="position:absolute;left:98px;top:66px;width:576px;height:298px;border-radius:24px;background:#1B1B1B;box-shadow:inset 0 0 0 3px #2E2E2E,0 1px 0 #fff;display:flex;align-items:center;justify-content:center">
+        <canvas data-fz="live" style="width:512px;height:256px;display:block;border-radius:3px"></canvas>
+      </div>
+      <div style="position:absolute;left:50px;top:110px;display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div title="LED" style="width:16px;height:16px;border-radius:50%;background:{{ led.bg }};box-shadow:{{ led.glow }};transition:background .1s,box-shadow .1s"></div>
+        <span style="font:600 10px ui-monospace,'SF Mono',Menlo,monospace;color:#8A8A86">LED</span>
+      </div>
+      <div style="position:absolute;left:30px;top:200px;display:flex;flex-direction:column;align-items:center;gap:4px;opacity:{{ led.vibOp }}">
+        <i class="ph ph-vibrate" style="font-size:26px;color:#FF6A00"></i>
+        <span style="font:600 10px ui-monospace,'SF Mono',Menlo,monospace;color:#FF6A00">вибро</span>
+      </div>
+      <div style="position:absolute;left:740px;top:72px;width:236px;height:236px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#E3E2DD,#CFCEC8);box-shadow:inset 0 3px 6px rgba(0,0,0,.18),0 1px 0 #fff">
+        <button onClick="{{ k.up }}" aria-label="Up" style="position:absolute;left:83px;top:6px;width:70px;height:66px;border:0;border-radius:30px;background:transparent;color:#55554F;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="background:rgba(0,0,0,.08)"><i class="ph-fill ph-caret-up" style="font-size:26px"></i></button>
+        <button onClick="{{ k.down }}" aria-label="Down" style="position:absolute;left:83px;bottom:6px;width:70px;height:66px;border:0;border-radius:30px;background:transparent;color:#55554F;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="background:rgba(0,0,0,.08)"><i class="ph-fill ph-caret-down" style="font-size:26px"></i></button>
+        <button onClick="{{ k.left }}" aria-label="Left" style="position:absolute;left:6px;top:83px;width:66px;height:70px;border:0;border-radius:30px;background:transparent;color:#55554F;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="background:rgba(0,0,0,.08)"><i class="ph-fill ph-caret-left" style="font-size:26px"></i></button>
+        <button onClick="{{ k.right }}" aria-label="Right" style="position:absolute;right:6px;top:83px;width:66px;height:70px;border:0;border-radius:30px;background:transparent;color:#55554F;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="background:rgba(0,0,0,.08)"><i class="ph-fill ph-caret-right" style="font-size:26px"></i></button>
+        <button onClick="{{ k.ok }}" aria-label="OK" style="position:absolute;left:72px;top:72px;width:92px;height:92px;border:0;border-radius:50%;background:linear-gradient(180deg,#F7F6F2,#E4E3DE);box-shadow:0 2px 4px rgba(0,0,0,.18),inset 0 1px 0 #fff;font:700 15px -apple-system,system-ui;color:#55554F;cursor:pointer" style-active="transform:scale(.96)">OK</button>
+      </div>
+      <button onClick="{{ k.back }}" aria-label="Back" style="position:absolute;left:944px;top:300px;width:76px;height:76px;border:0;border-radius:50%;background:linear-gradient(180deg,#F7F6F2,#E1E0DB);box-shadow:0 2px 4px rgba(0,0,0,.18),inset 0 1px 0 #fff,0 0 0 6px #D6D5CF;color:#55554F;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="transform:scale(.96)"><i class="ph ph-arrow-u-up-left" style="font-size:28px"></i></button>
+      <span style="position:absolute;left:98px;bottom:30px;font:700 13px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.2em;color:#B5B4AE">FLIPPER · FLIBUDDY</span>
+    </div>
+    <div style="display:flex;gap:18px;font-size:13px;color:#6E6E73;flex-wrap:wrap">
+      <span>Клавиатура: <b style="color:#1D1D1F">← ↑ → ↓</b> — крестовина</span><span><b style="color:#1D1D1F">Enter</b> — OK</span><span><b style="color:#1D1D1F">Esc / Backspace</b> — Back</span><span><b style="color:#1D1D1F">1–4</b> — поднести метку</span>
+    </div>
+  </div>
+
+  <div style="width:360px;flex:none;display:flex;flex-direction:column;gap:16px;padding-top:30px">
+    <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Симуляция</span><button onClick="{{ sim.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Сброс</button></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Хост (Mac / iPhone)</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <sc-for list="{{ sim.conns }}" as="c" hint-placeholder-count="4"><button onClick="{{ c.on }}" style="border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ c.bg }};color:{{ c.fg }}">{{ c.label }}</button></sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Поднести метку (работает на экране Ready и результатах)</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onClick="{{ sim.known }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">1 · Катушка в базе</button>
+          <button onClick="{{ sim.unknown }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">2 · Новая Bambu</button>
+          <button onClick="{{ sim.blank }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">3 · Пустая NTAG</button>
+          <button onClick="{{ sim.bad }}" style="border:0;border-radius:8px;padding:7px 11px;background:#EDEDF0;font-size:13px;color:#1D1D1F;cursor:pointer">4 · Не катушка</button>
+        </div>
+      </div>
+      <button onClick="{{ sim.toggleFail }}" style="align-self:flex-start;border:0;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;background:{{ sim.failBg }};color:{{ sim.failFg }}">Следующее сохранение — ошибка</button>
+      <span style="font-size:12px;line-height:1.45;color:#6E6E73">{{ sim.hint }}</span>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px">
+      <span style="font-size:15px;font-weight:600">Обратная связь</span>
+      <sc-for list="{{ feedback }}" as="f" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;align-items:start;font-size:13px;line-height:1.4">
+          <span style="width:12px;height:12px;border-radius:50%;margin-top:3px;background:{{ f.c }}"></span>
+          <span><b>{{ f.ev }}</b> — {{ f.d }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">01</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Карта кнопок</h2></div>
+  <div style="background:#fff;border-radius:18px;padding:8px 24px 16px">
+    <div style="display:grid;grid-template-columns:220px repeat(5,minmax(0,1fr));column-gap:16px;padding:12px 0;font-size:12px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(0,0,0,.1)"><span>Экран</span><span>OK</span><span>◀</span><span>▶</span><span>▲ ▼</span><span>Back</span></div>
+    <sc-for list="{{ keymap }}" as="r" hint-placeholder-count="9">
+      <div style="display:grid;grid-template-columns:220px repeat(5,minmax(0,1fr));column-gap:16px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:14px;line-height:1.4">
+        <b>{{ r.s }}</b><span>{{ r.ok }}</span><span>{{ r.l }}</span><span>{{ r.r }}</span><span>{{ r.ud }}</span><span style="color:#6E6E73">{{ r.b }}</span>
+      </div>
+    </sc-for>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:24px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">02</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Все экраны</h2></div>
+  <div style="display:grid;grid-template-columns:repeat(4,416px);gap:36px 24px">
+    <sc-for list="{{ gallery }}" as="s" hint-placeholder-count="23">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="padding:16px;border-radius:20px;background:#1B1B1B;box-shadow:inset 0 0 0 2px #2E2E2E"><canvas data-fz="{{ s.key }}" style="width:384px;height:192px;display:block"></canvas></div>
+        <div style="display:flex;align-items:baseline;gap:8px"><span style="font:600 12px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">{{ s.n }}</span><span style="font-size:16px;font-weight:600">{{ s.label }}</span></div>
+        <span style="font-size:13.5px;line-height:1.45;color:#424245;text-wrap:pretty">{{ s.d }}</span>
+        <sc-if value="{{ s.hasFb }}"><span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#6E6E73"><span style="width:9px;height:9px;border-radius:50%;background:{{ s.fbc }}"></span>{{ s.fb }}</span></sc-if>
+      </div>
+    </sc-for>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const LEDC = {blue: '#2F7BFF', green: '#22D25A', red: '#FF3B30'};
+class Component extends DCLogic {
+  state = {ready: false, tick: 1};
+  componentDidMount() {
+    Promise.all([import(new URL('flipper-ui.js', document.baseURI).href)]).then(async ([F]) => {
+      this.F = F; await F.loadFonts();
+      this.app = new F.FZApp(() => { this.forceUpdate(); this.paintLive(); });
+      this.setState({ready: true}, () => { this.paintGallery(); this.paintLive(); });
+      this.iv = setInterval(() => { this.tick = (this.tick || 0) + 1; this.paintLive(); }, 380);
+    });
+    this.onKey = e => {
+      if (!this.app || /INPUT|SELECT|TEXTAREA/.test((e.target || {}).tagName || '')) return;
+      const m = {ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'ok', Escape: 'back', Backspace: 'back'}[e.key];
+      if (m) { e.preventDefault(); this.app.key(m); return; }
+      const t = {'1': 'known', '2': 'unknown', '3': 'blank', '4': 'bad'}[e.key];
+      if (t) this.app.scan(t);
+    };
+    document.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { clearInterval(this.iv); document.removeEventListener('keydown', this.onKey); }
+  componentDidUpdate() { this.paintGallery(); }
+  paintLive() {
+    const c = document.querySelector('canvas[data-fz="live"]');
+    if (c && this.app) this.F.paint(c, this.F.frame(this.app.s, this.tick || 1, Date.now()), 4);
+  }
+  paintGallery() {
+    if (!this.F || !this.gal) return;
+    this.gal.forEach(s => {
+      const c = document.querySelector('canvas[data-fz="' + s.key + '"]');
+      if (c && c.dataset.done !== s.key) { this.F.paint(c, this.F.frame(s.st, s.t ?? 1, 0), 3); c.dataset.done = s.key; }
+    });
+  }
+  buildGallery() {
+    const F = this.F, base = F.initState(), T = F.TAGS;
+    const S = (o) => ({...base, conn: 'usb', ...o});
+    const W = (d, cur, mode) => ({d: String(d).padStart(4, '0').split('').map(Number), cur, mode, touched: false, base: 590});
+    const list = [
+      ['waiting', 'Ожидание хоста', 'Первый запуск. Обе связи видны сразу: USB-кабель и Bluetooth (иконка мигает, пока Flipper виден для хоста). ▶ — настройки.', S({screen: 'waiting', conn: 'none'}), 'LED выкл.', null],
+      ['waiting2', 'Кабель есть, приложения нет', 'USB подключён, но FliBuddy на компьютере не отвечает: экран говорит, что именно сделать.', S({screen: 'waiting', conn: 'usbNoApp'}), null],
+      ['ready', 'Готов к сканированию', 'Хост на связи (иконка USB/BT справа сверху). Катушка с волнами — поднести метку к задней стороне. ◀ — недавние, ▶ — настройки.', S({screen: 'ready', conn: 'usb'}), 'При подключении: LED синий ×1 + короткое вибро', 'blue'],
+      ['next', 'Готов к следующей катушке', 'После сохранения: чёрная полоса с итогом прошлой катушки и крупное «Next spool». Сразу понятно, что можно брать следующую.', S({screen: 'ready', conn: 'ble', last: 'Saved PLA Basic 590 g'}), 'LED зелёный ×1 + вибро', 'green'],
+      ['reading', 'Чтение метки', 'Длится ~0,5 с. Кнопки не нужны.', S({screen: 'reading', tag: T.known}), 'LED синий, по готовности — короткое вибро', 'blue'],
+      ['result', 'Результат: катушка в базе', 'Только главное: пластик, цвет (точка-растр по яркости), начало…конец UID, остаток. OK — взвесить, ▶ — пометить как новую (полную), ◀ — меню.', S({screen: 'result', tag: T.known}), null],
+      ['result2', 'Результат: новая метка Bambu', 'В Bambuddy такой нет. OK — добавить одной кнопкой, ▶ — привязать к существующей катушке на хосте.', S({screen: 'result', tag: T.unknown}), null],
+      ['result3', 'Результат: пустая NTAG', 'Данных о катушке нет — главное действие: привязать на хосте.', S({screen: 'result', tag: T.blank}), null],
+      ['menu', 'Меню катушки', 'Редкие действия: пометить пустой, перепривязать, подробности метки, удалить из базы. ▲▼ и OK.', S({screen: 'menu', tag: T.known, sel: 1, top: 0}), null],
+      ['weight', 'Ввод веса · брутто', 'Предложение уже заполнено (остаток + катушка). Совпало — сразу OK. Иначе ◀▶ по разрядам, ▲▼ меняет цифру. Ведущие нули приглушены. Строка ниже — сколько сохранится нетто.', S({screen: 'weight', tag: T.known, w: W(832, 2, 'gross')}), null],
+      ['weight2', 'Ввод веса · переключение net/gross', 'Переключатель — крайняя левая позиция курсора (◀ с первой цифры). ▲▼ переключает режим; нетронутое предложение пересчитывается.', S({screen: 'weight', tag: T.known, w: W(590, 0, 'net')}), null],
+      ['weight3', 'Ввод веса · ошибка', 'Брутто меньше веса пустой катушки — сохранить нельзя, OK даёт красную вспышку.', S({screen: 'weight', tag: T.known, w: W(215, 2, 'gross')}), 'LED красный + вибро при OK', 'red'],
+      ['saving', 'Сохранение', 'Хост пишет в Bambuddy. Таймаут — 10 с.', S({screen: 'saving', saving: 'Saving', tag: T.known, pendingNet: 590}), null],
+      ['saved', 'Сохранено', 'Крупная галочка на 1,3 с, затем автоматически «Next spool».', S({screen: 'saved', tag: {...T.known, remaining: 590}}), 'LED зелёный + вибро', 'green'],
+      ['toastnew', 'Помечена как новая', 'Одно нажатие ▶ на результате. Полоса — 3 с до возврата к сканированию; ◀ — отменить, OK — всё же взвесить.', S({screen: 'toast', toast: 'new', tag: {...T.known, remaining: 1000}, frac: 0.6}), 'LED зелёный + вибро', 'green'],
+      ['created', 'Добавлена в Bambuddy', 'После OK на новой метке (или сразу после скана при Auto-save new = On). OK — взвесить, ▶ — следующая.', S({screen: 'toast', toast: 'created', tag: {...T.unknown, kind: 'known', id: 31, remaining: 1000}}), 'LED зелёный + вибро', 'green'],
+      ['confirm', 'Удаление · подтверждение', 'Единственное необратимое действие — с подтверждением. Удалить — справа, далеко от привычного OK.', S({screen: 'confirm', tag: T.known}), null],
+      ['link', 'Привязка на хосте', 'Flipper просит хост открыть выбор катушки и ждёт. ◀ — отмена.', S({screen: 'link', tag: T.blank}), 'LED синий', 'blue'],
+      ['error', 'Ошибка сохранения', 'Говорит, что случилось и где. ▶ — повторить с тем же весом.', S({screen: 'error', err: F.ERRS.bambuddy, tag: T.known}), 'LED красный + длинное вибро', 'red'],
+      ['error2', 'Хост не отвечает', 'Хост молчит 10 с. Ничего не сохранено.', S({screen: 'error', err: F.ERRS.host, tag: T.known}), 'LED красный + длинное вибро', 'red'],
+      ['settings', 'Настройки', 'Значения меняются ◀▶ прямо в строке. Auto-save new: новые метки Bambu добавляются в базу сразу после скана. After scan = Weigh: известная катушка открывается сразу на вводе веса. Последняя строка — версия.', S({screen: 'settings', sel: 1, top: 0}), null],
+      ['settings2', 'Настройки · конец списка', 'Version — OK открывает «О приложении».', S({screen: 'settings', sel: 6, top: 3, settings: {...base.settings, autosave: 1, after: 1}}), null],
+      ['about', 'О приложении', 'Версия, протокол, прошивка и текущий хост.', S({screen: 'about'}), null],
+      ['recent', 'Недавние', 'Последние 6 катушек за сессию. OK — открыть результат и, например, перевзвесить без повторного скана.', S({screen: 'recent', sel: 0}), null],
+      ['details', 'Подробности метки', 'Полный UID и сырые данные — только по запросу из меню.', S({screen: 'details', tag: T.known}), null],
+      ['apps', 'Иконка в Apps → Tools', 'Иконка 10×10: катушка с ступицей.', S({screen: 'apps'}), null],
+    ];
+    return list.map(([key, label, d, st, fb, fbk], i) => ({key, n: String(i + 1).padStart(2, '0'), label, d, st, fb: fb || '', hasFb: !!fb, fbc: fbk ? LEDC[fbk] : '#C7C7CC'}));
+  }
+  renderVals() {
+    const feedback = [
+      {ev: 'Хост подключился', d: 'синий ×1, короткое вибро', c: LEDC.blue},
+      {ev: 'Метка прочитана', d: 'синий, короткое вибро', c: LEDC.blue},
+      {ev: 'Сохранено / добавлено / помечено', d: 'зелёный, вибро; затем «Next spool»', c: LEDC.green},
+      {ev: 'Ошибка', d: 'красный, длинное вибро', c: LEDC.red},
+      {ev: 'Feedback = LED / Off', d: 'вибро выключается / всё выключается', c: '#C7C7CC'},
+    ];
+    const keymap = [
+      {s: 'Ожидание', ok: '—', l: '—', r: 'Настройки', ud: '—', b: 'Выход'},
+      {s: 'Ready', ok: '—', l: 'Недавние', r: 'Настройки', ud: '—', b: 'Выход'},
+      {s: 'Результат · в базе', ok: 'Взвесить', l: 'Меню', r: 'Пометить новой', ud: '—', b: 'К сканированию'},
+      {s: 'Результат · новая', ok: 'Добавить', l: 'Меню', r: 'Привязать', ud: '—', b: 'К сканированию'},
+      {s: 'Результат · пустая', ok: 'Привязать', l: 'Меню', r: '—', ud: '—', b: 'К сканированию'},
+      {s: 'Вес', ok: 'Сохранить', l: 'Разряд ←, затем net/gross', r: 'Разряд →', ud: 'Цифра ±1 / net↔gross', b: 'К результату'},
+      {s: 'Меню, Недавние', ok: 'Выбрать', l: '—', r: '—', ud: 'Выбор', b: 'Назад'},
+      {s: 'Настройки', ok: 'Открыть (Version)', l: 'Значение ←', r: 'Значение →', ud: 'Выбор', b: 'Назад'},
+      {s: 'Тост (3 с)', ok: 'Взвесить', l: 'Отменить', r: 'Следующая', ud: '—', b: 'К сканированию'},
+    ];
+    if (!this.state.ready) return {gallery: [], feedback, keymap, led: {bg: '#CFCFCA', glow: 'none', vibOp: 0.15}, k: {}, sim: {conns: []}};
+    if (!this.gal) this.gal = this.buildGallery();
+    const a = this.app, s = a.s, key = k => () => a.key(k);
+    const conns = [['none', 'Нет хоста'], ['usbNoApp', 'USB без приложения'], ['usb', 'USB'], ['ble', 'Bluetooth']].map(([id, label]) => ({label, on: () => a.connect(id), bg: s.conn === id ? '#1D1D1F' : '#EDEDF0', fg: s.conn === id ? '#fff' : '#1D1D1F'}));
+    const hostOK = s.conn === 'usb' || s.conn === 'ble';
+    return {
+      gallery: this.gal, feedback, keymap,
+      led: s.led ? {bg: LEDC[s.led], glow: '0 0 14px 4px ' + LEDC[s.led], vibOp: s.vib ? 1 : 0.15} : {bg: '#CFCFCA', glow: 'inset 0 1px 2px rgba(0,0,0,.25)', vibOp: 0.15},
+      k: {up: key('up'), down: key('down'), left: key('left'), right: key('right'), ok: key('ok'), back: key('back')},
+      sim: {
+        conns, reset: () => a.reset(),
+        known: () => a.scan('known'), unknown: () => a.scan('unknown'), blank: () => a.scan('blank'), bad: () => a.scan('bad'),
+        toggleFail: () => a.set({failNext: !s.failNext}), failBg: s.failNext ? '#1D1D1F' : '#EDEDF0', failFg: s.failNext ? '#fff' : '#1D1D1F',
+        hint: hostOK ? 'Хост подключён. Поднесите метку (1–4), затем используйте кнопки Flipper.' : 'Сначала подключите хост: USB или Bluetooth.',
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

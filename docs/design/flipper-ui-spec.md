@@ -1,7 +1,7 @@
 # Flipper UI spec
 
 The screens of the FliBuddy Flipper app, after the Claude Design page
-"FliBuddy Flipper" (`docs/design/flipper/flipper-ui.js`, the prototype's
+"FliBuddy Flipper" (`docs/design/source/flipper-ui.js`, the prototype's
 renderer and state machine). The design's pixel positions are the target;
 this document is what the app does. The flow is the pure reducer in
 `flipper/src/app_state.{h,c}`, all wording is built by

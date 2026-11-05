@@ -1,7 +1,7 @@
 """Emit the Flipper app's icons as XBM files in flipper/images/.
 
 The bitmaps come from the `I` table of the design prototype
-(docs/design/flipper/flipper-ui.js), rows of '#' (ink) and '.' (paper).
+(docs/design/source/flipper-ui.js), rows of '#' (ink) and '.' (paper).
 XBM packs each row LSB first into whole bytes, which is the layout
 `canvas_draw_xbm` expects; flipper/src/ui_icons.c includes the files.
 The canvas does not scale bitmaps, so the About screen's double-size app
@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-DESIGN = REPO / "docs" / "design" / "flipper" / "flipper-ui.js"
+DESIGN = REPO / "docs" / "design" / "source" / "flipper-ui.js"
 OUTPUT_DIR = "flipper/images"
 
 # file name -> key in the design's icon table

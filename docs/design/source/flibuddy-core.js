@@ -1,8 +1,8 @@
 // FliBuddy prototype core: session model, row view-model, theme vars. Shared by the platform DCs.
 export const CORE = 242;
-const BASE_L = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.07)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
-const BASE_D = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
-export const LIGHT = {...BASE_L,'--fb-win':'#FFFFFF','--fb-winbar':'#F6F6F7','--fb-field':'#FFFFFF','--fb-fieldb':'rgba(0,0,0,0.14)','--fb-rowsel':'rgba(0,0,0,0.05)','--fb-ring':'rgba(0,122,255,0.5)','--fb-dim':'rgba(0,0,0,0.2)','--fb-sheet':'#FFFFFF','--fb-key':'#FFFFFF','--fb-kb':'rgba(210,213,219,0.94)','--fb-side':'rgba(236,238,242,0.86)'};
+const BASE_L = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-tint':'rgba(0,122,255,0.14)','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.07)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
+const BASE_D = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-tint':'rgba(10,132,255,0.24)','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
+export const LIGHT = {...BASE_L,'--fb-win':'#FFFFFF','--fb-winbar':'#F6F6F7','--fb-field':'#FFFFFF','--fb-fieldb':'rgba(0,0,0,0.14)','--fb-rowsel':'rgba(0,0,0,0.05)','--fb-ring':'rgba(0,122,255,0.5)','--fb-dim':'rgba(0,0,0,0.2)','--fb-sheet':'#FFFFFF','--fb-key':'#FFFFFF','--fb-kb':'rgba(210,213,219,0.94)','--fb-side':'rgba(236,238,243,0.86)'};
 export const DARK = {...BASE_D,'--fb-win':'#1E1E1E','--fb-winbar':'#262628','--fb-field':'rgba(255,255,255,0.06)','--fb-fieldb':'rgba(255,255,255,0.16)','--fb-rowsel':'rgba(255,255,255,0.06)','--fb-ring':'rgba(10,132,255,0.6)','--fb-dim':'rgba(0,0,0,0.5)','--fb-sheet':'#2A2A2C','--fb-key':'rgba(255,255,255,0.3)','--fb-kb':'rgba(44,44,46,0.94)','--fb-side':'rgba(40,40,44,0.86)'};
 export const T = {green:'var(--fb-green)',red:'var(--fb-red)',orange:'var(--fb-orange)',blue:'var(--fb-blue)',gray:'var(--fb-gray)',l2:'var(--fb-l2)'};
 const SYM = {'ph ph-scales':'scalemass','ph-fill ph-check-circle':'checkmark.circle.fill','ph ph-question':'questionmark.circle','ph-fill ph-plus-circle':'plus.circle.fill','ph-fill ph-warning':'exclamationmark.triangle.fill','ph ph-broadcast':'dot.radiowaves.left.and.right'};
@@ -77,10 +77,10 @@ export function vm(r, o = {}) {
     timeout: ['Saved ' + r.savedLeft + ' g left · by host', 'ph-fill ph-check-circle', 'green'],
     unknown: ['Not in Bambuddy', 'ph ph-question', 'l2'], unknownNoMat: ['Not in Bambuddy; tag has no material', 'ph ph-question', 'l2'],
     creating: ['Creating in Bambuddy…', '', 'l2', 1],
-    created: ['Created in Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
+    created: ['Added to Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
     flipperCreate: ['Flipper asks to create it here', 'ph ph-broadcast', 'blue'], flipperLink: ['Flipper asks to link it here', 'ph ph-broadcast', 'blue'],
   }[r.status];
-  const entry = ['enter', 'saving', 'created', 'error'].includes(r.status);
+  const entry = ['enter', 'saving', 'error'].includes(r.status);
   const raw = rawValue(r);
   const n = parseInt(raw, 10);
   const net = netOf(r);
@@ -110,7 +110,7 @@ export function vm(r, o = {}) {
     saveOp: saving || bad || net == null ? 0.45 : 1, saveLabel: saving ? 'Saving…' : 'Save', saving,
     netBig: net == null || bad ? '—' : String(net),
     acts, hasActs: acts.length > 0, unknown, hasMaterial: !!r.material,
-    reopenable: r.status === 'saved' || r.status === 'timeout',
+    reopenable: ['saved', 'timeout', 'created'].includes(r.status),
     savedLike: r.status === 'saved' || r.status === 'timeout' || r.status === 'created',
   };
 }
@@ -161,8 +161,8 @@ export class Session {
       this.focusNext();
     }, 700);
   }
-  focusNext() { const nx = this.rows.find(r => r.status === 'enter' || r.status === 'created'); this.onFocus && this.onFocus(nx ? nx.id : null); }
-  reopen(id) { const r = this.find(id); if (r && (r.status === 'saved' || r.status === 'timeout')) { this.patch(id, {status: 'enter', sel: true}); this.onFocus && this.onFocus(id); } }
+  focusNext() { const nx = this.rows.find(r => r.status === 'enter'); this.onFocus && this.onFocus(nx ? nx.id : null); }
+  reopen(id) { const r = this.find(id); if (r && ['saved', 'timeout', 'created'].includes(r.status)) { this.patch(id, {status: 'enter', sel: true}); this.onFocus && this.onFocus(id); } }
   scan(kind) {
     const pool = kind === 'known' ? KNOWN : kind === 'unknown' ? UNKNOWN : BLANK;
     const t = pool[this.k[kind]++ % pool.length];
@@ -192,8 +192,7 @@ export class Session {
     setTimeout(() => {
       const label = f.label != null ? f.label : (r.label || 1000);
       this.patch(id, {status: 'created', known: true, material: f.material || r.material, subtype: f.subtype != null ? f.subtype : r.subtype,
-        colorName: f.colorName || null, rgba: r.rgba || f.rgba || null, brand: f.brand, label, remaining: label, base: label, value: null, touched: false, sel: true, mode: 'gross'});
-      this.onFocus && this.onFocus(id);
+        colorName: f.colorName || null, rgba: r.rgba || f.rgba || null, brand: f.brand, label, remaining: label, base: label, value: null, touched: false, sel: false, mode: 'gross'});
     }, 800);
   }
   link(id, spoolId) {

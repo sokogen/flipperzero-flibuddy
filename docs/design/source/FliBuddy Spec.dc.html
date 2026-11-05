@@ -41,10 +41,10 @@
     <div style="font-size:19px;font-weight:600">Assumptions to confirm</div>
     <ol style="margin:0;padding-left:20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:40px;row-gap:10px;font-size:15px;line-height:1.5;color:#424245">
       <li>The suggestion is gross (remaining + core). Switching Net/Gross converts an untouched suggestion and keeps a number you typed.</li>
-      <li>After <b>New</b> the row stays open for a first weight: "Created in Bambuddy" with the field pre-filled to label + core.</li>
+      <li>After <b>New</b> the spool is simply added at its label weight ("Added to Bambuddy"), with no weight prompt. Tap or click the row to weigh it anyway.</li>
       <li>Saved rows reopen on tap or click for a re-weigh. Last save wins; the status says who saved.</li>
       <li>The watch creates Bambu Lab tags in one tap but cannot fill the form; for other tags it says "Create it on iPhone or Mac".</li>
-      <li>iPhone and iPad settings apply on change. macOS keeps the explicit Save section from the brief.</li>
+      <li>Settings apply on change on every platform, as Apple’s guidelines expect; there is no Save button.</li>
       <li>"Link to existing" warns when the chosen spool already carries a different tag and offers to move the link.</li>
       <li>Watch is dark only, as watchOS is. Every other surface is shown light and dark.</li>
       <li>In these mock-ups an open icon set stands in for SF Symbols. Hover any icon for the real symbol name; the full list is in 02.</li>
@@ -134,7 +134,7 @@
           </div>
           <div style="height:32px;border-radius:16px;background:rgba(118,118,128,.12);padding:2px;display:grid;grid-template-columns:1fr 1fr;box-sizing:border-box"><span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500">Net</span><span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.12)">Gross</span></div>
           <div style="font-size:13px;color:rgba(60,60,67,.6);font-variant-numeric:tabular-nums">Saves 590 g left · 832 − 242 g core</div>
-          <div style="height:50px;border-radius:25px;background:#007AFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Save</div>
+          <div style="height:44px;border-radius:22px;background:rgba(0,122,255,.14);color:#007AFF;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Save</div>
         </div>
       </div>
     </div>
@@ -146,7 +146,7 @@
         <li><b>Colour name</b> from the inventory. Absent when unknown; never the hex.</li>
         <li><b>Remaining</b>: "590 g left of 1000", or "label 1000 g" for unknown tags with prefill.</li>
         <li><b>Status</b>: symbol + phrase, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.secondary</span>; text turns <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.red</span> only for errors.</li>
-        <li><b>Weight entry</b>: field → Net/Gross → readout → Save. Present for Enter weight, Created, Error and Saving (disabled).</li>
+        <li><b>Weight entry</b>: field → Net/Gross → readout → Save. Present for Enter weight, Error and Saving (disabled). Save is a tinted button, not filled: the weight is the focus, not the button.</li>
         <li><b>UID</b>, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.caption.monospaced()</span>, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px">.tertiary</span>, trailing.</li>
       </ol>
       <div style="font-size:13px;line-height:1.5;color:#6E6E73">VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590 grams left of 1000, Enter weight". The field label is "Gross weight, grams".</div>
@@ -154,12 +154,12 @@
     <div style="display:flex;flex-direction:column;gap:14px">
       <div style="font-size:19px;font-weight:600">Spacing</div>
       <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;font-size:14px;color:#424245;font-variant-numeric:tabular-nums">
-        <span>Row padding</span><b>16</b><span>Swatch → text</span><b>12</b><span>Title → colour line</span><b>2</b><span>Colour line → status</span><b>6</b><span>Header → entry block</span><b>12</b><span>Inside entry block</span><b>10</b><span>Field height</span><b>64</b><span>Net/Gross height</span><b>32</b><span>Save height</span><b>50</b><span>Row min height, no entry</span><b>76</b><span>Between rows</span><b>12</b>
+        <span>Row padding</span><b>16</b><span>Swatch → text</span><b>12</b><span>Title → colour line</span><b>2</b><span>Colour line → status</span><b>6</b><span>Header → entry block</span><b>12</b><span>Inside entry block</span><b>10</b><span>Field height</span><b>64</b><span>Net/Gross height</span><b>32</b><span>Save height</span><b>44</b><span>Row min height, no entry</span><b>76</b><span>Between rows</span><b>12</b>
       </div>
       <div style="font-size:19px;font-weight:600;margin-top:12px">Per platform</div>
       <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5;color:#424245">
-        <div><b>iPhone, iPad portrait</b>: stacked card as shown; one <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">Section</span> per row, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.listSectionSpacing(.compact)</span>.</div>
-        <div><b>iPad landscape</b>: one line, swatch · title + UID · colour · remaining · status · field 120 · Net/Gross 150 · Save. Min height 64.</div>
+        <div><b>iPhone</b>: stacked card as shown; one <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">Section</span> per row, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.listSectionSpacing(.compact)</span>.</div>
+        <div><b>iPad</b>: compact tiles in an adaptive grid, min width 300 pt, three columns in both orientations. Net/Gross and Save share one row.</div>
         <div><b>macOS</b>: one line as iPad, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.controlSize(.large)</span>, field 96 × 34, row 60.</div>
         <div><b>Watch</b>: list row is swatch 16 · title · remaining · status glyph; the entry lives on the detail screen.</div>
       </div>
@@ -200,7 +200,7 @@
                       <span style="display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.grossBg }};box-shadow:{{ r.grossSh }}">Gross</span>
                     </div>
                     <div style="font-size:13px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readout }}</div>
-                    <div style="height:50px;border-radius:25px;background:var(--fb-blue);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:600;opacity:{{ r.saveOp }}">{{ r.saveLabel }}</div>
+                    <div style="height:44px;border-radius:22px;background:var(--fb-tint);color:var(--fb-blue);display:flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:600;opacity:{{ r.saveOp }}">{{ r.saveLabel }}</div>
                   </div>
                 </sc-if>
                 <sc-if value="{{ r.hasActs }}">
@@ -312,8 +312,8 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 const CORE = 242;
-const LIGHT = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.06)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
-const DARK = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
+const LIGHT = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-tint':'rgba(0,122,255,0.14)','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.06)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
+const DARK = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-tint':'rgba(10,132,255,0.24)','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
 const T = {green:'var(--fb-green)',red:'var(--fb-red)',orange:'var(--fb-orange)',blue:'var(--fb-blue)',gray:'var(--fb-gray)',l2:'var(--fb-l2)'};
 const SYM = {'ph ph-scales':'scalemass','ph-fill ph-check-circle':'checkmark.circle.fill','ph ph-question':'questionmark.circle','ph-fill ph-plus-circle':'plus.circle.fill','ph-fill ph-warning':'exclamationmark.triangle.fill','ph ph-broadcast':'dot.radiowaves.left.and.right'};
 
@@ -327,10 +327,10 @@ function vm(r) {
     saved: ['Saved ' + r.savedLeft + ' g left · by ' + by, 'ph-fill ph-check-circle', 'green'],
     timeout: ['Saved ' + r.savedLeft + ' g left · by host', 'ph-fill ph-check-circle', 'green'],
     unknown: ['Not in Bambuddy', 'ph ph-question', 'l2'], unknownNoMat: ['Not in Bambuddy; tag has no material', 'ph ph-question', 'l2'],
-    created: ['Created in Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
+    created: ['Added to Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
     flipperCreate: ['Flipper asks to create it here', 'ph ph-broadcast', 'blue'], flipperLink: ['Flipper asks to link it here', 'ph ph-broadcast', 'blue'],
   }[r.status];
-  const entry = ['enter', 'saving', 'created', 'error'].includes(r.status);
+  const entry = ['enter', 'saving', 'error'].includes(r.status);
   const raw = r.value != null ? r.value : String(r.suggested ?? '');
   const n = parseInt(raw, 10);
   const net = isNaN(n) ? null : r.mode === 'gross' ? n - CORE : n;
@@ -361,7 +361,7 @@ const STATES = [
   { ...G, k: 'Enter weight · focused', status: 'enter', sel: true },
   { ...G, k: 'Saving', status: 'saving', value: '832' },
   { ...G, k: 'Error', status: 'error', error: 'Bambuddy unreachable', value: '832' },
-  { k: 'Created in Bambuddy', uid: '3C9D20F1', rgba: '#A4DBE8', material: 'PLA', subtype: 'Pure', known: true, remaining: 1000, label: 1000, status: 'created', suggested: 1242, mode: 'gross', sel: true },
+  { k: 'Added to Bambuddy', uid: '3C9D20F1', rgba: '#A4DBE8', material: 'PLA', subtype: 'Pure', known: true, remaining: 1000, label: 1000, status: 'created', suggested: 1242, mode: 'gross', sel: true },
   { k: 'Looking up', uid: '5B21C0DE', rgba: '#2B2B2D', material: 'PETG', subtype: 'HF', status: 'lookup' },
   { k: 'Saved · by host', uid: '7EF1AB04', rgba: '#FF9016', material: 'PLA', subtype: 'Basic', colorName: 'Pumpkin Orange', known: true, remaining: 15, label: 1000, status: 'saved', savedLeft: 15, savedBy: 'host' },
   { k: 'Saved · by Flipper', uid: '5B21C0DE', rgba: '#000000', material: 'PETG', subtype: 'HF', colorName: 'Black', known: true, remaining: 742, label: 1000, status: 'saved', savedLeft: 742, savedBy: 'flipper' },
@@ -413,7 +413,7 @@ class Component extends DCLogic {
         ['UID', '.caption.monospaced() · .tertiary', '12', '10', '12'],
         ['Readout', '.footnote.monospacedDigit() · .secondary', '13', '11', '14'],
         ['Banner / status bar', '.footnote.weight(.medium)', '13', '11', '—'],
-        ['Save', '.headline on .borderedProminent', '17 sb', '13', '17 sb'],
+        ['Save', '.headline on .bordered, tinted', '17 sb', '13', '17 sb'],
         ['Unit "g"', '.title2.weight(.semibold) · .secondary', '22 sb', '15', '24 sb'],
       ].map(([role, swift, ios, mac, watch]) => ({ role, swift, ios, mac, watch })),
       colors: [
@@ -422,7 +422,7 @@ class Component extends DCLogic {
         ['systemGroupedBackground', 'Feed, Form background', '#F2F2F7', '#000'], ['secondarySystemGroupedBackground', 'Row card', '#fff', '#1C1C1E'], ['tertiarySystemFill', 'Weight field, segmented track', '#EBEBEE', '#2B2B2F'], ['.separator', 'Swatch stroke, dividers', '#DCDCDE', '#38383A'],
       ].map(([name, use, l, d]) => ({ name, use, l, d })),
       symbols: [
-        ['scalemass', 'Enter weight', 'ph ph-scales', '#007AFF'], ['checkmark.circle.fill', 'Saved, ready, test ok', 'ph-fill ph-check-circle', '#34C759'], ['plus.circle.fill', 'Created in Bambuddy', 'ph-fill ph-plus-circle', '#34C759'], ['questionmark.circle', 'Not in Bambuddy', 'ph ph-question', '#8E8E93'],
+        ['scalemass', 'Enter weight', 'ph ph-scales', '#007AFF'], ['checkmark.circle.fill', 'Saved, ready, test ok', 'ph-fill ph-check-circle', '#34C759'], ['plus.circle.fill', 'Added to Bambuddy', 'ph-fill ph-plus-circle', '#34C759'], ['questionmark.circle', 'Not in Bambuddy', 'ph ph-question', '#8E8E93'],
         ['exclamationmark.triangle.fill', 'Error, timeout note', 'ph-fill ph-warning', '#FF3B30'], ['xmark.circle.fill', 'Test failed', 'ph-fill ph-x-circle', '#FF3B30'], ['dot.radiowaves.left.and.right', 'Flipper request', 'ph ph-broadcast', '#007AFF'], ['antenna.radiowaves.left.and.right', 'Flipper over Bluetooth', 'ph ph-broadcast', '#34C759'],
         ['antenna.radiowaves.left.and.right.slash', 'No Flipper', 'ph ph-broadcast', '#8E8E93'], ['cable.connector', 'Flipper over USB', 'ph ph-usb', '#34C759'], ['app.dashed', 'Connected, no hello', 'ph ph-app-window', '#FF9500'], ['server.rack', 'Bambuddy', 'ph ph-hard-drives', '#34C759'],
         ['wifi.exclamationmark', 'Bambuddy unreachable', 'ph ph-wifi-slash', '#FF3B30'], ['lock.trianglebadge.exclamationmark', 'Key lacks permission', 'ph ph-lock-key', '#FF3B30'], ['nosign', 'Spoolman mode', 'ph ph-prohibit', '#FF3B30'], ['paintpalette', 'Colour names unavailable', 'ph ph-palette', '#FF9500'],
@@ -453,7 +453,7 @@ const FLOWS = [
     'Landscape: the newest Enter weight row focuses its inline field; the suggestion is selected.',
     'With a hardware keyboard: type, Tab to mode, ⌘S or Return saves. Hold ⌘ to see the shortcut overlay.',
     'Without one, the system number keyboard appears; the row stays visible above it because the list scrolls the focused row into view.',
-    'Portrait behaves exactly like iPhone: stacked card, full-width Save.',
+    'Portrait keeps the same tiles; a top tab bar replaces the sidebar.',
     'Clear lives in the sidebar and in the ⌘ menu; it asks for confirmation.',
   ], keys: [['Save focused row', '⌘S / ↩'], ['Clear feed', '⌘⌫'], ['Settings', '⌘,'], ['Field → mode → Save', '⇥']] },
   { name: 'Apple Watch', icon: 'ph ph-watch', min: 'Correct suggestion: 1 tap on Save. Otherwise: turn the crown, tap Save.', steps: [

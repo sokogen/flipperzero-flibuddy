@@ -143,7 +143,7 @@ TextField("Weight", value: $grams,
                               <button onClick="{{ r.setGross }}" role="radio" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ r.grossBg }};box-shadow:{{ r.grossSh }};cursor:pointer">Gross</button>
                             </div>
                             <div style="font-size:13px;color:{{ r.readoutColor }};font-variant-numeric:tabular-nums">{{ r.readout }}</div>
-                            <button onClick="{{ r.onSave }}" style="height:50px;border:0;border-radius:25px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;opacity:{{ r.saveOp }};cursor:pointer">{{ r.saveLabel }}</button>
+                            <button onClick="{{ r.onSave }}" style="height:44px;border:0;border-radius:22px;background:var(--fb-tint);color:var(--fb-blue);font-size:17px;font-weight:600;opacity:{{ r.saveOp }};cursor:pointer">{{ r.saveLabel }}</button>
                           </div>
                         </sc-if>
                         <sc-if value="{{ r.hasActs }}">
@@ -196,10 +196,11 @@ TextField("Weight", value: $grams,
                       <sc-if value="{{ p.scanning }}"><span style="width:14px;height:14px;border-radius:50%;border:2px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
                       <sc-if value="{{ p.notScanning }}"><i class="{{ p.st.flip.icon }}" style="font-size:16px;color:{{ p.st.flip.color }}"></i></sc-if>
                       <span style="font-size:15px;color:var(--fb-l2)">{{ p.flipState }}</span></div>
-                    <div onClick="{{ p.onScan }}" style="min-height:52px;display:flex;align-items:center;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);color:var(--fb-blue);cursor:pointer">Scan for Flipper</div>
-                    <div onClick="{{ p.onForget }}" style="min-height:52px;display:flex;align-items:center;padding:0 16px;color:var(--fb-red);cursor:pointer">Forget this Flipper</div>
+                    <div onClick="{{ p.onScan }}" style="min-height:52px;display:flex;align-items:center;padding:0 16px;color:var(--fb-blue);cursor:pointer">Scan for Flipper</div>
                   </div>
-                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px;letter-spacing:-.08px">Bluetooth only on iPhone. The Flipper must be running FliBuddy.</span>
+                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px 16px;letter-spacing:-.08px">Bluetooth only on iPhone. The Flipper must be running FliBuddy.</span>
+                  <div style="border-radius:24px;background:var(--fb-card);overflow:hidden"><div onClick="{{ p.onForget }}" style="min-height:52px;display:flex;align-items:center;justify-content:center;padding:0 16px;color:var(--fb-red);cursor:pointer">Forget This Flipper</div></div>
+                  <span style="font-size:13px;color:var(--fb-l2);text-align:center;padding:20px 16px 0">FliBuddy 1.0 (42)</span>
                 </div>
               </sc-if>
             </div>
@@ -248,7 +249,7 @@ TextField("Weight", value: $grams,
                     <div style="min-height:52px;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep)"><span>Brand</span><input value="{{ p.sh.brand }}" onChange="{{ p.sh.onBrand }}" placeholder="Elegoo" style="flex:1;min-width:0;border:0;outline:none;background:transparent;text-align:right;font-size:17px;letter-spacing:-.4px;color:var(--fb-l1)"></div>
                     <div style="min-height:52px;display:flex;align-items:center;gap:6px;padding:0 16px"><span style="flex:1">Label weight</span><input value="{{ p.sh.label }}" onChange="{{ p.sh.onLabel }}" aria-label="Label weight, grams" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:17px;font-variant-numeric:tabular-nums;color:var(--fb-l1)"><span style="color:var(--fb-l2)">g</span></div>
                   </div>
-                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px;letter-spacing:-.08px">FliBuddy creates the spool in Bambuddy, then asks for its weight.</span>
+                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px;letter-spacing:-.08px">FliBuddy adds the spool to Bambuddy at its label weight.</span>
                 </div>
               </div>
             </sc-if>

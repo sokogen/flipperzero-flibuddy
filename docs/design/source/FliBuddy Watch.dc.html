@@ -130,7 +130,7 @@ Text(grams, format: .number)
                       <button onClick="{{ w.d.setNet }}" style="border:0;border-radius:15px;font-size:13px;font-weight:600;background:{{ w.d.netBg }};color:{{ w.d.netFg }};cursor:pointer">Net</button>
                       <button onClick="{{ w.d.setGross }}" style="border:0;border-radius:15px;font-size:13px;font-weight:600;background:{{ w.d.grossBg }};color:{{ w.d.grossFg }};cursor:pointer">Gross</button>
                     </div>
-                    <button onClick="{{ w.d.onSave }}" style="height:40px;border:0;border-radius:20px;background:#0A84FF;color:#fff;font-size:16px;font-weight:600;opacity:{{ w.d.saveOp }};cursor:pointer;margin-top:3px">{{ w.d.saveLabel }}</button>
+                    <button onClick="{{ w.d.onSave }}" style="height:40px;border:0;border-radius:20px;background:rgba(10,132,255,.26);color:#4DA2FF;font-size:16px;font-weight:600;opacity:{{ w.d.saveOp }};cursor:pointer;margin-top:3px">{{ w.d.saveLabel }}</button>
                     <div style="position:absolute;right:3px;top:70px;width:4px;height:40px;border-radius:2px;background:rgba(255,255,255,.16)"><div style="position:absolute;left:0;right:0;height:12px;border-radius:2px;background:#30D158;top:{{ w.d.crownTop }}"></div></div>
                   </sc-if>
                   <sc-if value="{{ w.d.showSaved }}">

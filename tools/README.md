@@ -24,7 +24,7 @@ stale.
 
 `uv run python -m fixtures.make_flipper_icons` writes the Flipper app's XBM
 icons to `flipper/images/` from the icon table of
-`docs/design/flipper/flipper-ui.js` (`flipper/src/ui_icons.c` includes them).
+`docs/design/source/flipper-ui.js` (`flipper/src/ui_icons.c` includes them).
 Edit the table and regenerate; do not edit the `.xbm` files.
 `tests/test_flipper_icons.py` fails when a file is stale.
 
