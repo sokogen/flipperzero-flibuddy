@@ -4,7 +4,7 @@ import Testing
 
 @Suite struct TransportSessionTests {
     private let hostHello = Hello(app: "flibuddy-mac/0.1.0", os: "macOS 26.0")
-    private let flipperHello = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private let flipperHello = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
 
     /// `otherVersion`: the protocol version the fake Flipper reports, set
     /// before the session runs so a short hello timeout cannot fire first.
@@ -34,7 +34,7 @@ import Testing
 
         #expect(sink.events == [
             "link hello sent: app=flibuddy-mac/0.1.0 os=macOS 26.0",
-            "link hello received: app=flibuddy-fap/0.1.0 fw=1.5.1",
+            "link hello received: app=flibuddy-fap/1.0 fw=1.5.1",
         ])
     }
 

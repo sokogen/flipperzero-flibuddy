@@ -109,7 +109,7 @@ returns to Ready, and losing the host shows the scan's local facts.
 Exactly one of `fw` / `os` is present.
 
 ```json
-{"t":"hello","v":2,"app":"flibuddy-fap/0.1.0","fw":"1.5.1"}
+{"t":"hello","v":2,"app":"flibuddy-fap/1.0","fw":"1.5.1"}
 {"t":"hello","v":2,"app":"flibuddy-mac/0.1.0","os":"macOS 26.0"}
 ```
 

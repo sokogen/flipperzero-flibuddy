@@ -114,7 +114,7 @@ struct FeedLayoutTests {
 @MainActor
 @Suite("iPad sidebar")
 struct SidebarTests {
-    private static let fap = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private static let fap = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
 
     private func flipper(_ state: LinkState, problem: String? = nil, isActive: Bool = true) -> StatusItem {
         FlipperLink.statusItem(

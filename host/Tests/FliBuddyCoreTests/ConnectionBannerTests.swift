@@ -5,7 +5,7 @@ import Testing
 @MainActor
 @Suite("iPhone connection banner")
 struct ConnectionBannerTests {
-    private static let fap = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private static let fap = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
     private static let bluetooth = TransportChoice.bluetooth(peripheral: nil)
 
     private func flipper(_ state: LinkState, problem: String? = nil, isActive: Bool = true) -> StatusItem {

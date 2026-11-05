@@ -225,7 +225,7 @@ private func decodePatched(_ name: String, _ patch: (inout [String: Any]) -> Voi
     }
 
     @Test func helloSides() throws {
-        #expect(try Message.decode(line: Fixtures.message("hello_flipper")) == .hello(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")))
+        #expect(try Message.decode(line: Fixtures.message("hello_flipper")) == .hello(Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")))
         #expect(try Message.decode(line: Fixtures.message("hello_host")) == .hello(Hello(app: "flibuddy-mac/0.1.0", os: "macOS 26.0")))
     }
 

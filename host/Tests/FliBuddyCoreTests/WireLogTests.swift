@@ -75,7 +75,7 @@ import Testing
     @Test func aPeerOfAnotherVersionIsToldOnceAndItsLinesDroppedQuietly() async {
         var otherVersion: Int?
         var messages: [Message?] = []
-        let v1Hello = #"{"t":"hello","v":1,"app":"flibuddy-fap/0.1.0","fw":"1.5.1"}"#
+        let v1Hello = #"{"t":"hello","v":1,"app":"flibuddy-fap/1.0","fw":"1.5.1"}"#
         let sink = await capturingLog {
             messages.append(WireLog.received(Data(v1Hello.utf8), otherVersion: &otherVersion))
             messages.append(WireLog.received(Data(#"{"t":"scan","v":1}"#.utf8), otherVersion: &otherVersion))

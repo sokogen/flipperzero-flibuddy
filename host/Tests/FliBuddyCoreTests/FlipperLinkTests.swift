@@ -100,7 +100,7 @@ struct FlipperLinkTests {
     }
 
     @Test func aBluetoothLinkIsConnectedOverBluetooth() {
-        let hello = Hello(app: "flibuddy-fap/0.1.0", os: "flipper 1.5.1")
+        let hello = Hello(app: "flibuddy-fap/1.0", os: "flipper 1.5.1")
         #expect(FlipperLink.connectedTransport(.connected(hello), choice: .bluetooth(peripheral: nil)) == .bluetooth)
         #expect(FlipperLink.connectedTransport(.connected(hello), choice: .usb(port: nil)) == .usb)
         #expect(FlipperLink.connectedTransport(.noAnswer, choice: .bluetooth(peripheral: nil)) == nil)
@@ -510,7 +510,7 @@ struct FlipperLinkTests {
         #expect(FlipperLink.statusText(.otherVersion(1), problem: nil) == "Flipper: speaks protocol 1, app speaks 2")
         #expect(FlipperLink.connectedTransport(.otherVersion(1), choice: .usb(port: nil)) == nil)
         #expect(
-            FlipperLink.statusText(.connected(Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")), problem: nil)
+            FlipperLink.statusText(.connected(Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")), problem: nil)
                 == "Flipper: connected (firmware 1.5.1)"
         )
     }

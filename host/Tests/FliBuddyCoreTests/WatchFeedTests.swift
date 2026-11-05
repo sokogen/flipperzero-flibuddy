@@ -53,7 +53,7 @@ struct WatchFeedRowTests {
 @MainActor
 @Suite("Watch connection glyph")
 struct WatchGlyphTests {
-    private static let fap = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private static let fap = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
 
     private func flipper(_ state: LinkState, isActive: Bool = true) -> StatusItem {
         FlipperLink.statusItem(

@@ -213,7 +213,7 @@ static void test_hello_fixtures(void) {
 
     CHECK(decode_fixture("hello_flipper.json", true) == ProtoDecodeOk);
     CHECK(msg.type == ProtoMsgHello);
-    CHECK_STR_EQ(msg.hello.app, "flibuddy-fap/0.1.0");
+    CHECK_STR_EQ(msg.hello.app, "flibuddy-fap/1.0");
     CHECK_STR_EQ(msg.hello.fw, "1.5.1");
     CHECK_STR_EQ(msg.hello.os, "");
 }

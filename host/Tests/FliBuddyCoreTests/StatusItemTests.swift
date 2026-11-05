@@ -5,7 +5,7 @@ import Testing
 @MainActor
 @Suite("Status bar items")
 struct StatusItemTests {
-    private static let fap = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private static let fap = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
     private static let usb = TransportChoice.usb(port: nil)
     private static let bluetooth = TransportChoice.bluetooth(peripheral: nil)
 
@@ -57,7 +57,7 @@ struct StatusItemTests {
                     tint: .green, detail: "firmware 1.5.1", short: "Flipper connected"
                 )
         )
-        #expect(flipper(.connected(Hello(app: "flibuddy-fap/0.1.0")), port: nil).detail == nil)
+        #expect(flipper(.connected(Hello(app: "flibuddy-fap/1.0")), port: nil).detail == nil)
     }
 
     @Test func noHelloAsksToOpenTheApp() {

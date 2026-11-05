@@ -1,6 +1,7 @@
 """flipper/application.fam as the Flipper Apps Catalog reads it, and the
 app's version, which lives in the fam and in flipper/src/flibuddy_app.h."""
 
+import json
 import re
 from pathlib import Path
 
@@ -48,6 +49,12 @@ def test_the_version_is_major_minor():
 def test_the_app_reports_the_version_of_its_fam():
     # Shown on Waiting and About and sent in `hello`; one version for both.
     assert header_version() == fam_field("fap_version") == "1.0"
+
+
+def test_the_hello_fixture_names_the_fams_version():
+    # protocol/fixtures is the contract: its Flipper hello is the one 1.0 sends
+    hello = json.loads((FLIPPER.parent / "protocol" / "fixtures" / "messages" / "hello_flipper.json").read_text())
+    assert hello["app"] == f"flibuddy-fap/{fam_field('fap_version')}"
 
 
 def test_the_description_is_plain_ascii_and_short():

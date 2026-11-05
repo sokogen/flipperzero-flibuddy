@@ -206,7 +206,7 @@ struct WatchSettingsTextsTests {
 @MainActor
 @Suite("Watch Flipper platter")
 struct WatchFlipperPlatterTests {
-    private static let fap = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
+    private static let fap = Hello(app: "flibuddy-fap/1.0", fw: "1.5.1")
 
     private func flipper(_ state: LinkState, isActive: Bool = true) -> StatusItem {
         WatchSettingsTexts.flipperStatus(FlipperLink.statusItem(
