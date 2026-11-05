@@ -56,7 +56,7 @@ struct ConnectionBannerTests {
             line(flipper: flipper(.disconnected, isActive: false))
                 == StatusItem(
                     text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"), tint: .orange,
-                    action: .settings
+                    action: .settings, isSetupStep: true
                 )
         )
     }
@@ -158,7 +158,15 @@ struct ConnectionBannerTests {
     @Test func theHostModelBuildsItsBanner() {
         let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
         let model = HostModel(store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() })
-        #expect(model.connectionBanner == ConnectionBanner(flipper: model.link.statusItem, bambuddy: model.feed.bambuddyStatus))
-        #expect(model.connectionBanner.lines.first?.action == .settings)
+        #expect(
+            model.connectionBanner
+                == ConnectionBanner(
+                    flipper: model.link.statusItem, bambuddy: model.feed.bambuddyStatus,
+                    emptyState: model.feedEmptyState
+                )
+        )
+        // The empty feed asks for Bambuddy; the Flipper's Settings line waits.
+        #expect(model.feedEmptyState == .noServer)
+        #expect(model.connectionBanner.lines.map(\.action) == [.check])
     }
 }

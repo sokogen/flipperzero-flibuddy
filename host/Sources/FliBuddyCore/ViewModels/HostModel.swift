@@ -112,9 +112,15 @@ public final class HostModel {
         await session.checkBambuddy()
     }
 
-    /// The iPhone's banner over the feed, from both halves of the status bar.
+    /// The iPhone's banner over the feed, from both halves of the status
+    /// bar; beside an empty feed that shows a setup step, without the lines
+    /// that say the same.
     public var connectionBanner: ConnectionBanner {
-        ConnectionBanner(flipper: link.statusItem, bambuddy: feed.bambuddyStatus)
+        let showsEmptyState = feed.items.isEmpty && !feed.isBlocked
+        return ConnectionBanner(
+            flipper: link.statusItem, bambuddy: feed.bambuddyStatus,
+            emptyState: showsEmptyState ? feedEmptyState : nil
+        )
     }
 
     /// The watch's connection glyph, from both halves of the status bar.

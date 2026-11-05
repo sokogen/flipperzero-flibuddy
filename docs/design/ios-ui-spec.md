@@ -153,9 +153,9 @@ TextField("Weight", value: $grams, format: .number)
 
 The app runs in portrait only. The tab bar hides while the number pad is
 up and comes back when it lowers.
-The Clear button sits at the leading end of the navigation bar, icon only
+The Clear button sits at the trailing end of the navigation bar, icon only
 (`trash`), accessibility label "Clear feed"; disabled while the feed is
-empty.
+empty (the iPhone page draws it top right).
 
 ## Connection banner (top safe-area inset, under the large title)
 
@@ -171,7 +171,7 @@ Bambuddy, each with its own chip) when both are (owner decision
 |---|---|
 | Shape | `Capsule()`, height 40, `.glassEffect()` on iOS 26+ (`.regularMaterial` below), 0.5 pt hairline, horizontal padding 14 leading / 6 trailing, 16 pt outer margin |
 | Symbol | 16 pt, in the state's tint; a 12 pt spinner in its place while searching |
-| Text | `.footnote.weight(.medium)` (13), `.primary`, one line, tail truncation |
+| Text | `.footnote.weight(.medium)` (13), `.primary`; a phrase that does not fit beside its chip wraps with the chip under it; text sizes above the second accessibility size are capped in the banner |
 | Action | capsule chip height 28, padding 12, `.tint` fill, white `.footnote.weight(.semibold)` label |
 
 Short phrases (core `FLIP` / `BAMBU`, field `short`):
@@ -201,7 +201,18 @@ Spoolman mode is blocking anyway (the feed is replaced). The states the
 Spec page does not draw keep their macOS phrases and tints: `Checking
 Bambuddy…` with a spinner, a link problem such as `Bluetooth is off` orange
 with the slash symbol. Tapping the banner outside the chip does nothing;
-the detail the phrase leaves out is its accessibility hint.
+the detail the phrase leaves out is its accessibility hint. The chip reads
+with its side: `Retry Bambuddy`, `Check Bambuddy`, `Flipper settings`,
+`Bambuddy settings`.
+
+While the empty feed shows a setup step (Connect Bambuddy, Bambuddy needs
+HTTPS, Find your Flipper) the banner leaves out its setup lines (`Flipper
+not connected` with no Flipper chosen yet, `Bambuddy not set up`, `Bambuddy
+needs HTTPS`): the empty feed says the same with its button, so a first run
+shows no banner (owner ruling 2026-11-05, Task 14). Real problems of a
+set-up app stay (`No Flipper · searching`, `Bambuddy unreachable`, a
+rejected key), and so does every line once the feed has rows. The iPad
+sidebar keeps both rows at all times.
 Settings switches to the Settings tab.
 
 ## Feed row (stacked card, one `Section` per row)
@@ -235,7 +246,13 @@ the entry states of the table below:
 A row without an entry block or actions has a minimum height of 76.
 
 VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590
-grams left of 1000, Enter weight" (the colour code is not read). Rows that
+grams left of 1,000, Enter weight" (the colour code is not read). Without
+Bambuddy's colour name it reads Bambu's name for the tag's colour, else a
+plain word for the swatch (`dark blue`, `light gray`), never the hex; the
+Spools rows do the same. Grams are in the user's number format
+(`.formatted()`, `1,000` in the US); the weight field takes plain digits.
+Title up to two lines, colour line and status up to three: wrapped, not
+cut. Scrolling to the focused row does not animate with Reduce Motion. Rows that
 can reopen get a "Weigh again" action ("Weigh" on an added spool that was
 never weighed); every row gets a "Tag details" action. An error status is
 a plain sentence (`Error: Bambuddy didn't answer`); the technical detail

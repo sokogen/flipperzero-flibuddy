@@ -21,6 +21,9 @@ public struct SettingsForm: View {
     @ViewState private var camera = CameraAccess.unsupported
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    /// The iPad caps the form at 640 and centres it; the iPhone's is full width.
+    @Environment(\.feedLayout) private var layout
+    @ViewState private var formWidth: CGFloat = 0
     #endif
 
     public init(model: SettingsViewModel) {
@@ -173,6 +176,8 @@ public struct SettingsForm: View {
             }
         }
         .environment(\.defaultMinListRowHeight, 52)
+        .modifier(PadFormWidth(isPad: layout.showsTiles, width: formWidth))
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { formWidth = $0 }
         .onAppear { camera = CameraQRScanner.access }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { camera = CameraQRScanner.access }
@@ -358,15 +363,32 @@ public struct SettingsForm: View {
 
     /// A test result: symbol (or spinner) and phrase, 4 pt apart.
     private func resultLine(_ item: StatusItem) -> some View {
-        HStack(spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
             StatusSymbolView(symbol: item.symbol, tint: item.tint)
-            Text(item.text).foregroundStyle(item.tint == .red ? .red : .secondary)
+            Text(item.text)
+                .foregroundStyle(item.tint == .red ? .red : .secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
     }
 }
 
 #if os(iOS)
+/// The iPad form's sections at most 640 wide, centred in a wider column
+/// (iPad page); the iPhone keeps the system margins.
+private struct PadFormWidth: ViewModifier {
+    let isPad: Bool
+    let width: CGFloat
+
+    func body(content: Content) -> some View {
+        if isPad {
+            content.contentMargins(.horizontal, FeedLayout.settingsSideMargin(width: width), for: .scrollContent)
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
     /// What of Settings must outlive its form, for the app's root view:
     /// the QR cover, and leaving (`showing` turning false) commits the field

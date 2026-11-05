@@ -43,10 +43,12 @@ struct RowActions: View {
             buttons
         case .card, .tile:
             // The row's status shows the spinner while an action runs.
-            HStack(spacing: style == .tile ? 8 : 10) {
-                ForEach(item.rowActions, id: \.self) { action in
-                    capsule(action, prominent: action == item.prominentRowAction)
-                }
+            // Side by side where both labels fit whole (a narrow tile, a
+            // large text size), else stacked: a label is never cut.
+            let spacing: CGFloat = style == .tile ? 8 : 10
+            ViewThatFits(in: .horizontal) {
+                EqualWidthRow(spacing: spacing) { capsules(lineLimit: 1) }
+                VStack(spacing: spacing) { capsules(lineLimit: nil) }
             }
         }
     }
@@ -92,13 +94,22 @@ struct RowActions: View {
         .fixedSize()
     }
 
-    @ViewBuilder private func capsule(_ action: FeedItem.RowAction, prominent: Bool) -> some View {
+    private func capsules(lineLimit: Int?) -> some View {
+        ForEach(item.rowActions, id: \.self) { action in
+            capsule(action, prominent: action == item.prominentRowAction, lineLimit: lineLimit)
+        }
+    }
+
+    /// `lineLimit` 1 side by side, where `ViewThatFits` checks the whole
+    /// label fits; stacked, a label longer than the row wraps.
+    @ViewBuilder private func capsule(_ action: FeedItem.RowAction, prominent: Bool, lineLimit: Int?) -> some View {
         let button = Button {
             perform(action)
         } label: {
             Text(action.title)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
+                .lineLimit(lineLimit)
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, minHeight: style == .tile ? 22 : 30)
         }
         .buttonBorderShape(.capsule)
@@ -107,6 +118,42 @@ struct RowActions: View {
             button.buttonStyle(.borderedProminent)
         } else {
             button.buttonStyle(.bordered)
+        }
+    }
+}
+
+/// Equal-width children side by side. Its ideal width is the widest
+/// child's times their number, so `ViewThatFits` picks it only where every
+/// label fits whole at the shared width.
+struct EqualWidthRow: Layout {
+    var spacing: CGFloat
+
+    private func widest(_ subviews: Subviews) -> CGFloat {
+        subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+    }
+
+    private func gaps(_ subviews: Subviews) -> CGFloat {
+        spacing * CGFloat(max(0, subviews.count - 1))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let width = proposal.width ?? (widest(subviews) * CGFloat(subviews.count) + gaps(subviews))
+        let each = (width - gaps(subviews)) / CGFloat(subviews.count)
+        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: each, height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard !subviews.isEmpty else { return }
+        let each = (bounds.width - gaps(subviews)) / CGFloat(subviews.count)
+        var x = bounds.minX
+        for subview in subviews {
+            subview.place(
+                at: CGPoint(x: x, y: bounds.midY), anchor: .leading,
+                proposal: ProposedViewSize(width: each, height: bounds.height)
+            )
+            x += each + spacing
         }
     }
 }

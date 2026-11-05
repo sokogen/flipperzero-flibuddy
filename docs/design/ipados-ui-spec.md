@@ -112,7 +112,7 @@ corner 22, padding 14, 10 between the header and the entry block.
 | Header | swatch 24 pt, 10 to the text; title `.headline` (17 sb); colour line `.subheadline` `.secondary`; status symbol + phrase `.subheadline`; timeout note `.footnote`. Same texts as the iPhone card. |
 | Weight field | full width, height 52, `tertiarySystemFill`, `.rect(cornerRadius: 12)`, padding 14; value `.system(.largeTitle, design: .rounded).bold().monospacedDigit()` scaled to 30 pt, placeholder `0`; unit `g` `.title3.weight(.semibold)` `.secondary`; focus ring 2 pt `.tint`. The short readout sits right-aligned inside the field, `.caption.monospacedDigit()` `.secondary`: `Saves 590 g`, red `Below core`, nothing while the field is empty (VoiceOver reads the full readout). Accessibility label `Gross weight, grams` / `Net weight, grams`. |
 | Net / Gross and Save | one row, 8 apart: the segmented control takes the rest of the width; Save 36 high, at least 80 wide, tinted capsule (`.bordered`, `.borderedProminent` with Increase Contrast), `.subheadline.weight(.semibold)` (15): `Save` / `Saving…`; pointer label `Save (⌘S)` |
-| Actions | **New** / **New…** and **Link to existing…** as two equal 36 pt capsules, 8 apart, the prominent one first (as on the iPhone) |
+| Actions | **New** / **New…** and **Link to existing…** as two equal 36 pt capsules, 8 apart, the prominent one first (as on the iPhone); stacked full width where both labels do not fit whole at the shared width (a 3-column tile), never truncated |
 
 The focused row is marked by its field's focus ring; a row waiting behind a
 touched field gets the 2 pt `.tint` outline on the tile. A tap on a saved
@@ -304,8 +304,9 @@ Dialogs
   keeps `… Linking moves it to <uid>.` and `Move link`.
 
 Settings
-- The form is the iPhone's, full width of the detail column; the iPad
-  page draws it at most 640 wide. By eye.
+- The form is the iPhone's, at most 640 wide and centred in the detail
+  column (owner decision: no full-width form on the iPad;
+  `FeedLayout.settingsMaximumWidth`).
 
 ## Open questions for the owner
 

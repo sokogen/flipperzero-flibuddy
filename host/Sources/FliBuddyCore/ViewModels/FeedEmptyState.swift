@@ -34,6 +34,13 @@ public enum FeedEmptyState: Equatable, Sendable {
         }
     }
 
+    /// A step of the first setup (a Bambuddy, a Flipper) rather than the
+    /// wait for a scan: the banner over the feed leaves out the lines that
+    /// say the same.
+    public var isSetupStep: Bool {
+        self != .noScans
+    }
+
     public var content: Content {
         switch self {
         case .noServer: Self.content(SpoolsViewModel.Unavailable.connectBambuddy)

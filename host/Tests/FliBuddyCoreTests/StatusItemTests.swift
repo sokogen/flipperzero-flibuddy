@@ -85,7 +85,7 @@ struct StatusItemTests {
             flipper(.disconnected, choice: nil, isActive: false)
                 == StatusItem(
                     text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                    tint: .orange, action: .settings
+                    tint: .orange, action: .settings, isSetupStep: true
                 )
         )
     }
@@ -141,7 +141,7 @@ struct StatusItemTests {
             notConfigured.statusItem()
                 == StatusItem(
                     text: "Bambuddy not set up", symbol: .symbol("server.rack"), tint: .orange, action: .settings,
-                    detail: notConfigured.message
+                    detail: notConfigured.message, isSetupStep: true
                 )
         )
         let rejected = BambuddyState.refused(.unauthorized)
@@ -280,7 +280,7 @@ struct StatusActionTests {
         #expect(
             BambuddyState.needsHTTPS.statusItem() == StatusItem(
                 text: "Bambuddy needs HTTPS", symbol: .symbol("lock.slash"), tint: .red, action: .settings,
-                detail: "FliBuddy needs an https:// address."
+                detail: "FliBuddy needs an https:// address.", isSetupStep: true
             )
         )
         #expect(

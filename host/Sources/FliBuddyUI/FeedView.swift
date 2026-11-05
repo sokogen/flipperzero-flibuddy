@@ -56,8 +56,10 @@ public struct FeedView: View {
             .background { FeedKeyboardShortcuts(feed: feed) }
             #else
             .safeAreaInset(edge: .top, spacing: 0) {
-                if layout.showsBanner {
-                    ConnectionBannerView(banner: host.connectionBanner, openSettings: openSettings) { action in
+                // No lines when the empty feed shows the only setup step.
+                let banner = host.connectionBanner
+                if layout.showsBanner, !banner.lines.isEmpty {
+                    ConnectionBannerView(banner: banner, openSettings: openSettings) { action in
                         Task { await host.perform(action) }
                     }
                 }
@@ -90,10 +92,11 @@ public struct FeedView: View {
             })
             .toolbar {
                 #if os(iOS)
-                // Icon only, at the leading end of the bar; beside the iPad
-                // sidebar Clear feed is in the sidebar. ⌘⌫ is a menu command.
+                // Icon only, at the trailing end of the bar (iPhone page);
+                // beside the iPad sidebar Clear feed is in the sidebar. ⌘⌫
+                // is a menu command.
                 if layout.showsBanner {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button("Clear feed", systemImage: "trash") { confirmingClear.wrappedValue = true }
                             .labelStyle(.iconOnly)
                             .disabled(feed.items.isEmpty)

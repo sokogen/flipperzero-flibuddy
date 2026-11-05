@@ -484,7 +484,10 @@ struct HostModelTests {
 
         #expect(await model.session.bambuddy == .needsHTTPS)
         model.feed.apply(await model.session.snapshot)
-        #expect(model.connectionBanner.lines.map(\.text).contains("Bambuddy needs HTTPS"))
+        // The empty feed says it with its Settings button; the sidebar keeps the line.
+        #expect(model.feedEmptyState == .needsHTTPS)
+        #expect(!model.connectionBanner.lines.map(\.text).contains("Bambuddy needs HTTPS"))
+        #expect(model.sidebar.bambuddy.subline == "Needs HTTPS")
     }
 
     @Test func theEmptyFeedNamesTheSameServerStateAsTheSpools() {

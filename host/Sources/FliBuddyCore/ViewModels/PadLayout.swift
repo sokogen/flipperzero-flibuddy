@@ -87,6 +87,18 @@ public enum FeedLayout: Equatable, Sendable {
     /// The Spools inspector's width.
     public static let inspectorWidth: Double = 320
 
+    /// The iPad Settings form's widest (iPad page); it is centred in a
+    /// wider detail column.
+    public static let settingsMaximumWidth: Double = 640
+    /// The form's side margin where the column is no wider than the cap.
+    public static let settingsMinimumMargin: Double = 20
+
+    /// Each side's margin that caps the Settings form at
+    /// `settingsMaximumWidth` in a column `width` wide, centring it.
+    public static func settingsSideMargin(width: Double) -> Double {
+        max(settingsMinimumMargin, (width - settingsMaximumWidth) / 2)
+    }
+
     /// The Spools scope control's widest, over the iPad's tiles.
     public static let scopeMaximumWidth: Double = 300
 

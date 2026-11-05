@@ -272,3 +272,15 @@ struct SidebarTests {
         #expect(!host.sidebar.canClear)
     }
 }
+
+@Suite("iPad Settings width")
+struct SettingsWidthTests {
+    @Test func theFormIsAtMost640WideAndCentred() {
+        #expect(FeedLayout.settingsMaximumWidth == 640)
+        // 13" portrait detail column: 1032 wide leaves 196 each side.
+        #expect(FeedLayout.settingsSideMargin(width: 1032) == 196)
+        // Narrower than the cap: the form's own margins.
+        #expect(FeedLayout.settingsSideMargin(width: 600) == FeedLayout.settingsMinimumMargin)
+        #expect(FeedLayout.settingsSideMargin(width: 680) == FeedLayout.settingsMinimumMargin)
+    }
+}

@@ -35,10 +35,14 @@ public struct StatusItem: Equatable, Sendable {
     public var detail: String?
     /// The iPhone banner's phrase where it is shorter than `text`.
     public var short: String?
+    /// A step of the first setup rather than a problem: no Flipper chosen
+    /// yet, no Bambuddy (or an `http://` one). The banner leaves it to the
+    /// empty feed, which shows the same step (`ConnectionBanner`).
+    public var isSetupStep: Bool
 
     public init(
         text: String, symbol: StatusSymbol, tint: StatusTint, action: Action? = nil, detail: String? = nil,
-        short: String? = nil
+        short: String? = nil, isSetupStep: Bool = false
     ) {
         self.text = text
         self.symbol = symbol
@@ -46,6 +50,7 @@ public struct StatusItem: Equatable, Sendable {
         self.action = action
         self.detail = detail
         self.short = short
+        self.isSetupStep = isSetupStep
     }
 
     /// Green is a side that works: the Flipper connected, Bambuddy ready.
@@ -66,7 +71,7 @@ extension FlipperLink {
         guard isActive else {
             return StatusItem(
                 text: "Flipper not connected", symbol: .symbol("antenna.radiowaves.left.and.right"),
-                tint: .orange, action: .settings, detail: problem
+                tint: .orange, action: .settings, detail: problem, isSetupStep: true
             )
         }
         switch state {
@@ -128,7 +133,7 @@ extension BambuddyState {
         case .notConfigured:
             return StatusItem(
                 text: "Bambuddy not set up", symbol: .symbol("server.rack"), tint: .orange, action: .settings,
-                detail: message
+                detail: message, isSetupStep: true
             )
         case .ready:
             if let colorNamesProblem {
@@ -155,7 +160,7 @@ extension BambuddyState {
         case .needsHTTPS:
             return StatusItem(
                 text: "Bambuddy needs HTTPS", symbol: .symbol("lock.slash"), tint: .red, action: .settings,
-                detail: message
+                detail: message, isSetupStep: true
             )
         case .untrustedCertificate:
             return StatusItem(
