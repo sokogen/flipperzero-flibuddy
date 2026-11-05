@@ -52,6 +52,7 @@ import Testing
         #expect(Set(defaults.dictionaryRepresentation().keys) == [
             "bambuddy.baseURL", "bambuddy.catalogEntryId", "bambuddy.coreWeight", "weight.defaultMode",
             "flipper.transport", "flipper.port", "flipper.peripheralId", "flipper.peripheralName",
+            "settings.version",
         ])
     }
 
@@ -124,6 +125,70 @@ import Testing
 
         #expect(store.load() == testSettings)
         #expect(SettingsStore(defaults: defaults, secrets: secrets).load() == testSettings)
+    }
+
+    @Test func theDefaultCoreWeightWithoutACatalogEntryIsNotStored() throws {
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        defaults.set(300, forKey: "bambuddy.coreWeight")
+        var settings = Settings()
+        settings.coreWeight = Settings.defaultCoreWeight
+
+        try store.save(settings)
+
+        #expect(defaults.object(forKey: "bambuddy.coreWeight") == nil)
+        #expect(store.load().coreWeight == Settings.defaultCoreWeight)
+    }
+
+    @Test func theDefaultCoreWeightWithACatalogEntryIsStored() throws {
+        let defaults = InMemoryKeyValueStore()
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        let settings = Settings(catalogEntryId: 3, coreWeight: Settings.defaultCoreWeight)
+
+        try store.save(settings)
+
+        #expect(defaults.object(forKey: "bambuddy.coreWeight") as? Int == 242)
+    }
+
+    @Test func aStoredPhase0WeightWithoutACatalogEntryMigratesToTheDefault() {
+        let defaults = InMemoryKeyValueStore()
+        defaults.set(325, forKey: "bambuddy.coreWeight")
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+
+        #expect(store.load().coreWeight == 242)
+        #expect(defaults.object(forKey: "bambuddy.coreWeight") == nil)
+        #expect(defaults.object(forKey: "settings.version") as? Int == 1)
+    }
+
+    @Test func aStoredPhase0WeightWithACatalogEntryIsKept() {
+        let defaults = InMemoryKeyValueStore()
+        defaults.set(325, forKey: "bambuddy.coreWeight")
+        defaults.set(24, forKey: "bambuddy.catalogEntryId")
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+
+        #expect(store.load().coreWeight == 325)
+    }
+
+    @Test func otherStoredWeightsSurviveTheMigration() {
+        let defaults = InMemoryKeyValueStore()
+        defaults.set(293, forKey: "bambuddy.coreWeight")
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+
+        #expect(store.load().coreWeight == 293)
+    }
+
+    @Test func theMigrationRunsOnce() throws {
+        let defaults = InMemoryKeyValueStore()
+        defaults.set(325, forKey: "bambuddy.coreWeight")
+        let store = SettingsStore(defaults: defaults, secrets: InMemorySecretStore())
+        _ = store.load()
+
+        // A weight the user typed afterwards is theirs, even if it is 325.
+        var settings = store.load()
+        settings.coreWeight = 325
+        try store.save(settings)
+
+        #expect(store.load().coreWeight == 325)
     }
 
     @Test func anEditedCoreWeightLoadsBack() throws {

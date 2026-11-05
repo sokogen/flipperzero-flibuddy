@@ -128,12 +128,17 @@ public struct SettingsStore: Sendable {
         static let baseURL = "bambuddy.baseURL"
         static let catalogEntryId = "bambuddy.catalogEntryId"
         static let coreWeight = "bambuddy.coreWeight"
+        static let version = "settings.version"
         static let defaultMode = "weight.defaultMode"
         static let transport = "flipper.transport"
         static let port = "flipper.port"
         static let peripheralId = "flipper.peripheralId"
         static let peripheralName = "flipper.peripheralName"
     }
+
+    /// The layout of the stored settings. 1: the core weight default moved
+    /// from 325 g (Phase 0) to 242 g, and the default is no longer stored.
+    static let currentVersion = 1
 
     private let defaults: any KeyValueStore
     private let secrets: any SecretStore
@@ -147,6 +152,7 @@ public struct SettingsStore: Sendable {
     /// Keychain item loads as an unknown API key (`apiKeyUnknown`), not as an
     /// empty one.
     public func load() -> Settings {
+        migrate()
         var settings = Settings()
         settings.baseURL = defaults.string(forKey: Key.baseURL) ?? settings.baseURL
         do {
@@ -168,6 +174,20 @@ public struct SettingsStore: Sendable {
         return settings
     }
 
+    /// Brings settings stored by an earlier version up to date, once.
+    private func migrate() {
+        let version = defaults.object(forKey: Key.version) as? Int ?? 0
+        guard version < Self.currentVersion else { return }
+        // The Phase 0 default, kept by installs that never chose a catalog entry:
+        // it becomes the current default so later changes of it reach them.
+        if defaults.object(forKey: Key.catalogEntryId) as? Int == nil,
+           defaults.object(forKey: Key.coreWeight) as? Int == 325 {
+            defaults.removeObject(forKey: Key.coreWeight)
+            Log.info(.settings, "migrated core weight 325 to the default \(Settings.defaultCoreWeight)")
+        }
+        defaults.set(Self.currentVersion, forKey: Key.version)
+    }
+
     /// Saves everything; an empty API key removes the Keychain item. An
     /// unknown API key (`apiKeyUnknown`) leaves the item as it is.
     public func save(_ settings: Settings) throws {
@@ -186,7 +206,14 @@ public struct SettingsStore: Sendable {
         } else {
             defaults.removeObject(forKey: Key.catalogEntryId)
         }
-        defaults.set(settings.coreWeight, forKey: Key.coreWeight)
+        // The default without a catalog entry is not stored, so a later
+        // change of the default reaches this install.
+        if settings.coreWeight == Settings.defaultCoreWeight, settings.catalogEntryId == nil {
+            defaults.removeObject(forKey: Key.coreWeight)
+        } else {
+            defaults.set(settings.coreWeight, forKey: Key.coreWeight)
+        }
+        defaults.set(Self.currentVersion, forKey: Key.version)
         defaults.set(settings.defaultMode.rawValue, forKey: Key.defaultMode)
         defaults.set(settings.transport.rawValue, forKey: Key.transport)
         set(settings.port, Key.port)
