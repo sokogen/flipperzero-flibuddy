@@ -21,8 +21,8 @@ project was renamed on 2026-10-26; the design spec keeps its old file name.
 Bambuddy must run in internal inventory mode; the host refuses Spoolman
 mode.
 
-The iPhone, iPad, Apple Watch and Mac apps are English-only in 1.0; numbers
-(grams) follow the device's region format.
+The iPhone, iPad, Apple Watch and Mac apps are English-only in 1.0; grams
+show without a grouping separator (`1000 g`), as on the Flipper.
 
 ## Layout
 

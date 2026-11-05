@@ -297,8 +297,8 @@ struct SpoolMarks: View {
     }
 }
 
-/// Colour and brand, then `410 g left of 1,000 · updated 3 d ago` on one
-/// line, or `410 g left of 1,000` alone where that does not fit, wrapped
+/// Colour and brand, then `410 g left of 1000 · updated 3 d ago` on one
+/// line, or `410 g left of 1000` alone where that does not fit, wrapped
 /// where even that does not. Colour and brand take one line on an iPhone
 /// row (three lines a row), two on an iPad tile, three at the accessibility
 /// text sizes; wrapped, never cut short.

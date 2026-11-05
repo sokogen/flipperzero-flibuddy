@@ -6,10 +6,13 @@ import Testing
     private let hostHello = Hello(app: "flibuddy-mac/0.1.0", os: "macOS 26.0")
     private let flipperHello = Hello(app: "flibuddy-fap/0.1.0", fw: "1.5.1")
 
+    /// `otherVersion`: the protocol version the fake Flipper reports, set
+    /// before the session runs so a short hello timeout cannot fire first.
     private func start(
-        helloTimeout: Duration = .seconds(30)
+        helloTimeout: Duration = .seconds(30), otherVersion: Int? = nil
     ) async -> (FakeTransport, TransportSession, Collector<SessionEvent>, Task<Void, Error>) {
         let transport = FakeTransport()
+        transport.otherVersion = otherVersion
         let session = TransportSession(transport: transport, hello: hostHello, helloTimeout: helloTimeout)
         let events = await Collector.draining(session.events)
         let run = Task { try await session.run() }
@@ -49,11 +52,10 @@ import Testing
 
     @Test func aSilentFlipperOfAnotherVersionSaysWhichVersionItSpeaks() async throws {
         let sink = await capturingLog {
-            let (transport, session, events, run) = await start(helloTimeout: .milliseconds(50))
+            let (transport, session, events, run) = await start(helloTimeout: .milliseconds(50), otherVersion: 1)
             defer { run.cancel() }
-            transport.otherVersion = 1
             #expect(await eventually { await session.state == .otherVersion(1) })
-            #expect(await events.items == [.state(.waitingForHello), .state(.otherVersion(1))])
+            #expect(await eventually { await events.items == [.state(.waitingForHello), .state(.otherVersion(1))] })
 
             // a Flipper of this version that says hello after all connects
             transport.deliver(.hello(flipperHello))

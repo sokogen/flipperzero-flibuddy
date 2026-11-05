@@ -172,19 +172,19 @@ struct SpoolsViewModelTests {
         let charcoal = try #require(model.rows.first { $0.id == 21 })
         #expect(charcoal.title == "PLA Matte")
         #expect(charcoal.subtitle == "Charcoal \u{00B7} Bambu Lab")
-        #expect(charcoal.detail == "410 g left of 1,000 \u{00B7} updated 3 d ago")
+        #expect(charcoal.detail == "410 g left of 1000 \u{00B7} updated 3 d ago")
         // What a narrow row keeps when the whole line does not fit.
-        #expect(charcoal.left == "410 g left of 1,000")
+        #expect(charcoal.left == "410 g left of 1000")
         #expect(charcoal.hasTag)
         #expect(!charcoal.isLow)
         #expect(!charcoal.isArchived)
         #expect(charcoal.swatch != nil)
         #expect(
             charcoal.accessibilityLabel
-                == "PLA Matte, Charcoal, Bambu Lab, 410 grams left of 1,000, tag linked, updated 3 days ago."
+                == "PLA Matte, Charcoal, Bambu Lab, 410 grams left of 1000, tag linked, updated 3 days ago."
         )
         let white = try #require(model.rows.first { $0.id == 33 })
-        #expect(white.detail == "990 g left of 1,000")
+        #expect(white.detail == "990 g left of 1000")
         #expect(white.hasTag)
     }
 
@@ -193,8 +193,8 @@ struct SpoolsViewModelTests {
         await model.refresh()
         let pumpkin = try #require(model.rows.first { $0.id == 12 })
         #expect(pumpkin.isLow)
-        #expect(pumpkin.detail == "15 g left of 1,000 \u{00B7} updated just now")
-        #expect(pumpkin.accessibilityLabel.contains("15 grams left of 1,000, low, tag linked"))
+        #expect(pumpkin.detail == "15 g left of 1000 \u{00B7} updated just now")
+        #expect(pumpkin.accessibilityLabel.contains("15 grams left of 1000, low, tag linked"))
         #expect(SpoolsViewModel.lowWord == "Low")
         #expect(SpoolsViewModel.archivedWord == "Archived")
         model.scope = .archived
@@ -202,7 +202,7 @@ struct SpoolsViewModelTests {
         #expect(ivory.isArchived)
         // An archived spool is empty, not low.
         #expect(!ivory.isLow)
-        #expect(ivory.accessibilityLabel == "PLA Matte, Ivory White, Bambu Lab, 0 grams left of 1,000, archived, updated 18 days ago.")
+        #expect(ivory.accessibilityLabel == "PLA Matte, Ivory White, Bambu Lab, 0 grams left of 1000, archived, updated 18 days ago.")
     }
 
     @Test func lowIsUnderFifteenPercentOfTheLabel() {
@@ -489,13 +489,13 @@ struct SpoolsViewModelTests {
         let detail = try #require(model.detail(for: 21))
         #expect(detail.title == "PLA Matte")
         #expect(detail.subtitle == "Charcoal \u{00B7} Bambu Lab")
-        #expect(detail.gaugeText == "410 g left of 1,000 g")
+        #expect(detail.gaugeText == "410 g left of 1000 g")
         #expect(detail.percentText == "41%")
         #expect(detail.fraction == 0.41)
         #expect(!detail.isLow)
         #expect(detail.facts == [
             .init("Material", "PLA"), .init("Subtype", "Matte"), .init("Brand", "Bambu Lab"),
-            .init("Label weight", "1,000 g"), .init("Empty spool", "Bambu Lab - Reusable spool + refill \u{00B7} 242 g"),
+            .init("Label weight", "1000 g"), .init("Empty spool", "Bambu Lab - Reusable spool + refill \u{00B7} 242 g"),
             .init("Last scale weight", "652 g"), .init("Tag", "A1C3770E00000100", monospaced: true),
             .init("Spool #", "21"),
         ])

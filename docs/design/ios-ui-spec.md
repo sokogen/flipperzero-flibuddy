@@ -246,11 +246,12 @@ the entry states of the table below:
 A row without an entry block or actions has a minimum height of 76.
 
 VoiceOver reads the header as one element: "PLA Basic, Bambu Green, 590
-grams left of 1,000, Enter weight" (the colour code is not read). Without
+grams left of 1000, Enter weight" (the colour code is not read). Without
 Bambuddy's colour name it reads Bambu's name for the tag's colour, else a
 plain word for the swatch (`dark blue`, `light gray`), never the hex; the
-Spools rows do the same. Grams are in the user's number format
-(`.formatted()`, `1,000` in the US); the weight field takes plain digits.
+Spools rows do the same. Grams go through `Grams.text` (`.formatted()`
+without grouping: `1000`, as the design and the Flipper write it; owner
+ruling); the weight field takes plain digits.
 Title up to two lines, colour line and status up to three: wrapped, not
 cut. Scrolling to the focused row does not animate with Reduce Motion. Rows that
 can reopen get a "Weigh again" action ("Weigh" on an added spool that was

@@ -28,7 +28,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The colour name and code, "Bambu Green · 10501"; either alone, or empty.
     public let colorLine: String
     public let swatch: Swatch?
-    /// "484 g left of 1,000" for a known spool, "label 1,000 g" for a tag
+    /// "484 g left of 1000" for a known spool, "label 1000 g" for a tag
     /// (grams in the user's number format, `Grams`).
     public let remainingText: String
     /// The colour line: "Bambu Green · 10501 · 590 g left of 1000",
