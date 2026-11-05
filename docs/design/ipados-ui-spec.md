@@ -121,16 +121,30 @@ or added tile reopens it.
 ## Spools
 
 As on the iPhone (`ios-ui-spec.md`, "Spools"): the same data, search,
-scopes, menu, rows, states and detail. Design: the `Spools · landscape` and
-`Spools · portrait` frames of `FliBuddy iPad.dc.html`.
+scopes, menu, states and detail, but the spools are **tiles, not
+full-width rows**, in the feed's visual language. Design: the `Spools ·
+landscape` and `Spools · portrait` frames of `FliBuddy iPad.dc.html`.
 
-- **Landscape (sidebar):** the list fills the detail column; the search
-  field and the scope control share one row above it. A tapped row stays
-  highlighted and its detail opens in an `.inspector` on the trailing edge,
-  320 pt wide (`inspectorColumnWidth(320)`), with a close button; picking
-  another row swaps the inspector's spool.
-- **Portrait (top tabs) and compact width:** the detail opens in a sheet,
-  as on the iPhone.
+- **Tiles (top tabs and sidebar):** a `LazyVGrid` on
+  `systemGroupedBackground` with the feed's metrics: at least 300 pt wide,
+  12 apart, 28 pt side margins, at most three to a row, the column count
+  from the grid's own width (`FeedLayout.tileColumns`). A tile is the feed
+  tile's card (`secondarySystemGroupedBackground`, 22 pt corners, 14 pt
+  padding): swatch 28, the title with `Low`, `Archived` and the `tag` glyph
+  at its trailing end (top-trailing corner), colour and brand, and
+  `410 g left of 1000 · updated 3 d ago` on one line (what is left alone
+  where the whole line does not fit). The active count sits under the grid.
+- The scope control sits above the grid, at most 300 pt wide; iPadOS puts
+  the search field in the navigation bar, beside the sort and material
+  menu. Pull to refresh works on the grid.
+- **Landscape (sidebar):** a tapped tile gets the feed's 2 pt tint outline
+  and its detail opens in an `.inspector` on the trailing edge, 320 pt wide
+  (`inspectorColumnWidth(320)`), with a close button; the inspector takes
+  width from the grid, so a 13" iPad shows two columns beside it. Picking
+  another tile swaps the inspector's spool.
+- **Portrait (top tabs):** the detail opens in a sheet, as on the iPhone.
+- **Compact width** (a narrow Split View or Stage Manager window): the
+  iPhone's list of rows.
 - The sidebar's Spools badge counts the active spools of the last list; the
   iPad loads the list when the sidebar first shows so the count is there.
 - The connection banner stays on the feed; on Spools a Bambuddy problem

@@ -55,9 +55,10 @@
 // same tiles
 // compact width (Split View, Stage
 // Manager): the iPhone TabView, cards
-// Spools: List + .searchable, detail
-// in .inspector (320 pt) beside the
-// sidebar, a .sheet in portrait</pre>
+// Spools: tiles as the feed's (List
+// only at compact width), .searchable,
+// detail in .inspector (320 pt) beside
+// the sidebar, a .sheet in portrait</pre>
     <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
       <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Prototype controls</span><button onClick="{{ ctl.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Reset</button></div>
       <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag to the Flipper</span>
@@ -225,19 +226,19 @@
                       </div>
                     </sc-if>
                     <sc-if value="{{ p.sp.hasRows }}">
-                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start">
                         <sc-for list="{{ p.sp.rows }}" as="s" hint-placeholder-count="7">
-                          <div onClick="{{ s.onOpen }}" role="button" aria-label="{{ s.aria }}" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px 11px 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);background:{{ s.bg }};cursor:pointer">
-                            <span aria-hidden="true" style="width:28px;height:28px;border-radius:50%;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
-                            <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
-                              <span style="font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ s.title }}</span>
-                              <sc-if value="{{ s.hasSub }}"><span style="font-size:15px;line-height:20px;color:var(--fb-l2)">{{ s.sub }}</span></sc-if>
-                              <span style="font-size:13px;line-height:18px;color:var(--fb-l2);font-variant-numeric:tabular-nums">{{ s.line }}</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:6px">
-                              <sc-if value="{{ s.low }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:rgba(255,149,0,.16);color:var(--fb-orange)">Low</span></sc-if>
-                              <sc-if value="{{ s.archived }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:var(--fb-fill);color:var(--fb-l2)">Archived</span></sc-if>
-                              <sc-if value="{{ s.tagged }}"><i class="ph ph-tag" title="tag" style="font-size:17px;color:var(--fb-l2)"></i></sc-if>
+                          <div onClick="{{ s.onOpen }}" role="button" aria-label="{{ s.aria }}" style="background:var(--fb-card);border-radius:22px;padding:14px;display:flex;gap:10px;align-items:flex-start;box-shadow:{{ s.ring }};cursor:pointer">
+                            <span aria-hidden="true" style="width:28px;height:28px;border-radius:50%;flex:none;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                              <div style="display:flex;align-items:baseline;gap:6px">
+                                <span style="flex:1;min-width:0;font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ s.title }}</span>
+                                <sc-if value="{{ s.low }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:rgba(255,149,0,.16);color:var(--fb-orange)">Low</span></sc-if>
+                                <sc-if value="{{ s.archived }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:var(--fb-fill);color:var(--fb-l2)">Archived</span></sc-if>
+                                <sc-if value="{{ s.tagged }}"><i class="ph ph-tag" title="tag" style="font-size:16px;color:var(--fb-l2)"></i></sc-if>
+                              </div>
+                              <sc-if value="{{ s.hasSub }}"><span style="font-size:14px;line-height:19px;color:var(--fb-l2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.sub }}</span></sc-if>
+                              <span style="font-size:13px;line-height:18px;color:var(--fb-l2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.line }}</span>
                             </div>
                           </div>
                         </sc-for>
@@ -495,7 +496,7 @@ class Component extends DCLogic {
       menuIcon: o.material ? 'ph-fill ph-funnel' : 'ph ph-funnel', menuFg: o.material ? 'var(--fb-blue)' : 'var(--fb-l1)',
       stale: !state && cfg.bambuddy === 'unreachable', staleText: 'Couldn’t refresh · showing 10:42',
       cuv: cuv || {}, hasCUV: !!cuv, cuvPad: state ? '160px' : '80px', hasRows: !cuv,
-      rows: v.rows.map(r => ({...r, bg: d.land && r.id === u.spoolId ? 'var(--fb-sel)' : 'transparent',
+      rows: v.rows.map(r => ({...r, ring: d.land && r.id === u.spoolId ? '0 0 0 2px var(--fb-blue)' : 'none',
         onOpen: () => this.ui(d.id, d.land ? {spoolId: r.id, menu: false} : {sheet: 'spool', spoolId: r.id, menu: false})})),
       footer: v.active + ' active spools.',
     };
@@ -512,8 +513,8 @@ class Component extends DCLogic {
       {id: 'ad', label: 'Landscape · dark', note: 'Same session.', vars: C.DARK, land: true},
       {id: 'ql', label: 'Portrait · light', note: 'Same tiles, three columns on a 13" iPad (two on 11"); a top tab bar replaces the sidebar.', vars: C.LIGHT, land: false},
       {id: 'qd', label: 'Portrait · dark', note: 'Same session.', vars: C.DARK, land: false},
-      {id: 'sl', label: 'Spools · landscape · light', note: 'The read-only inventory beside the sidebar; the picked spool opens in the inspector (320 pt). The sidebar counts active spools.', vars: C.LIGHT, land: true},
-      {id: 'sp', label: 'Spools · portrait · dark', note: 'Portrait opens the detail in a sheet. Scope All shows archived spools with the word Archived.', vars: C.DARK, land: false},
+      {id: 'sl', label: 'Spools · landscape · light', note: 'The read-only inventory as tiles, like the feed; the picked tile gets the tint outline and opens in the inspector (320 pt), which leaves room for two columns. The sidebar counts active spools.', vars: C.LIGHT, land: true},
+      {id: 'sp', label: 'Spools · portrait · dark', note: 'Three tile columns in portrait; the detail opens in a sheet. Scope All shows archived spools with the word Archived.', vars: C.DARK, land: false},
     ];
     const devices = defs.map(d => {
       const u = this.state.ui[d.id] || {pane: 'feed'};

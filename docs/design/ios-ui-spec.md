@@ -467,8 +467,9 @@ to the spool id, so the order never jumps between loads.
 | Swatch | 28 pt circle, the spool's RGBA, `.separator` hairline; dashed outline without a colour |
 | Title | `PLA Matte` (material + subtype, as the feed), `.headline` |
 | Sub line | `Charcoal · Bambu Lab` (colour name, brand; absent parts left out), `.subheadline` `.secondary` |
-| Detail line | `410 g left of 1000 · updated 3 d ago`, `.footnote` `.secondary`, monospaced digits; without `updated_at` the remaining alone |
-| Trailing | `Low` (orange, word in a tinted capsule) when less than 15 % of the label weight is left on an active spool; `Archived` (`.secondary`, word in a fill capsule) on an archived spool; `tag` glyph (`.secondary`) when a tag is linked; the chevron |
+| Detail line | `410 g left of 1000 · updated 3 d ago`, `.footnote` `.secondary`, monospaced digits, one line; where it does not fit (or without `updated_at`) the remaining alone |
+| Title line | after the title, at its trailing end: `Low` (orange, word in a tinted capsule) when less than 15 % of the label weight is left on an active spool; `Archived` (`.secondary`, word in a fill capsule) on an archived spool; `tag` glyph (`.secondary`) when a tag is linked |
+| Trailing | the chevron alone; colour and brand stay on one line |
 | VoiceOver | one sentence: `PLA Matte, Charcoal, Bambu Lab, 410 grams left of 1000, low, archived, tag linked, updated 3 days ago.` (the parts that apply) |
 
 "Updated … ago": under a minute `just now`, then `5 min`, `3 h`, `3 d`,
