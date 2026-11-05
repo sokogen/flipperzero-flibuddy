@@ -318,6 +318,6 @@ struct SettingsStoreLogTests {
         // The Security framework's own words follow the status.
         #expect(failures.allSatisfy { $0.message.hasSuffix(")") && $0.message.count > "keychain write failed: status=-25300 ()".count })
         #expect(sink.events("settings save").isEmpty)
-        #expect(sink.events("settings load").first?.contains("key=absent") == true)
+        #expect(sink.events("settings load").first?.contains("key=unknown") == true)
     }
 }

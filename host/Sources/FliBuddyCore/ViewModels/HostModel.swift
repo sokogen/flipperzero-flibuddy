@@ -88,6 +88,13 @@ public final class HostModel {
     /// again; a changed transport choice (kind, USB port or Bluetooth
     /// peripheral) reconnects a running link.
     public func apply(_ new: Settings) async throws {
+        var new = new
+        // A screen that still shows the key as unknown must not put it back
+        // after the key was read again.
+        if new.apiKeyUnknown, !settings.apiKeyUnknown, new.apiKey.isEmpty {
+            new.apiKey = settings.apiKey
+            new.apiKeyUnknown = false
+        }
         try store.save(new)
         let choiceChanged = new.transportChoice != settings.transportChoice
         settings = new
@@ -95,6 +102,29 @@ public final class HostModel {
         feed.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
         if choiceChanged, link.isActive { link.connect(new.transportChoice) }
+        await session.checkBambuddy()
+    }
+
+    /// Reads the API key again when it was unknown (the Keychain was locked at
+    /// launch): on protected data becoming available and when the app becomes
+    /// active. A key that reads now replaces the unknown one; every other
+    /// setting stays as it is, the session is reconfigured and the watch gets
+    /// the key. Does nothing when the key is known or still unreadable.
+    public func reloadSettings() async {
+        guard settings.apiKeyUnknown else { return }
+        let loaded = store.load()
+        guard !loaded.apiKeyUnknown else {
+            Log.info(.settings, "reload: the API key is still unreadable")
+            return
+        }
+        var new = settings
+        new.apiKey = loaded.apiKey
+        new.apiKeyUnknown = false
+        Log.info(.settings, "reload: the API key is back, key=\(loaded.apiKey.isEmpty ? "absent" : "present")")
+        settings = new
+        onSettingsSaved?(new)
+        feed.settings = new
+        await session.reconfigure(settings: new, inventory: try? makeInventory(new))
         await session.checkBambuddy()
     }
 

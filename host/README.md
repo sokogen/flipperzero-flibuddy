@@ -371,7 +371,7 @@ finds them for a short while at best; the file keeps them.
 | `wire` | each protocol line sent (`tx`) and received (`rx`) at `debug`, cut to 300 characters; dropped lines at `error` with the reason |
 | `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, colour map failures |
 | `bambuddy` | each request's method, path, status and time; errors with Bambuddy's `detail`; response bodies at `debug` |
-| `settings` | settings load and save (`key=present` or `absent`), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
+| `settings` | settings load and save (`key=present`, `absent` or `unknown`: the Keychain could not be read, e.g. a launch while the iPhone is locked; the key is kept and read again on unlock), Keychain failures with the `OSStatus`, **Test connection** and catalog loads |
 | `sync` | watch settings sync: payloads sent, held, received, applied or rejected, by version only |
 | `ui` | reserved; nothing logs to it yet |
 

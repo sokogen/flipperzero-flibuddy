@@ -7,6 +7,7 @@ struct FliBuddyWatchApp: App {
     @ViewState private var host: HostModel
     /// Settings arrive from the iPhone; the watch keeps its own Flipper.
     @ViewState private var receiver: WatchSettingsReceiver?
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Before the host model: loading the settings already logs.
@@ -25,6 +26,10 @@ struct FliBuddyWatchApp: App {
                     if receiver == nil { receiver = WatchSettingsReceiver.start(for: host) }
                     host.start()
                     await host.feed.observe()
+                }
+                // The watch can also launch locked, before the Keychain is available.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await host.reloadSettings() } }
                 }
         }
     }

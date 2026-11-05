@@ -78,6 +78,7 @@ import Testing
         (#"{"apiKey":"s3cret","coreWeight":242}"#, #"{"apiKey":"«redacted»","coreWeight":242}"#),
         ("load: url=http://nas:8000 key=present catalog=3", "load: url=http://nas:8000 key=present catalog=3"),
         ("load: key=absent", "load: key=absent"),
+        ("load: key=unknown", "load: key=unknown"),
         ("monkey=3 turkey: 4", "monkey=3 turkey: 4"),
         ("test connection: url=http://admin:pa55@nas:8000", "test connection: url=http://«redacted»@nas:8000"),
         ("load: url=https://token@nas.local/bambuddy key=present", "load: url=https://«redacted»@nas.local/bambuddy key=present"),

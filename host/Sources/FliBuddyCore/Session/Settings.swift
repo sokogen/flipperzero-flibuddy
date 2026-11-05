@@ -36,7 +36,17 @@ public struct Settings: Equatable, Sendable {
 
     /// Bambuddy root URL, e.g. `http://192.168.1.20:8000`.
     public var baseURL: String
-    public var apiKey: String
+    /// Empty while `apiKeyUnknown`.
+    public var apiKey: String {
+        // A different key is a key someone typed, scanned or received.
+        didSet { if apiKey != oldValue { apiKeyUnknown = false } }
+    }
+    /// The Keychain could not be read (the iPhone is locked and the item is
+    /// not available before the first unlock), so the saved key is not known;
+    /// `apiKey` is empty but nothing was cleared. Saving such settings leaves
+    /// the Keychain item alone, and the key is not synced, until a different
+    /// key is set or the settings are reloaded.
+    public var apiKeyUnknown = false
     /// The empty-spool catalog entry recorded on new items (`core_weight_catalog_id`).
     public var catalogEntryId: Int?
     /// `core_weight` of new items in grams. Picking a catalog entry copies its
@@ -127,13 +137,15 @@ public struct SettingsStore: Sendable {
     }
 
     /// Saved settings; defaults for anything never saved. An unreadable
-    /// Keychain item loads as no API key.
+    /// Keychain item loads as an unknown API key (`apiKeyUnknown`), not as an
+    /// empty one.
     public func load() -> Settings {
         var settings = Settings()
         settings.baseURL = defaults.string(forKey: Key.baseURL) ?? settings.baseURL
         do {
             settings.apiKey = try secrets.secret(for: Self.apiKeyAccount) ?? ""
         } catch {
+            settings.apiKeyUnknown = true
             Log.error(.settings, "keychain read failed: \(SecretStoreError.logDescription(error))")
         }
         settings.catalogEntryId = defaults.object(forKey: Key.catalogEntryId) as? Int
@@ -149,14 +161,17 @@ public struct SettingsStore: Sendable {
         return settings
     }
 
-    /// Saves everything; an empty API key removes the Keychain item.
+    /// Saves everything; an empty API key removes the Keychain item. An
+    /// unknown API key (`apiKeyUnknown`) leaves the item as it is.
     public func save(_ settings: Settings) throws {
-        let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            try secrets.setSecret(key.isEmpty ? nil : key, for: Self.apiKeyAccount)
-        } catch {
-            Log.error(.settings, "keychain write failed: \(SecretStoreError.logDescription(error))")
-            throw error
+        if !settings.apiKeyUnknown {
+            let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            do {
+                try secrets.setSecret(key.isEmpty ? nil : key, for: Self.apiKeyAccount)
+            } catch {
+                Log.error(.settings, "keychain write failed: \(SecretStoreError.logDescription(error))")
+                throw error
+            }
         }
         defaults.set(settings.baseURL, forKey: Key.baseURL)
         if let id = settings.catalogEntryId {
@@ -175,7 +190,8 @@ public struct SettingsStore: Sendable {
 
     /// The settings for the log: whether there is an API key, never the key.
     static func summary(_ settings: Settings) -> String {
-        let key = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "absent" : "present"
+        let empty = settings.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let key = settings.apiKeyUnknown ? "unknown" : empty ? "absent" : "present"
         return "url=\(settings.baseURL) key=\(key) catalog=\(settings.catalogEntryId.map(String.init) ?? "none") "
             + "core=\(settings.coreWeight) mode=\(settings.defaultMode.rawValue) transport=\(settings.transport.rawValue)"
     }
@@ -274,7 +290,43 @@ public struct KeychainSecretStore: SecretStore {
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess, let data = item as? Data else { throw SecretStoreError.status(status) }
+        migrateAccessibility(of: account)
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The accessibility of new items: readable after the first unlock, so a
+    /// launch in the background (Bluetooth restoration) while the iPhone is
+    /// locked can read the API key. Not backed up to other devices.
+    static let accessible = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
+
+    /// A new item (`SecItemAdd`).
+    func newItem(_ value: String, for account: String) -> [String: Any] {
+        var item = query(account)
+        item[kSecValueData as String] = Data(value.utf8)
+        item[kSecAttrAccessible as String] = Self.accessible
+        return item
+    }
+
+    /// Which items the migration finds (the ones still `WhenUnlocked`, the
+    /// default before 1.0) and what it changes on them.
+    func accessibilityMigration(for account: String) -> (match: [String: Any], update: [String: Any]) {
+        var match = query(account)
+        match[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked as String
+        return (match, [kSecAttrAccessible as String: Self.accessible])
+    }
+
+    /// Moves an item saved by an earlier version to `accessible`. It only
+    /// matches items that still need it, so once done it finds nothing; it
+    /// runs after a successful read, the one moment the item is available.
+    /// A failure is logged and the item stays readable while unlocked.
+    private func migrateAccessibility(of account: String) {
+        let (match, update) = accessibilityMigration(for: account)
+        let status = SecItemUpdate(match as CFDictionary, update as CFDictionary)
+        switch status {
+        case errSecSuccess: Log.info(.settings, "keychain item migrated to available after first unlock")
+        case errSecItemNotFound: break
+        default: Log.error(.settings, "keychain migration failed: \(SecretStoreError.logDescription(SecretStoreError.status(status)))")
+        }
     }
 
     public func setSecret(_ value: String?, for account: String) throws {
@@ -283,12 +335,12 @@ public struct KeychainSecretStore: SecretStore {
             guard status == errSecSuccess || status == errSecItemNotFound else { throw SecretStoreError.status(status) }
             return
         }
-        let data = Data(value.utf8)
-        let status = SecItemUpdate(query(account) as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        let status = SecItemUpdate(
+            query(account) as CFDictionary,
+            [kSecValueData as String: Data(value.utf8), kSecAttrAccessible as String: Self.accessible] as CFDictionary
+        )
         if status == errSecItemNotFound {
-            var item = query(account)
-            item[kSecValueData as String] = data
-            let added = SecItemAdd(item as CFDictionary, nil)
+            let added = SecItemAdd(newItem(value, for: account) as CFDictionary, nil)
             guard added == errSecSuccess else { throw SecretStoreError.status(added) }
         } else if status != errSecSuccess {
             throw SecretStoreError.status(status)

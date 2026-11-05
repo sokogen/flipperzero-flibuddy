@@ -1,6 +1,7 @@
 import FliBuddyCore
 import FliBuddyUI
 import SwiftUI
+import UIKit
 
 @main
 struct FliBuddyiOSApp: App {
@@ -9,6 +10,7 @@ struct FliBuddyiOSApp: App {
     @ViewState private var watchSync: WatchSettingsSender?
     /// The pane and the Clear confirmation, shared with the menu commands.
     @ViewState private var navigation = AppNavigation()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // Before the host model: loading the settings already logs.
@@ -28,6 +30,17 @@ struct FliBuddyiOSApp: App {
                     host.start()
                     await host.feed.observe()
                 }
+                .task {
+                    let unlocked = NotificationCenter.default.notifications(
+                        named: UIApplication.protectedDataDidBecomeAvailableNotification
+                    )
+                    for await _ in unlocked { await host.reloadSettings() }
+                }
+        }
+        // A launch while the iPhone is locked (Bluetooth restoration) cannot
+        // read the API key; read it again once the data is available.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await host.reloadSettings() } }
         }
         .commands { FeedCommands(host: host, navigation: navigation) }
     }
@@ -106,5 +119,7 @@ struct SettingsScreen: View {
             self.model = model
             Task { await model.loadCatalog() }
         }
+        // The API key was read again after a launch while locked.
+        .onChange(of: host.settings) { _, settings in model?.adoptRestoredAPIKey(settings) }
     }
 }

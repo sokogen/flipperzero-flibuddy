@@ -401,3 +401,120 @@ extension WatchSettingsReceiverTests {
         #expect(lines.map(\.level) == [.error, .info, .error])
     }
 }
+
+@MainActor
+@Suite("Settings sync and the API key")
+struct WatchSettingsKeySyncTests {
+    private var unknown: Settings {
+        var settings = testSettings
+        settings.apiKey = ""
+        settings.apiKeyUnknown = true
+        return settings
+    }
+
+    private var cleared: Settings {
+        var settings = testSettings
+        settings.apiKey = ""
+        return settings
+    }
+
+    @Test func anUnknownKeyIsNeverSent() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(unknown)
+
+        #expect(session.sentPayloads.count == 1)
+        #expect(session.sentPayloads.first?.apiKey == nil)
+        #expect(session.sent.first?["apiKey"] == nil)
+        #expect(session.sentPayloads.first?.coreWeight == 250)
+    }
+
+    @Test func anEmptyKeyThatWasNeverSetIsNotSent() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+
+        sender.settingsSaved(cleared)
+
+        #expect(session.sentPayloads.first?.apiKey == nil)
+    }
+
+    @Test func aKeyTheUserClearedIsSentAsEmpty() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        sender.settingsSaved(testSettings)
+
+        sender.settingsSaved(cleared)
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test", ""])
+    }
+
+    @Test func aClearThatCouldNotBeSentYetIsNotLostToALaterSave() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        sender.settingsSaved(testSettings)
+        session.isActivated = false
+
+        sender.settingsSaved(cleared)
+        var later = cleared
+        later.coreWeight = 300
+        sender.settingsSaved(later)
+        session.isActivated = true
+        sender.sessionStateChanged()
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test", ""])
+        #expect(session.sentPayloads.last?.coreWeight == 300)
+    }
+
+    @Test func anUnknownKeyAfterAKnownOneIsNotAClear() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        sender.settingsSaved(testSettings)
+
+        sender.settingsSaved(unknown)
+
+        #expect(session.sentPayloads.map(\.apiKey) == ["bb_test", nil])
+    }
+
+    @Test func theLogNeverShowsTheKey() async {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+
+        let sink = await capturingLog { sender.settingsSaved(testSettings) }
+
+        #expect(!sink.lines.contains { $0.message.contains("bb_test") })
+    }
+
+    @Test func theWatchKeepsItsKeyWhenThePayloadHasNone() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(testSettings)
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        let receiver = WatchSettingsReceiver(host: model)
+        var payload = SettingsSyncPayload(testSettings)
+        payload.apiKey = nil
+        payload.coreWeight = 400
+
+        await receiver.receive(.success(payload))
+
+        #expect(store.load().apiKey == "bb_test")
+        #expect(store.load().coreWeight == 400)
+        #expect(model.settings.apiKey == "bb_test")
+    }
+
+    @Test func theWatchClearsItsKeyWhenThePayloadSaysEmpty() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(testSettings)
+        let model = HostModel(
+            store: store, makeInventory: { _ in FakeInventory() }, makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        let receiver = WatchSettingsReceiver(host: model)
+        var payload = SettingsSyncPayload(testSettings)
+        payload.apiKey = ""
+
+        await receiver.receive(.success(payload))
+
+        #expect(store.load().apiKey == "")
+    }
+}

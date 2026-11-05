@@ -31,6 +31,10 @@ public final class WatchSettingsSender {
     private let session: any SessionMessaging
     private let debounce: Duration
     private var pending: SettingsSyncPayload?
+    /// The last key the sender saw; an empty key after a non-empty one is a clear.
+    private var lastKey = ""
+    /// The key was cleared and the watch has not been told yet.
+    private var clearPending = false
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
     /// `debounce` zero sends each save at once.
@@ -40,7 +44,18 @@ public final class WatchSettingsSender {
     }
 
     public func settingsSaved(_ settings: Settings) {
-        pending = SettingsSyncPayload(settings)
+        var payload = SettingsSyncPayload(settings)
+        if !settings.apiKeyUnknown {
+            if !settings.apiKey.isEmpty {
+                clearPending = false
+            } else if !lastKey.isEmpty {
+                clearPending = true
+            }
+            lastKey = settings.apiKey
+            // An empty key is sent only as the user's clear, never as "not known".
+            if settings.apiKey.isEmpty { payload.apiKey = clearPending ? "" : nil }
+        }
+        pending = payload
         guard debounce > .zero else { return flush() }
         debounceTask?.cancel()
         let delay = debounce
@@ -80,6 +95,7 @@ public final class WatchSettingsSender {
             // The payload carries the API key: only its version is logged.
             try session.updateApplicationContext(pending.dictionary)
             self.pending = nil
+            if pending.apiKey == "" { clearPending = false }
             lastError = nil
             Log.info(.sync, "sent: v=\(SettingsSyncPayload.version)")
         } catch {

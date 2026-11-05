@@ -202,9 +202,9 @@ public enum Log {
     private static let userInfo = try! NSRegularExpression(pattern: #"(://)[^/?#@\s]+@"#)
 
     /// `key=…`, `X-API-Key: …`, `"apiKey":"…"` and the like, except the
-    /// `key=present|absent` that settings lines use.
+    /// `key=present|absent|unknown` that settings lines use.
     private static let keyValue = try! NSRegularExpression(
-        pattern: #"(?<![A-Za-z0-9_-])((?:x-api-key|api[_-]?key|key)"?\s*[=:]\s*"?)(?!(?:present|absent)(?:[\s&"',;]|$))[^\s&"',;]+"#,
+        pattern: #"(?<![A-Za-z0-9_-])((?:x-api-key|api[_-]?key|key)"?\s*[=:]\s*"?)(?!(?:present|absent|unknown)(?:[\s&"',;]|$))[^\s&"',;]+"#,
         options: [.caseInsensitive]
     )
 

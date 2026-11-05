@@ -77,11 +77,42 @@ struct SettingsSyncTests {
         #expect(throws: SettingsSyncError.unsupportedVersion(version)) { try SettingsSyncPayload(dictionary: dictionary) }
     }
 
-    @Test(arguments: ["v", "baseURL", "apiKey", "coreWeight", "defaultMode"])
+    @Test(arguments: ["v", "baseURL", "coreWeight", "defaultMode"])
     func rejectsAMissingField(_ key: String) {
         var dictionary = Self.dictionary
         dictionary[key] = nil
         #expect(throws: SettingsSyncError.missingField(key)) { try SettingsSyncPayload(dictionary: dictionary) }
+    }
+
+    @Test func theAPIKeyIsOptionalAndAMissingOneMeansUnchanged() throws {
+        var dictionary = Self.dictionary
+        dictionary["apiKey"] = nil
+        let payload = try SettingsSyncPayload(dictionary: dictionary)
+        #expect(payload.apiKey == nil)
+        #expect(payload.dictionary["apiKey"] == nil)
+        var settings = testSettings
+        settings.apiKey = "bb_watch"
+        #expect(payload.applied(to: settings).apiKey == "bb_watch")
+    }
+
+    @Test func anEmptyKeyIsADeliberateClear() throws {
+        let payload = SettingsSyncPayload(baseURL: "http://x", apiKey: "", coreWeight: 5, catalogEntryId: nil, defaultMode: .net)
+        #expect(payload.dictionary["apiKey"] as? String == "")
+        #expect(try SettingsSyncPayload(dictionary: payload.dictionary).apiKey == "")
+        #expect(payload.applied(to: testSettings).apiKey == "")
+    }
+
+    @Test func aWronglyTypedKeyIsRejected() {
+        var dictionary = Self.dictionary
+        dictionary["apiKey"] = 5
+        #expect(throws: SettingsSyncError.invalidField("apiKey")) { try SettingsSyncPayload(dictionary: dictionary) }
+    }
+
+    @Test func settingsWithAnUnknownKeyCarryNone() {
+        var settings = testSettings
+        settings.apiKey = ""
+        settings.apiKeyUnknown = true
+        #expect(SettingsSyncPayload(settings).apiKey == nil)
     }
 
     @Test func theCatalogEntryIsOptional() throws {

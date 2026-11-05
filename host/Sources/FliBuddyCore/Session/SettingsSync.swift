@@ -4,17 +4,21 @@ import Foundation
 /// transport (each device keeps its own Flipper). Travels as a WatchConnectivity
 /// application context, a dictionary of property-list values:
 /// `{"v": 1, "baseURL": "...", "apiKey": "...", "coreWeight": 242, "catalogEntryId": 24, "defaultMode": "gross"}`.
-/// `catalogEntryId` is left out when no catalog entry is chosen.
+/// `catalogEntryId` is left out when no catalog entry is chosen. `apiKey` is
+/// left out when the sender does not know the key (its Keychain is locked) or
+/// has not changed it; the receiver then keeps its own. An empty `apiKey`
+/// means the user cleared it.
 public struct SettingsSyncPayload: Equatable, Sendable {
     public static let version = 1
 
     public var baseURL: String
-    public var apiKey: String
+    /// `nil`: leave the receiver's key as it is.
+    public var apiKey: String?
     public var coreWeight: Int
     public var catalogEntryId: Int?
     public var defaultMode: Intent.WeightMode
 
-    public init(baseURL: String, apiKey: String, coreWeight: Int, catalogEntryId: Int?, defaultMode: Intent.WeightMode) {
+    public init(baseURL: String, apiKey: String?, coreWeight: Int, catalogEntryId: Int?, defaultMode: Intent.WeightMode) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.coreWeight = coreWeight
@@ -25,7 +29,7 @@ public struct SettingsSyncPayload: Equatable, Sendable {
     /// The synced fields of `settings`.
     public init(_ settings: Settings) {
         self.init(
-            baseURL: settings.baseURL, apiKey: settings.apiKey, coreWeight: settings.coreWeight,
+            baseURL: settings.baseURL, apiKey: settings.apiKeyUnknown ? nil : settings.apiKey, coreWeight: settings.coreWeight,
             catalogEntryId: settings.catalogEntryId, defaultMode: settings.defaultMode
         )
     }
@@ -34,7 +38,7 @@ public struct SettingsSyncPayload: Equatable, Sendable {
     public func applied(to settings: Settings) -> Settings {
         var settings = settings
         settings.baseURL = baseURL
-        settings.apiKey = apiKey
+        if let apiKey { settings.apiKey = apiKey }
         settings.coreWeight = coreWeight
         settings.catalogEntryId = catalogEntryId
         settings.defaultMode = defaultMode
@@ -52,9 +56,10 @@ public struct SettingsSyncPayload: Equatable, Sendable {
 
     public var dictionary: [String: Any] {
         var dictionary: [String: Any] = [
-            Key.version: Self.version, Key.baseURL: baseURL, Key.apiKey: apiKey, Key.coreWeight: coreWeight,
+            Key.version: Self.version, Key.baseURL: baseURL, Key.coreWeight: coreWeight,
             Key.defaultMode: defaultMode.rawValue,
         ]
+        dictionary[Key.apiKey] = apiKey
         dictionary[Key.catalogEntryId] = catalogEntryId
         return dictionary
     }
@@ -65,7 +70,11 @@ public struct SettingsSyncPayload: Equatable, Sendable {
         let version: Int = try Self.field(Key.version, in: dictionary)
         guard version == Self.version else { throw .unsupportedVersion(version) }
         baseURL = try Self.field(Key.baseURL, in: dictionary)
-        apiKey = try Self.field(Key.apiKey, in: dictionary)
+        if dictionary[Key.apiKey] == nil {
+            apiKey = nil
+        } else {
+            apiKey = try Self.field(Key.apiKey, in: dictionary) as String
+        }
         coreWeight = try Self.field(Key.coreWeight, in: dictionary)
         guard Settings.coreWeightRange.contains(coreWeight) else { throw .invalidField(Key.coreWeight) }
         if dictionary[Key.catalogEntryId] == nil {

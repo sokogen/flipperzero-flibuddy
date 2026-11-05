@@ -194,6 +194,16 @@ public final class SettingsViewModel {
     public var canSave: Bool { hasChanges }
     public var canRevert: Bool { hasChanges }
 
+    /// The key was read again after it was unknown: shows it in the field,
+    /// unless a different one is being typed. Called when the host's settings
+    /// change.
+    public func adoptRestoredAPIKey(_ restored: Settings) {
+        guard saved.apiKeyUnknown, !restored.apiKeyUnknown, apiKey == saved.apiKey else { return }
+        saved.apiKey = restored.apiKey
+        saved.apiKeyUnknown = false
+        apiKey = restored.apiKey
+    }
+
     /// Puts every field back to the saved settings and drops the results that
     /// were about the edited ones.
     public func revert() {
