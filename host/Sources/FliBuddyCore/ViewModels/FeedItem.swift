@@ -75,8 +75,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The lookup is done and found no spool: offer New and Link.
     public let offersUnknownActions: Bool
     /// New (or New… for a tag without material) and Link to existing… on a
-    /// tag no spool carries, the prominent one first; none on other rows
-    /// and while the tag is looked up or saved.
+    /// tag no spool carries, the prominent one first; Link alone on a spool
+    /// added here that the Flipper asked to relink; none on other rows and
+    /// while the tag is looked up or saved.
     public let rowActions: [RowAction]
     /// New, unless the Flipper asked to link the tag; the first of
     /// `rowActions`.
@@ -145,12 +146,20 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isError = if case .error = row.status { true } else { false }
         spoolId = spool?.id
         offersUnknownActions = spool == nil && row.status != .scanned
-        isEntry = spool != nil && Self.isEntryState(row.status)
-        isWaiting = spool != nil && row.status == .awaitingWeight
+        // The Flipper asked to relink the spool it just added: Link, no entry.
+        let relinks = Self.relinksAddedSpool(row)
+        isEntry = spool != nil && !relinks && Self.isEntryState(row.status)
+        isWaiting = spool != nil && !relinks && row.status == .awaitingWeight
         isSaving = row.status == .saving || row.status == .updating
-        isReopenable = spool != nil && row.status.isReopenable
+        isReopenable = spool != nil && !relinks && row.status.isReopenable
         isDeleted = row.status == .deleted
-        rowActions = offersUnknownActions && !isSaving ? Self.unknownActions(row) : []
+        rowActions = if isSaving {
+            []
+        } else if offersUnknownActions {
+            Self.unknownActions(row)
+        } else {
+            relinks ? [.link] : []
+        }
         prominentRowAction = rowActions.first
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
@@ -238,6 +247,15 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         }
     }
 
+    /// A spool this session added (New, or a create on scan) that the
+    /// Flipper asked to relink (`link_on_host`, Relink on host): Link deletes
+    /// it first, as Bambuddy refuses a tag an active spool carries. Another
+    /// known spool cannot be relinked from the host.
+    static func relinksAddedSpool(_ row: FeedRow) -> Bool {
+        guard let spool = row.spool, row.request == .link else { return false }
+        return row.createdSpoolId == spool.id
+    }
+
     /// New (from the tag, or the form for a tag without material) and Link,
     /// the action the Flipper asked for first: New unless it asked to link.
     static func unknownActions(_ row: FeedRow) -> [RowAction] {
@@ -248,6 +266,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     static func statusText(_ row: FeedRow) -> String {
         switch row.status {
         case .scanned: return "Looking up"
+        // `where` binds to one pattern only, so each state has its own case.
+        case .awaitingWeight where relinksAddedSpool(row), .created where relinksAddedSpool(row):
+            return requestText(.link)
         case .awaitingWeight: return "Enter weight"
         case .unknown(let prefill):
             if let request = row.request { return requestText(request) }
@@ -270,6 +291,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     static func statusLook(_ row: FeedRow) -> (StatusSymbol, StatusTint) {
         switch row.status {
         case .scanned, .saving, .updating: (.progress, .secondary)
+        case .awaitingWeight where relinksAddedSpool(row), .created where relinksAddedSpool(row):
+            (.symbol("dot.radiowaves.left.and.right"), .blue)
         case .awaitingWeight: (.symbol("scalemass"), .blue)
         case .unknown: row.request == nil
             ? (.symbol("questionmark.circle"), .secondary)

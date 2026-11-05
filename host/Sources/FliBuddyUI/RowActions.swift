@@ -6,6 +6,7 @@ import SwiftUI
 /// A row's actions (`FeedItem.rowActions`) on a tag no spool carries: New
 /// (from the tag, at its label weight) or New… (the form), and Link to
 /// existing…; the prominent one first, New unless the Flipper asked to link.
+/// A spool added here that the Flipper asked to relink offers Link alone.
 struct RowActions: View {
     enum Style {
         /// Bordered buttons, the prominent one `.borderedProminent` (macOS).
@@ -73,7 +74,11 @@ struct RowActions: View {
         switch action {
         case .new: "Add the spool to Bambuddy from the tag, at its label weight"
         case .newForm: "Create a Bambuddy item; enter the material"
-        case .link: "Attach this tag to a spool already in Bambuddy"
+        case .link:
+            // Only a spool added here is offered Link: the Flipper asked to relink it.
+            item.spoolId == nil
+                ? "Attach this tag to a spool already in Bambuddy"
+                : "Move this tag to a spool already in Bambuddy and delete the one added here"
         }
     }
 

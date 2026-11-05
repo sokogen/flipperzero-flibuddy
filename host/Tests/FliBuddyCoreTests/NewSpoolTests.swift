@@ -102,6 +102,49 @@ struct NewSpoolItemTests {
         }
     }
 
+    /// The Flipper's Relink on host on the spool it just added: the row says
+    /// so and offers Link, whose pick deletes the stand-in spool first.
+    @Test func aFlipperRelinkOfAnAddedRowOffersLink() throws {
+        var asked = try addedRow()
+        asked.request = .link
+        let item = FeedItem(asked)
+        #expect(item.statusText == "Flipper asks to link it here")
+        #expect(item.statusSymbol == .symbol("dot.radiowaves.left.and.right"))
+        #expect(item.statusTint == .blue)
+        #expect(item.rowActions == [.link])
+        #expect(item.prominentRowAction == .link)
+        #expect(!item.isEntry)
+        #expect(!item.isWaiting)
+        #expect(!item.isReopenable)
+        #expect(item.accessibilityHeader.hasSuffix("Flipper asks to link it here"))
+
+        // reopened, then asked: still Link, no entry
+        asked.status = .awaitingWeight
+        #expect(FeedItem(asked).rowActions == [.link])
+        #expect(!FeedItem(asked).isEntry)
+
+        // a failed Link keeps its error and Link for the retry
+        asked.status = .error("boom")
+        let failed = FeedItem(asked)
+        #expect(failed.statusText == "Error: boom")
+        #expect(failed.isError)
+        #expect(failed.rowActions == [.link])
+        #expect(!failed.isEntry)
+
+        // while the Link runs: nothing to press
+        asked.status = .saving
+        #expect(FeedItem(asked).rowActions.isEmpty)
+    }
+
+    /// A spool this session did not add cannot be relinked from the host
+    /// (Bambuddy refuses a tag an active spool carries): it keeps its entry.
+    @Test func aRelinkRequestOnAnotherKnownSpoolKeepsTheEntry() throws {
+        let item = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(), request: .link))
+        #expect(item.isEntry)
+        #expect(item.rowActions.isEmpty)
+        #expect(item.statusText == "Enter weight")
+    }
+
     /// A weight on its way to an added spool, and a failed one: a known
     /// spool's entry.
     @Test func anAddedSpoolWeighedIsAKnownSpool() throws {
@@ -321,6 +364,37 @@ struct NewSpoolModelTests {
         #expect(item.isEntry)
         #expect(item.rowActions.isEmpty)
         #expect(model.weightText(for: id) == "1100")
+    }
+
+    /// Add on the Flipper, then Relink on host: the host offers Link, and the
+    /// pick deletes the spool just added before it links the tag.
+    @Test func aFlipperRelinkOfAnAddedSpoolDeletesItThenLinks() async throws {
+        let target = Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400)
+        let inventory = FakeInventory(spools: [target])
+        let (model, session) = makeModel(inventory)
+        _ = await session.handleScan(try scan("s-1", autosave: true))
+        var relink = try fixtureIntent("intent_new")
+        relink.id = "i-000009"
+        relink.scanId = "s-1"
+        relink.action = .linkOnHost
+        #expect(await session.handleIntent(relink).ok)
+        model.apply(await session.snapshot)
+        let id = try #require(model.items.first?.id)
+
+        let asked = try #require(model.item(id))
+        #expect(asked.statusText == "Flipper asks to link it here")
+        #expect(asked.rowActions == [.link])
+        #expect(WatchRowScreen(asked, isCreating: false) == .unknown(hint: WatchRowScreen.linkHint, offersNew: false))
+
+        await model.loadLinkCandidates()
+        #expect(await model.link(id, toSpool: 7))
+
+        let tag = TagParser.parse(try fixtureScan().tag)
+        #expect(Array(inventory.calls.suffix(2)) == [.delete(spoolId: 100), .link(spoolId: 7, TagLink(tag: tag))])
+        let item = try #require(model.items.first)
+        #expect(item.spoolId == 7)
+        #expect(item.statusText == "Enter weight")
+        #expect(item.rowActions.isEmpty)
     }
 
     @Test func afterASaveFocusSkipsATagNotInBambuddy() async throws {

@@ -496,7 +496,8 @@ struct FeedRowView: View {
         if item.isEntry {
             WeightEntry(feed: feed, item: item, focusedField: focusedField)
         } else if !item.rowActions.isEmpty {
-            // A tag no spool carries: New and Link to existing….
+            // A tag no spool carries (New, Link), or a spool added here the
+            // Flipper asked to relink (Link).
             #if os(macOS)
             RowActions(feed: feed, item: item)
             #else

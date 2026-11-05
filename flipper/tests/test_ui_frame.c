@@ -355,6 +355,32 @@ static void test_result_known_without_spool_shows_host_lines(void) {
     CHECK_STR_EQ(frame.line[2], "core 250 g");
 }
 
+/* ▶ New on a known spool the host sent without its data: the toast has no
+ * grams to name, so it leaves the line out rather than say "0 g left". */
+static void test_toast_marked_new_names_grams_only_with_the_spool(void) {
+    setup();
+    send_tag(&mfc);
+    ProtoLookup l = fixture_message("lookup_found.json")->lookup;
+    strcpy(l.scan_id, app.scan.id);
+    l.has_spool = false;
+    send_lookup(&l);
+    press(AppKeyRight);
+    CHECK(app.screen == AppScreenToast);
+    CHECK(app.toast == AppToastMarkedNew);
+    build();
+    CHECK_STR_EQ(frame.title, "Marked as new");
+    CHECK_STR_EQ(frame.line[1], "");
+    CHECK_STR_EQ(frame.line[2], "Next spool in 3 s");
+    check_chips("Undo", "Weigh", "");
+
+    setup();
+    scan_found();
+    press(AppKeyRight);
+    build();
+    CHECK_STR_EQ(frame.title, "Marked as new");
+    CHECK_STR_EQ(frame.line[1], "1000 g left - full");
+}
+
 static void test_result_archived(void) {
     setup();
     send_tag(&mfc);
@@ -931,6 +957,7 @@ int main(void) {
     RUN_TEST(test_reading_and_looking_up);
     RUN_TEST(test_result_known);
     RUN_TEST(test_result_known_without_spool_shows_host_lines);
+    RUN_TEST(test_toast_marked_new_names_grams_only_with_the_spool);
     RUN_TEST(test_result_archived);
     RUN_TEST(test_result_unknown);
     RUN_TEST(test_result_unknown_without_material);

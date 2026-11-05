@@ -538,8 +538,10 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
         return; /* no deadline */
     case AppToastMarkedNew:
         SET(f->title, "Marked as new");
-        put_uint(&t, s->spool.label);
-        put(&t, " g left - full");
+        if(s->has_spool) { /* without the spool's data there is no label to name */
+            put_uint(&t, s->spool.label);
+            put(&t, " g left - full");
+        }
         SET(f->left, "Undo");
         SET(f->center, "Weigh");
         break;
