@@ -300,7 +300,7 @@ public struct SettingsForm: View {
         Picker("Empty spool", selection: $model.catalogEntryId) {
             Text("None").tag(Int?.none)
             ForEach(model.catalog) { entry in
-                Text("\(entry.name) (\(entry.weight) g)").tag(Int?.some(entry.id))
+                Text("\(entry.name) (\(Grams.text(entry.weight)) g)").tag(Int?.some(entry.id))
             }
             if let id = model.catalogEntryId, !model.catalog.contains(where: { $0.id == id }) {
                 Text("Entry #\(id)").tag(Int?.some(id))

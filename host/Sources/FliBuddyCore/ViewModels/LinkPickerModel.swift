@@ -57,7 +57,7 @@ public struct LinkPickerModel: Equatable, Sendable {
 
     /// "Charcoal · Bambu Lab · 1000 g left", without the parts the spool lacks.
     public static func subtitle(_ spool: Spool) -> String {
-        [spool.colorName, spool.brand, "\(spool.remaining) g left"]
+        [spool.colorName, spool.brand, "\(Grams.text(spool.remaining)) g left"]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")

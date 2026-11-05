@@ -30,7 +30,7 @@ struct SessionMarkTests {
         #expect(row.status == .markedNew)
         #expect(row.savedBy == .flipper)
         #expect(row.spool?.remaining == 1000)
-        #expect(FeedItem(row).statusText == "Marked as new · 1000 g left · by Flipper")
+        #expect(FeedItem(row).statusText == "Marked as new · \(Grams.text(1000)) g left · by Flipper")
     }
 
     @Test func markAsNewRestoresAnArchivedSpoolFirst() async throws {

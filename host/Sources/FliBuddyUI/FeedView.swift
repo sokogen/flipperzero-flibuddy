@@ -22,6 +22,8 @@ public struct FeedView: View {
     @ViewState private var ownConfirmingClear = false
     #if os(iOS)
     @Environment(\.feedLayout) private var layout
+    /// Scrolling to the focused row jumps instead of gliding.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The tile grid's width, which sets its columns.
     @ViewState private var gridWidth: CGFloat = 0
     #endif
@@ -204,7 +206,7 @@ public struct FeedView: View {
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: focusedField) { _, row in
                 guard let row else { return }
-                withAnimation { proxy.scrollTo(row) }
+                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row) }
             }
         }
     }
@@ -227,7 +229,7 @@ public struct FeedView: View {
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: focusedField) { _, row in
                 guard let row else { return }
-                withAnimation { proxy.scrollTo(row, anchor: .top) }
+                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .top) }
             }
         }
     }

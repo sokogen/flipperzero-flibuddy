@@ -426,7 +426,7 @@ public final class SpoolsViewModel {
     public var rows: [Row] {
         guard content == .list else { return [] }
         let now = now()
-        return Self.sorted(shown, by: sort).map { Self.row($0, now: now) }
+        return Self.sorted(shown, by: sort).map { Self.row($0, now: now, locale: locale) }
     }
 
     /// In place of the rows when none pass the filters.
@@ -470,7 +470,7 @@ public final class SpoolsViewModel {
         return Detail(
             id: spool.id, swatch: spool.rgba.flatMap(Swatch.init(rgba:)), title: Self.title(spool),
             subtitle: Self.subtitle(spool), fraction: Self.fraction(spool),
-            gaugeText: "\(spool.remaining) g left of \(spool.labelWeight) g",
+            gaugeText: "\(grams(spool.remaining)) g left of \(grams(spool.labelWeight)) g",
             percentText: "\(Int((Self.fraction(spool) * 100).rounded()))%", isLow: Self.isLow(spool),
             facts: facts(spool), today: today,
             bambuddyURL: Self.bambuddyURL(base: settings.baseURL, spoolId: spool.id)
@@ -489,15 +489,20 @@ public final class SpoolsViewModel {
         return LinkPickerModel.filter(ofMaterial, query: query)
     }
 
+    /// Grams in the model's number format.
+    private func grams(_ value: Int) -> String {
+        Grams.text(value, locale: locale)
+    }
+
     private func facts(_ spool: Spool) -> [Detail.Fact] {
         typealias Fact = Detail.Fact
         let entry = spool.coreWeightCatalogId.flatMap { id in catalog.first { $0.id == id } }
         var facts = [Fact("Material", spool.material)]
         if let subtype = Self.present(spool.subtype) { facts.append(Fact("Subtype", subtype)) }
         if let brand = Self.present(spool.brand) { facts.append(Fact("Brand", brand)) }
-        facts.append(Fact("Label weight", "\(spool.labelWeight) g"))
-        facts.append(Fact("Empty spool", entry.map { "\($0.name) \u{00B7} \(spool.coreWeight) g" } ?? "\(spool.coreWeight) g"))
-        facts.append(Fact("Last scale weight", spool.lastScaleWeight.map { "\($0) g" } ?? "Never weighed"))
+        facts.append(Fact("Label weight", "\(grams(spool.labelWeight)) g"))
+        facts.append(Fact("Empty spool", entry.map { "\($0.name) \u{00B7} \(grams(spool.coreWeight)) g" } ?? "\(grams(spool.coreWeight)) g"))
+        facts.append(Fact("Last scale weight", spool.lastScaleWeight.map { "\(grams($0)) g" } ?? "Never weighed"))
         let tag = Self.present(spool.tagUid) ?? Self.present(spool.trayUuid)
         facts.append(tag.map { Fact("Tag", $0, monospaced: true) } ?? Fact("Tag", "No tag"))
         if let note = Self.present(spool.note) { facts.append(Fact("Note", note)) }
@@ -532,16 +537,17 @@ public final class SpoolsViewModel {
         !spool.isArchived && spool.labelWeight > 0 && Double(spool.remaining) < Double(spool.labelWeight) * lowFraction
     }
 
-    nonisolated static func row(_ spool: Spool, now: Date) -> Row {
+    nonisolated static func row(_ spool: Spool, now: Date, locale: Locale) -> Row {
         let title = title(spool)
         let low = isLow(spool)
         let updated = spool.updatedDate
-        let left = "\(spool.remaining) g left of \(spool.labelWeight)"
+        let left = "\(Grams.text(spool.remaining, locale: locale)) g left of \(Grams.text(spool.labelWeight, locale: locale))"
         let detail = updated.map { "\(left) \u{00B7} updated \(ago($0, now: now))" } ?? left
         let hasTag = present(spool.tagUid) != nil || present(spool.trayUuid) != nil
         let spoken: [String?] = [
             title, present(spool.colorName), present(spool.brand),
-            "\(spool.remaining) grams left of \(spool.labelWeight)", low ? "low" : nil,
+            "\(Grams.text(spool.remaining, locale: locale)) grams left of \(Grams.text(spool.labelWeight, locale: locale))",
+            low ? "low" : nil,
             spool.isArchived ? "archived" : nil, hasTag ? "tag linked" : nil,
             updated.map { "updated \(ago($0, now: now, spelledOut: true))" },
         ]

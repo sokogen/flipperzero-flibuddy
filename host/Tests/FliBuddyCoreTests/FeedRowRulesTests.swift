@@ -134,26 +134,26 @@ struct FeedItemRulesTests {
 
     @Test func theAccessibilityHeaderReadsAsOneSentence() throws {
         #expect(FeedItem(try row(status: .awaitingWeight)).accessibilityHeader
-            == "PLA Basic, Jade White, 484 grams left of 1000, Enter weight")
+            == "PLA Basic, Jade White, 484 grams left of \(Grams.text(1000)), Enter weight")
         // an unnamed colour is left out rather than read as hex
         let unknown = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
-        #expect(unknown.accessibilityHeader == "\(unknown.title), label 1000 grams, Not in Bambuddy")
+        #expect(unknown.accessibilityHeader == "\(unknown.title), label \(Grams.text(1000)) grams, Not in Bambuddy")
     }
 }
 
 @Suite("FeedItem: row display strings")
 struct FeedItemDisplayTests {
     @Test func theColourLineJoinsTheColourNameCodeAndWhatIsLeft() throws {
-        #expect(FeedItem(try row(status: .awaitingWeight)).detailText == "Jade White · 10100 · 484 g left of 1000")
+        #expect(FeedItem(try row(status: .awaitingWeight)).detailText == "Jade White · 10100 · 484 g left of \(Grams.text(1000))")
         // an unnamed colour is left out, never shown as hex
         let unnamed = FeedItem(try row(status: .awaitingWeight, spool: knownSpool(colorName: nil)))
         #expect(unnamed.colorName == nil)
-        #expect(unnamed.detailText == "10100 · 484 g left of 1000")
+        #expect(unnamed.detailText == "10100 · 484 g left of \(Grams.text(1000))")
         // an unknown tag with prefill shows its label weight
         var tagged = try row(status: .unknown(prefill: true), spool: nil)
-        #expect(FeedItem(tagged).detailText == "10100 · label 1000 g")
+        #expect(FeedItem(tagged).detailText == "10100 · label \(Grams.text(1000)) g")
         tagged.colorName = "Bambu Green"
-        #expect(FeedItem(tagged).detailText == "Bambu Green · 10100 · label 1000 g")
+        #expect(FeedItem(tagged).detailText == "Bambu Green · 10100 · label \(Grams.text(1000)) g")
         // a blank tag has nothing to say
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
         #expect(blank.detailText == "")
@@ -216,12 +216,12 @@ struct FeedItemDisplayTests {
 
     @Test func theAccessibilityHeaderOfEachKindOfRow() throws {
         #expect(FeedItem(try row(status: .created)).accessibilityHeader
-            == "PLA Basic, Jade White, 484 grams left of 1000, Added to Bambuddy")
+            == "PLA Basic, Jade White, 484 grams left of \(Grams.text(1000)), Added to Bambuddy")
         var named = try row(status: .unknown(prefill: true), spool: nil, request: .create)
         named.colorName = "Bambu Green"
         let tagged = FeedItem(named)
         #expect(tagged.accessibilityHeader
-            == "\(tagged.title), Bambu Green, label 1000 grams, Flipper asks to create it here")
+            == "\(tagged.title), Bambu Green, label \(Grams.text(1000)) grams, Flipper asks to create it here")
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
         #expect(blank.accessibilityHeader == "NTAG 7-byte UID 0411\u{2026}, Not in Bambuddy; tag has no material")
     }
@@ -430,7 +430,7 @@ struct FeedViewModelRulesTests {
         #expect(item.rowActions.isEmpty)
         await model.reopen(item.id)
         #expect(model.draft(for: item.id) == FeedViewModel.Draft(value: "1250", touched: false, mode: .gross))
-        #expect(model.readout(for: item.id)?.text == "Saves 1000 g left · 1250 \u{2212} 250 g core")
+        #expect(model.readout(for: item.id)?.text == "Saves \(Grams.text(1000)) g left · \(Grams.text(1250)) \u{2212} 250 g core")
 
         // Save sends the weight as a separate request
         model.setWeightText("1100", for: item.id)

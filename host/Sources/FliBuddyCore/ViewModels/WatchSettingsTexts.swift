@@ -36,7 +36,7 @@ public enum WatchSettingsTexts {
     }
 
     public static func coreWeight(_ grams: Int) -> String {
-        "\(grams) g"
+        "\(Grams.text(grams)) g"
     }
 
     public static func mode(_ mode: Intent.WeightMode) -> String {

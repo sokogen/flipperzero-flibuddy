@@ -38,7 +38,7 @@ struct WatchFeedRowTests {
     @Test func aTagWithMaterialShowsItsLabelWeight() throws {
         let item = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
         #expect(item.watchTitle == item.title)
-        #expect(item.watchSubText == "label 1000 g")
+        #expect(item.watchSubText == "label \(Grams.text(1000)) g")
     }
 
     @Test func aTagWithoutMaterialIsAnUnknownTagWithAShortTitle() throws {

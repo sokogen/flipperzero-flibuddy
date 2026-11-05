@@ -62,6 +62,6 @@ public enum WatchRowScreen: Equatable, Sendable {
     /// The saved screen's big number, `590 g`: what is left on the spool.
     public static func remainingText(_ item: FeedItem) -> String? {
         guard item.spoolId != nil else { return nil }
-        return item.base.map { "\($0) g" }
+        return item.base.map { "\(Grams.text($0)) g" }
     }
 }

@@ -24,7 +24,8 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     /// The colour name and code, "Bambu Green · 10501"; either alone, or empty.
     public let colorLine: String
     public let swatch: Swatch?
-    /// "484 g left of 1000" for a known spool, "label 1000 g" for a tag.
+    /// "484 g left of 1,000" for a known spool, "label 1,000 g" for a tag
+    /// (grams in the user's number format, `Grams`).
     public let remainingText: String
     /// The colour line: "Bambu Green · 10501 · 590 g left of 1000",
     /// "label 1000 g", or empty.
@@ -116,8 +117,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             title = Self.title(material: spool.material, subtype: spool.subtype)
             watchTitle = title
             colorName = spool.colorName
-            remainingText = spool.isArchived ? "archived" : "\(spool.remaining) g left of \(spool.labelWeight)"
-            watchSubText = spool.isArchived ? "archived" : "\(spool.remaining) g left"
+            remainingText = spool.isArchived
+                ? "archived" : "\(Grams.text(spool.remaining)) g left of \(Grams.text(spool.labelWeight))"
+            watchSubText = spool.isArchived ? "archived" : "\(Grams.text(spool.remaining)) g left"
             base = spool.remaining
             core = spool.coreWeight
         } else {
@@ -132,7 +134,7 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
                 watchTitle = title
             }
             colorName = row.colorName
-            remainingText = row.tag.labelWeight.map { "label \($0) g" } ?? ""
+            remainingText = row.tag.labelWeight.map { "label \(Grams.text($0)) g" } ?? ""
             watchSubText = row.tag.hasPrefill ? remainingText : "Unknown tag"
             base = row.tag.hasPrefill ? row.tag.labelWeight ?? NewSpool.defaultLabelWeight : nil
             core = row.tag.hasPrefill ? coreWeight : nil
@@ -200,15 +202,17 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public static func readout(value: Int?, mode: Intent.WeightMode, core: Int?) -> Readout {
         guard let value else { return Readout(text: "Type the scale reading", isError: false) }
         guard mode == .gross else {
-            return Readout(text: "Saves \(value) g left", isError: false, tile: "Saves \(value) g")
+            let saves = Grams.text(value)
+            return Readout(text: "Saves \(saves) g left", isError: false, tile: "Saves \(saves) g")
         }
         let core = max(0, core ?? 0)
         let net = value - core
         guard net >= 0 else {
-            return Readout(text: "Below the core weight (\(core) g)", isError: true, tile: "Below core")
+            return Readout(text: "Below the core weight (\(Grams.text(core)) g)", isError: true, tile: "Below core")
         }
         return Readout(
-            text: "Saves \(net) g left · \(value) \u{2212} \(core) g core", isError: false, tile: "Saves \(net) g"
+            text: "Saves \(Grams.text(net)) g left · \(Grams.text(value)) \u{2212} \(Grams.text(core)) g core",
+            isError: false, tile: "Saves \(Grams.text(net)) g"
         )
     }
 
@@ -286,12 +290,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
             return prefill ? "Not in Bambuddy" : "Not in Bambuddy; tag has no material"
         case .saving: return "Saving\u{2026}"
         case .saved, .savedAfterTimeout:
-            let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
+            let saved = row.spool.map { "Saved \(Grams.text($0.remaining)) g left" } ?? "Saved"
             return row.savedBy.map { "\(saved) · \(savedByText($0, hostName: hostName))" } ?? saved
         case .created: return "Added to Bambuddy"
         case .updating: return "Updating\u{2026}"
         case .markedNew:
-            let marked = row.spool.map { "Marked as new · \($0.remaining) g left" } ?? "Marked as new"
+            let marked = row.spool.map { "Marked as new · \(Grams.text($0.remaining)) g left" } ?? "Marked as new"
             return row.savedBy.map { "\(marked) · \(savedByText($0, hostName: hostName))" } ?? marked
         case .markedEmpty: return bySide(row, "Marked as empty · archived", hostName: hostName)
         case .deleted: return bySide(row, "Deleted from Bambuddy", hostName: hostName)
@@ -339,9 +343,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         let amount: String? = if let spool, spool.isArchived {
             "archived"
         } else if let spool {
-            "\(spool.remaining) grams left of \(spool.labelWeight)"
+            "\(Grams.text(spool.remaining)) grams left of \(Grams.text(spool.labelWeight))"
         } else {
-            labelWeight.map { "label \($0) grams" }
+            labelWeight.map { "label \(Grams.text($0)) grams" }
         }
         return [title, colorName, amount, status].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
     }

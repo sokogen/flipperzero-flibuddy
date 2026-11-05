@@ -51,7 +51,7 @@ struct LinkPickerModelTests {
 
     @Test func rowsShowColourBrandAndWhatIsLeft() {
         let all = spools()
-        #expect(LinkPickerModel.subtitle(all[0]) == "Charcoal · Bambu Lab · 1000 g left")
+        #expect(LinkPickerModel.subtitle(all[0]) == "Charcoal · Bambu Lab · \(Grams.text(1000)) g left")
         #expect(LinkPickerModel.subtitle(all[1]) == "Translucent Teal · Polymaker · 600 g left")
         #expect(LinkPickerModel.subtitle(all[2]) == "eSUN · 500 g left")
     }

@@ -259,7 +259,7 @@ struct NewSpoolModelTests {
         #expect(inventory.updates.isEmpty)
         let item = try #require(model.item(id))
         #expect(item.statusText == "Added to Bambuddy")
-        #expect(item.remainingText == "1000 g left of 1000")
+        #expect(item.remainingText == "\(Grams.text(1000)) g left of \(Grams.text(1000))")
         #expect(!item.isEntry)
         #expect(item.rowActions.isEmpty)
         #expect(model.haptic?.kind == .success)

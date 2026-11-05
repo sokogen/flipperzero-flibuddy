@@ -293,7 +293,7 @@ struct FeedViewModelTests {
         let item = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
         #expect(item.title == "PLA Basic")
         #expect(item.colorName == "Jade White")
-        #expect(item.remainingText == "484 g left of 1000")
+        #expect(item.remainingText == "484 g left of \(Grams.text(1000))")
         #expect(item.swatch == Swatch(rgba: "FFFFFFFF"))
         #expect(item.isEntry)
         #expect(!item.offersUnknownActions)
@@ -306,16 +306,16 @@ struct FeedViewModelTests {
         let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
         #expect(known.colorCode == "10501")
         #expect(known.colorLine == "Jade White · 10501")
-        #expect(known.detailText == "Jade White · 10501 · 484 g left of 1000")
+        #expect(known.detailText == "Jade White · 10501 · 484 g left of \(Grams.text(1000))")
         // without one, the tag's code (GFA00 + A00-W1: Jade White, 10100)
         let fromTag = FeedItem(try row(status: .awaitingWeight, spool: knownSpool()))
         #expect(fromTag.colorCode == "10100")
-        #expect(fromTag.detailText == "Jade White · 10100 · 484 g left of 1000")
+        #expect(fromTag.detailText == "Jade White · 10100 · 484 g left of \(Grams.text(1000))")
         // VoiceOver does not read the code
-        #expect(fromTag.accessibilityHeader == "PLA Basic, Jade White, 484 grams left of 1000, Enter weight")
+        #expect(fromTag.accessibilityHeader == "PLA Basic, Jade White, 484 grams left of \(Grams.text(1000)), Enter weight")
         var unknown = try row(status: .unknown(prefill: true))
         unknown.colorName = "Jade White"
-        #expect(FeedItem(unknown).detailText == "Jade White · 10100 · label 1000 g")
+        #expect(FeedItem(unknown).detailText == "Jade White · 10100 · label \(Grams.text(1000)) g")
         // no name: the code alone, never the hex
         #expect(FeedItem(try row(status: .unknown(prefill: true))).colorLine == "10100")
         // an empty material_number is no code
@@ -377,7 +377,7 @@ struct FeedViewModelTests {
         #expect(item.title == tag.detailedType)
         // the hex is never a colour name; the swatch shows the colour
         #expect(item.colorName == nil)
-        #expect(item.remainingText == "label \(tag.labelWeight ?? 0) g")
+        #expect(item.remainingText == "label \(Grams.text(tag.labelWeight ?? 0)) g")
         // autosave off: not in Bambuddy, New and Link, no weight
         #expect(item.statusText == "Not in Bambuddy")
         #expect(!item.isEntry)
@@ -404,7 +404,7 @@ struct FeedViewModelTests {
 
     @Test func theReadoutOfAnUnknownBambuRowUsesTheSettingsCore() throws {
         let item = FeedItem(try row(status: .unknown(prefill: true)), coreWeight: 250)
-        #expect(item.readout(value: 1250, mode: .gross).text == "Saves 1000 g left · 1250 \u{2212} 250 g core")
+        #expect(item.readout(value: 1250, mode: .gross).text == "Saves \(Grams.text(1000)) g left · \(Grams.text(1250)) \u{2212} 250 g core")
         #expect(item.readout(value: 200, mode: .gross).isError)
     }
 
@@ -419,7 +419,7 @@ struct FeedViewModelTests {
         deleted.savedBy = .flipper
         let cases: [(FeedRow, String)] = [
             (try row(status: .updating, spool: knownSpool()), "Updating\u{2026}"),
-            (markedNew, "Marked as new · 1000 g left · by Flipper"),
+            (markedNew, "Marked as new · \(Grams.text(1000)) g left · by Flipper"),
             (markedEmpty, "Marked as empty · archived · by Flipper"),
             (deleted, "Deleted from Bambuddy · by Flipper"),
         ]

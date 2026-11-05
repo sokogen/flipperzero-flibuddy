@@ -42,8 +42,8 @@ public struct TagDetails: Equatable, Sendable {
         add("RGBA", (spool?.rgba ?? tag.rgba).flatMap { $0.isEmpty ? nil : "#\($0)" }, identifier: true)
         add("Diameter", tag.diameter.flatMap(Self.diameter))
         add("Nozzle", Self.nozzle(min: tag.nozzleMin, max: tag.nozzleMax))
-        add("Label weight", (spool?.labelWeight ?? tag.labelWeight).map { "\($0) g" })
-        add("Core weight", spool.map { "\($0.coreWeight) g" })
+        add("Label weight", (spool?.labelWeight ?? tag.labelWeight).map { "\(Grams.text($0)) g" })
+        add("Core weight", spool.map { "\(Grams.text($0.coreWeight)) g" })
         add("Spool", spool.map { $0.isArchived ? "#\($0.id) · archived" : "#\($0.id)" })
         self.facts = facts
     }

@@ -31,7 +31,7 @@ struct TagDetailsTests {
         #expect(details.value("RGBA") == "#FFFFFFFF")
         #expect(details.value("Diameter") == "1.75 mm")
         #expect(details.value("Nozzle") == "190\u{2013}230 °C")
-        #expect(details.value("Label weight") == "1000 g")
+        #expect(details.value("Label weight") == "\(Grams.text(1000)) g")
         #expect(details.value("Core weight") == "250 g")
         #expect(details.value("Spool") == "#42")
         // identifiers are monospaced and selectable; the rest is plain text
@@ -45,7 +45,7 @@ struct TagDetailsTests {
         let details = TagDetails(unknown)
 
         #expect(details.value("Color code") == "10100")
-        #expect(details.value("Label weight") == "1000 g")
+        #expect(details.value("Label weight") == "\(Grams.text(1000)) g")
         #expect(details.value("Core weight") == nil)
         #expect(details.value("Spool") == nil)
     }
