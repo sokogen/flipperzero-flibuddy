@@ -201,9 +201,13 @@ why. Items marked "by eye" still wait for the owner's check on screen.
 Layout
 - `FeedLayout.forWindow(width:height:isCompact:)` (`FliBuddyCore`): a
   compact size class gets `.cards`; otherwise a window wider than tall
-  gets `.sidebar`, else `.tabs`. A square window counts as portrait. The
-  window is measured at the root with `onGeometryChange`, so the first
-  frame (size zero) is the portrait layout until the size arrives.
+  gets `.sidebar`, else `.tabs`. Within 20 pt of square either way
+  (`squareDeadBand`, 40) the layout keeps what it had, so a Stage Manager
+  resize across square does not flip it at every point. The window is
+  measured at the root with `onGeometryChange` on a background that
+  ignores the safe areas, so the keyboard rising on a portrait iPad
+  (1024 × about 930 left) does not make it look landscape. The first frame
+  (size zero) is the portrait layout until the size arrives.
 - The grid has as many flexible columns as `FeedLayout.tileColumns` allows
   (`.adaptive` cannot cap the count at three), measured from the grid's
   own width. By eye: three on a 13", two on an 11", in both orientations.
@@ -212,7 +216,11 @@ Layout
   so a field being typed keeps its draft (and commits as the old form
   goes); the focused row takes the keyboard back from the feed. Unlike
   before, leaving the Settings pane keeps the model too, as the iPhone's
-  tab always did. By eye: rotate while typing a weight, while Settings is
+  tab always did. The QR cover hangs off the root (`settingsSession`) and
+  its scan lives in the model (`QRScanCover`), so a rotation keeps both;
+  however the cover goes, an open scan ends as cancelled. Only leaving
+  Settings (another tab or pane) commits the field and stops a Flipper
+  scan (`SettingsViewModel.left()`); a rebuild does neither. By eye: rotate while typing a weight, while Settings is
   open, and with the QR cover up.
 
 Sidebar

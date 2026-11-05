@@ -25,10 +25,23 @@ public enum FeedLayout: Equatable, Sendable {
     /// A row holds at most three tiles (a 13" iPad); wider windows widen them.
     public static let maximumTileColumns = 3
 
-    /// `isCompact`: the horizontal size class is compact.
-    public static func forWindow(width: Double, height: Double, isCompact: Bool) -> FeedLayout {
+    /// Around a square window the layout keeps what it had until the
+    /// window is this much (in total) past square, so a resize across it
+    /// does not flip the layout at every point.
+    public static let squareDeadBand: Double = 40
+
+    /// `isCompact`: the horizontal size class is compact. `previous`: the
+    /// layout on screen, which holds within `squareDeadBand` of square.
+    public static func forWindow(
+        width: Double, height: Double, isCompact: Bool, previous: FeedLayout? = nil
+    ) -> FeedLayout {
         guard !isCompact else { return .cards }
-        return width > height ? .sidebar : .tabs
+        let margin = squareDeadBand / 2
+        switch previous {
+        case .tabs: return width > height + margin ? .sidebar : .tabs
+        case .sidebar: return height > width + margin ? .tabs : .sidebar
+        case .cards, nil: return width > height ? .sidebar : .tabs
+        }
     }
 
     /// The sidebar carries the connection states and Clear feed.

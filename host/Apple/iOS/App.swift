@@ -83,14 +83,18 @@ struct RootView: View {
     let host: HostModel
     @Bindable var navigation: AppNavigation
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// Kept as state, so it holds near a square window (`FeedLayout.squareDeadBand`).
+    @ViewState private var layout = FeedLayout.cards
     @ViewState private var size: CGSize = .zero
     /// The Settings model lives here, not in `SettingsScreen`: rotating an
     /// iPad swaps the split view and the tabs and builds the screen again,
     /// and a draft being typed must survive that.
     @ViewState private var settingsModel: SettingsViewModel?
 
-    private var layout: FeedLayout {
-        FeedLayout.forWindow(width: size.width, height: size.height, isCompact: sizeClass != .regular)
+    private func updateLayout() {
+        layout = FeedLayout.forWindow(
+            width: size.width, height: size.height, isCompact: sizeClass != .regular, previous: layout
+        )
     }
 
     var body: some View {
@@ -115,7 +119,16 @@ struct RootView: View {
             }
         }
         .environment(\.feedLayout, layout)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+        .settingsSession(settingsModel, showing: navigation.pane == .settings)
+        // The whole window, the keyboard's area included: the number pad
+        // rising on a portrait iPad must not make it look landscape.
+        .background {
+            Color.clear
+                .ignoresSafeArea()
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+        }
+        .onChange(of: size) { updateLayout() }
+        .onChange(of: sizeClass, initial: true) { updateLayout() }
     }
 
     private var feed: some View {

@@ -26,6 +26,23 @@ struct FeedLayoutTests {
         #expect(FeedLayout.forWindow(width: 680, height: 500, isCompact: true) == .cards)
     }
 
+    @Test func nearASquareWindowTheLayoutKeepsWhatItHad() {
+        // A dead band of 40 pt around square, so a window resized across it
+        // does not flip the layout at every point.
+        #expect(FeedLayout.squareDeadBand == 40)
+        #expect(FeedLayout.forWindow(width: 900, height: 885, isCompact: false, previous: .tabs) == .tabs)
+        #expect(FeedLayout.forWindow(width: 900, height: 879, isCompact: false, previous: .tabs) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 885, height: 900, isCompact: false, previous: .sidebar) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 879, height: 900, isCompact: false, previous: .sidebar) == .tabs)
+        // full-screen iPads are far from square either way
+        #expect(FeedLayout.forWindow(width: 1366, height: 1024, isCompact: false, previous: .tabs) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 1024, height: 1366, isCompact: false, previous: .sidebar) == .tabs)
+        // from the cards (or nothing yet) the plain rule applies, and compact always wins
+        #expect(FeedLayout.forWindow(width: 900, height: 885, isCompact: false, previous: .cards) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 900, height: 885, isCompact: false, previous: nil) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 900, height: 600, isCompact: true, previous: .sidebar) == .cards)
+    }
+
     @Test func whatEachLayoutShows() {
         #expect(FeedLayout.sidebar.hasSidebar)
         #expect(!FeedLayout.tabs.hasSidebar)
