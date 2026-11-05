@@ -43,7 +43,7 @@ public struct SettingsForm: View {
                 }
                 .disabled(!CameraQRScanner.isAvailable)
                 LabeledContent("URL") {
-                    TextField("URL", text: $model.baseURL, prompt: Text(verbatim: "http://bambuddy.local:8000"))
+                    TextField("URL", text: $model.baseURL, prompt: Text(verbatim: "https://bambuddy.example.com"))
                         .keyboardType(.URL)
                         .textContentType(.URL)
                         .textInputAutocapitalization(.never)
@@ -51,6 +51,9 @@ public struct SettingsForm: View {
                         .multilineTextAlignment(.trailing)
                         .focused($editing, equals: .url)
                         .submitLabel(.done)
+                }
+                if let error = model.urlError {
+                    Text(error).font(.caption).foregroundStyle(.red)
                 }
                 LabeledContent("API key") {
                     SecureField("API key", text: $model.apiKey, prompt: Text("bb_…"))

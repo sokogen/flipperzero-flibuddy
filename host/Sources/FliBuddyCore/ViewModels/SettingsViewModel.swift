@@ -123,6 +123,7 @@ public final class SettingsViewModel {
     private let bluetoothPower: @MainActor () async -> BLEPowerState
     private let scanDuration: Duration
     private let connectedTransport: @MainActor () -> TransportKind?
+    private let requiresHTTPS: Bool
     private let watchSync: @MainActor () -> WatchSyncState?
     private let apply: @MainActor (Settings) async throws -> Void
     /// The last applied change; each one waits for the one before it.
@@ -151,6 +152,7 @@ public final class SettingsViewModel {
         scanDuration: Duration = .seconds(15),
         connectedTransport: @escaping @MainActor () -> TransportKind? = { nil },
         appliesOnChange: Bool = false,
+        requiresHTTPS: Bool = Settings.requiresHTTPS,
         watchSync: @escaping @MainActor () -> WatchSyncState? = { nil },
         apply: @escaping @MainActor (Settings) async throws -> Void
     ) {
@@ -171,6 +173,7 @@ public final class SettingsViewModel {
         self.scanDuration = scanDuration
         self.connectedTransport = connectedTransport
         self.appliesOnChange = appliesOnChange
+        self.requiresHTTPS = requiresHTTPS
         self.watchSync = watchSync
         self.apply = apply
     }
@@ -223,6 +226,12 @@ public final class SettingsViewModel {
         connection = nil
         saveError = nil
         qrStatus = nil
+    }
+
+    /// Why the URL cannot be used: an `http://` address on the iPhone, iPad
+    /// and Watch. `nil` for an empty field, which is just not set up yet.
+    public var urlError: String? {
+        Settings.isRefusedHTTP(baseURL, requireHTTPS: requiresHTTPS) ? SettingsError.httpsRequired.localizedDescription : nil
     }
 
     /// Why the core weight cannot be saved; `nil` when it is in range.
@@ -363,8 +372,10 @@ public final class SettingsViewModel {
             apiKey = payload.apiKey
             connection = nil
             qrStatus = .applied(Self.qrApplied)
+            // The key is kept even when the URL is refused; the URL field shows why.
+            let acceptsURL = !Settings.isRefusedHTTP(payload.baseURL, requireHTTPS: requiresHTTPS)
             applyChange {
-                $0.baseURL = payload.baseURL
+                if acceptsURL { $0.baseURL = payload.baseURL }
                 $0.apiKey = payload.apiKey
             }
         } catch {
@@ -505,7 +516,7 @@ public final class SettingsViewModel {
 
     @discardableResult
     public func save() async -> Bool {
-        if let error = coreWeightError {
+        if let error = coreWeightError ?? urlError {
             saveError = error
             return false
         }
@@ -528,11 +539,11 @@ public final class SettingsViewModel {
     /// or leaving the field. Applies them with `appliesOnChange`; a core
     /// weight out of range stays unapplied and shows `coreWeightError`.
     public func commit() {
-        let url = baseURL
+        let url = urlError == nil ? baseURL : nil
         let key = apiKey
         let weight = coreWeightError == nil ? coreWeight : nil
         applyChange {
-            $0.baseURL = url
+            if let url { $0.baseURL = url }
             $0.apiKey = key
             if let weight { $0.coreWeight = weight }
         }

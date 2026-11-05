@@ -89,6 +89,23 @@ public struct Settings: Equatable, Sendable {
         }
     }
 
+    /// iPhone, iPad and Watch talk HTTPS only (no App Transport Security
+    /// exception); the Mac keeps plain HTTP for now.
+    public static var requiresHTTPS: Bool {
+        #if os(macOS)
+        false
+        #else
+        true
+        #endif
+    }
+
+    /// Whether `text` names a plain-HTTP address that `requireHTTPS` refuses.
+    public static func isRefusedHTTP(_ text: String, requireHTTPS: Bool = Settings.requiresHTTPS) -> Bool {
+        guard requireHTTPS else { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return URLComponents(string: trimmed)?.scheme?.lowercased() == "http"
+    }
+
     static func trimmed(_ key: String) -> String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// The API key without surrounding whitespace; what is saved and sent.
@@ -97,10 +114,12 @@ public struct Settings: Equatable, Sendable {
     /// An http(s) base URL and an API key are set.
     public var isConfigured: Bool { (try? makeClient()) != nil }
 
-    /// A client for these settings. `session` is for tests.
-    public func makeClient(session: URLSession? = nil) throws -> BambuddyClient {
+    /// A client for these settings. `session` is for tests; `requireHTTPS`
+    /// refuses an `http://` address (the default where the platform does).
+    public func makeClient(session: URLSession? = nil, requireHTTPS: Bool = Settings.requiresHTTPS) throws -> BambuddyClient {
         let text = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: text) else { throw BambuddyError.invalidBaseURL(text) }
+        if Self.isRefusedHTTP(text, requireHTTPS: requireHTTPS) { throw SettingsError.httpsRequired }
         let key = trimmedAPIKey
         let client = try BambuddyClient(baseURL: url, apiKey: key, session: session)
         guard !key.isEmpty else { throw SettingsError.missingAPIKey }
@@ -110,12 +129,15 @@ public struct Settings: Equatable, Sendable {
 
 public enum SettingsError: Error, Equatable, Sendable {
     case missingAPIKey
+    /// An `http://` address where only `https://` is allowed.
+    case httpsRequired
 }
 
 extension SettingsError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingAPIKey: "Enter a Bambuddy API key"
+        case .httpsRequired: "FliBuddy needs an https:// address."
         }
     }
 }

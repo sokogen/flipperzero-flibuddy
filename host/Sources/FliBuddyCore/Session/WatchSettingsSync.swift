@@ -51,6 +51,7 @@ public final class WatchSettingsSender {
 
     private let session: any SessionMessaging
     private let debounce: Duration
+    private let requireHTTPS: Bool
     private var pending: SettingsSyncPayload?
     /// The last key the sender saw; an empty key after a non-empty one is a clear.
     private var lastKey = ""
@@ -61,10 +62,12 @@ public final class WatchSettingsSender {
     private var lastHold: String?
     private var hasSent = false
 
-    /// `debounce` zero sends each save at once.
-    public init(session: any SessionMessaging, debounce: Duration = .zero) {
+    /// `debounce` zero sends each save at once. With `requireHTTPS` an
+    /// `http://` address is never sent: the watch could not use it.
+    public init(session: any SessionMessaging, debounce: Duration = .zero, requireHTTPS: Bool = Settings.requiresHTTPS) {
         self.session = session
         self.debounce = debounce
+        self.requireHTTPS = requireHTTPS
     }
 
     /// Remembers the key the settings loaded with, without sending: an
@@ -119,6 +122,8 @@ public final class WatchSettingsSender {
         guard let pending else { return refreshState() }
         let held: String? = if !session.isSupported {
             "unsupported"
+        } else if Settings.isRefusedHTTP(pending.baseURL, requireHTTPS: requireHTTPS) {
+            "http address"
         } else if !session.isActivated {
             "not activated"
         } else if !session.isCounterpartInstalled {
@@ -151,6 +156,9 @@ public final class WatchSettingsSender {
         let new: WatchSyncState?
         if !session.isSupported || !session.isPaired {
             new = nil
+        } else if let pending, Settings.isRefusedHTTP(pending.baseURL, requireHTTPS: requireHTTPS) {
+            // The URL field says why; the watch line would only confuse.
+            new = nil
         } else if lastError != nil {
             new = .failed
         } else if pending == nil {
@@ -176,11 +184,15 @@ public final class WatchSettingsReceiver {
     public private(set) var lastReceived: Date?
 
     private let host: HostModel
+    private let requireHTTPS: Bool
     /// Keeps the WatchConnectivity delegate alive (`WCSession` holds it weakly).
     @ObservationIgnored fileprivate var connection: AnyObject?
 
-    public init(host: HostModel) {
+    /// With `requireHTTPS` an `http://` address (from an older iPhone build)
+    /// leaves the watch not set up, with the HTTPS message.
+    public init(host: HostModel, requireHTTPS: Bool = Settings.requiresHTTPS) {
         self.host = host
+        self.requireHTTPS = requireHTTPS
     }
 
     public func receive(_ result: Result<SettingsSyncPayload, SettingsSyncError>) async {
@@ -203,7 +215,8 @@ public final class WatchSettingsReceiver {
             } else {
                 Log.info(.sync, "unchanged")
             }
-            lastError = nil
+            lastError = Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requireHTTPS)
+                ? SettingsError.httpsRequired.localizedDescription : nil
         } catch {
             lastError = Session.describe(error)
             Log.error(.sync, "apply failed: error=\(Session.describe(error))")

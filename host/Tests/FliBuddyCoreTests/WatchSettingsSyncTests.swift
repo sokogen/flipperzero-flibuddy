@@ -494,6 +494,60 @@ struct WatchSyncStateTests {
 }
 
 @MainActor
+@Suite("Settings sync and HTTPS")
+struct WatchSettingsHTTPSTests {
+    @Test func thePhoneDoesNotSendAnHTTPAddress() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session, requireHTTPS: true)
+        var http = testSettings
+        http.baseURL = "http://192.168.1.20:8000"
+
+        sender.settingsSaved(http)
+        #expect(session.sent.isEmpty)
+        #expect(sender.state == nil)
+
+        var https = http
+        https.baseURL = "https://bambuddy.example.com"
+        sender.settingsSaved(https)
+        #expect(session.sentPayloads == [SettingsSyncPayload(https)])
+    }
+
+    @Test func theMacSenderIsNotAffected() {
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session, requireHTTPS: false)
+        var http = testSettings
+        http.baseURL = "http://192.168.1.20:8000"
+
+        sender.settingsSaved(http)
+
+        #expect(session.sent.count == 1)
+    }
+
+    @Test func theWatchTreatsAnHTTPAddressFromAnOldPhoneAsNotConfigured() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        let model = HostModel(
+            store: store, makeInventory: { settings in
+                _ = try settings.makeClient(requireHTTPS: true)
+                return FakeInventory()
+            },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        let receiver = WatchSettingsReceiver(host: model, requireHTTPS: true)
+        var payload = SettingsSyncPayload(testSettings)
+        payload.baseURL = "http://192.168.1.20:8000"
+
+        await receiver.receive(.success(payload))
+
+        #expect(receiver.lastError == "FliBuddy needs an https:// address.")
+        #expect(await model.session.bambuddy == .notConfigured)
+
+        payload.baseURL = "https://bambuddy.example.com"
+        await receiver.receive(.success(payload))
+        #expect(receiver.lastError == nil)
+    }
+}
+
+@MainActor
 @Suite("Settings sync start and reliability")
 struct WatchSettingsStartTests {
     @Test func startingWithoutAKeySendsTheKeyOnceItIsRestored() async throws {

@@ -287,6 +287,17 @@ import Testing
         }
     }
 
+    @Test func httpIsRefusedWhereHTTPSIsRequired() throws {
+        var settings = testSettings
+        settings.baseURL = " http://bambuddy.test:8000 "
+        #expect(throws: SettingsError.httpsRequired) { _ = try settings.makeClient(requireHTTPS: true) }
+        _ = try settings.makeClient(requireHTTPS: false)
+        settings.baseURL = "https://bambuddy.test"
+        _ = try settings.makeClient(requireHTTPS: true)
+        #expect(SettingsError.httpsRequired.localizedDescription == "FliBuddy needs an https:// address.")
+        #expect(Settings.requiresHTTPS == (TransportKind.platformDefault == .bluetooth))
+    }
+
     @Test func inMemorySecretsRoundTrip() throws {
         let secrets = InMemorySecretStore()
         #expect(try secrets.secret(for: "a") == nil)

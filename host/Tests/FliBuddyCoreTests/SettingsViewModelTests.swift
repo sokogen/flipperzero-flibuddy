@@ -16,6 +16,7 @@ private func makeModel(
     power: @escaping @MainActor () async -> BLEPowerState = { .poweredOn },
     connected: @escaping @MainActor () -> TransportKind? = { nil },
     appliesOnChange: Bool = false,
+    requiresHTTPS: Bool = false,
     apply: @escaping @MainActor (Settings) async throws -> Void = { _ in }
 ) -> SettingsViewModel {
     SettingsViewModel(
@@ -30,6 +31,7 @@ private func makeModel(
         scanDuration: scanDuration,
         connectedTransport: connected,
         appliesOnChange: appliesOnChange,
+        requiresHTTPS: requiresHTTPS,
         apply: apply
     )
 }
@@ -1274,5 +1276,85 @@ struct SettingsViewModelLogTests {
             "settings catalog failed: error=no client",
         ])
         #expect(sink.lines.map(\.level) == [.info, .error, .error])
+    }
+}
+
+@MainActor
+@Suite("SettingsViewModel: HTTPS only")
+struct HTTPSOnlySettingsTests {
+    private static let message = "FliBuddy needs an https:// address."
+
+    @Test func anHTTPURLHasTheMessageAndAnHTTPSOneDoesNot() {
+        let model = makeModel(requiresHTTPS: true)
+        #expect(model.urlError == Self.message)
+        model.baseURL = "https://bambuddy.example.com"
+        #expect(model.urlError == nil)
+        model.baseURL = "  HTTP://bambuddy.example.com "
+        #expect(model.urlError == Self.message)
+        model.baseURL = ""
+        #expect(model.urlError == nil)
+    }
+
+    @Test func theMacKeepsHTTP() {
+        let model = makeModel(requiresHTTPS: false)
+        #expect(model.urlError == nil)
+    }
+
+    @Test func saveRefusesAnHTTPURL() async {
+        let applied = LockedBox<[Settings]>([])
+        let model = makeModel(requiresHTTPS: true, apply: { settings in applied.mutate { $0.append(settings) } })
+
+        let saved = await model.save()
+
+        #expect(!saved)
+        #expect(model.saveError == Self.message)
+        #expect(applied.value.isEmpty)
+    }
+
+    @Test func aCommitAppliesTheKeyButNotAnHTTPURL() async {
+        let applied = LockedBox<[Settings]>([])
+        var start = testSettings
+        start.baseURL = "https://old.example.com"
+        let model = makeModel(
+            settings: start, appliesOnChange: true, requiresHTTPS: true,
+            apply: { settings in applied.mutate { $0.append(settings) } }
+        )
+
+        model.baseURL = "http://192.168.1.20:8000"
+        model.apiKey = "bb_new"
+        model.commit()
+        await model.settled()
+
+        #expect(applied.value.map(\.baseURL) == ["https://old.example.com"])
+        #expect(applied.value.map(\.apiKey) == ["bb_new"])
+        #expect(model.urlError == Self.message)
+    }
+
+    @Test func aQRCodeWithAnHTTPURLStillFillsTheKeyAndTheFieldShowsTheError() async {
+        let applied = LockedBox<[Settings]>([])
+        let model = makeModel(
+            settings: Settings(baseURL: "https://old.example.com"), appliesOnChange: true, requiresHTTPS: true,
+            apply: { settings in applied.mutate { $0.append(settings) } }
+        )
+
+        model.applyQRPayload(bambuddyQR)
+        await model.settled()
+
+        #expect(model.apiKey == "bb_from_qr")
+        #expect(model.baseURL == "http://192.168.1.10:8000")
+        #expect(model.urlError == Self.message)
+        #expect(applied.value.map(\.apiKey) == ["bb_from_qr"])
+        #expect(applied.value.map(\.baseURL) == ["https://old.example.com"])
+    }
+
+    @Test func testConnectionNamesTheProblem() async {
+        // The real client factory refuses the address.
+        let model = SettingsViewModel(
+            settings: testSettings, makeInventory: { try $0.makeClient(requireHTTPS: true) }, requiresHTTPS: true, apply: { _ in }
+        )
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed(Self.message))
     }
 }
