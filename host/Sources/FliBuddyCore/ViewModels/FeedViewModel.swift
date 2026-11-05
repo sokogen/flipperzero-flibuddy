@@ -259,6 +259,13 @@ public final class FeedViewModel {
 
     // MARK: Focus
 
+    /// The demo's `-FliBuddyDemoFocus none`: no row takes the keyboard.
+    public var startsUnfocused = false
+
+    /// The demo's `-FliBuddyDemoSheet link`: the first row that offers Link to
+    /// existing opens its sheet once.
+    public var opensLinkOnFirstUnknown = false
+
     /// The row with the keyboard, for the list selection and the field focus.
     public var focusedRow: FeedRow.ID? {
         get { focus.focusedRow }
@@ -308,6 +315,7 @@ public final class FeedViewModel {
         }
         waitingIDs = waiting
         entryIDs = Set(items.filter(\.isEntry).map(\.id))
+        if startsUnfocused { focus.focus(nil) }
     }
 
     private func focusRows() -> [FocusModel.Row] {

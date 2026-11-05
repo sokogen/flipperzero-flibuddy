@@ -27,6 +27,13 @@ struct RowActions: View {
     var body: some View {
         content
             .disabled(feed.isBusy(item.id))
+            .onAppear {
+                // The demo's `-FliBuddyDemoSheet link`.
+                if feed.opensLinkOnFirstUnknown, item.rowActions.contains(.link) {
+                    feed.opensLinkOnFirstUnknown = false
+                    showingLink = true
+                }
+            }
             .sheet(isPresented: $showingNew) {
                 if let form = feed.newSpoolForm(for: item.id) {
                     NewSpoolSheet(feed: feed, item: item, form: form).feedSheet(feed)

@@ -11,6 +11,9 @@ enum CameraQRScanner {
     /// No scanner on this device, camera access not asked yet, denied
     /// (or restricted), or allowed.
     static var access: CameraAccess {
+        // The demo's Settings screenshots (a simulator has no camera) read
+        // as on a phone; nothing in the demo starts the scanner.
+        if DemoFixtures.isRequested() { return .authorized }
         guard DataScannerViewController.isSupported else { return .unsupported }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .notDetermined: return .notDetermined

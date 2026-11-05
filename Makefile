@@ -63,7 +63,7 @@ apple-build:
 # in the git-ignored host/Apple/Signing.xcconfig. The build number is the
 # commit count, one for both apps.
 apple-archive:
-	@team=$$(sed -n 's/^DEVELOPMENT_TEAM *= *//p' host/Apple/Signing.xcconfig 2>/dev/null | tr -d ' '); \
+	@team=$$(sed -En 's|^DEVELOPMENT_TEAM *= *([A-Z0-9]+).*|\1|p' host/Apple/Signing.xcconfig 2>/dev/null); \
 	test -n "$$team" || { echo "set DEVELOPMENT_TEAM in host/Apple/Signing.xcconfig" >&2; exit 1; }; \
 	build=$$(git rev-list --count HEAD); \
 	echo "archiving build $$build"; \

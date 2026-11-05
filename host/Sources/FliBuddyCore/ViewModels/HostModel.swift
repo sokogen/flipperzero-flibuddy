@@ -239,7 +239,7 @@ public final class HostModel {
     /// The Settings screen's model; the iPhone and iPad pass
     /// `appliesOnChange`, the Mac keeps its Save.
     public func makeSettingsViewModel(appliesOnChange: Bool = false) -> SettingsViewModel {
-        SettingsViewModel(
+        let model = SettingsViewModel(
             settings: settings, makeInventory: makeInventory, discoverPorts: discoverPorts,
             discoverFlippers: { [link] in link.discoverFlippers() },
             bluetoothPower: { [link] in await link.bluetoothPowerState() },
@@ -248,5 +248,10 @@ public final class HostModel {
             watchSync: { [weak self] in self?.watchSyncState?() },
             apply: { [weak self] in try await self?.apply($0) }
         )
+        settingsModelHook?(model)
+        return model
     }
+
+    /// The demo's `-FliBuddyDemoQR YES`: runs on each new Settings model.
+    public var settingsModelHook: ((SettingsViewModel) -> Void)?
 }

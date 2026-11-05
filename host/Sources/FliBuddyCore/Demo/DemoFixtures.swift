@@ -60,13 +60,49 @@ public enum DemoFixtures {
         return State(rawValue: arguments[index + 1]) ?? .connected
     }
 
+    /// More hidden arguments for the App Store screenshots
+    /// (`tools/store_shots.sh`), all in the demo only:
+    /// `-FliBuddyDemoSet store` plays a feed without the blank NTAG row,
+    /// `-FliBuddyDemoFocus none` keeps the keyboard down (no row focused),
+    /// `-FliBuddyDemoSheet link` opens Link to existing on the first row that
+    /// offers it, `-FliBuddyDemoSearch pla` types into the Spools search and
+    /// `-FliBuddyDemoQR YES` fills Settings from a Bambuddy QR payload.
+    public struct Options: Equatable, Sendable {
+        public var storeSet = false
+        public var unfocused = false
+        public var opensLinkSheet = false
+        public var search: String?
+        public var fillsFromQR = false
+
+        public init() {}
+    }
+
+    public static func requestedOptions(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Options {
+        var options = Options()
+        guard isRequested(arguments) else { return options }
+        func value(_ name: String) -> String? {
+            guard let index = arguments.firstIndex(of: name), index + 1 < arguments.count else { return nil }
+            return arguments[index + 1]
+        }
+        options.storeSet = value("-FliBuddyDemoSet") == "store"
+        options.unfocused = value("-FliBuddyDemoFocus") == "none"
+        options.opensLinkSheet = value("-FliBuddyDemoSheet") == "link"
+        options.search = value("-FliBuddyDemoSearch")
+        options.fillsFromQR = ["yes", "1", "true"].contains(value("-FliBuddyDemoQR")?.lowercased() ?? "")
+        return options
+    }
+
+    /// The Bambuddy QR payload of the demo server and key.
+    static let qrPayload = "bambuddy://config?v=1&url=https%3A%2F%2Fbambuddy.example.com&key=demo-key"
+
     /// The demo's host: the fixtures' settings, Bambuddy and Flipper; the
     /// feed fills once `start()` connects the Flipper.
     @MainActor
     public static func makeHost(
-        state: State = requestedState(), linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
+        state: State = requestedState(), options: Options = requestedOptions(),
+        linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
     ) -> HostModel {
-        makeEnvironment(state: state, linkWaitsForChosenFlipper: linkWaitsForChosenFlipper).host
+        makeEnvironment(state: state, options: options, linkWaitsForChosenFlipper: linkWaitsForChosenFlipper).host
     }
 
     // MARK: - Settings
@@ -316,9 +352,21 @@ public enum DemoFixtures {
         scan(41, "demo-0941", bambuGreen.dump),
     ]
 
+    /// The store screenshots' feed, oldest first: no blank NTAG, nothing the
+    /// Flipper hands to the host. Newest first: Bambu Green waiting for a
+    /// weight, PLA Pure not in Bambuddy (New, Link), PLA Silk+ added on scan
+    /// and Pumpkin Orange saved by the Flipper.
+    static let storeScript: [Step] = [
+        scan(27, "demo-0927", silkGold.dump, autosave: true),
+        scan(30, "demo-0930", pumpkinOrange.dump),
+        intent("demo-0930", .weigh, pumpkinOrange.dump, grams: 257, mode: .gross),
+        scan(34, "demo-0934", pureBlue.dump),
+        scan(41, "demo-0941", bambuGreen.dump),
+    ]
+
     /// Plays `script` into `session` one line at a time, as the Flipper
     /// would, moving `clock` before each scan.
-    static func play(on session: Session, clock: DemoClock) async {
+    static func play(on session: Session, clock: DemoClock, script: [Step] = script) async {
         Log.info(.session, "demo: playing \(script.count) fixture lines")
         for step in script {
             if let at = step.at { clock.set(at) }
@@ -332,7 +380,8 @@ public enum DemoFixtures {
 
     @MainActor
     static func makeEnvironment(
-        state: State = .connected, linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
+        state: State = .connected, options: Options = Options(),
+        linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
     ) -> DemoEnvironment {
         let defaults = InMemoryKeyValueStore()
         let secrets = InMemorySecretStore()
@@ -345,7 +394,7 @@ public enum DemoFixtures {
         }
         let clock = DemoClock()
         let inventory = DemoInventory(now: clock.now)
-        let player = DemoPlayer(clock: clock)
+        let player = DemoPlayer(clock: clock, script: options.storeSet ? storeScript : script)
         // Settings without a server make no Bambuddy, as the real factory.
         let makeInventory: @Sendable (Settings) throws -> any SpoolInventory = { settings in
             _ = try settings.makeClient()
@@ -367,6 +416,12 @@ public enum DemoFixtures {
             linkWaitsForChosenFlipper: linkWaitsForChosenFlipper
         )
         player.session = host.session
+        host.feed.startsUnfocused = options.unfocused
+        host.feed.opensLinkOnFirstUnknown = options.opensLinkSheet
+        if let search = options.search { host.spools.query = search }
+        if options.fillsFromQR {
+            host.settingsModelHook = { $0.applyQRPayload(qrPayload) }
+        }
         Log.notice(.app, "demo: fixture mode, state=\(state.rawValue), no Bluetooth, no network, settings in memory")
         return DemoEnvironment(
             host: host, inventory: inventory, defaults: defaults, secrets: secrets, makeInventory: makeInventory
@@ -398,11 +453,13 @@ final class DemoClock: @unchecked Sendable {
 private final class DemoPlayer: @unchecked Sendable {
     private let lock = NSLock()
     private let clock: DemoClock
+    private let script: [DemoFixtures.Step]
     private var played = false
     private var target: Session?
 
-    init(clock: DemoClock) {
+    init(clock: DemoClock, script: [DemoFixtures.Step]) {
         self.clock = clock
+        self.script = script
     }
 
     var session: Session? {
@@ -418,6 +475,7 @@ private final class DemoPlayer: @unchecked Sendable {
         }
         guard let session else { return }
         let clock = clock
-        Task { await DemoFixtures.play(on: session, clock: clock) }
+        let script = script
+        Task { await DemoFixtures.play(on: session, clock: clock, script: script) }
     }
 }

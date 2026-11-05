@@ -229,6 +229,11 @@ def test_the_host_sources_use_no_other_required_reason_api():
         "volumeAvailableCapacity",
         "systemFreeSize",
         "activeInputModes",
+        "stat(",
+        "statfs",
+        ".creationDateKey",
+        "fileModificationDate",
+        "volumeAvailableCapacityKey",
     )
     for path in sources.rglob("*.swift"):
         text = path.read_text(encoding="utf-8")
@@ -290,6 +295,8 @@ def test_the_export_options_export_for_app_store_connect_without_uploading():
     # The team comes from the git-ignored Signing.xcconfig, not the repo.
     assert "teamID" not in options
     assert "Signing.xcconfig" in apple_archive_recipe()
+    # A trailing comment or CRLF in the file cannot end up in the team id.
+    assert "([A-Z0-9]+)" in apple_archive_recipe()
 
 
 def test_the_store_screenshot_script_covers_the_required_devices():
@@ -298,3 +305,8 @@ def test_the_store_screenshot_script_covers_the_required_devices():
     for device in ("iPhone 18 Pro Max", "iPad Pro 13-inch (M5)", "Apple Watch Series 12 (46mm)"):
         assert device in script
     assert "host/Apple/.build/store-shots" in script
+    # A missing simulator fails before the first shot.
+    assert script.index("simctl list devices") < script.index('"$shot"')
+    for argument in ("-FliBuddyDemoSet store", "-FliBuddyDemoFocus none", "-FliBuddyDemoSheet link",
+                     "-FliBuddyDemoSearch pla", "-FliBuddyDemoQR YES"):
+        assert argument in script

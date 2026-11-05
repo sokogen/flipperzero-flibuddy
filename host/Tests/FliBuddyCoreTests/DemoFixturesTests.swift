@@ -109,6 +109,38 @@ struct DemoFixturesTests {
         _ = clock
     }
 
+    @Test func theStoreArgumentsAreReadInTheDemoOnly() {
+        let demo = ["FliBuddy", "-FliBuddyDemo", "YES"]
+        #expect(DemoFixtures.requestedOptions(demo) == DemoFixtures.Options())
+        let options = DemoFixtures.requestedOptions(
+            demo + ["-FliBuddyDemoSet", "store", "-FliBuddyDemoFocus", "none", "-FliBuddyDemoSheet", "link",
+                    "-FliBuddyDemoSearch", "pla", "-FliBuddyDemoQR", "YES"]
+        )
+        #expect(options.storeSet && options.unfocused && options.opensLinkSheet && options.fillsFromQR)
+        #expect(options.search == "pla")
+        #expect(DemoFixtures.requestedOptions(["FliBuddy", "-FliBuddyDemoSet", "store"]) == DemoFixtures.Options())
+    }
+
+    @Test func theStoreFeedHasNoBlankTagAndShowsEachGoodState() async throws {
+        let clock = DemoClock()
+        let inventory = DemoInventory(now: clock.now)
+        let session = Session(settings: DemoFixtures.settings, inventory: inventory, now: clock.now)
+        await DemoFixtures.play(on: session, clock: clock, script: DemoFixtures.storeScript)
+        let rows = await session.rows
+        #expect(rows.count == 4)
+        #expect(!rows.contains { $0.tag.uid == DemoFixtures.blankUid })
+        #expect(rows.last?.tag.uid == "91B4E7C2")
+    }
+
+    @Test func theQRArgumentFillsEachNewSettingsModel() {
+        var options = DemoFixtures.Options()
+        options.fillsFromQR = true
+        let model = DemoFixtures.makeHost(state: .connected, options: options, linkWaitsForChosenFlipper: false)
+        let settings = model.makeSettingsViewModel(appliesOnChange: true)
+        #expect(settings.qrStatus == .applied("Filled from the QR code."))
+        #expect(settings.baseURL == "https://bambuddy.example.com")
+    }
+
     // MARK: - The feed
 
     /// The session after the demo script, rows newest last.
