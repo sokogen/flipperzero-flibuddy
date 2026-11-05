@@ -139,15 +139,15 @@ struct SettingsScreen: View {
         Group {
             if let model {
                 SettingsForm(model: model)
+                    // Each time Settings comes on screen, not only the first.
+                    .task { await model.opened() }
             } else {
                 ProgressView()
             }
         }
         .onAppear {
             guard model == nil else { return }
-            let model = host.makeSettingsViewModel(appliesOnChange: true)
-            self.model = model
-            Task { await model.loadCatalog() }
+            model = host.makeSettingsViewModel(appliesOnChange: true)
         }
         // The API key was read again after a launch while locked.
         .onChange(of: host.settings) { _, settings in model?.adoptRestoredAPIKey(settings) }

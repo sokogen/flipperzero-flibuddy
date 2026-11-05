@@ -91,10 +91,8 @@ public struct SettingsForm: View {
                         Text("g").foregroundStyle(.secondary)
                     }
                 }
+                // The catalog loads when Settings opens (SettingsScreen); no Reload.
                 newItemErrors
-                Button("Reload catalog") {
-                    Task { await model.loadCatalog() }
-                }
             } header: {
                 Text("New items")
             } footer: {
@@ -124,19 +122,14 @@ public struct SettingsForm: View {
                     Text(problem).foregroundStyle(.red)
                 }
                 discoveredFlippers
-                Button("Forget this Flipper", role: .destructive) { model.forget() }
-                    .disabled(!model.canForget)
             } header: {
                 Text("Flipper")
             } footer: {
-                // The iPad draws no footer under the Flipper rows (iPadOS spec).
-                if UIDevice.current.userInterfaceIdiom != .pad {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bluetooth only on iPhone. The Flipper must be running FliBuddy.")
-                        // Only with a paired watch.
-                        if let watch = model.watchSyncText {
-                            Text(watch)
-                        }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(SettingsViewModel.flipperFooter(isPad: UIDevice.current.userInterfaceIdiom == .pad))
+                    // Only on an iPhone with a paired watch.
+                    if let watch = model.watchSyncText {
+                        Text(watch)
                     }
                 }
             }
@@ -144,6 +137,19 @@ public struct SettingsForm: View {
                 Section {
                     Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 }
+            }
+            // Its own section, centred, as the iPhone and iPad pages draw it.
+            Section {
+                Button(role: .destructive) {
+                    model.forget()
+                } label: {
+                    Text("Forget This Flipper").frame(maxWidth: .infinity)
+                }
+                .disabled(!model.canForget)
+            } footer: {
+                Text(SettingsViewModel.appVersionFooter)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
             }
         }
         .environment(\.defaultMinListRowHeight, 52)
@@ -302,7 +308,7 @@ public struct SettingsForm: View {
                 HStack {
                     Text(peripheral.name)
                     Spacer()
-                    Text("\(peripheral.rssi) dBm").foregroundStyle(.secondary)
+                    Text(WatchSettingsTexts.signal(rssi: peripheral.rssi)).foregroundStyle(.secondary)
                     if peripheral.id == model.peripheralId {
                         Image(systemName: "checkmark")
                     }

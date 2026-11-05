@@ -23,7 +23,7 @@ struct SettingsView: View {
             let model = host.makeSettingsViewModel()
             model.refreshPorts()
             self.model = model
-            Task { await model.loadCatalog() }
+            Task { await model.opened() }
         }
     }
 }

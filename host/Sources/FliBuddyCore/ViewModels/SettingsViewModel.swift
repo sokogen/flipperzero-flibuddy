@@ -310,11 +310,20 @@ public final class SettingsViewModel {
         case .testing: StatusItem(text: "Testing\u{2026}", symbol: .progress, tint: .gray)
         case .ready:
             StatusItem(
-                text: "Ready \u{00B7} inventory access OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
+                text: "Ready \u{00B7} inventory OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
             )
         case .unreachable(let reason): StatusItem(text: "Unreachable: \(reason)", symbol: failed, tint: .red)
         case .failed(let message): StatusItem(text: message, symbol: failed, tint: .red)
         }
+    }
+
+    /// Settings came on screen: loads the catalog for the Empty spool
+    /// picker, each time, so a spool type added in Bambuddy shows. There is
+    /// no Reload; a failure shows in `catalogError`, and Test connection
+    /// loads the catalog again.
+    public func opened() async {
+        Log.debug(.settings, "opened: loading the catalog")
+        await loadCatalog()
     }
 
     public func loadCatalog() async {
@@ -587,6 +596,30 @@ public final class SettingsViewModel {
         case .failed(let message): (message, .red)
         }
     }
+
+    /// The Flipper section's footer: the iPhone names its one transport,
+    /// the iPad page says only what the Flipper needs.
+    public static func flipperFooter(isPad: Bool) -> String {
+        let needs = "The Flipper must be running FliBuddy."
+        return isPad ? needs : "Bluetooth only on iPhone. \(needs)"
+    }
+
+    /// The line at the foot of Settings: `FliBuddy 1.0 (42)` from the
+    /// bundle's `CFBundleShortVersionString` and `CFBundleVersion`; a part
+    /// the bundle lacks is left out.
+    public static func versionFooter(info: [String: Any]?) -> String {
+        func value(_ key: String) -> String? {
+            guard let text = (info?[key] as? String)?.trimmingCharacters(in: .whitespaces), !text.isEmpty else {
+                return nil
+            }
+            return text
+        }
+        let parts = ["FliBuddy", value("CFBundleShortVersionString"), value("CFBundleVersion").map { "(\($0))" }]
+        return parts.compactMap { $0 }.joined(separator: " ")
+    }
+
+    /// The running app's version footer.
+    public static var appVersionFooter: String { versionFooter(info: Bundle.main.infoDictionary) }
 
     /// The iPhone's Settings footer line about the Apple Watch; `nil` without a paired watch.
     public var watchSyncText: String? { Self.watchSyncText(watchSync()) }

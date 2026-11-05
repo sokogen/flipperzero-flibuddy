@@ -349,7 +349,7 @@ class Component extends DCLogic {
     const C = this.C, S = this.S, set = this.state.set, f = this.state.focus;
     const st = C.statusVM(S.cfg);
     const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
-    const TT = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
+    const TT = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready · inventory OK', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
     const defs = [
       {id: 'al', label: 'Landscape · light', note: 'Live with a hardware keyboard. The newest Enter weight row has focus.', vars: C.LIGHT, land: true},
       {id: 'ad', label: 'Landscape · dark', note: 'Same session.', vars: C.DARK, land: true},

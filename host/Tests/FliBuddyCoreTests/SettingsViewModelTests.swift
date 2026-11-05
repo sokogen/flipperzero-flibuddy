@@ -688,7 +688,7 @@ struct SettingsViewModelTests {
         (
             .ready,
             StatusItem(
-                text: "Ready \u{00B7} inventory access OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
+                text: "Ready \u{00B7} inventory OK", symbol: .symbol("checkmark.circle.fill"), tint: .green
             )
         ),
         (
@@ -1196,6 +1196,52 @@ struct SettingsApplyOnChangeTests {
     @Test func aFlipperConnectedWithoutAChoiceIsNamedGenerically() {
         let model = makeModel(connected: { .bluetooth })
         #expect(model.flipperRowTitle == "Flipper")
+    }
+
+    @Test func theFlipperFooterSaysBluetoothOnlyOnTheIPhone() {
+        // iPhone page and iPad page, the Flipper section's footer.
+        #expect(
+            SettingsViewModel.flipperFooter(isPad: false)
+                == "Bluetooth only on iPhone. The Flipper must be running FliBuddy."
+        )
+        #expect(SettingsViewModel.flipperFooter(isPad: true) == "The Flipper must be running FliBuddy.")
+    }
+
+    @Test func theVersionFooterNamesTheVersionAndTheBuild() {
+        let full: [String: Any] = ["CFBundleShortVersionString": "1.0", "CFBundleVersion": "42"]
+        #expect(SettingsViewModel.versionFooter(info: full) == "FliBuddy 1.0 (42)")
+        #expect(SettingsViewModel.versionFooter(info: ["CFBundleShortVersionString": "0.1.0"]) == "FliBuddy 0.1.0")
+        #expect(SettingsViewModel.versionFooter(info: ["CFBundleVersion": "7"]) == "FliBuddy (7)")
+        let blank: [String: Any] = ["CFBundleShortVersionString": " ", "CFBundleVersion": ""]
+        #expect(SettingsViewModel.versionFooter(info: blank) == "FliBuddy")
+        #expect(SettingsViewModel.versionFooter(info: nil) == "FliBuddy")
+    }
+
+    @Test func openingSettingsLoadsTheCatalogEachTime() async {
+        let inventory = FakeInventory()
+        inventory.catalogEntries = [CatalogEntry(id: 3, name: "Bambu Lab - Plastic Low Temp", weight: 250)]
+        let model = makeModel(inventory)
+        #expect(model.catalog.isEmpty)
+
+        await model.opened()
+        #expect(model.catalog.map(\.id) == [3])
+
+        // Edited in Bambuddy while Settings was away: the next visit shows it.
+        inventory.catalogEntries.append(CatalogEntry(id: 9, name: "Bambu Lab - Cardboard", weight: 180))
+        await model.opened()
+        #expect(model.catalog.map(\.id) == [3, 9])
+        #expect(model.catalogError == nil)
+    }
+
+    @Test func openingSettingsShowsWhyTheCatalogDidNotLoad() async {
+        let inventory = FakeInventory()
+        inventory.catalogError = .network("no answer within 5 s")
+        let model = makeModel(inventory)
+
+        await model.opened()
+
+        #expect(model.catalog.isEmpty)
+        #expect(model.catalogError != nil)
     }
 }
 

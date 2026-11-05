@@ -423,7 +423,7 @@ class Component extends DCLogic {
       {id: 'pb', label: 'Blocking · Spoolman mode · dark', note: 'FliBuddy refuses to work until Bambuddy is switched back.', vars: C.DARK, dark: true, cfg: {flipper: 'ble', bambuddy: 'spoolman'}, rows: []},
     ];
     const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
-    const T = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
+    const T = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready · inventory OK', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
     const phones = defs.map(d => {
       const u = this.state.ui[d.id] || {tab: 'feed'};
       const cfg = d.live ? S.cfg : d.cfg, rows = d.live ? S.rows : d.rows;
