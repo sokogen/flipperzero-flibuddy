@@ -479,7 +479,7 @@ struct WatchSyncStateTests {
 
     @Test func theSettingsScreenTextFollowsTheState() {
         #expect(SettingsViewModel.watchSyncText(.sent) == "Apple Watch: settings sent")
-        #expect(SettingsViewModel.watchSyncText(.openWatchApp) == "Apple Watch: open FliBuddy on the watch")
+        #expect(SettingsViewModel.watchSyncText(.openWatchApp) == "Apple Watch: waiting to send")
         #expect(SettingsViewModel.watchSyncText(.installApp) == "Apple Watch: install FliBuddy on the watch")
         #expect(SettingsViewModel.watchSyncText(.failed) == "Apple Watch: couldn't send settings")
         #expect(SettingsViewModel.watchSyncText(nil) == nil)
@@ -536,10 +536,11 @@ struct WatchSettingsHTTPSTests {
         var payload = SettingsSyncPayload(testSettings)
         payload.baseURL = "http://192.168.1.20:8000"
 
-        await receiver.receive(.success(payload))
+        let sink = await capturingLog { await receiver.receive(.success(payload)) }
 
         #expect(receiver.lastError == "FliBuddy needs an https:// address.")
         #expect(await model.session.bambuddy == .notConfigured)
+        #expect(sink.events("sync received: http address refused") == ["sync received: http address refused"])
 
         payload.baseURL = "https://bambuddy.example.com"
         await receiver.receive(.success(payload))

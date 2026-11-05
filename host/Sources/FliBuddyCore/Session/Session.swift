@@ -18,6 +18,12 @@ public enum BambuddyState: Equatable, Sendable {
     case refused(Refusal)
     /// Bambuddy did not answer; the next scan or intent checks again.
     case unreachable(String)
+    /// The saved address is `http://` where only `https://` is allowed
+    /// (settings from before HTTPS only).
+    case needsHTTPS
+    /// The https:// connection failed on Bambuddy's certificate; checked
+    /// again like `unreachable`.
+    case untrustedCertificate
 
     public var isReady: Bool { self == .ready }
 
@@ -32,6 +38,8 @@ public enum BambuddyState: Equatable, Sendable {
             "API key lacks the \(permission) permission; add it to the key in Bambuddy"
         case .refused(.unauthorized): "Bambuddy rejected the API key; check it in Settings"
         case .unreachable(let reason): reason
+        case .needsHTTPS: SettingsError.httpsRequired.localizedDescription
+        case .untrustedCertificate: "This device does not trust the certificate Bambuddy uses for https://."
         }
     }
 
@@ -43,6 +51,8 @@ public enum BambuddyState: Equatable, Sendable {
         case .ready: "ready"
         case .refused: "refused"
         case .unreachable: "unreachable"
+        case .needsHTTPS: "needsHTTPS"
+        case .untrustedCertificate: "untrustedCertificate"
         }
     }
 
@@ -55,6 +65,8 @@ public enum BambuddyState: Equatable, Sendable {
         case .refused(.permissionMissing(let permission)): ["API key lacks", permission]
         case .refused(.unauthorized): ["API key rejected"]
         case .unreachable: ["Bambuddy unreachable"]
+        case .needsHTTPS: ["Bambuddy needs", "HTTPS"]
+        case .untrustedCertificate: ["Certificate", "not trusted"]
         }
     }
 }
@@ -165,11 +177,19 @@ public actor Session {
     private var pushObservers: [UUID: AsyncStream<Message>.Continuation] = [:]
     private let now: @Sendable () -> Date
 
-    public init(settings: Settings, inventory: (any SpoolInventory)?, now: @escaping @Sendable () -> Date = { Date() }) {
+    /// `requiresHTTPS`: an `http://` address left from older settings is
+    /// reported as `needsHTTPS`, not as not set up.
+    public init(
+        settings: Settings, inventory: (any SpoolInventory)?, now: @escaping @Sendable () -> Date = { Date() },
+        requiresHTTPS: Bool = Settings.requiresHTTPS
+    ) {
         self.settings = settings
         self.inventory = inventory
         self.now = now
+        self.requiresHTTPS = requiresHTTPS
     }
+
+    private let requiresHTTPS: Bool
 
     deinit {
         for observer in observers.values { observer.finish() }
@@ -265,7 +285,7 @@ public actor Session {
     private func runCheck() async -> BambuddyState {
         let checking = configuration
         guard let inventory else {
-            setBambuddy(.notConfigured)
+            setBambuddy(Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requiresHTTPS) ? .needsHTTPS : .notConfigured)
             return bambuddy
         }
         let state = await Self.check(inventory)
@@ -297,6 +317,7 @@ public actor Session {
         switch error {
         case BambuddyError.permissionMissing(let permission): .refused(.permissionMissing(permission))
         case BambuddyError.unauthorized: .refused(.unauthorized)
+        case BambuddyError.untrustedCertificate: .untrustedCertificate
         default: .unreachable(describe(error))
         }
     }
@@ -330,7 +351,7 @@ public actor Session {
     /// Checks when the state may have changed since (never checked, or unreachable).
     private func ensureReady() async -> (any SpoolInventory)? {
         switch bambuddy {
-        case .unchecked, .unreachable, .notConfigured: await checkBambuddy()
+        case .unchecked, .unreachable, .notConfigured, .needsHTTPS, .untrustedCertificate: await checkBambuddy()
         case .ready, .refused: break
         }
         return bambuddy.isReady ? inventory : nil
@@ -874,8 +895,8 @@ public actor Session {
         let line = "bambuddy: \(state.name)" + (state.message.map { " message=\($0)" } ?? "")
         switch state {
         case .unchecked, .ready: Log.info(.session, line)
-        case .notConfigured: Log.notice(.session, line)
-        case .refused, .unreachable: Log.error(.session, line)
+        case .notConfigured, .needsHTTPS: Log.notice(.session, line)
+        case .refused, .unreachable, .untrustedCertificate: Log.error(.session, line)
         }
         publish()
     }

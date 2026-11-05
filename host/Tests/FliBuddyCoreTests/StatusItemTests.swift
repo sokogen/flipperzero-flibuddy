@@ -275,4 +275,23 @@ struct StatusActionTests {
         #expect(inventory.calls.isEmpty)
         #expect(!host.link.isActive)
     }
+
+    @Test func anHTTPAddressAndAnUntrustedCertificateHaveTheirOwnLines() {
+        #expect(
+            BambuddyState.needsHTTPS.statusItem() == StatusItem(
+                text: "Bambuddy needs HTTPS", symbol: .symbol("lock.slash"), tint: .red, action: .settings,
+                detail: "FliBuddy needs an https:// address."
+            )
+        )
+        #expect(
+            BambuddyState.untrustedCertificate.statusItem() == StatusItem(
+                text: "Bambuddy's certificate is not trusted", symbol: .symbol("lock.trianglebadge.exclamationmark"),
+                tint: .red, action: .retry,
+                detail: "This device does not trust the certificate Bambuddy uses for https://.",
+                short: "Certificate not trusted"
+            )
+        )
+        #expect(BambuddyState.needsHTTPS.flipperLines == ["Bambuddy needs", "HTTPS"])
+        #expect(BambuddyState.untrustedCertificate.flipperLines == ["Certificate", "not trusted"])
+    }
 }

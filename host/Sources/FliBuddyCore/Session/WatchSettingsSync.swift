@@ -215,8 +215,9 @@ public final class WatchSettingsReceiver {
             } else {
                 Log.info(.sync, "unchanged")
             }
-            lastError = Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requireHTTPS)
-                ? SettingsError.httpsRequired.localizedDescription : nil
+            let refused = Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requireHTTPS)
+            if refused { Log.notice(.sync, "received: http address refused") }
+            lastError = refused ? SettingsError.httpsRequired.localizedDescription : nil
         } catch {
             lastError = Session.describe(error)
             Log.error(.sync, "apply failed: error=\(Session.describe(error))")

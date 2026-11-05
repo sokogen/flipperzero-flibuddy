@@ -19,7 +19,7 @@ public enum WatchSettingsTexts {
         _ state: FeedEmptyState, linkActive: Bool, searchingSince: Date?, now: Date
     ) -> String {
         switch state {
-        case .noServer: return "Set up FliBuddy on your iPhone first."
+        case .noServer, .needsHTTPS: return "Set up FliBuddy on your iPhone first."
         case .noFlipper where !linkActive: return "Choose your Flipper in Settings."
         case .noFlipper:
             guard let searchingSince, now.timeIntervalSince(searchingSince) >= longSearch else { return holdATag }

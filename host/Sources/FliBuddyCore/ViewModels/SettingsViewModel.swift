@@ -270,6 +270,10 @@ public final class SettingsViewModel {
         let inventory: any SpoolInventory
         do {
             inventory = try makeInventory(draft)
+        } catch SettingsError.httpsRequired {
+            // The URL field's footer says why in full.
+            endTest(.failed(Self.needsHTTPSResult))
+            return
         } catch {
             endTest(.failed(Session.describe(error)))
             return
@@ -285,7 +289,7 @@ public final class SettingsViewModel {
         }
         guard tested == endpointGeneration else { return testDropped() }
         guard state.isReady else {
-            endTest(.failed(state.message ?? "Bambuddy not ready"))
+            endTest(.failed(state == .untrustedCertificate ? Self.untrustedResult : state.message ?? "Bambuddy not ready"))
             return
         }
         do {
@@ -299,6 +303,9 @@ public final class SettingsViewModel {
             endTest(.failed(Session.state(after: error).message ?? Session.describe(error)))
         }
     }
+
+    static let needsHTTPSResult = "Needs HTTPS"
+    static let untrustedResult = "Certificate not trusted"
 
     private func endTest(_ result: Connection) {
         connection = result
@@ -419,9 +426,14 @@ public final class SettingsViewModel {
             baseURL = payload.baseURL
             apiKey = payload.apiKey
             connection = nil
-            qrStatus = .applied(Self.qrApplied)
             // The key is kept even when the URL is refused; the URL field shows why.
             let acceptsURL = !Settings.isRefusedHTTP(payload.baseURL, requireHTTPS: requiresHTTPS)
+            if acceptsURL {
+                qrStatus = .applied(Self.qrApplied)
+            } else {
+                qrStatus = .failed(Self.qrHTTP)
+                Log.notice(.settings, "qr: http address refused, key filled")
+            }
             applyChange {
                 if acceptsURL { $0.baseURL = payload.baseURL }
                 $0.apiKey = payload.apiKey
@@ -432,6 +444,7 @@ public final class SettingsViewModel {
     }
 
     static let qrApplied = "Filled from the QR code."
+    static let qrHTTP = "Filled in the API key. The QR code has an http:// address; FliBuddy needs https://."
 
     /// Scans a QR code, applies it and tests the connection it names; a
     /// cancelled scan changes nothing.
@@ -587,6 +600,7 @@ public final class SettingsViewModel {
     /// or leaving the field. Applies them with `appliesOnChange`; a core
     /// weight out of range stays unapplied and shows `coreWeightError`.
     public func commit() {
+        if urlError != nil, appliesOnChange { Log.notice(.settings, "commit: http address refused") }
         let url = urlError == nil ? baseURL : nil
         let key = apiKey
         let weight = coreWeightError == nil ? coreWeight : nil
@@ -671,7 +685,8 @@ public final class SettingsViewModel {
         switch state {
         case nil: nil
         case .sent: "Apple Watch: settings sent"
-        case .openWatchApp: "Apple Watch: open FliBuddy on the watch"
+        // The phone cannot tell why the watch has not taken them yet.
+        case .openWatchApp: "Apple Watch: waiting to send"
         case .installApp: "Apple Watch: install FliBuddy on the watch"
         case .failed: "Apple Watch: couldn't send settings"
         }

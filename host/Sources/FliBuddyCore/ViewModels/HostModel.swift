@@ -56,7 +56,7 @@ public final class HostModel {
         self.discoverPorts = discoverPorts
         self.linkWaitsForChosenFlipper = linkWaitsForChosenFlipper
         self.requiresHTTPS = requiresHTTPS
-        session = Session(settings: settings, inventory: try? makeInventory(settings), now: now)
+        session = Session(settings: settings, inventory: try? makeInventory(settings), now: now, requiresHTTPS: requiresHTTPS)
         feed = FeedViewModel(session: session, settings: settings)
         spools = SpoolsViewModel(session: session, feed: feed, settings: settings, now: now)
         link = FlipperLink(

@@ -420,6 +420,34 @@ struct HostModelTests {
         #expect(await eventually { model.feedEmptyState == .noScans })
     }
 
+    @Test func anHTTPAddressAsksForHTTPSInTheFeed() throws {
+        var http = testSettings
+        http.transport = .bluetooth
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(http)
+        let model = HostModel(
+            store: store, makeInventory: { try $0.makeClient(requireHTTPS: true) },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }, requiresHTTPS: true
+        )
+        #expect(model.feedEmptyState == .needsHTTPS)
+    }
+
+    @Test func aStoredHTTPAddressIsCheckedAsNeedingHTTPS() async throws {
+        // Settings saved before HTTPS only (Phase 0 kept http://).
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(testSettings)
+        let model = HostModel(
+            store: store, makeInventory: { try $0.makeClient(requireHTTPS: true) },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }, requiresHTTPS: true
+        )
+
+        await model.checkBambuddy()
+
+        #expect(await model.session.bambuddy == .needsHTTPS)
+        model.feed.apply(await model.session.snapshot)
+        #expect(model.connectionBanner.lines.map(\.text).contains("Bambuddy needs HTTPS"))
+    }
+
     @Test func theEmptyFeedNamesTheSameServerStateAsTheSpools() {
         let noServer = FeedEmptyState.noServer.content
         let spools = SpoolsViewModel.Unavailable.connectBambuddy
@@ -427,6 +455,10 @@ struct HostModelTests {
         #expect(noServer.message == spools.message)
         #expect(noServer.systemImage == spools.systemImage)
         #expect(noServer.actionTitle == "Open Settings")
+        let https = FeedEmptyState.needsHTTPS.content
+        #expect(https.title == SpoolsViewModel.Unavailable.needsHTTPS.title)
+        #expect(https.message == SpoolsViewModel.Unavailable.needsHTTPS.message)
+        #expect(https.actionTitle == "Open Settings")
         let noFlipper = FeedEmptyState.noFlipper.content
         #expect(noFlipper.title == "Find your Flipper")
         #expect(noFlipper.message == "Open FliBuddy on the Flipper (Apps\u{00A0}\u{2192}\u{00A0}NFC).")

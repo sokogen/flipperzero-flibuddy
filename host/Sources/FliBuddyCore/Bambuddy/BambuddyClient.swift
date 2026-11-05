@@ -200,6 +200,12 @@ public struct BambuddyClient: Sendable {
         }
     }
 
+    /// The server's certificate is not one this device trusts.
+    static let certificateErrors: Set<URLError.Code> = [
+        .serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateHasBadDate,
+        .serverCertificateNotYetValid,
+    ]
+
     private func sendNow(
         _ method: String, _ path: String, query: [URLQueryItem], body: (any Encodable)?
     ) async throws -> (Data, Int) {
@@ -225,12 +231,18 @@ public struct BambuddyClient: Sendable {
         } catch {
             let failure: any Error = switch error {
             case is CancellationError, is BambuddyError: error
+            // A cancelled task (a pull-to-refresh let go) is no network failure.
+            case let error as URLError where error.code == .cancelled: CancellationError()
             case let error as URLError where error.code == .timedOut:
                 BambuddyError.network("no answer within \(Int(Self.timeout)) s")
+            case let error as URLError where Self.certificateErrors.contains(error.code):
+                BambuddyError.untrustedCertificate
             default: BambuddyError.network(error.localizedDescription)
             }
             if case BambuddyError.network(let reason) = failure {
                 Log.error(.bambuddy, "\(method) \(path) failed \(elapsed()): \(reason)")
+            } else if case BambuddyError.untrustedCertificate = failure {
+                Log.error(.bambuddy, "\(method) \(path) failed \(elapsed()): certificate not trusted")
             } else {
                 Log.debug(.bambuddy, "\(method) \(path) cancelled \(elapsed())")
             }

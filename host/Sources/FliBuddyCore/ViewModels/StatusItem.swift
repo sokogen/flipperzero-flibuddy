@@ -146,6 +146,16 @@ extension BambuddyState {
             return StatusItem(
                 text: "Bambuddy rejected the API key", symbol: lock, tint: .red, action: .settings, detail: message
             )
+        case .needsHTTPS:
+            return StatusItem(
+                text: "Bambuddy needs HTTPS", symbol: .symbol("lock.slash"), tint: .red, action: .settings,
+                detail: message
+            )
+        case .untrustedCertificate:
+            return StatusItem(
+                text: "Bambuddy's certificate is not trusted", symbol: lock, tint: .red, action: .retry,
+                detail: message, short: "Certificate not trusted"
+            )
         case .refused(.spoolmanMode):
             return StatusItem(
                 text: "Bambuddy is in Spoolman mode", symbol: .symbol("nosign"), tint: .red, action: .retry,

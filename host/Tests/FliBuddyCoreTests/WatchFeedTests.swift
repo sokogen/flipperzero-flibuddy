@@ -357,7 +357,7 @@ struct WatchEmptyFeedTests {
     private let now = Date(timeIntervalSince1970: 10_000)
 
     @Test func withoutSettingsTheWatchSendsToTheIPhone() {
-        for state in [FeedEmptyState.noServer] {
+        for state in [FeedEmptyState.noServer, .needsHTTPS] {
             #expect(
                 WatchSettingsTexts.emptyFeed(state, linkActive: false, searchingSince: nil, now: now)
                     == "Set up FliBuddy on your iPhone first."

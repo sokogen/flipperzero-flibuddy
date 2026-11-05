@@ -603,6 +603,32 @@ struct BambuddyClientTests {
         }
     }
 
+    @Test func aCancelledRequestIsACancellationNotANetworkError() async throws {
+        // A pull-to-refresh let go early cancels the request.
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CancellingURLProtocol.self]
+        let client = try BambuddyClient(
+            baseURL: URL(string: "https://bambuddy.test")!, apiKey: "bb_test",
+            session: URLSession(configuration: configuration)
+        )
+        await #expect(throws: CancellationError.self) { try await client.listSpools() }
+    }
+
+    @Test(arguments: [
+        URLError.Code.serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateHasBadDate,
+        .serverCertificateNotYetValid,
+    ])
+    func anUntrustedCertificateHasItsOwnError(code: URLError.Code) async throws {
+        CertificateURLProtocol.code.mutate { $0 = code }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CertificateURLProtocol.self]
+        let client = try BambuddyClient(
+            baseURL: URL(string: "https://bambuddy.test")!, apiKey: "bb_test",
+            session: URLSession(configuration: configuration)
+        )
+        await #expect(throws: BambuddyError.untrustedCertificate) { try await client.listSpools() }
+    }
+
     @Test func errorsHaveReadableDescriptions() {
         let cases: [(BambuddyError, String)] = [
             (.invalidBaseURL("nas"), "Bambuddy URL must start with http:// or https://: nas"),
@@ -615,6 +641,7 @@ struct BambuddyClientTests {
             (.missingMaterial, "Refusing to create a spool without material"),
             (.http(status: 500, message: "boom"), "Bambuddy HTTP 500: boom"),
             (.decoding("bad"), "Unexpected Bambuddy response: bad"),
+            (.untrustedCertificate, "Bambuddy's certificate is not trusted"),
         ]
         for (error, text) in cases {
             #expect(error.errorDescription == text)
@@ -708,4 +735,21 @@ struct BambuddyClientLogTests {
         #expect(sink.lines.filter { $0.message.contains("«redacted»") }.count == 2)
         #expect(!sink.lines.contains { $0.message.contains(key) })
     }
+}
+
+/// Fails every load as a cancelled task does.
+final class CancellingURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(.cancelled)) }
+    override func stopLoading() {}
+}
+
+/// Fails every load with the certificate error `code` names.
+final class CertificateURLProtocol: URLProtocol, @unchecked Sendable {
+    static let code = LockedBox(URLError.Code.serverCertificateUntrusted)
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() { client?.urlProtocol(self, didFailWithError: URLError(Self.code.value)) }
+    override func stopLoading() {}
 }

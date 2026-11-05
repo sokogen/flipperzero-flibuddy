@@ -6,6 +6,8 @@ import Foundation
 public enum FeedEmptyState: Equatable, Sendable {
     /// No Bambuddy URL or API key.
     case noServer
+    /// The saved address is `http://` where only `https://` is allowed.
+    case needsHTTPS
     /// No Flipper connected (none chosen yet, or it is not found).
     case noFlipper
     case noScans
@@ -35,6 +37,7 @@ public enum FeedEmptyState: Equatable, Sendable {
     public var content: Content {
         switch self {
         case .noServer: Self.content(SpoolsViewModel.Unavailable.connectBambuddy)
+        case .needsHTTPS: Self.content(SpoolsViewModel.Unavailable.needsHTTPS)
         case .noFlipper:
             Content(
                 title: "Find your Flipper", systemImage: "antenna.radiowaves.left.and.right",
@@ -57,6 +60,7 @@ public enum FeedEmptyState: Equatable, Sendable {
 
     /// `settings` lack a server, then the Flipper is not connected.
     public static func of(settings: Settings, requiresHTTPS: Bool, flipperConnected: Bool) -> FeedEmptyState {
+        if Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requiresHTTPS) { return .needsHTTPS }
         if !settings.namesAServer { return .noServer }
         return flipperConnected ? .noScans : .noFlipper
     }

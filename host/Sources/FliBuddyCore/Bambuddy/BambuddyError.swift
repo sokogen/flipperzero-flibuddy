@@ -21,6 +21,9 @@ public enum BambuddyError: Error, Equatable, Sendable {
     case http(status: Int, message: String)
     /// A 2xx response whose body does not match the expected model.
     case decoding(String)
+    /// The https:// connection failed on the server's certificate (self-signed,
+    /// unknown root, expired or not yet valid).
+    case untrustedCertificate
 }
 
 extension BambuddyError: LocalizedError {
@@ -36,6 +39,7 @@ extension BambuddyError: LocalizedError {
         case .missingMaterial: "Refusing to create a spool without material"
         case .http(let status, let message): "Bambuddy HTTP \(status): \(message)"
         case .decoding(let reason): "Unexpected Bambuddy response: \(reason)"
+        case .untrustedCertificate: "Bambuddy's certificate is not trusted"
         }
     }
 }

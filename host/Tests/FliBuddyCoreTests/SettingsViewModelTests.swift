@@ -1448,6 +1448,46 @@ struct HTTPSOnlySettingsTests {
 
         await model.testConnection()
 
-        #expect(model.connection == .failed(Self.message))
+        #expect(model.connection == .failed("Needs HTTPS"))
+        #expect(model.connectionResult.text == "Needs HTTPS")
+    }
+
+    @Test func anUntrustedCertificateIsItsOwnTestResult() async {
+        let inventory = FakeInventory()
+        inventory.spoolmanError = .untrustedCertificate
+        let model = makeModel(inventory)
+
+        await model.testConnection()
+
+        #expect(model.connection == .failed("Certificate not trusted"))
+    }
+
+    @Test func aQRCodeWithAnHTTPURLSaysTheKeyWasFilledAndTestsNothing() async {
+        let inventory = FakeInventory()
+        let model = makeModel(
+            inventory, settings: Settings(baseURL: "https://old.example.com"), appliesOnChange: true,
+            requiresHTTPS: true
+        )
+        let sink = await capturingLog {
+            await model.scanQRCode(with: FakeQRScanner(.success(bambuddyQR)))
+            await model.settled()
+        }
+
+        #expect(
+            model.qrStatus == .failed("Filled in the API key. The QR code has an http:// address; FliBuddy needs https://.")
+        )
+        #expect(model.connection == nil)
+        #expect(!inventory.calls.contains(.spoolman))
+        #expect(sink.events("settings qr: http address refused") == ["settings qr: http address refused, key filled"])
+    }
+
+    @Test func aCommittedHTTPURLIsLoggedWithoutTheAddress() async {
+        let model = makeModel(appliesOnChange: true, requiresHTTPS: true)
+        model.baseURL = "http://192.168.1.20:8000"
+        let sink = await capturingLog {
+            model.commit()
+            await model.settled()
+        }
+        #expect(sink.events("settings commit: http address refused") == ["settings commit: http address refused"])
     }
 }

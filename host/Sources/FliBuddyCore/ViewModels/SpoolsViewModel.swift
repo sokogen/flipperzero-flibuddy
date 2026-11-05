@@ -85,6 +85,16 @@ public final class SpoolsViewModel {
             message: "Scan the API-key QR code in Bambuddy, or type its address.", action: .openSettings,
             isProblem: false
         )
+        public static let needsHTTPS = Unavailable(
+            title: "Bambuddy needs HTTPS", systemImage: "lock.slash",
+            message: "FliBuddy talks to Bambuddy over https:// only. Change the address in Settings.",
+            action: .openSettings, isProblem: true
+        )
+        public static let untrustedCertificate = Unavailable(
+            title: "Bambuddy's certificate is not trusted", systemImage: "lock.trianglebadge.exclamationmark",
+            message: "This device does not trust the certificate Bambuddy uses for https://.", action: .retry,
+            isProblem: true
+        )
         public static let unreachable = Unavailable(
             title: "Can't reach Bambuddy", systemImage: "wifi.exclamationmark",
             message: "Check that Bambuddy is running and on the same network.", action: .retry, isProblem: true
@@ -206,6 +216,8 @@ public final class SpoolsViewModel {
     /// Why the last load failed.
     enum Problem: Equatable {
         case noServer
+        case needsHTTPS
+        case untrustedCertificate
         case spoolman
         case noPermission
         case rejected
@@ -373,6 +385,8 @@ public final class SpoolsViewModel {
         case SessionError.notReady:
             switch state {
             case .notConfigured: .noServer
+            case .needsHTTPS: .needsHTTPS
+            case .untrustedCertificate: .untrustedCertificate
             case .refused(.spoolmanMode): .spoolman
             case .refused(.permissionMissing): .noPermission
             case .refused(.unauthorized): .rejected
@@ -380,6 +394,7 @@ public final class SpoolsViewModel {
             }
         case BambuddyError.permissionMissing: .noPermission
         case BambuddyError.unauthorized: .rejected
+        case BambuddyError.untrustedCertificate: .untrustedCertificate
         default: .unreachable
         }
     }
@@ -389,6 +404,8 @@ public final class SpoolsViewModel {
     public var content: Content {
         switch problem {
         case .noServer: return .unavailable(.connectBambuddy)
+        case .needsHTTPS: return .unavailable(.needsHTTPS)
+        case .untrustedCertificate: return .unavailable(.untrustedCertificate)
         case .spoolman: return .unavailable(.spoolmanMode)
         case .noPermission: return .unavailable(.noPermission)
         case .rejected: return .unavailable(.keyRejected)

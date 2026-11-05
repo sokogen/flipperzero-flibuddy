@@ -190,6 +190,8 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 | Bambuddy | key rejected | `Bambuddy rejected the API key` | `lock.trianglebadge.exclamationmark` | red | Settings |
 | Bambuddy | noperm | `Key lacks inventory permission` | `lock.trianglebadge.exclamationmark` | red | Settings |
 | Bambuddy | spoolman | `Bambuddy is in Spoolman mode` | `nosign` | red | Retry |
+| Bambuddy | http address | `Bambuddy needs HTTPS` (hint `FliBuddy needs an https:// address.`) | `lock.slash` | red | Settings |
+| Bambuddy | certificate | `Certificate not trusted` (hint: this device does not trust it) | `lock.trianglebadge.exclamationmark` | red | Retry |
 | Bambuddy | nocolors | `Colour names unavailable` | `paintpalette` | orange | |
 
 USB is macOS only; the iPhone never shows `Flipper · USB`.
@@ -409,12 +411,18 @@ Form {
 ```
 
 QR footer: `Scan the QR code Bambuddy shows when you create an API key.`;
-after a read `Filled from the QR code.` in green; without a camera `This
-device has no camera. Type the URL and API key instead.` and the Scan row is
-dimmed. Test results: `Not tested` · `Testing…` (spinner) · `Ready ·
-inventory OK` (`checkmark.circle.fill`, green) · `Unreachable: <reason>`
-(`xmark.circle.fill`, red), one wording on every platform (the Spec page's;
-the mock-up's failure shortens to `Unreachable`). Editing the URL or the
+after a read `Filled from the QR code.` in green; a code with an http://
+address fills the key only and reads `Filled in the API key. The QR code
+has an http:// address; FliBuddy needs https://.` in red (no test runs);
+without a camera `This device has no camera. Type the URL and API key
+instead.` and the Scan row is dimmed; with camera access denied `Camera
+access is off. Allow it in Settings.` with an **Open Settings** row. An
+http:// URL shows `FliBuddy needs an https:// address.` under the field
+and is not applied. Test results: `Not tested` · `Testing…` (spinner) ·
+`Ready · inventory OK` (`checkmark.circle.fill`, green) · `Unreachable:
+<reason>` · `Needs HTTPS` · `Certificate not trusted` (`xmark.circle.fill`,
+red), one wording on every platform (the Spec page's; the mock-up's
+failure shortens to `Unreachable`). Editing the URL or the
 key resets the result to `Not tested`. The Flipper state reads `Bluetooth`
 when connected, `Searching…` with a spinner in its place while scanning.
 The discovered Flippers list under Scan (name, signal `Nearby · strong` /
@@ -422,7 +430,8 @@ The discovered Flippers list under Scan (name, signal `Nearby · strong` /
 the design does not show it. Rows are at least 52 pt high. The Empty spool
 picker lists Bambuddy's spool catalog, loaded each time Settings opens;
 there is no Reload (the design has none), a failed load shows in red under
-the picker, and Test connection loads it again. The mock-up's four names
+the picker, and Test connection loads it again; without an https URL and a
+key nothing loads (no error on a fresh install). The mock-up's four names
 (`Bambu reusable + core`, `Bambu cardboard`, `Generic 1 kg plastic`,
 `Custom`) are placeholders. Forget This Flipper sits in a section of its
 own, centred, in red, disabled while no Flipper is remembered; under it

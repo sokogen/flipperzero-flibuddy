@@ -48,10 +48,10 @@ private let catalog = [CatalogEntry(id: 1, name: "Bambu Lab - Reusable spool + r
 @MainActor
 private func makeModel(
     _ inventory: FakeInventory? = FakeInventory(spools: inventorySpools()), settings: Settings = testSettings,
-    feed: Bool = false
+    feed: Bool = false, requiresHTTPS: Bool = false
 ) -> (SpoolsViewModel, Session) {
     inventory?.catalogEntries = catalog
-    let session = Session(settings: settings, inventory: inventory, now: { testNow })
+    let session = Session(settings: settings, inventory: inventory, now: { testNow }, requiresHTTPS: requiresHTTPS)
     let feedModel = feed ? FeedViewModel(session: session, settings: settings) : nil
     let model = SpoolsViewModel(
         session: session, feed: feedModel, settings: settings, now: { testNow },
@@ -358,6 +358,21 @@ struct SpoolsViewModelTests {
         await model.refresh()
         #expect(model.content == .unavailable(.noPermission))
         #expect(model.activeCount == nil)
+    }
+
+    @Test func anHTTPAddressAndAnUntrustedCertificateHaveTheirOwnStates() async {
+        let (https, _) = makeModel(nil, settings: testSettings, requiresHTTPS: true)
+        await https.refresh()
+        #expect(https.content == .unavailable(.needsHTTPS))
+        #expect(SpoolsViewModel.Unavailable.needsHTTPS.title == "Bambuddy needs HTTPS")
+        #expect(SpoolsViewModel.Unavailable.needsHTTPS.action == .openSettings)
+
+        let inventory = FakeInventory(spools: inventorySpools())
+        inventory.spoolmanError = .untrustedCertificate
+        let (certificate, _) = makeModel(inventory)
+        await certificate.refresh()
+        #expect(certificate.content == .unavailable(.untrustedCertificate))
+        #expect(SpoolsViewModel.Unavailable.untrustedCertificate.action == .retry)
     }
 
     @Test func aListFromOtherSettingsIsNeverShown() async {
