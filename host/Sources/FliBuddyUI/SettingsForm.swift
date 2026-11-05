@@ -10,7 +10,6 @@ import SwiftUI
 public struct SettingsForm: View {
     @Bindable var model: SettingsViewModel
     #if os(iOS)
-    @ViewState private var qrScanner = CameraQRScanner()
     /// The text field being edited; leaving it commits it.
     @FocusState private var editing: TextFieldID?
 
@@ -39,7 +38,7 @@ public struct SettingsForm: View {
             Section {
                 Button("Scan QR code", systemImage: "qrcode.viewfinder") {
                     editing = nil
-                    Task { await model.scanQRCode(with: qrScanner) }
+                    Task { await model.scanQRCode(with: model.qrCover) }
                 }
                 .disabled(!CameraQRScanner.isAvailable)
                 LabeledContent("URL") {
@@ -158,13 +157,9 @@ public struct SettingsForm: View {
         .onChange(of: editing) { old, _ in
             if old != nil { model.commit() }
         }
-        .onDisappear {
-            model.commit()
-            model.stopScanning()
-        }
-        .fullScreenCover(isPresented: $qrScanner.isPresenting, onDismiss: { qrScanner.finish(.failure(CancellationError())) }) {
-            QRScannerCover(scanner: qrScanner)
-        }
+        // Leaving Settings commits and stops a scan, and the QR cover hangs
+        // off the app's root (`settingsSession`): an iPad rotation builds
+        // this form again, which must not stop either.
     }
     #else
     private var macForm: some View {
@@ -328,6 +323,41 @@ public struct SettingsForm: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if os(iOS)
+extension View {
+    /// What of Settings must outlive its form, for the app's root view:
+    /// the QR cover, and leaving (`showing` turning false) commits the field
+    /// being typed and stops a Flipper scan (`SettingsViewModel.left()`).
+    public func settingsSession(_ model: SettingsViewModel?, showing: Bool) -> some View {
+        modifier(SettingsSession(model: model, showing: showing))
+    }
+}
+
+private struct SettingsSession: ViewModifier {
+    let model: SettingsViewModel?
+    let showing: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: showing) { _, now in
+                if !now { model?.left() }
+            }
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { model?.qrCover.isPresenting ?? false },
+                    set: { if !$0 { model?.qrCover.dismissed() } }
+                ),
+                // However the cover goes, a scan still open ends.
+                onDismiss: { model?.qrCover.dismissed() }
+            ) {
+                if let model {
+                    QRScannerCover(scanner: model.qrCover)
+                }
+            }
+    }
+}
+#endif
 
 extension TransportKind {
     /// The picker label.

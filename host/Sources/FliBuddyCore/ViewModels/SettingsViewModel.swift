@@ -115,6 +115,9 @@ public final class SettingsViewModel {
 
     /// Changes apply as they are made; there is no Save.
     public let appliesOnChange: Bool
+    /// The camera cover Scan QR code raises (iPhone, iPad). It lives with the
+    /// model, so a rebuilt form shows the same scan.
+    public let qrCover = QRScanCover()
 
     private var saved: Settings
     private let makeInventory: @Sendable (Settings) throws -> any SpoolInventory
@@ -315,6 +318,15 @@ public final class SettingsViewModel {
         case .unreachable(let reason): StatusItem(text: "Unreachable: \(reason)", symbol: failed, tint: .red)
         case .failed(let message): StatusItem(text: message, symbol: failed, tint: .red)
         }
+    }
+
+    /// The user left Settings (another tab or pane): commits the field being
+    /// typed and stops a Flipper scan. Not called when the same screen is
+    /// only built again (an iPad rotation), which keeps both.
+    public func left() {
+        Log.debug(.settings, "left: commit, scan stopped")
+        commit()
+        stopScanning()
     }
 
     /// Settings came on screen: loads the catalog for the Empty spool

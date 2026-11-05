@@ -296,7 +296,7 @@ commands (`FeedCommands`).
 `makeSettingsViewModel(appliesOnChange: true)` removes Save and Revert.
 Picker changes, Forget and a QR read apply at once; the text fields (URL, API
 key, core weight) apply on `commit()`, that is Return or leaving the field,
-and leaving the Settings tab commits the field being typed. Each change
+and leaving the Settings tab or pane commits the field being typed and stops a Flipper scan (`left()`; an iPad rotation, which builds the form again, does neither). Each change
 applies on top of the last applied settings, in order. A core weight out of
 range stays unapplied and sets `coreWeightError`; the field can be emptied
 while it is edited. The catalog loads each time Settings comes on screen

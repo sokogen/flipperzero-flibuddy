@@ -3,33 +3,12 @@ import FliBuddyCore
 import SwiftUI
 import VisionKit
 
-/// Scans a QR code with VisionKit's `DataScannerViewController` in a
-/// full-screen cover. `scan()` raises `isPresenting`; the cover ends the scan
-/// with the first QR code it reads, or with `CancellationError` when it is
-/// closed.
+/// Whether the camera scanner can run. The scan itself is the settings
+/// model's `QRScanCover`, which `QRScannerCover` ends.
 @MainActor
-@Observable
-final class CameraQRScanner: QRScanning {
+enum CameraQRScanner {
     /// The camera scanner runs on this device and camera access is not denied.
     static var isAvailable: Bool { DataScannerViewController.isSupported && DataScannerViewController.isAvailable }
-
-    var isPresenting = false
-    private var continuation: CheckedContinuation<String, any Error>?
-
-    func scan() async throws -> String {
-        finish(.failure(CancellationError()))
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            isPresenting = true
-        }
-    }
-
-    /// Ends the running scan, if any, and closes the cover.
-    func finish(_ result: Result<String, any Error>) {
-        isPresenting = false
-        continuation?.resume(with: result)
-        continuation = nil
-    }
 }
 
 /// The camera preview; reports the first QR code with a text payload.
@@ -93,7 +72,7 @@ struct QRScannerView: UIViewControllerRepresentable {
 /// The full-screen cover: the camera edge to edge, close at the top leading
 /// corner, a corner-bracket frame in the middle and the hint under it.
 struct QRScannerCover: View {
-    let scanner: CameraQRScanner
+    let scanner: QRScanCover
 
     var body: some View {
         ZStack {

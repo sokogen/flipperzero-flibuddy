@@ -552,7 +552,8 @@ Settings, QR, sheets and Clear
   only the iPhone and iPad set). Each change applies on top of the settings
   applied last, one after another, so a picker change leaves a field that
   is still being typed out of it. A text field commits on Return, when
-  another field takes the focus, and when the Settings tab goes away.
+  another field takes the focus, and when the user leaves the Settings tab
+  (`SettingsViewModel.left()`, which also stops a Flipper scan).
 - A core weight out of range is not applied (its red line stays under the
   field) while a URL or key committed with it is. A failed apply shows a
   red line at the bottom of the form; the edit stays and the next commit

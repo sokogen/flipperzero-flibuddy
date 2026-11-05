@@ -1233,6 +1233,23 @@ struct SettingsApplyOnChangeTests {
         #expect(model.catalogError == nil)
     }
 
+    @Test func leavingSettingsCommitsTheFieldAndStopsTheScan() async {
+        let scan = ManualScan()
+        let applied = LockedBox<[Settings]>([])
+        let model = makeModel(
+            scan: scan.start, appliesOnChange: true, apply: { settings in applied.mutate { $0.append(settings) } }
+        )
+        model.scanForFlippers()
+        model.baseURL = "http://10.0.0.5:8000"
+
+        model.left()
+        await model.settled()
+
+        #expect(!model.isScanning)
+        #expect(await eventually { scan.stopped.value })
+        #expect(applied.value.map(\.baseURL) == ["http://10.0.0.5:8000"])
+    }
+
     @Test func openingSettingsShowsWhyTheCatalogDidNotLoad() async {
         let inventory = FakeInventory()
         inventory.catalogError = .network("no answer within 5 s")
