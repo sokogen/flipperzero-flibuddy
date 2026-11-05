@@ -82,6 +82,9 @@ import Testing
         ("monkey=3 turkey: 4", "monkey=3 turkey: 4"),
         ("test connection: url=http://admin:pa55@nas:8000", "test connection: url=http://«redacted»@nas:8000"),
         ("load: url=https://token@nas.local/bambuddy key=present", "load: url=https://«redacted»@nas.local/bambuddy key=present"),
+        // A password may hold an unencoded @: everything up to the last one goes.
+        ("url=https://user:p@ss@nas:8000/x key=present", "url=https://«redacted»@nas:8000/x key=present"),
+        ("a https://u:p@ss@h then https://v@w", "a https://«redacted»@h then https://«redacted»@w"),
         ("nothing secret here", "nothing secret here"),
     ])
     func redactionHidesAPIKeys(input: String, expected: String) {

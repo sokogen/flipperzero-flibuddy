@@ -198,8 +198,10 @@ public enum Log {
 
     private static let redacted = "«redacted»"
 
-    /// The `user:password@` of a URL.
-    private static let userInfo = try! NSRegularExpression(pattern: #"(://)[^/?#@\s]+@"#)
+    /// The `user:password@` of a URL. A password may hold an unencoded `@`,
+    /// `/`, `?` or `#`, so it runs to the last `@` before whitespace, as
+    /// `Settings.withoutCredentials` does (an `@` in a path costs the host).
+    private static let userInfo = try! NSRegularExpression(pattern: #"(://)\S*@"#)
 
     /// `key=…`, `X-API-Key: …`, `"apiKey":"…"` and the like, except the
     /// `key=present|absent|unknown` that settings lines use.
