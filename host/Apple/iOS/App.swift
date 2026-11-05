@@ -7,9 +7,14 @@ import UIKit
 /// for Bluetooth the delegate needs it before any view appears.
 @MainActor
 enum AppHost {
+    /// Launched with `-FliBuddyDemo YES`: the demo Flipper and Bambuddy
+    /// (`DemoFixtures`), no Bluetooth, network, Keychain or watch sync.
+    static let isDemo = DemoFixtures.isRequested()
+
     static let model: HostModel = {
         // Before the host model: loading the settings already logs.
         Log.bootstrap(appName: "FliBuddy", level: .info)
+        if isDemo { return DemoFixtures.makeHost() }
         // Bluetooth is the only transport on iOS; there are no serial ports.
         return HostModel(makeTransport: FlipperLink.defaultTransport, discoverPorts: { [] })
     }()
@@ -23,6 +28,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         let host = AppHost.model
+        // The demo's Flipper is no peripheral: creating the central would ask for Bluetooth.
+        guard !AppHost.isDemo else { return true }
         let relaunched = CoreBluetoothCentral.restores(launchOptions?[.bluetoothCentrals] as? [String])
         guard HostModel.startsAtLaunch(relaunchedForBluetooth: relaunched, settings: host.settings) else {
             Log.info(.app, "launch: link waits for the views")
@@ -61,7 +68,8 @@ struct FliBuddyiOSApp: App {
         WindowGroup {
             RootView(host: host, navigation: navigation)
                 .task {
-                    if watchSync == nil { watchSync = WatchSettingsSender.start(for: host) }
+                    // The demo's settings must not reach a real watch.
+                    if watchSync == nil, !AppHost.isDemo { watchSync = WatchSettingsSender.start(for: host) }
                     // Does nothing when the delegate started the link at launch.
                     host.start()
                     await host.feed.observe()

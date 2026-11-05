@@ -27,21 +27,27 @@ public final class HostModel {
     private let discoverPorts: @Sendable () -> [String]
     private var started = false
 
+    /// `scanPeripherals` and `bluetoothPower` stand in for CoreBluetooth, `now`
+    /// for the clock of the feed's scan times (the demo mode, tests).
     public init(
         store: SettingsStore = SettingsStore(),
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
         makeTransport: @escaping @Sendable (TransportChoice) -> any Transport = FlipperLink.defaultTransport,
-        discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() }
+        discoverPorts: @escaping @Sendable () -> [String] = { SerialTransport.discoverFlipperPorts() },
+        scanPeripherals: @escaping @Sendable () -> AsyncStream<DiscoveredPeripheral> = FlipperLink.defaultScan,
+        bluetoothPower: @escaping @Sendable () async -> BLEPowerState = FlipperLink.defaultPowerState,
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         let settings = store.load()
         self.settings = settings
         self.store = store
         self.makeInventory = makeInventory
         self.discoverPorts = discoverPorts
-        session = Session(settings: settings, inventory: try? makeInventory(settings))
+        session = Session(settings: settings, inventory: try? makeInventory(settings), now: now)
         feed = FeedViewModel(session: session, settings: settings)
         link = FlipperLink(
-            session: session, hello: Self.hostHello, makeTransport: makeTransport, discoverPorts: discoverPorts
+            session: session, hello: Self.hostHello, makeTransport: makeTransport, discoverPorts: discoverPorts,
+            scanPeripherals: scanPeripherals, bluetoothPower: bluetoothPower
         )
     }
 
