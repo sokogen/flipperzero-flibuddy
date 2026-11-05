@@ -188,6 +188,8 @@ static void test_init_waits_for_a_host(void) {
     CHECK(!app_settings_autosave(&app.settings));
     CHECK(app_settings_feedback(&app.settings) == AppFeedbackVibroLed);
     CHECK(!app_settings_sound(&app.settings));
+    CHECK(app_settings_after_scan(&app.settings) == AppAfterScanShow);
+    CHECK(app_settings_weigh_as(&app.settings) == AppWeighAsGross);
     CHECK(send(AppEventHostConnected) == AppEffectNone);
     CHECK(app.cue == AppCueConnected);
     CHECK(app.screen == AppScreenReady);
@@ -660,21 +662,101 @@ static void test_mode_chip_floors_net_at_zero(void) {
     CHECK_EQ_INT(app_weight_grams(&app), 0);
 }
 
-static void test_mode_is_kept_for_the_session(void) {
+/* Weigh as picks the mode every Weight opens in; the chip changes it for
+ * that entry only. */
+static void test_weight_opens_in_the_weigh_as_mode(void) {
     setup();
     scan_found();
     press(AppKeyOk);
+    CHECK(app.mode == WeightModeGross);
+    CHECK_EQ_INT(app_weight_grams(&app), 734);
     press(AppKeyLeft);
     press(AppKeyLeft);
-    press(AppKeyUp); /* net */
+    press(AppKeyUp); /* net for this entry */
+    CHECK(app.mode == WeightModeNet);
+    press(AppKeyBack);
     press(AppKeyOk);
-    send_fixture_result("result_ok.json");
-    press(AppKeyOk);
+    CHECK(app.mode == WeightModeGross);
+    CHECK_EQ_INT(app_weight_grams(&app), 734);
+
+    setup();
+    app_settings_set_weigh_as(&app.settings, AppWeighAsNet);
     scan_found();
     press(AppKeyOk);
     CHECK(app.mode == WeightModeNet);
     CHECK_EQ_INT(app_weight_grams(&app), 484);
     CHECK_EQ_INT(app.weight.cursor, 2);
+    press(AppKeyLeft);
+    press(AppKeyLeft);
+    press(AppKeyUp); /* gross for this entry */
+    CHECK(press(AppKeyOk) == AppEffectSendIntent);
+    CHECK(in_flight()->mode == WeightModeGross);
+    send_fixture_result("result_ok.json");
+    press(AppKeyOk);
+    scan_found();
+    press(AppKeyOk);
+    CHECK(app.mode == WeightModeNet);
+    CHECK(press(AppKeyOk) == AppEffectSendIntent);
+    CHECK(in_flight()->mode == WeightModeNet);
+}
+
+/* After scan = Weigh: a known spool's scan opens Weight; Back shows its
+ * result. Anything else still shows the result. */
+static void test_after_scan_weigh_opens_weight_for_a_known_spool(void) {
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    scan_mfc();
+    CHECK(send_fixture_lookup("lookup_found.json") == AppEffectNone);
+    CHECK(app.screen == AppScreenWeight);
+    CHECK(app.result_kind == AppResultKnown);
+    CHECK_EQ_INT(app.weight.cursor, 2);
+    CHECK_EQ_INT(app_weight_grams(&app), 734);
+    CHECK(app.cue == AppCueNone); /* the read already cued */
+    press(AppKeyBack);
+    CHECK(app.screen == AppScreenResult);
+
+    /* with Weigh as Net, net */
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    app_settings_set_weigh_as(&app.settings, AppWeighAsNet);
+    scan_mfc();
+    send_fixture_lookup("lookup_found_archived.json");
+    CHECK(app.screen == AppScreenWeight);
+    CHECK(app.mode == WeightModeNet);
+
+    /* an unknown tag, a blank one and an added spool are not weighed */
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    scan_mfc();
+    send_fixture_lookup("lookup_unknown.json");
+    CHECK(app.screen == AppScreenResult);
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    scan_mfc();
+    send_fixture_lookup("lookup_unknown_blank.json");
+    CHECK(app.screen == AppScreenResult);
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    app_settings_set_autosave(&app.settings, true);
+    scan_mfc();
+    send_fixture_lookup("lookup_created.json");
+    CHECK(app.screen == AppScreenToast);
+    CHECK(app.toast == AppToastAdded);
+
+    /* a fresh lookup for a result on screen (a link on the host) shows it */
+    setup();
+    app_settings_set_after_scan(&app.settings, AppAfterScanWeigh);
+    scan_mfc();
+    send_fixture_lookup("lookup_unknown.json");
+    CHECK(press(AppKeyRight) == AppEffectSendIntent); /* Link */
+    send_fixture_result("result_ok.json");
+    send_fixture_lookup("lookup_found.json");
+    CHECK(app.screen == AppScreenResult);
+    CHECK(app.result_kind == AppResultKnown);
+
+    /* Show (the default) shows the result */
+    setup();
+    scan_found();
 }
 
 static void test_save_below_core_is_refused(void) {
@@ -749,7 +831,7 @@ static void test_weight_prefill_falls_back_to_the_defaults(void) {
     scan_mfc();
     l.defaults.has_gross = false;
     send_lookup(&l);
-    app.mode = WeightModeNet;
+    app_settings_set_weigh_as(&app.settings, AppWeighAsNet);
     press(AppKeyOk);
     CHECK_EQ_INT(app_weight_grams(&app), 1000);
 
@@ -1490,6 +1572,24 @@ static void test_settings_rows_change_in_place(void) {
     press(AppKeyRight);
     CHECK(app_settings_autosave(&app.settings));
     press(AppKeyDown);
+    CHECK_EQ_INT(app.sel, AppSettingAfterScan);
+    press(AppKeyRight);
+    CHECK(app_settings_after_scan(&app.settings) == AppAfterScanWeigh);
+    press(AppKeyLeft);
+    CHECK(app_settings_after_scan(&app.settings) == AppAfterScanShow);
+    press(AppKeyLeft);
+    CHECK(app_settings_after_scan(&app.settings) == AppAfterScanWeigh);
+    press(AppKeyDown);
+    CHECK_EQ_INT(app.sel, AppSettingWeighAs);
+    press(AppKeyRight);
+    CHECK(app_settings_weigh_as(&app.settings) == AppWeighAsNet);
+    press(AppKeyRight);
+    CHECK(app_settings_weigh_as(&app.settings) == AppWeighAsGross);
+    press(AppKeyLeft);
+    CHECK(app_settings_weigh_as(&app.settings) == AppWeighAsNet);
+    CHECK(app.mode == WeightModeGross); /* the next Weight opens net */
+    press(AppKeyDown);
+    CHECK_EQ_INT(app.sel, AppSettingFeedback);
     press(AppKeyRight);
     CHECK(app_settings_feedback(&app.settings) == AppFeedbackLed);
     press(AppKeyRight);
@@ -1503,7 +1603,7 @@ static void test_settings_rows_change_in_place(void) {
     CHECK(app_settings_sound(&app.settings));
     press(AppKeyDown);
     CHECK_EQ_INT(app.sel, AppSettingVersion);
-    CHECK_EQ_INT(app.top, 1);
+    CHECK_EQ_INT(app.top, 3);
     AppSettings before = app.settings;
     press(AppKeyRight);
     CHECK_MEM_EQ(&app.settings, &before, sizeof(before));
@@ -1646,7 +1746,8 @@ int main(void) {
     RUN_TEST(test_weight_digits_and_cursor);
     RUN_TEST(test_mode_chip_converts_the_number);
     RUN_TEST(test_mode_chip_floors_net_at_zero);
-    RUN_TEST(test_mode_is_kept_for_the_session);
+    RUN_TEST(test_weight_opens_in_the_weigh_as_mode);
+    RUN_TEST(test_after_scan_weigh_opens_weight_for_a_known_spool);
     RUN_TEST(test_save_below_core_is_refused);
     RUN_TEST(test_net_or_unknown_core_never_refuses);
     RUN_TEST(test_weight_prefill_falls_back_to_the_defaults);

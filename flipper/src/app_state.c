@@ -145,6 +145,8 @@ bool app_weight_below_core(const AppState* s) {
 
 static void open_weight(AppState* s) {
     go(s, AppScreenWeight);
+    s->mode = app_settings_weigh_as(&s->settings) == AppWeighAsNet ? WeightModeNet :
+                                                                    WeightModeGross;
     s->weight.cursor = 2;
     s->weight.touched = false;
     weight_fill(s);
@@ -260,6 +262,11 @@ static void on_lookup(AppState* s, const ProtoLookup* lookup, uint32_t now_ms) {
             s->result_kind = AppResultKnown;
             go_toast(s, AppToastAdded, now_ms);
             s->cue = AppCueSuccess;
+            return;
+        }
+        if(!fresh && app_settings_after_scan(&s->settings) == AppAfterScanWeigh) {
+            s->result_kind = AppResultKnown; /* what Back shows */
+            open_weight(s);
             return;
         }
         go_result(s, AppResultKnown);
@@ -614,6 +621,16 @@ static void setting_change(AppState* s, AppKey key) {
         break;
     case AppSettingAutosave:
         app_settings_set_autosave(st, !app_settings_autosave(st));
+        break;
+    case AppSettingAfterScan:
+        app_settings_set_after_scan(
+            st,
+            app_settings_after_scan(st) == AppAfterScanShow ? AppAfterScanWeigh :
+                                                              AppAfterScanShow);
+        break;
+    case AppSettingWeighAs:
+        app_settings_set_weigh_as(
+            st, app_settings_weigh_as(st) == AppWeighAsGross ? AppWeighAsNet : AppWeighAsGross);
         break;
     case AppSettingFeedback: {
         unsigned f = app_settings_feedback(st);

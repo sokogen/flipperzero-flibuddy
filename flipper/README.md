@@ -41,6 +41,8 @@ change its value in place, Back saves and returns.
 |---|---|---|
 | Connection | USB / Bluetooth | USB |
 | Auto-save new | Off / On | Off |
+| After scan | Show / Weigh | Show |
+| Weigh as | Gross / Net | Gross |
 | Feedback | Vibro+LED / LED / Off | Vibro+LED |
 | Sound | Off / On | Off |
 | Version | OK opens About (version, protocol, firmware, host) | |
@@ -49,18 +51,25 @@ change its value in place, Back saves and returns.
 creates a Bambu tag Bambuddy does not know at once with the tag's defaults
 and the Flipper shows **Added to Bambuddy**. Off, the result reads **Not in
 Bambuddy** and nothing reaches Bambuddy until **Add** (OK), **Add and
-weigh** (menu) or a save on the host. **Feedback** and **Sound** choose
+weigh** (menu) or a save on the host. **After scan** = Weigh opens the
+weight entry at once when the scanned spool is in Bambuddy (Back shows
+its result); Show shows the result first. **Weigh as** is the mode the
+weight entry opens in, every time: Gross (spool on the scale) or Net
+(filament only); the entry's own net/gross chip still switches it for
+that weight, and the `weigh` intent says which (`mode`). **Feedback** and **Sound** choose
 what the LED, the vibro motor and the speaker do per event
 (`src/feedback.h`).
 
 Leaving Settings with another Connection closes the running backend and
 opens the other (and retries the transport in use when it did not open).
 The settings are saved with `saved_struct` in
-`/ext/apps_data/flibuddy/settings.bin`, version 2: one byte each for the
+`/ext/apps_data/flibuddy/settings.bin`, version 3: one byte each for the
 transport (`0` = USB, `1` = Bluetooth), Auto-save new, Feedback (`0` =
-Vibro+LED, `1` = LED, `2` = Off) and Sound. A version 1 file (transport
-only) keeps its transport and takes the defaults for the rest; it is
-rewritten as version 2 on the next save. A missing or unreadable file, one
+Vibro+LED, `1` = LED, `2` = Off), Sound, After scan (`0` = Show, `1` =
+Weigh) and Weigh as (`0` = Gross, `1` = Net). A version 2 file (no After
+scan, no Weigh as) keeps its four values and a version 1 file (transport
+only) its transport; both take the defaults for the rest and are
+rewritten as version 3 on the next save. A missing or unreadable file, one
 of another version or with any value out of range loads the defaults
 (`src/app_settings.h`, the SDK side in `src/app_settings_file.c`). Only the
 chosen backend runs: with Bluetooth the USB port stays with the CLI and

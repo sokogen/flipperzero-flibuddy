@@ -51,12 +51,16 @@
  * in flight, so a tag on such a toast commits the mark and is not read; the
  * reader finds it again on the next screen that reads.
  *
- * The net/gross mode belongs to the session; the Weight screen's mode chip
- * toggles it and converts the number on screen, typed or not (gross -
- * core, floored at 0, or net + core). The pre-fill on opening Weight is
- * gross = remaining + core, net = remaining of the spool on screen, falling
- * back to the lookup defaults (gross: last gross, else label + core; net:
- * gross - core, else label).
+ * Weight opens in the Weigh as setting's mode every time; the screen's
+ * mode chip toggles it for that entry and converts the number on screen,
+ * typed or not (gross - core, floored at 0, or net + core). The pre-fill
+ * on opening Weight is gross = remaining + core, net = remaining of the
+ * spool on screen, falling back to the lookup defaults (gross: last gross,
+ * else label + core; net: gross - core, else label).
+ *
+ * After scan = Weigh opens Weight in place of Result{Known} when a scan's
+ * lookup finds the spool (not one created on the scan, not a fresh lookup
+ * replacing a result); Back from it shows the result.
  *
  * The caller sets s->settings and s->transport from the stored settings
  * after app_state_init(). The BLE status is only recorded for the screens;
@@ -155,6 +159,8 @@ typedef enum {
 typedef enum {
     AppSettingConnection,
     AppSettingAutosave,
+    AppSettingAfterScan,
+    AppSettingWeighAs,
     AppSettingFeedback,
     AppSettingSound,
     AppSettingVersion, /* OK opens About */
@@ -246,7 +252,7 @@ typedef struct {
     AppBleStatus ble;
     AppSettings settings;
     AppSettings settings_entered; /* as Settings opened */
-    WeightMode mode; /* kept for the whole session */
+    WeightMode mode; /* on Weight: Weigh as when it opened, then the chip's */
     AppWeight weight; /* on Weight */
     bool weigh_after_full; /* the `full` in flight opens Weight when done */
     uint8_t sel; /* selected row of Menu / Settings */

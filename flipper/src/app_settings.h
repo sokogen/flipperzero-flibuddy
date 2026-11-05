@@ -1,13 +1,14 @@
-/* The app's persisted settings: the transport, Auto-save new, Feedback and
- * Sound.
+/* The app's persisted settings: the transport, Auto-save new, After scan,
+ * Weigh as, Feedback and Sound.
  *
  * The file is a saved_struct (magic APP_SETTINGS_MAGIC, version
  * APP_SETTINGS_VERSION) at APP_SETTINGS_PATH. The file access sits behind
  * AppSettingsStorage so that the choice logic here is tested on the host;
- * app_settings_file.c is the SDK backend. A version 1 file keeps its
- * transport and takes the defaults for the rest. A missing or unreadable
+ * app_settings_file.c is the SDK backend. An older file keeps what it has
+ * and takes the defaults for the rest: version 2 lacks After scan and
+ * Weigh as, version 1 holds only the transport. A missing or unreadable
  * file, another version or any out-of-range field loads the defaults (USB,
- * Auto-save off, Vibro+LED, Sound off).
+ * Auto-save off, After scan Show, Weigh as Gross, Vibro+LED, Sound off).
  */
 #pragma once
 
@@ -21,7 +22,7 @@
 #define APP_SETTINGS_DIR     APP_SETTINGS_PARENT "/flibuddy"
 #define APP_SETTINGS_PATH    APP_SETTINGS_DIR "/settings.bin"
 #define APP_SETTINGS_MAGIC   0x5B
-#define APP_SETTINGS_VERSION 2
+#define APP_SETTINGS_VERSION 3
 
 /* Stored in the settings file, so the numbers never change. */
 typedef enum {
@@ -30,15 +31,37 @@ typedef enum {
     AppFeedbackOff = 2,
 } AppFeedback;
 
+/* What a known spool's scan opens. */
+typedef enum {
+    AppAfterScanShow = 0, /* the result */
+    AppAfterScanWeigh = 1, /* Weight */
+} AppAfterScan;
+
+/* The mode Weight opens in. */
+typedef enum {
+    AppWeighAsGross = 0,
+    AppWeighAsNet = 1,
+} AppWeighAs;
+
 typedef struct {
     uint8_t version; /* APP_SETTINGS_VERSION */
     uint8_t transport; /* TransportKind */
     uint8_t autosave; /* 0 or 1 */
     uint8_t feedback; /* AppFeedback */
     uint8_t sound; /* 0 or 1 */
+    uint8_t after_scan; /* AppAfterScan */
+    uint8_t weigh_as; /* AppWeighAs */
 } AppSettings;
 
-/* The version 1 file, read only to migrate it. */
+/* The older files, read only to migrate them. */
+typedef struct {
+    uint8_t version; /* 2 */
+    uint8_t transport;
+    uint8_t autosave;
+    uint8_t feedback;
+    uint8_t sound;
+} AppSettingsV2;
+
 typedef struct {
     uint8_t version; /* 1 */
     uint8_t transport; /* TransportKind */
@@ -79,3 +102,13 @@ void app_settings_set_feedback(AppSettings* settings, AppFeedback feedback);
 bool app_settings_sound(const AppSettings* settings);
 
 void app_settings_set_sound(AppSettings* settings, bool on);
+
+AppAfterScan app_settings_after_scan(const AppSettings* settings);
+
+/* Unknown values are ignored. */
+void app_settings_set_after_scan(AppSettings* settings, AppAfterScan after);
+
+AppWeighAs app_settings_weigh_as(const AppSettings* settings);
+
+/* Unknown values are ignored. */
+void app_settings_set_weigh_as(AppSettings* settings, AppWeighAs weigh_as);

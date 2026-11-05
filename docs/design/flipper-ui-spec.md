@@ -98,9 +98,12 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     shows inverted `Below core weight`, and OK flashes red without sending.
     Pre-fill: gross = remaining + core, net = remaining; without a spool
     the lookup defaults (gross: the last gross, else label + core; net:
-    gross - core, else label). The mode starts gross and is kept for the
-    session. After ▶ Weigh or Save with weight on a new spool, Save creates
-    the spool and records the weight.
+    gross - core, else label). Weight opens in the Weigh as setting's mode
+    every time; the chip changes it for that entry only. After Add and
+    weigh on a new spool, Save creates the spool and records the weight.
+    With After scan = Weigh a scan of a spool in Bambuddy opens Weight at
+    once (not one Auto-save new just added, not a fresh lookup after a
+    link); Back shows its result.
 13. **Saving / Deleting / Updating** (title per action): the spool
     (`- 590 g` net when saving), an indeterminate bar, "Waiting for
     Bambuddy". No keys; Error · No app reply after 10 s.
@@ -141,7 +144,8 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     resends the same intent under its id; otherwise there is no Retry chip
     and ◀, ▶ and Back go home.
 21. **Settings** (▲▼ select, ◀▶ change the value in place, Back saves and
-    returns home): Connection (USB / Bluetooth), Auto-save new (Off / On),
+    returns home; four rows show): Connection (USB / Bluetooth), Auto-save
+    new (Off / On), After scan (Show / Weigh), Weigh as (Gross / Net),
     Feedback (Vibro+LED / LED / Off), Sound (Off / On), Version (OK opens
     About). Leaving with another Connection, or after the transport in use
     failed to open, restarts the transport.
@@ -184,8 +188,7 @@ adds the beeps whatever Feedback says. Every event wakes the backlight.
 
 ## Not built
 
-The design's Recent screen (Ready's ◀), the settings After scan and Weigh
-as, and Connection = Auto (the app uses the one transport chosen).
+The design's Recent screen (Ready's ◀) and Connection = Auto (the app uses the one transport chosen).
 
 The Flipper's own texts say "app" for the FliBuddy app on the phone or
 watch (`Waiting for app`, `No app`, `Create in app`, `Pick the spool in the

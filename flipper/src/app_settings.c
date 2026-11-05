@@ -9,9 +9,15 @@ static bool known_feedback(unsigned feedback) {
            feedback == AppFeedbackOff;
 }
 
+static bool valid_v2(const AppSettingsV2* s) {
+    return s->version == 2 && known_transport(s->transport) && s->autosave <= 1 &&
+           known_feedback(s->feedback) && s->sound <= 1;
+}
+
 static bool valid(const AppSettings* s) {
     return s->version == APP_SETTINGS_VERSION && known_transport(s->transport) &&
-           s->autosave <= 1 && known_feedback(s->feedback) && s->sound <= 1;
+           s->autosave <= 1 && known_feedback(s->feedback) && s->sound <= 1 &&
+           s->after_scan <= AppAfterScanWeigh && s->weigh_as <= AppWeighAsNet;
 }
 
 void app_settings_defaults(AppSettings* settings) {
@@ -20,14 +26,23 @@ void app_settings_defaults(AppSettings* settings) {
     settings->autosave = 0;
     settings->feedback = AppFeedbackVibroLed;
     settings->sound = 0;
+    settings->after_scan = AppAfterScanShow;
+    settings->weigh_as = AppWeighAsGross;
 }
 
 void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage) {
     AppSettings stored;
+    AppSettingsV2 v2;
     AppSettingsV1 v1;
     if(storage->load(storage->ctx, APP_SETTINGS_VERSION, &stored, sizeof(stored)) &&
        valid(&stored)) {
         *settings = stored;
+    } else if(storage->load(storage->ctx, 2, &v2, sizeof(v2)) && valid_v2(&v2)) {
+        app_settings_defaults(settings);
+        settings->transport = v2.transport;
+        settings->autosave = v2.autosave;
+        settings->feedback = v2.feedback;
+        settings->sound = v2.sound;
     } else if(
         storage->load(storage->ctx, 1, &v1, sizeof(v1)) && v1.version == 1 &&
         known_transport(v1.transport)) {
@@ -72,4 +87,22 @@ bool app_settings_sound(const AppSettings* settings) {
 
 void app_settings_set_sound(AppSettings* settings, bool on) {
     settings->sound = on ? 1 : 0;
+}
+
+AppAfterScan app_settings_after_scan(const AppSettings* settings) {
+    return (AppAfterScan)settings->after_scan;
+}
+
+void app_settings_set_after_scan(AppSettings* settings, AppAfterScan after) {
+    if(after == AppAfterScanShow || after == AppAfterScanWeigh) settings->after_scan = (uint8_t)after;
+}
+
+AppWeighAs app_settings_weigh_as(const AppSettings* settings) {
+    return (AppWeighAs)settings->weigh_as;
+}
+
+void app_settings_set_weigh_as(AppSettings* settings, AppWeighAs weigh_as) {
+    if(weigh_as == AppWeighAsGross || weigh_as == AppWeighAsNet) {
+        settings->weigh_as = (uint8_t)weigh_as;
+    }
 }

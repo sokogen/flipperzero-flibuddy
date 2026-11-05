@@ -5,6 +5,9 @@
 #include "nfc_classify.h"
 #include "ui_text.h"
 
+_Static_assert(APP_MENU_MAX <= UI_LIST_MAX, "every Menu row needs a slot");
+_Static_assert(AppSettingCount <= UI_LIST_MAX, "every Settings row needs a slot");
+
 /* Append-only text into a fixed buffer; stops quietly when full. */
 typedef struct {
     char* out;
@@ -663,6 +666,8 @@ static void build_settings(UiFrame* f, const AppState* s, const UiEnv* env) {
     static const char* const labels[AppSettingCount] = {
         [AppSettingConnection] = "Connection",
         [AppSettingAutosave] = "Auto-save new",
+        [AppSettingAfterScan] = "After scan",
+        [AppSettingWeighAs] = "Weigh as",
         [AppSettingFeedback] = "Feedback",
         [AppSettingSound] = "Sound",
         [AppSettingVersion] = "Version",
@@ -675,6 +680,9 @@ static void build_settings(UiFrame* f, const AppState* s, const UiEnv* env) {
     SET(f->value[AppSettingConnection],
         app_settings_transport(st) == TransportKindBluetooth ? "Bluetooth" : "USB");
     SET(f->value[AppSettingAutosave], on_off(app_settings_autosave(st)));
+    SET(f->value[AppSettingAfterScan],
+        app_settings_after_scan(st) == AppAfterScanWeigh ? "Weigh" : "Show");
+    SET(f->value[AppSettingWeighAs], app_settings_weigh_as(st) == AppWeighAsNet ? "Net" : "Gross");
     SET(f->value[AppSettingFeedback], feedback_name(app_settings_feedback(st)));
     SET(f->value[AppSettingSound], on_off(app_settings_sound(st)));
     SET(f->value[AppSettingVersion], env->version);

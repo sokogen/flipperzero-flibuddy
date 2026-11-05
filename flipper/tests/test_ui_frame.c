@@ -900,39 +900,50 @@ static void test_settings(void) {
     CHECK_STR_EQ(frame.value[0], "USB");
     CHECK_STR_EQ(frame.item[1], "Auto-save new");
     CHECK_STR_EQ(frame.value[1], "Off");
-    CHECK_STR_EQ(frame.item[2], "Feedback");
-    CHECK_STR_EQ(frame.value[2], "Vibro+LED");
-    CHECK_STR_EQ(frame.item[3], "Sound");
-    CHECK_STR_EQ(frame.value[3], "Off");
-    CHECK_STR_EQ(frame.item[4], "Version");
-    CHECK_STR_EQ(frame.value[4], "0.1.0");
+    CHECK_STR_EQ(frame.item[2], "After scan");
+    CHECK_STR_EQ(frame.value[2], "Show");
+    CHECK_STR_EQ(frame.item[3], "Weigh as");
+    CHECK_STR_EQ(frame.value[3], "Gross");
+    CHECK_STR_EQ(frame.item[4], "Feedback");
+    CHECK_STR_EQ(frame.value[4], "Vibro+LED");
+    CHECK_STR_EQ(frame.item[5], "Sound");
+    CHECK_STR_EQ(frame.value[5], "Off");
+    CHECK_STR_EQ(frame.item[6], "Version");
+    CHECK_STR_EQ(frame.value[6], "0.1.0");
     CHECK(!frame.fixed[0]);
-    CHECK(frame.fixed[4]);
+    CHECK(!frame.fixed[5]);
+    CHECK(frame.fixed[6]);
 
     press(AppKeyRight); /* Bluetooth */
     press(AppKeyDown);
     press(AppKeyRight);
     press(AppKeyDown);
+    press(AppKeyRight); /* Weigh */
+    press(AppKeyDown);
+    press(AppKeyRight); /* Net */
+    press(AppKeyDown);
     press(AppKeyRight); /* LED */
     press(AppKeyDown);
     press(AppKeyRight);
     build();
-    CHECK_EQ_INT(frame.sel, 3);
+    CHECK_EQ_INT(frame.sel, 5);
+    CHECK_EQ_INT(frame.top, 2);
     CHECK_STR_EQ(frame.value[0], "Bluetooth");
     CHECK_STR_EQ(frame.value[1], "On");
-    CHECK_STR_EQ(frame.value[2], "LED");
-    CHECK_STR_EQ(frame.value[3], "On");
+    CHECK_STR_EQ(frame.value[2], "Weigh");
+    CHECK_STR_EQ(frame.value[3], "Net");
+    CHECK_STR_EQ(frame.value[4], "LED");
+    CHECK_STR_EQ(frame.value[5], "On");
     press(AppKeyUp);
     press(AppKeyRight);
     build();
-    CHECK_STR_EQ(frame.value[2], "Off");
+    CHECK_STR_EQ(frame.value[4], "Off");
 }
 
 static void test_about(void) {
     setup();
     press(AppKeyRight);
-    for(int i = 0; i < 4; i++)
-        press(AppKeyDown);
+    press(AppKeyUp); /* Version */
     press(AppKeyOk);
     env.host_app = "FliBuddy Mac";
     build();
