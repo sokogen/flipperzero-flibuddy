@@ -41,17 +41,17 @@ private func makeModel(
 struct FeedItemRulesTests {
     @Test func theReadoutSaysWhatASaveRecords() {
         #expect(FeedItem.readout(value: 832, mode: .gross, core: 242)
-            == FeedItem.Readout(text: "Saves 590 g left · 832 \u{2212} 242 g core", isError: false))
+            == FeedItem.Readout(text: "Saves 590 g left · 832 \u{2212} 242 g core", isError: false, tile: "Saves 590 g"))
         #expect(FeedItem.readout(value: 590, mode: .net, core: 242)
-            == FeedItem.Readout(text: "Saves 590 g left", isError: false))
+            == FeedItem.Readout(text: "Saves 590 g left", isError: false, tile: "Saves 590 g"))
         #expect(FeedItem.readout(value: nil, mode: .gross, core: 242)
             == FeedItem.Readout(text: "Type the scale reading", isError: false))
         #expect(FeedItem.readout(value: nil, mode: .net, core: 242)
             == FeedItem.Readout(text: "Type the scale reading", isError: false))
         #expect(FeedItem.readout(value: 200, mode: .gross, core: 242)
-            == FeedItem.Readout(text: "Below the core weight (242 g)", isError: true))
+            == FeedItem.Readout(text: "Below the core weight (242 g)", isError: true, tile: "Below core"))
         #expect(FeedItem.readout(value: 242, mode: .gross, core: 242)
-            == FeedItem.Readout(text: "Saves 0 g left · 242 \u{2212} 242 g core", isError: false))
+            == FeedItem.Readout(text: "Saves 0 g left · 242 \u{2212} 242 g core", isError: false, tile: "Saves 0 g"))
         #expect(FeedItem.readout(value: 0, mode: .net, core: 242).isError == false)
     }
 
@@ -367,7 +367,7 @@ struct FeedViewModelRulesTests {
         model.apply(await session.snapshot)
 
         model.setWeightText("200", for: id)
-        #expect(model.readout(for: id) == FeedItem.Readout(text: "Below the core weight (250 g)", isError: true))
+        #expect(model.readout(for: id) == FeedItem.Readout(text: "Below the core weight (250 g)", isError: true, tile: "Below core"))
         #expect(!model.canSave(id))
         model.setMode(.net, for: id)
         #expect(model.canSave(id))

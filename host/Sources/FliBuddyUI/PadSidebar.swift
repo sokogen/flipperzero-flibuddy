@@ -31,8 +31,8 @@ private struct FeedLayoutKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The iPad's one-line table or the iPhone's cards; `RootView` sets it
-    /// from the window's width.
+    /// The iPad's sidebar or top tabs with tiles, or the iPhone's tabs and
+    /// cards; `RootView` sets it from the window (`FeedLayout.forWindow`).
     public var feedLayout: FeedLayout {
         get { self[FeedLayoutKey.self] }
         set { self[FeedLayoutKey.self] = newValue }

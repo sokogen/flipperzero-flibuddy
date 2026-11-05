@@ -76,23 +76,23 @@ struct FliBuddyiOSApp: App {
     }
 }
 
-/// The iPad's sidebar and one-line table when the window leaves 900 pt
-/// beside the sidebar (landscape), else the iPhone's tabs and cards (an
-/// iPhone, a portrait iPad); see `FeedLayout`.
+/// The iPad's sidebar in a landscape window, its top tabs in a portrait one
+/// (tiles in both), and the iPhone's tabs and cards at a compact width (an
+/// iPhone, a narrow multitasking window); see `FeedLayout`.
 struct RootView: View {
     let host: HostModel
     @Bindable var navigation: AppNavigation
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @ViewState private var width: CGFloat = 0
+    @ViewState private var size: CGSize = .zero
 
     private var layout: FeedLayout {
-        FeedLayout.forWindow(width: width, isCompact: sizeClass != .regular)
+        FeedLayout.forWindow(width: size.width, height: size.height, isCompact: sizeClass != .regular)
     }
 
     var body: some View {
         Group {
             switch layout {
-            case .table:
+            case .sidebar:
                 NavigationSplitView {
                     PadSidebar(host: host, navigation: navigation)
                         .navigationSplitViewColumnWidth(FeedLayout.sidebarWidth)
@@ -102,7 +102,8 @@ struct RootView: View {
                     case .settings: settings
                     }
                 }
-            case .cards:
+            case .tabs, .cards:
+                // iPadOS draws the tab bar at the top, iOS at the bottom.
                 TabView(selection: $navigation.pane) {
                     Tab("Feed", systemImage: "list.bullet", value: AppPane.feed) { feed }
                     Tab("Settings", systemImage: "gearshape", value: AppPane.settings) { settings }
@@ -110,7 +111,7 @@ struct RootView: View {
             }
         }
         .environment(\.feedLayout, layout)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
     }
 
     private var feed: some View {

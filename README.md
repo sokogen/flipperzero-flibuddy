@@ -186,10 +186,12 @@ carries its material; other tags are created, and tags linked
 to an existing spool, on the iPhone, iPad or Mac. The iPad has no watch to
 sync to.
 
-The iPhone shows the feed as cards with a connection banner at the top; an
-iPad shows the same cards unless the window leaves 900 pt beside a sidebar
-(a 13" iPad in landscape), where it shows a sidebar with both connections
-and a one-line table with ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, as menu commands. On
+The iPhone shows the feed as cards with a connection banner at the top.
+An iPad shows the feed as tiles, three to a row on a 13"
+iPad and two on an 11": in landscape beside a sidebar with both
+connections, in portrait under a top tab bar and the banner; a narrow
+multitasking window gets the iPhone's cards. ⌘S, ⌘↑ / ⌘↓, ⌘⌫ and ⌘, are
+menu commands. On
 every host, Net/Gross converts the number on screen, the colour line
 carries Bambu's colour code, and the technical tag facts (UID, tray UUID,
 filament id, diameter, nozzle range) sit in **Tag details**, a row's

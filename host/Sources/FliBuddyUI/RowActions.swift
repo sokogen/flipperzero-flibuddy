@@ -14,9 +14,8 @@ struct RowActions: View {
         /// Two equal 44 pt capsules 10 apart, the prominent one first
         /// (iPhone card).
         case card
-        /// Capsules sized to their titles, 44 high and 8 apart, the
-        /// prominent one tinted (iPad table's trailing column).
-        case pills
+        /// The same at 36 pt, 8 apart (iPad tile).
+        case tile
     }
 
     let feed: FeedViewModel
@@ -42,23 +41,13 @@ struct RowActions: View {
         switch style {
         case .buttons:
             buttons
-        case .card:
+        case .card, .tile:
             // The row's status shows the spinner while an action runs.
-            HStack(spacing: 10) {
+            HStack(spacing: style == .tile ? 8 : 10) {
                 ForEach(item.rowActions, id: \.self) { action in
                     capsule(action, prominent: action == item.prominentRowAction)
                 }
             }
-        case .pills:
-            #if os(iOS)
-            HStack(spacing: 8) {
-                ForEach(item.rowActions, id: \.self) { action in
-                    pill(action, prominent: action == item.prominentRowAction)
-                }
-            }
-            #else
-            buttons
-            #endif
         }
     }
 
@@ -110,36 +99,16 @@ struct RowActions: View {
             Text(action.title)
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 30)
+                .frame(maxWidth: .infinity, minHeight: style == .tile ? 22 : 30)
         }
         .buttonBorderShape(.capsule)
-        .controlSize(.large)
+        .controlSize(style == .tile ? .regular : .large)
         if prominent {
             button.buttonStyle(.borderedProminent)
         } else {
             button.buttonStyle(.bordered)
         }
     }
-
-    #if os(iOS)
-    private func pill(_ action: FeedItem.RowAction, prominent: Bool) -> some View {
-        Button {
-            perform(action)
-        } label: {
-            Text(action.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .foregroundStyle(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
-                .padding(.horizontal, 18)
-                .frame(height: 44)
-                .background(
-                    prominent ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(uiColor: .tertiarySystemFill)),
-                    in: .capsule
-                )
-        }
-        .buttonStyle(.borderless)
-    }
-    #endif
 }
 
 extension View {

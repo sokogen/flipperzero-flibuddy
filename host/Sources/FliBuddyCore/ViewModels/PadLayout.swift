@@ -1,25 +1,56 @@
 import Foundation
 
-/// How the iPhone/iPad app lays out the feed: the iPad's sidebar with the
-/// one-line table, or the iPhone's tabs with stacked cards. The window's
-/// width decides, not the size class alone: a full-screen iPad in portrait
-/// is regular width and still gets the cards (ipados spec, "Two layouts").
+/// How the iPhone/iPad app lays itself out (iPad page): a landscape iPad
+/// gets the sidebar, a portrait one the tabs (iPadOS draws them at the
+/// top), both with the feed as tiles; a compact width (an iPhone, a narrow
+/// Split View or Stage Manager window) gets the iPhone's tabs and cards.
+/// The window decides, measured at the root, not the device's orientation.
 public enum FeedLayout: Equatable, Sendable {
-    /// `NavigationSplitView`: sidebar with both connection states, one-line rows.
-    case table
-    /// `TabView`: connection banner, stacked cards.
+    /// `NavigationSplitView`: the sidebar with both connection states and
+    /// Clear feed; tiles.
+    case sidebar
+    /// `TabView` (the iPad's top tab bar): the connection banner; tiles.
+    case tabs
+    /// `TabView` (the iPhone's bottom tab bar): the banner; stacked cards.
     case cards
 
-    /// The sidebar's width beside the table.
+    /// The sidebar's width.
     public static let sidebarWidth: Double = 300
-    /// The detail column the one-line table needs.
-    public static let minimumTableWidth: Double = 900
+    /// A tile's narrowest width; the grid fits as many as this allows.
+    public static let tileMinimumWidth: Double = 300
+    /// Between tiles, across and down.
+    public static let tileSpacing: Double = 12
+    /// The grid's side margins.
+    public static let tileMargin: Double = 28
+    /// A row holds at most three tiles (a 13" iPad); wider windows widen them.
+    public static let maximumTileColumns = 3
 
-    /// `isCompact`: the horizontal size class is compact (an iPhone, a
-    /// narrow multitasking window), which always gets the cards.
-    public static func forWindow(width: Double, isCompact: Bool) -> FeedLayout {
+    /// `isCompact`: the horizontal size class is compact.
+    public static func forWindow(width: Double, height: Double, isCompact: Bool) -> FeedLayout {
         guard !isCompact else { return .cards }
-        return width - sidebarWidth >= minimumTableWidth ? .table : .cards
+        return width > height ? .sidebar : .tabs
+    }
+
+    /// The sidebar carries the connection states and Clear feed.
+    public var hasSidebar: Bool { self == .sidebar }
+    /// The feed is a grid of tiles rather than a list of cards.
+    public var showsTiles: Bool { self != .cards }
+    /// The connection banner over the feed and Clear in its toolbar;
+    /// beside the sidebar these live in the sidebar.
+    public var showsBanner: Bool { !hasSidebar }
+    /// The iPhone's bottom tab bar hides while the number pad is up; the
+    /// iPad's top one stays, or Settings would be out of reach while a row
+    /// waits for a weight.
+    public var hidesTabBarWhileTyping: Bool { self == .cards }
+    /// "Clear the feed?" is a centred alert on the iPad, an action sheet on
+    /// the iPhone.
+    public var centresClearConfirmation: Bool { self != .cards }
+
+    /// Tiles to a row in a grid `width` wide (the margins left out): two on
+    /// an 11" iPad, three on a 13", in both orientations.
+    public static func tileColumns(width: Double) -> Int {
+        let fits = Int(((width + tileSpacing) / (tileMinimumWidth + tileSpacing)).rounded(.down))
+        return min(maximumTileColumns, max(1, fits))
     }
 }
 

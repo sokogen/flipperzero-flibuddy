@@ -4,25 +4,73 @@ import Testing
 
 @Suite("iPad layout decision")
 struct FeedLayoutTests {
-    @Test func theTableNeedsA900PointDetailColumnBesideTheSidebar() {
-        #expect(FeedLayout.sidebarWidth == 300)
-        #expect(FeedLayout.minimumTableWidth == 900)
-        #expect(FeedLayout.forWindow(width: 1199, isCompact: false) == .cards)
-        #expect(FeedLayout.forWindow(width: 1200, isCompact: false) == .table)
+    @Test func aRegularLandscapeWindowGetsTheSidebar() {
+        // 13" and 11" iPads, full screen; a window as wide as it is tall is portrait.
+        #expect(FeedLayout.forWindow(width: 1366, height: 1024, isCompact: false) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 1180, height: 820, isCompact: false) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 1194, height: 834, isCompact: false) == .sidebar)
+        #expect(FeedLayout.forWindow(width: 800, height: 800, isCompact: false) == .tabs)
     }
 
-    @Test func landscapeGetsTheTablePortraitTheCards() {
-        // 12.9" / 13" iPad
-        #expect(FeedLayout.forWindow(width: 1366, isCompact: false) == .table)
-        #expect(FeedLayout.forWindow(width: 1024, isCompact: false) == .cards)
-        // 11" iPad landscape leaves under 900 beside the sidebar
-        #expect(FeedLayout.forWindow(width: 1194, isCompact: false) == .cards)
+    @Test func aRegularPortraitWindowGetsTheTabs() {
+        #expect(FeedLayout.forWindow(width: 1024, height: 1366, isCompact: false) == .tabs)
+        #expect(FeedLayout.forWindow(width: 834, height: 1194, isCompact: false) == .tabs)
+        // a Stage Manager window taller than wide
+        #expect(FeedLayout.forWindow(width: 700, height: 900, isCompact: false) == .tabs)
     }
 
-    @Test func aCompactWidthIsAlwaysTheCards() {
-        #expect(FeedLayout.forWindow(width: 402, isCompact: true) == .cards)
-        // a wide window that still reports compact (iPhone Pro Max landscape)
-        #expect(FeedLayout.forWindow(width: 1366, isCompact: true) == .cards)
+    @Test func aCompactWidthIsTheIPhoneLayout() {
+        #expect(FeedLayout.forWindow(width: 402, height: 874, isCompact: true) == .cards)
+        // a narrow Split View or Stage Manager window, even one wider than tall
+        #expect(FeedLayout.forWindow(width: 507, height: 1024, isCompact: true) == .cards)
+        #expect(FeedLayout.forWindow(width: 680, height: 500, isCompact: true) == .cards)
+    }
+
+    @Test func whatEachLayoutShows() {
+        #expect(FeedLayout.sidebar.hasSidebar)
+        #expect(!FeedLayout.tabs.hasSidebar)
+        #expect(!FeedLayout.cards.hasSidebar)
+        // the iPad page draws tiles in both orientations
+        #expect(FeedLayout.sidebar.showsTiles)
+        #expect(FeedLayout.tabs.showsTiles)
+        #expect(!FeedLayout.cards.showsTiles)
+        // beside the sidebar its status rows and Clear feed take the banner's and the toolbar's place
+        #expect(!FeedLayout.sidebar.showsBanner)
+        #expect(FeedLayout.tabs.showsBanner)
+        #expect(FeedLayout.cards.showsBanner)
+        // the iPhone's bottom tab bar gives the number pad its room; the iPad's top one stays
+        #expect(FeedLayout.cards.hidesTabBarWhileTyping)
+        #expect(!FeedLayout.tabs.hidesTabBarWhileTyping)
+        // the iPad asks "Clear the feed?" in a centred alert, the iPhone in an action sheet
+        #expect(FeedLayout.sidebar.centresClearConfirmation)
+        #expect(FeedLayout.tabs.centresClearConfirmation)
+        #expect(!FeedLayout.cards.centresClearConfirmation)
+    }
+
+    /// The tile grid's width: the detail column less the 28 pt side margins.
+    private func grid(_ detail: Double) -> Int {
+        FeedLayout.tileColumns(width: detail - 2 * FeedLayout.tileMargin)
+    }
+
+    @Test func tilesAreAtLeast300WideAndAtMostThreeToARow() {
+        #expect(FeedLayout.tileMinimumWidth == 300)
+        #expect(FeedLayout.tileSpacing == 12)
+        #expect(FeedLayout.tileMargin == 28)
+        // 13" iPad: landscape beside the sidebar and portrait both fit three
+        #expect(grid(1366 - FeedLayout.sidebarWidth) == 3)
+        #expect(grid(1376 - FeedLayout.sidebarWidth) == 3)
+        #expect(grid(1024) == 3)
+        #expect(grid(1032) == 3)
+        // 11" iPad: two, in landscape beside the sidebar and in portrait
+        #expect(grid(1180 - FeedLayout.sidebarWidth) == 2)
+        #expect(grid(1210 - FeedLayout.sidebarWidth) == 2)
+        #expect(grid(820) == 2)
+        #expect(grid(834) == 2)
+        // a wide external display keeps three; a narrow window one
+        #expect(FeedLayout.tileColumns(width: 2400) == 3)
+        #expect(FeedLayout.tileColumns(width: 611) == 1)
+        #expect(FeedLayout.tileColumns(width: 612) == 2)
+        #expect(FeedLayout.tileColumns(width: 0) == 1)
     }
 }
 

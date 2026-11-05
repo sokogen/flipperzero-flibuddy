@@ -301,26 +301,18 @@ struct FeedViewModelTests {
         #expect(blank.detailText == "")
     }
 
-    @Test func theiPadTableSplitsTheColourAndRemainingColumns() throws {
-        var coded = knownSpool()
-        coded.materialNumber = "10501"
-        let known = FeedItem(try row(status: .awaitingWeight, spool: coded))
-        #expect(known.tableColorText == "Jade White · 10501")
-        #expect(known.tableRemainingText == "484 g left of 1000")
-        let unknown = FeedItem(try row(status: .unknown(prefill: true)))
-        #expect(unknown.tableColorText == "10100")
-        #expect(unknown.tableRemainingText == "label 1000 g")
-        // an archived spool says so in the colour column
-        var archived = knownSpool(weightUsed: 1000)
-        archived.archived = true
-        let empty = FeedItem(try row(status: .markedEmpty, spool: archived))
-        #expect(empty.tableColorText == "Jade White · 10100 · archived")
-        #expect(empty.tableRemainingText == "")
-        let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
-        #expect(blank.tableColorText == "")
+    @Test func theIPadTileReadoutIsShortEnoughForTheField() {
+        // iPad page: "Saves N g" inside the field, "Below core" in red, nothing without a value.
+        #expect(FeedItem.readout(value: 832, mode: .gross, core: 242).tile == "Saves 590 g")
+        #expect(FeedItem.readout(value: 590, mode: .net, core: 242).tile == "Saves 590 g")
+        #expect(FeedItem.readout(value: nil, mode: .gross, core: 242).tile == "")
+        let below = FeedItem.readout(value: 200, mode: .gross, core: 242)
+        #expect(below.tile == "Below core")
+        #expect(below.isError)
+        #expect(FeedItem.readout(value: 242, mode: .gross, core: 242).tile == "Saves 0 g")
     }
 
-    @Test func theiPadReadoutDropsTheGrossSum() {
+    @Test func theWatchReadoutDropsTheGrossSum() {
         #expect(FeedItem.readout(value: 832, mode: .gross, core: 242).short == "Saves 590 g left")
         #expect(FeedItem.readout(value: 590, mode: .net, core: 242).short == "Saves 590 g left")
         #expect(FeedItem.readout(value: nil, mode: .gross, core: 242).short == "Type the scale reading")

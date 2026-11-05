@@ -254,9 +254,10 @@ is unencrypted and carries no secrets.
 ```
 Apple/project.yml                XcodeGen spec: FliBuddyiOS (iPhone, iPad)
                                  with the FliBuddyWatch companion embedded
-Apple/iOS/App.swift              NavigationSplitView with the sidebar and
-                                 one-line table, or TabView with the
-                                 cards, by window width (FeedLayout)
+Apple/iOS/App.swift              NavigationSplitView with the sidebar in
+                                 a landscape iPad window, else TabView;
+                                 tiles on the iPad, cards at a compact
+                                 width (FeedLayout)
 Apple/Watch/App.swift            the watch app over the Watch/ views
 Apple/Base.xcconfig              tracked; includes Signing.xcconfig if present
 Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
@@ -275,12 +276,20 @@ and run `FliBuddyiOS` from Xcode; the watch app installs with it.
 
 ### iPhone and iPad feed
 
+`FeedLayout.forWindow` picks the layout from the window measured at the
+root: a compact width (an iPhone, a narrow Split View or Stage Manager
+window) gets `TabView` with stacked cards; a regular width gets the
+sidebar (`NavigationSplitView`) when the window is wider than tall and
+`TabView` (iPadOS draws its tab bar at the top) otherwise, both with the
+feed as tiles in a `LazyVGrid`: at least 300 pt wide, at most three to a
+row (`FeedLayout.tileColumns`), so a 13" iPad fits three and an 11" two.
+
 The iPhone and the portrait iPad show a glass banner over the feed
 (`ConnectionBanner`) in place of the Mac's status bar: one line when one
 side is in trouble, two when both are (the Flipper first), each with its
 action chip. A landscape iPad shows both states in the sidebar. A save plays
 the success haptic and a failed host action the error one, on the iPhone and
-on the watch. The iPad table layout has the Mac's shortcuts above as menu
+on the watch. The iPhone and iPad get the Mac's shortcuts above as menu
 commands (`FeedCommands`).
 
 ### Settings on iPhone and iPad

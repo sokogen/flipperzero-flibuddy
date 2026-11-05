@@ -4,9 +4,9 @@ import SwiftUI
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
 /// The session feed: one row per scanned tag, newest first, with the status
-/// bar under it on macOS and the connection banner over it on iOS (the
-/// iPad's table has both states in its sidebar instead). In Spoolman mode an
-/// explanation replaces the feed.
+/// bar under it on macOS and the connection banner over it on iOS (beside
+/// the iPad sidebar both states are in the sidebar instead). In Spoolman
+/// mode an explanation replaces the feed.
 public struct FeedView: View {
     let host: HostModel
     /// Opens the settings for the banner's Settings chip; macOS uses its
@@ -20,7 +20,8 @@ public struct FeedView: View {
     @ViewState private var ownConfirmingClear = false
     #if os(iOS)
     @Environment(\.feedLayout) private var layout
-    @ViewState private var listWidth: CGFloat = 0
+    /// The tile grid's width, which sets its columns.
+    @ViewState private var gridWidth: CGFloat = 0
     #endif
 
     private var feed: FeedViewModel { host.feed }
@@ -47,7 +48,7 @@ public struct FeedView: View {
             .background { FeedKeyboardShortcuts(feed: feed) }
             #else
             .safeAreaInset(edge: .top, spacing: 0) {
-                if layout == .cards {
+                if layout.showsBanner {
                     ConnectionBannerView(banner: host.connectionBanner, openSettings: openSettings) { action in
                         Task { await host.perform(action) }
                     }
@@ -64,7 +65,10 @@ public struct FeedView: View {
             }
             #if os(iOS)
             // The number pad needs the room; the tabs come back when it lowers.
-            .toolbarVisibility(focusedField == nil ? .automatic : .hidden, for: .tabBar)
+            // The iPad's top tab bar stays.
+            .toolbarVisibility(
+                layout.hidesTabBarWhileTyping && focusedField != nil ? .hidden : .automatic, for: .tabBar
+            )
             .sensoryFeedback(trigger: feed.haptic) { _, haptic in
                 switch haptic?.kind {
                 case .success: .success
@@ -73,14 +77,14 @@ public struct FeedView: View {
                 }
             }
             #endif
-            .modifier(ClearConfirmation(isPresented: confirmingClear, centred: isTable) {
+            .modifier(ClearConfirmation(isPresented: confirmingClear, centred: isCentredClear) {
                 Task { await feed.clear() }
             })
             .toolbar {
                 #if os(iOS)
-                // Icon only, at the leading end of the bar; the iPad's table
-                // has Clear feed in its sidebar. ⌘⌫ is a menu command.
-                if layout == .cards {
+                // Icon only, at the leading end of the bar; beside the iPad
+                // sidebar Clear feed is in the sidebar. ⌘⌫ is a menu command.
+                if layout.showsBanner {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Clear feed", systemImage: "trash") { confirmingClear.wrappedValue = true }
                             .labelStyle(.iconOnly)
@@ -105,10 +109,10 @@ public struct FeedView: View {
             }
     }
 
-    /// The iPad's one-line table is showing.
-    private var isTable: Bool {
+    /// The iPad asks in a centred alert.
+    private var isCentredClear: Bool {
         #if os(iOS)
-        layout == .table
+        layout.centresClearConfirmation
         #else
         false
         #endif
@@ -148,32 +152,30 @@ public struct FeedView: View {
             FeedRowView(feed: feed, item: item, focusedField: $focusedField)
         }
         #else
-        if layout == .table { tableList } else { cardList }
+        if layout.showsTiles { tileGrid } else { cardList }
         #endif
     }
 
     #if os(iOS)
-    /// The side margin that centres 760-wide cards; the list's own on an iPhone.
-    private var cardMargin: CGFloat? {
-        listWidth > Self.maxCardWidth + 64 ? (listWidth - Self.maxCardWidth) / 2 : nil
-    }
-
-    private static let maxCardWidth: CGFloat = 760
-
-    /// The iPad's one-line rows in one inset-grouped card; the focused row
-    /// scrolls into view above the number keyboard.
-    private var tableList: some View {
-        ScrollViewReader { proxy in
-            List {
-                Section {
+    /// The iPad's tiles (iPad page): at least 300 wide, at most three to a
+    /// row, top-aligned; the focused row scrolls into view above the
+    /// keyboard.
+    private var tileGrid: some View {
+        let column = GridItem(.flexible(), spacing: FeedLayout.tileSpacing, alignment: .top)
+        let columns = Array(repeating: column, count: FeedLayout.tileColumns(width: gridWidth))
+        return ScrollViewReader { proxy in
+            ScrollView {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: FeedLayout.tileSpacing) {
                     ForEach(feed.items) { item in
                         FeedRowView(feed: feed, item: item, focusedField: $focusedField)
                             .id(item.id)
-                            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                     }
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
+                .padding(.horizontal, FeedLayout.tileMargin)
+                .padding(.vertical, 12)
             }
-            .listStyle(.insetGrouped)
+            .background(Color(uiColor: .systemGroupedBackground))
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: focusedField) { _, row in
                 guard let row else { return }
@@ -197,9 +199,6 @@ public struct FeedView: View {
             }
             .listStyle(.insetGrouped)
             .listSectionSpacing(.compact)
-            // A portrait iPad keeps the cards at most 760 wide, centred.
-            .contentMargins(.horizontal, cardMargin, for: .scrollContent)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { listWidth = $0 }
             .scrollDismissesKeyboard(.immediately)
             .onChange(of: focusedField) { _, row in
                 guard let row else { return }
@@ -211,7 +210,7 @@ public struct FeedView: View {
 }
 
 /// "Clear the feed?": an action sheet on the iPhone and the Mac, a centred
-/// alert beside the iPad sidebar. Same copy everywhere.
+/// alert on the iPad. Same copy everywhere.
 private struct ClearConfirmation: ViewModifier {
     @Binding var isPresented: Bool
     let centred: Bool
@@ -274,7 +273,7 @@ struct FeedKeyboardShortcuts: View {
 /// · colour line · status · weight entry. Rows outside weight entry keep the
 /// entry block's space empty so the columns line up. On iOS a stacked card:
 /// swatch beside title, colour line and status, the entry block under them;
-/// beside the iPad sidebar a single line with the ipados spec's columns.
+/// on the iPad a compact tile of the same parts.
 /// The UID and the other tag facts are in Tag details (context menu,
 /// VoiceOver action).
 struct FeedRowView: View {
@@ -316,11 +315,11 @@ struct FeedRowView: View {
                 }
             }
             #else
+            // The card's background in the List; a tile draws its own.
             .listRowBackground(
-                rowBackground.overlay {
+                Color(uiColor: .secondarySystemGroupedBackground).overlay {
                     if feed.focus.hintedRow == item.id {
-                        RoundedRectangle(cornerRadius: layout == .table ? 12 : 24, style: .continuous)
-                            .strokeBorder(.tint, lineWidth: 2)
+                        Self.cardShape.strokeBorder(.tint, lineWidth: 2)
                     }
                 }
             )
@@ -328,12 +327,8 @@ struct FeedRowView: View {
     }
 
     #if os(iOS)
-    /// The table's focused row takes the selection tint.
-    private var rowBackground: Color {
-        layout == .table && feed.focusedRow == item.id
-            ? Color(uiColor: .tintColor).opacity(0.15)
-            : Color(uiColor: .secondarySystemGroupedBackground)
-    }
+    private static let cardShape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+    private static let tileShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
     #endif
 
     @ViewBuilder private var content: some View {
@@ -345,8 +340,8 @@ struct FeedRowView: View {
         .controlSize(.large)
         .frame(minHeight: 60)
         #else
-        if layout == .table {
-            tableContent
+        if layout.showsTiles {
+            tileContent
         } else {
             cardContent
         }
@@ -354,52 +349,31 @@ struct FeedRowView: View {
     }
 
     #if os(iOS)
-    /// Swatch 28 · title 150 · colour 112 · remaining 140 · status
-    /// (flexible, the short readout under it) · entry or action pills; 12
-    /// apart, at least 76 high with the row's padding.
-    private var tableContent: some View {
-        HStack(alignment: .center, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                SwatchView(swatch: item.swatch, size: 28)
-                Text(item.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .frame(width: 150, alignment: .leading)
-                Text(item.tableColorText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(width: 112, alignment: .leading)
-                Text(item.tableRemainingText)
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(width: 140, alignment: .leading)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(item.accessibilityHeader)
-            .accessibilityValue([item.timeoutNote, feed.error(for: item.id)].compactMap { $0 }.joined(separator: " "))
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if !item.isReopenable { focusedField.wrappedValue = nil }
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                status.accessibilityHidden(true)
-                if item.isEntry, let readout = feed.readout(for: item.id) {
-                    Text(readout.short)
-                        .font(.footnote.monospacedDigit())
-                        .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                        .lineLimit(1)
+    /// The iPad tile (iPad page): padding 14, 10 between the header and the
+    /// entry; the field's focus ring marks the focused row, the 2 pt outline
+    /// a row that waits.
+    private var tileContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if !item.isReopenable { focusedField.wrappedValue = nil }
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
             if item.isEntry {
                 WeightEntry(feed: feed, item: item, focusedField: focusedField)
             } else if !item.rowActions.isEmpty {
-                RowActions(feed: feed, item: item, style: .pills)
+                RowActions(feed: feed, item: item, style: .tile)
             }
         }
-        .frame(minHeight: 56)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: Self.tileShape)
+        .overlay {
+            if feed.focus.hintedRow == item.id {
+                Self.tileShape.strokeBorder(.tint, lineWidth: 2)
+            }
+        }
+        .contentShape(.contextMenuPreview, Self.tileShape)
     }
 
     private var cardContent: some View {
@@ -429,10 +403,10 @@ struct FeedRowView: View {
     }
 
     /// macOS: three equal columns. iOS: the colour line and the status
-    /// stacked under the title.
+    /// stacked under the title; a tile's swatch is 24, 10 from the text.
     private var headerContent: some View {
-        HStack(alignment: .center, spacing: 12) {
-            SwatchView(swatch: item.swatch, size: 28)
+        HStack(alignment: .center, spacing: isTile ? 10 : 12) {
+            SwatchView(swatch: item.swatch, size: isTile ? 24 : 28)
             #if os(macOS)
             Text(item.title)
                 .font(.headline)
@@ -465,9 +439,6 @@ struct FeedRowView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 StatusSymbolView(symbol: item.statusSymbol, tint: item.statusTint)
-                    #if os(iOS)
-                    .font(layout == .table ? .system(size: 17) : nil)
-                    #endif
                 Text(item.statusText)
                     .foregroundStyle(item.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
@@ -509,6 +480,15 @@ struct FeedRowView: View {
         }
     }
 
+    /// An iPad tile rather than an iPhone card or a Mac line.
+    private var isTile: Bool {
+        #if os(iOS)
+        layout.showsTiles
+        #else
+        false
+        #endif
+    }
+
     /// A click on a saved or added row opens it again for a weight.
     private func reopenIfSaved() {
         guard item.isReopenable else { return }
@@ -546,9 +526,8 @@ extension StatusTint {
 
 /// Weight field with its "g" unit, Net/Gross and Save, and the readout under
 /// the field. macOS lays it out on one line (Tab goes field → mode → Save in
-/// view order); iOS stacks it full width with the number pad, and beside the
-/// iPad sidebar puts field · g · Net/Gross · Save on one line (the row shows
-/// the readout under its status).
+/// view order); the iPhone stacks it full width with the number pad; an iPad
+/// tile puts the short readout inside the field and Net/Gross beside Save.
 struct WeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -564,7 +543,7 @@ struct WeightEntry: View {
         #if os(macOS)
         lineBody
         #else
-        if layout == .table { tableBody } else { stackedBody }
+        if layout.showsTiles { tileBody } else { stackedBody }
         #endif
     }
 
@@ -656,30 +635,28 @@ struct WeightEntry: View {
         .takesFeedFocusOnAppear(feed: feed, id: id, focusedField: focusedField)
     }
     #else
-    /// Field 100 × 44 · `g` · Net/Gross 120 × 34 · Save 44 high, 8 apart;
-    /// ⇥ goes field → mode → Save, Return in the field saves.
-    private var tableBody: some View {
+    /// The field (52 high, the short readout inside it), then Net/Gross
+    /// and Save (36 high, at least 80 wide) on one row; 8 apart. ⇥ goes
+    /// field → mode → Save, Return in the field saves.
+    private var tileBody: some View {
         let id = item.id
-        return HStack(spacing: 8) {
-            PadWeightField(feed: feed, item: item, focusedField: focusedField)
-            Text("g")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            modePicker
-                .frame(width: 120, height: 34)
-            Button {
-                Task { await feed.save(id) }
-            } label: {
-                Text(feed.saveTitle(for: id))
-                    .font(.headline)
-                    .frame(minWidth: 52, minHeight: 30)
+        return VStack(alignment: .leading, spacing: 8) {
+            PhoneWeightField(feed: feed, item: item, focusedField: focusedField, isTile: true)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+            HStack(spacing: 8) {
+                modePicker
+                Button {
+                    Task { await feed.save(id) }
+                } label: {
+                    Text(feed.saveTitle(for: id))
+                        .font(.subheadline.weight(.semibold))
+                        .frame(minWidth: 56, minHeight: 22)
+                }
+                .saveButtonStyle()
+                .disabled(!feed.canSave(id))
+                .help("Save (\u{2318}S)")
+                .accessibilityHint(saveHelp)
             }
-            .saveButtonStyle()
-            .frame(minHeight: 44)
-            .disabled(!feed.canSave(id))
-            .help("Save (\u{2318}S)")
-            .accessibilityHint(saveHelp)
         }
         .disabled(feed.isSaving(id))
     }
@@ -713,48 +690,6 @@ struct WeightEntry: View {
 }
 
 #if os(iOS)
-/// The iPad table's weight field: 100 × 44, the value right-aligned at 28 pt.
-/// Taking the keyboard selects the value, as on the iPhone.
-struct PadWeightField: View {
-    let feed: FeedViewModel
-    let item: FeedItem
-    var focusedField: FocusState<FeedRow.ID?>.Binding
-    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 28
-    @ViewState private var selection: TextSelection?
-
-    var body: some View {
-        let id = item.id
-        let mode = feed.mode(for: id)
-        let focused = focusedField.wrappedValue == id
-        TextField(
-            FeedItem.weightFieldLabel(mode: mode),
-            text: Binding(get: { feed.weightText(for: id) }, set: { feed.setWeightText($0, for: id) }),
-            selection: $selection,
-            prompt: Text("0").foregroundStyle(.tertiary)
-        )
-        .labelsHidden()
-        .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
-        .keyboardType(.numberPad)
-        .font(.system(size: weightSize, weight: .bold, design: .rounded).monospacedDigit())
-        .minimumScaleFactor(0.6)
-        .multilineTextAlignment(.trailing)
-        .focused(focusedField, equals: id)
-        .onSubmit { Task { await feed.save(id) } }
-        .padding(.horizontal, 10)
-        .frame(width: 100, height: 44)
-        .background(Color(uiColor: .tertiarySystemFill), in: .rect(cornerRadius: 12))
-        .overlay {
-            if focused {
-                RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 2)
-            }
-        }
-        .contentShape(.rect(cornerRadius: 12))
-        .onTapGesture { focusedField.wrappedValue = id }
-        .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
-        .takesFeedFocusOnAppear(feed: feed, id: id, focusedField: focusedField)
-    }
-}
-
 extension View {
     /// The first key replaces the value: taking the keyboard selects it, and
     /// so does a mode switch of an untouched suggestion.
@@ -780,14 +715,21 @@ extension View {
 }
 
 /// The iPhone's weight field: 64 high, full width, the value with its unit
-/// and the mode word inside. Taking the keyboard selects the value, so the
-/// first key on the number pad replaces it.
+/// and the mode word inside. An iPad tile's is 52 high with the short
+/// readout in the mode word's place. Taking the keyboard selects the value,
+/// so the first key on the number pad replaces it.
 struct PhoneWeightField: View {
     let feed: FeedViewModel
     let item: FeedItem
     var focusedField: FocusState<FeedRow.ID?>.Binding
-    @ScaledMetric(relativeTo: .largeTitle) private var weightSize: CGFloat = 34
+    var isTile = false
+    @ScaledMetric(relativeTo: .largeTitle) private var phoneWeightSize: CGFloat = 34
+    @ScaledMetric(relativeTo: .largeTitle) private var tileWeightSize: CGFloat = 30
     @ViewState private var selection: TextSelection?
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: isTile ? 12 : 14)
+    }
 
     var body: some View {
         let id = item.id
@@ -803,32 +745,52 @@ struct PhoneWeightField: View {
             .labelsHidden()
             .accessibilityLabel(FeedItem.weightFieldLabel(mode: mode))
             .keyboardType(.numberPad)
-            .font(.system(size: weightSize, weight: .bold, design: .rounded).monospacedDigit())
+            .font(
+                .system(size: isTile ? tileWeightSize : phoneWeightSize, weight: .bold, design: .rounded)
+                    .monospacedDigit()
+            )
             .fixedSize()
             .focused(focusedField, equals: id)
+            .onSubmit { Task { await feed.save(id) } }
             Text("g")
-                .font(.title2.weight(.semibold))
+                .font((isTile ? Font.title3 : .title2).weight(.semibold))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             Spacer(minLength: 8)
+            trailing(mode: mode)
+        }
+        .padding(.horizontal, isTile ? 14 : 16)
+        .frame(height: isTile ? 52 : 64)
+        .background(Color(uiColor: .tertiarySystemFill), in: shape)
+        .overlay {
+            if focused {
+                shape.strokeBorder(.tint, lineWidth: 2)
+            }
+        }
+        .contentShape(shape)
+        // A tap anywhere in the box, not only on the digits, takes the pad.
+        .onTapGesture { focusedField.wrappedValue = id }
+        .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
+        .takesFeedFocusOnAppear(feed: feed, id: id, focusedField: focusedField)
+    }
+
+    /// The mode word on the iPhone; on a tile "Saves 590 g" or a red "Below
+    /// core", which VoiceOver reads in full.
+    @ViewBuilder private func trailing(mode: Intent.WeightMode) -> some View {
+        if isTile {
+            if let readout = feed.readout(for: item.id), !readout.tile.isEmpty {
+                Text(readout.tile)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(readout.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+                    .accessibilityLabel(readout.text)
+            }
+        } else {
             Text(FeedItem.modeWord(mode))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 64)
-        .background(Color(uiColor: .tertiarySystemFill), in: .rect(cornerRadius: 14))
-        .overlay {
-            if focused {
-                RoundedRectangle(cornerRadius: 14).strokeBorder(.tint, lineWidth: 2)
-            }
-        }
-        .contentShape(.rect(cornerRadius: 14))
-        // A tap anywhere in the box, not only on the digits, takes the pad.
-        .onTapGesture { focusedField.wrappedValue = id }
-        .selectsAllOnFocus(feed: feed, id: id, focused: focused, mode: mode, selection: $selection)
-        .takesFeedFocusOnAppear(feed: feed, id: id, focusedField: focusedField)
     }
 }
 #endif
