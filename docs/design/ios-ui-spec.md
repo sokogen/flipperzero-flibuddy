@@ -3,7 +3,9 @@
 Source: the Claude Design project "FliBuddy mobile app design"
 (`docs/design/source/FliBuddy Spec.dc.html` and
 `docs/design/source/FliBuddy iPhone.dc.html`), imported on 2026-10-27 and
-synced again on 2026-11-05. The page imports the shared prototype model
+synced again on 2026-11-05; the Spools tab (the read-only inventory) was
+added to the page on 2026-11-05 for Task 12 of the 1.0 plan and waits for
+the owner's look. The page imports the shared prototype model
 `flibuddy-core.js` (session, row view-model, connection texts:
 `docs/design/source/flibuddy-core.js`). The row copy comes from the core's `vm`, the banner from its
 `statusVM` (`FLIP` / `BAMBU` tables), the Link picker rows from `invVM`, the
@@ -125,6 +127,16 @@ TabView {
         .sheet(item: $linkRow) { LinkPicker().searchable(…) }
         .sheet(item: $detailsRow) { TagDetails() }           // owner decision, not in the design
         .confirmationDialog("Clear the feed?")
+    }
+  }
+  Tab("Spools", systemImage: "shippingbox") {               // read-only inventory
+    NavigationStack {
+      SpoolList()                                            // List, one card of rows
+        .navigationTitle("Spools")
+        .searchable(text: $query, prompt: "Material, colour, brand or note")
+        .toolbar { Menu { sortPicker; materialPicker } }     // trailing
+        .refreshable { await spools.refresh() }
+        .sheet(item: $spool) { SpoolDetail() }
     }
   }
   Tab("Settings", systemImage: "gearshape") {
@@ -410,6 +422,103 @@ Gross) to the watch after every applied change, through the shipped
 `WatchSettingsSender` (application context, only the latest counts). With
 apply-on-change a text field sends once when it commits, not per keystroke.
 
+## Spools (read-only inventory)
+
+The second tab, between Feed and Settings: `shippingbox`, `Spools`. It
+lists what Bambuddy holds, so the owner can look a spool up at the bench
+without opening Bambuddy. Nothing is edited here in 1.0; the detail sends
+the owner to Bambuddy for that. Design: the `Spools` frames of
+`FliBuddy iPhone.dc.html`; the texts and the list logic are `spoolsVM`,
+`spoolRowVM`, `spoolDetailVM` and `SPOOL_STATES` in `flibuddy-core.js`.
+
+**Data.** One request per load: `GET /inventory/spools?include_archived=true`
+(`listSpools(includeArchived: true)`, `inventory:read`); the scopes filter
+on the device. `updated_at` is decoded for "updated … ago"; Bambuddy sends
+it without a time zone and means UTC (its own web app appends `Z`). The
+empty-spool catalog (`GET /inventory/catalog`) names the empty spool in the
+detail; when it fails the detail shows the grams alone. The tab loads when
+it first appears and again each time it comes on screen, on pull to
+refresh, and after every write the feed makes (a save, New, Link, Mark as
+new or empty, Delete, from the app or the Flipper), so the list follows the
+bench. The last good list is kept as the cache; a list from other settings
+(another URL or key) is never shown.
+
+**List.** Under the large title: the search field (`.searchable`, prompt
+`Material, colour, brand or note`, the Link picker's filter: every word in
+material, subtype, colour, brand or note, ignoring case and diacritics),
+then the scope as a segmented control, `Active · Archived · All` (Active
+first; a segmented control rather than `searchScopes`, which iOS shows only
+while searching), then one inset-grouped card of rows. The toolbar's
+trailing `line.3.horizontal.decrease.circle` menu (`.fill` and `.tint` while
+a material is chosen) holds **Sort by** `Recently updated` (default) ·
+`Least left` · `Material` · `Colour`, and **Material** `All materials` plus
+each material in the inventory. A footnote under the card counts the active
+spools: `7 active spools. Pull down to refresh.`
+
+Sort orders: Recently updated, newest `updated_at` first (spools without
+one last); Least left, fewest grams first; Material, by title then colour;
+Colour, by colour name (spools without one last) then title. Ties fall back
+to the spool id, so the order never jumps between loads.
+
+**Row** (a button; tap opens the detail):
+
+| Part | Spec |
+|---|---|
+| Swatch | 28 pt circle, the spool's RGBA, `.separator` hairline; dashed outline without a colour |
+| Title | `PLA Matte` (material + subtype, as the feed), `.headline` |
+| Sub line | `Charcoal · Bambu Lab` (colour name, brand; absent parts left out), `.subheadline` `.secondary` |
+| Detail line | `410 g left of 1000 · updated 3 d ago`, `.footnote` `.secondary`, monospaced digits; without `updated_at` the remaining alone |
+| Trailing | `Low` (orange, word in a tinted capsule) when less than 15 % of the label weight is left on an active spool; `Archived` (`.secondary`, word in a fill capsule) on an archived spool; `tag` glyph (`.secondary`) when a tag is linked; the chevron |
+| VoiceOver | one sentence: `PLA Matte, Charcoal, Bambu Lab, 410 grams left of 1000, low, archived, tag linked, updated 3 days ago.` (the parts that apply) |
+
+"Updated … ago": under a minute `just now`, then `5 min`, `3 h`, `3 d`,
+`2 mo`, `1 y` ago (whole units, rounded down; a time ahead of the device's
+clock reads `just now`). VoiceOver spells the unit out (`3 days ago`).
+
+**States** (`ContentUnavailableView` in place of the list unless noted):
+
+| State | Shows |
+|---|---|
+| First load (no list yet) | a spinner, `Loading spools…` |
+| Pull to refresh | the system refresh control over the list |
+| No server (no URL or key) | `server.rack`, `Connect Bambuddy`, `Scan the API-key QR code in Bambuddy, or type its address.`, **Open Settings** (the feed's no-server state of Task 13) |
+| Unreachable, list cached | the list stays; a line above it: `exclamationmark.triangle.fill` (orange) `Couldn't refresh · showing 10:42` (the time of the cached list) with a **Retry** chip |
+| Unreachable, nothing cached | `wifi.exclamationmark` (red), `Can't reach Bambuddy`, `Check that Bambuddy is running and on the same network.`, **Retry** |
+| No permission | `lock.trianglebadge.exclamationmark` (red), `Can't read the inventory`, `The API key needs the inventory:read permission. Add it to the key in Bambuddy.`, **Open Settings** |
+| Key rejected | same symbol, `Bambuddy rejected the API key`, `Check the key in Settings, or scan the QR code of a new one.`, **Open Settings** |
+| Spoolman mode | the feed's blocking screen: `nosign` (red), `Bambuddy is in Spoolman mode`, the same text, **Retry** |
+| Empty inventory | `shippingbox`, `No spools in Bambuddy`, `Spools added in Bambuddy, or with New in the feed, show here.` |
+| No search results | `magnifyingglass`, `No spools match “<q>”`, `Search looks at material, colour, brand and note.` |
+| Material filter empties the scope | `line.3.horizontal.decrease.circle`, `No PETG spools`, `Choose All materials to see every spool.` |
+| Scope empty | `shippingbox`, `No archived spools` / `No active spools`, `Bambuddy has spools in the other scope.` |
+
+Retry checks Bambuddy again (the startup check, which also clears a
+Spoolman refusal) and loads. A cache from a refresh that failed for
+permission or Spoolman is dropped: those states replace the list.
+
+**Detail** (a sheet, medium and large detents; Done `xmark` leading, the
+title in the bar):
+
+- swatch 64 pt, the title (`.title2.bold`), `Charcoal · Bambu Lab`;
+- a linear `Gauge` of what is left of the label weight: `410 g left of
+  1000 g` over the bar, `41 %` trailing, `Low` in orange when low; the bar
+  `.tint`, orange when low;
+- **Today** (only when the feed has a row for the spool): the row's status
+  symbol and phrase, e.g. `Saved 15 g left · by Flipper`;
+- **Details**, `LabeledContent` rows: Material, Subtype, Brand, Label weight
+  (`1000 g`), Empty spool (`Bambu Lab - Reusable spool + refill · 242 g`, the
+  grams alone without a catalog entry), Last scale weight (`652 g`, or
+  `Never weighed`), Tag (the UID in monospaced, or `No tag`), Note, Spool #
+  (`21`), Archived on (`Oct 18, 2026`); Subtype, Brand and Note only when
+  set, Archived on only when archived;
+- **Open in Bambuddy** (`arrow.up.right.square`, `.tint`): opens
+  `<Bambuddy URL>/inventory?spool=<id>` in the browser, which opens the
+  spool's edit form in Bambuddy's inventory page; the footer under it:
+  `Read-only. Edit spools in Bambuddy.`
+
+The detail follows the list: a refresh updates it, and a spool gone from
+Bambuddy closes it.
+
 ## Tokens
 
 Spacing (pt): 4 symbol ↔ text in a status line · 8 between controls in a
@@ -448,7 +557,8 @@ SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
 `paintpalette`, `wave.3.right`, `qrcode.viewfinder`, `link`,
 `arrow.left.arrow.right`, `magnifyingglass`, `xmark`, `checkmark`,
 `delete.left`, `arrow.counterclockwise.circle.fill`, `archivebox`,
-`info.circle`.
+`info.circle`, `shippingbox`, `tag`, `line.3.horizontal.decrease.circle`
+(`.fill`), `arrow.up.right.square`, `chevron.right`.
 
 ## Differences from what ships
 

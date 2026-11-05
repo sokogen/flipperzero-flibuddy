@@ -51,6 +51,12 @@ Secondary flows:
   by hand. A picker over the inventory with a text filter (material, colour,
   brand or note); if the tag is already linked to another spool the app says
   which one and offers to move it.
+- **Spools** (iPhone and iPad): a read-only browser of what Bambuddy holds,
+  to look a spool up at the bench: search (material, colour, brand or note),
+  Active · Archived · All, a material filter and four sort orders; a row
+  shows what is left and when it was last updated, `Low` and `Archived` in
+  words; the detail lists every fact Bambuddy keeps and opens the spool in
+  Bambuddy for edits. No editing in 1.0.
 - **Settings**: Bambuddy URL and API key, the empty-spool weight used for new
   items, net/gross default, the Flipper connection (USB on Mac, Bluetooth
   everywhere), and on iPhone/iPad a **Scan QR code** button that fills URL
@@ -66,8 +72,8 @@ since the app started, newest first, with a **Clear** action.
 | Platform | Transport to the Flipper | Layout | Screens |
 |---|---|---|---|
 | macOS 14+ | USB serial or Bluetooth LE | one main window, Settings window via ⌘, | Feed, Settings |
-| iPhone | Bluetooth LE | `TabView`, portrait only | Feed, Settings |
-| iPad | Bluetooth LE | `NavigationSplitView` in landscape, `TabView` (top tab bar) in portrait | Feed as tiles, sidebar with status and settings entry |
+| iPhone | Bluetooth LE | `TabView`, portrait only | Feed, Spools (read-only inventory), Settings |
+| iPad | Bluetooth LE | `NavigationSplitView` in landscape, `TabView` (top tab bar) in portrait | Feed as tiles, Spools with the detail in an inspector (a sheet in portrait), sidebar with status, Spools count and settings entry |
 | Apple Watch | Bluetooth LE | compact | Feed list, Row detail (weight entry), Settings (read-only, received from the iPhone), Scan for Flipper |
 
 Out of scope: the Flipper's own 128×64 monochrome screens; the watch never
@@ -153,7 +159,7 @@ reusable spool 215 g + refill core 27 g"), Weighing (Net/Gross default),
 Flipper (transport: USB/Bluetooth, port picker or Scan for Flipper, Forget);
 the version under them.
 
-**iPhone.** Portrait only. Feed tab and Settings tab. Rows are tall enough
+**iPhone.** Portrait only. Feed, Spools and Settings tabs. Rows are tall enough
 for a thumb; the weight field opens the numeric keypad with the suggested
 value selected; Net/Gross is a segmented control under the field; Save is a
 44 pt tinted button that stays above the keypad. The New form and the Link
@@ -167,7 +173,9 @@ grid, at least 300 pt wide and at most three to a row (three on a 13" iPad,
 two on an 11"), with Net/Gross and Save on one row and a short readout
 inside the field. Portrait keeps the tiles and swaps the sidebar for a top
 tab bar and the iPhone banner; a narrow multitasking window gets the iPhone
-layout. Keyboard shortcuts as on macOS.
+layout. Spools sits in the sidebar between Feed and Settings with the
+number of active spools; a picked spool opens in an inspector beside the
+list (a sheet in portrait). Keyboard shortcuts as on macOS.
 
 **Apple Watch.** Three screens. *Feed list*: swatch, title, remaining,
 status glyph; newest first; tap opens the row. *Row detail*: the weight as a
@@ -206,5 +214,6 @@ and remaining only.
 4. A token list: spacing scale, type roles (system text styles), semantic
    colours (system names), corner radii, SF Symbol names used.
 5. Rendered frames for: macOS main window with four rows; macOS Settings;
-   iPhone feed with a row in `Enter weight`; iPhone New form sheet; iPad
-   landscape; watch feed list and watch row detail.
+   iPhone feed with a row in `Enter weight`; iPhone New form sheet; iPhone
+   Spools list and spool detail; iPad landscape, also on Spools with the
+   inspector; watch feed list and watch row detail.

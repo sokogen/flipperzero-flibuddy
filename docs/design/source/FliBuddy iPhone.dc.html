@@ -18,7 +18,7 @@
 <header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
   <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
   <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">iPhone</h1>
-  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">TabView with Feed and Settings. Bluetooth to the Flipper. One-handed at the bench: the number pad rises on its own with the suggestion selected, Save stays above it, and the result is readable from a metre away.</p>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">TabView with Feed, Spools and Settings. Bluetooth to the Flipper. One-handed at the bench: the number pad rises on its own with the suggestion selected, Save stays above it, and the result is readable from a metre away.</p>
 </header>
 
 <section style="display:flex;gap:40px;align-items:flex-start">
@@ -39,6 +39,18 @@
       .sheet(item: $linkRow) {
           LinkPicker().searchable(…) }
       .confirmationDialog(…) }
+  }
+  Tab("Spools", systemImage: "shippingbox") {
+    NavigationStack { SpoolList()       // read-only
+      .navigationTitle("Spools")
+      .searchable(text: $query, prompt:
+          "Material, colour, brand or note")
+      .toolbar { Menu { sort; material }
+          label: "line.3.horizontal
+                  .decrease.circle" }
+      .refreshable { await reload() }
+      .sheet(item: $spool) {
+          SpoolDetail() } }
   }
   Tab("Settings", systemImage: "gearshape") {
     NavigationStack { SettingsForm() }
@@ -203,12 +215,68 @@ TextField("Weight", value: $grams,
                   <span style="font-size:13px;color:var(--fb-l2);text-align:center;padding:20px 16px 0">FliBuddy 1.0 (42)</span>
                 </div>
               </sc-if>
+
+              <sc-if value="{{ p.isSpools }}">
+                <div style="padding:54px 16px 130px;display:flex;flex-direction:column;gap:12px;flex:1;box-sizing:border-box">
+                  <div style="height:44px;display:flex;justify-content:flex-end;align-items:center">
+                    <button onClick="{{ p.sp.onMenu }}" aria-label="Sort and filter" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:{{ p.sp.menuFg }};cursor:pointer"><i class="{{ p.sp.menuIcon }}" title="line.3.horizontal.decrease.circle" style="font-size:22px"></i></button>
+                  </div>
+                  <div style="font-size:34px;line-height:41px;font-weight:700;letter-spacing:.37px;margin-top:-4px">Spools</div>
+                  <sc-if value="{{ p.sp.searchable }}">
+                    <div style="height:40px;flex:none;border-radius:20px;background:var(--fb-fill);display:flex;align-items:center;gap:8px;padding:0 14px">
+                      <i class="ph ph-magnifying-glass" title="magnifyingglass" style="font-size:17px;color:var(--fb-l2)"></i>
+                      <input value="{{ p.sp.q }}" onChange="{{ p.sp.onQ }}" placeholder="Material, colour, brand or note" aria-label="Search spools" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:17px;letter-spacing:-.4px;color:var(--fb-l1)">
+                    </div>
+                    <div role="radiogroup" aria-label="Scope" style="height:32px;flex:none;border-radius:16px;background:var(--fb-fill);padding:2px;display:grid;grid-template-columns:1fr 1fr 1fr;box-sizing:border-box">
+                      <sc-for list="{{ p.sp.scopes }}" as="c" hint-placeholder-count="3"><button onClick="{{ c.on }}" role="radio" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:14px;background:{{ c.bg }};box-shadow:{{ c.sh }};cursor:pointer">{{ c.label }}</button></sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ p.sp.stale }}">
+                    <div style="display:flex;align-items:center;gap:8px;padding:0 4px 0 16px;min-height:36px;font-size:13px;color:var(--fb-l2)">
+                      <i class="ph-fill ph-warning" title="exclamationmark.triangle.fill" style="font-size:16px;color:var(--fb-orange)"></i>
+                      <span style="flex:1">{{ p.sp.staleText }}</span>
+                      <span style="height:28px;padding:0 12px;border-radius:14px;background:var(--fb-tint);color:var(--fb-blue);font-size:13px;font-weight:600;display:flex;align-items:center">Retry</span>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ p.sp.hasCUV }}">
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:{{ p.sp.cuvPad }} 24px 0;text-align:center">
+                      <sc-if value="{{ p.sp.cuv.spin }}"><span style="width:28px;height:28px;border-radius:50%;border:3px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                      <sc-if value="{{ p.sp.cuv.hasIcon }}"><i class="{{ p.sp.cuv.icon }}" title="{{ p.sp.cuv.sym }}" style="font-size:58px;color:{{ p.sp.cuv.color }}"></i></sc-if>
+                      <div style="font-size:22px;line-height:28px;font-weight:700;margin-top:4px">{{ p.sp.cuv.title }}</div>
+                      <sc-if value="{{ p.sp.cuv.hasDesc }}"><div style="font-size:15px;line-height:20px;color:var(--fb-l2);max-width:290px;text-wrap:pretty">{{ p.sp.cuv.desc }}</div></sc-if>
+                      <sc-if value="{{ p.sp.cuv.hasAct }}"><span style="margin-top:8px;height:44px;padding:0 22px;border-radius:22px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center">{{ p.sp.cuv.act }}</span></sc-if>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ p.sp.hasRows }}">
+                    <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                      <sc-for list="{{ p.sp.rows }}" as="s" hint-placeholder-count="7">
+                        <div onClick="{{ s.onOpen }}" role="button" aria-label="{{ s.aria }}" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 12px 11px 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);cursor:pointer">
+                          <span aria-hidden="true" style="width:28px;height:28px;border-radius:50%;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                          <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+                            <span style="font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ s.title }}</span>
+                            <sc-if value="{{ s.hasSub }}"><span style="font-size:15px;line-height:20px;color:var(--fb-l2);letter-spacing:-.2px">{{ s.sub }}</span></sc-if>
+                            <span style="font-size:13px;line-height:18px;color:var(--fb-l2);font-variant-numeric:tabular-nums">{{ s.line }}</span>
+                          </div>
+                          <div style="display:flex;align-items:center;gap:6px">
+                            <sc-if value="{{ s.low }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:rgba(255,149,0,.16);color:var(--fb-orange)">Low</span></sc-if>
+                            <sc-if value="{{ s.archived }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:var(--fb-fill);color:var(--fb-l2)">Archived</span></sc-if>
+                            <sc-if value="{{ s.tagged }}"><i class="ph ph-tag" title="tag" style="font-size:17px;color:var(--fb-l2)"></i></sc-if>
+                            <i class="ph ph-caret-right" title="chevron.right" style="font-size:14px;color:var(--fb-l3)"></i>
+                          </div>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px;letter-spacing:-.08px">{{ p.sp.footer }}</span>
+                  </sc-if>
+                </div>
+              </sc-if>
             </div>
 
             <sc-if value="{{ p.showTabs }}">
               <div style="position:absolute;left:0;right:0;bottom:24px;z-index:4;display:flex;justify-content:center;pointer-events:none">
                 <div style="pointer-events:auto;display:flex;gap:2px;padding:4px;border-radius:32px;background:var(--fb-glass);backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 6px 20px rgba(0,0,0,.12)">
                   <button onClick="{{ p.toFeed }}" style="width:108px;height:54px;border:0;border-radius:27px;background:{{ p.feedTabBg }};color:{{ p.feedTabFg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:600;cursor:pointer"><i class="ph ph-list-bullets" title="list.bullet" style="font-size:24px"></i>Feed</button>
+                  <button onClick="{{ p.toSpools }}" style="width:108px;height:54px;border:0;border-radius:27px;background:{{ p.spTabBg }};color:{{ p.spTabFg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:600;cursor:pointer"><i class="ph ph-package" title="shippingbox" style="font-size:24px"></i>Spools</button>
                   <button onClick="{{ p.toSettings }}" style="width:108px;height:54px;border:0;border-radius:27px;background:{{ p.setTabBg }};color:{{ p.setTabFg }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;font-weight:600;cursor:pointer"><i class="ph ph-gear-six" title="gearshape" style="font-size:24px"></i>Settings</button>
                 </div>
               </div>
@@ -294,6 +362,50 @@ TextField("Weight", value: $grams,
               </div>
             </sc-if>
 
+            <sc-if value="{{ p.isSpool }}">
+              <div style="position:absolute;left:0;right:0;top:62px;bottom:0;z-index:6;border-radius:38px 38px 0 0;background:var(--fb-bg);color:var(--fb-l1);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -4px 30px rgba(0,0,0,.15)">
+                <div style="height:68px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+                  <button onClick="{{ p.closeAll }}" aria-label="Done" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 8px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-x" title="xmark" style="font-size:20px"></i></button>
+                  <span style="font-size:17px;font-weight:600">{{ p.sd.title }}</span>
+                  <span style="width:44px"></span>
+                </div>
+                <div style="flex:1;overflow:auto;padding:4px 16px 40px;display:flex;flex-direction:column;gap:8px;font-size:17px;letter-spacing:-.4px">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0 12px;text-align:center">
+                    <span aria-hidden="true" style="width:64px;height:64px;border-radius:50%;background:{{ p.sd.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                    <span style="font-size:22px;line-height:28px;font-weight:700;margin-top:6px">{{ p.sd.title }}</span>
+                    <span style="font-size:15px;color:var(--fb-l2)">{{ p.sd.sub }}</span>
+                  </div>
+                  <div role="meter" aria-label="{{ p.sd.gauge }}" style="border-radius:24px;background:var(--fb-card);padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-weight:600;font-variant-numeric:tabular-nums">{{ p.sd.gauge }}</span><sc-if value="{{ p.sd.low }}"><span style="font-size:13px;font-weight:600;color:var(--fb-orange)">Low</span></sc-if><span style="font-size:15px;color:var(--fb-l2)">{{ p.sd.pct }}</span></div>
+                    <div style="height:8px;border-radius:4px;background:var(--fb-fill2);overflow:hidden"><div style="height:100%;width:{{ p.sd.pctW }};border-radius:4px;background:{{ p.sd.gaugeColor }}"></div></div>
+                  </div>
+                  <sc-if value="{{ p.sd.hasToday }}">
+                    <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:12px 16px 0;letter-spacing:-.08px">Today</span>
+                    <div style="border-radius:24px;background:var(--fb-card);min-height:52px;display:flex;align-items:center;gap:8px;padding:0 16px;font-size:15px"><i class="{{ p.sd.todayIcon }}" style="font-size:17px;color:{{ p.sd.todayColor }}"></i><span>{{ p.sd.today }}</span></div>
+                  </sc-if>
+                  <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:12px 16px 0;letter-spacing:-.08px">Details</span>
+                  <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                    <sc-for list="{{ p.sd.facts }}" as="f" hint-placeholder-count="9">
+                      <div style="min-height:44px;display:flex;align-items:center;gap:12px;padding:8px 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);box-sizing:border-box"><span style="flex:none">{{ f.k }}</span><span style="flex:1;min-width:0;text-align:right;color:var(--fb-l2);font-family:{{ f.font }}">{{ f.v }}</span></div>
+                    </sc-for>
+                  </div>
+                  <div style="border-radius:24px;background:var(--fb-card);overflow:hidden;margin-top:16px"><div style="min-height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;color:var(--fb-blue);cursor:pointer"><i class="ph ph-arrow-square-out" title="arrow.up.right.square" style="font-size:20px"></i><span style="flex:1">Open in Bambuddy</span></div></div>
+                  <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px;letter-spacing:-.08px">Read-only. Edit spools in Bambuddy.</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ p.sp.menu }}">
+              <div onClick="{{ p.sp.onMenu }}" style="position:absolute;inset:0;z-index:6"></div>
+              <div style="position:absolute;top:104px;right:16px;width:250px;z-index:7;border-radius:24px;background:var(--fb-card);color:var(--fb-l1);box-shadow:0 10px 40px rgba(0,0,0,.22),inset 0 0 0 .5px var(--fb-glassb);overflow:hidden;font-size:17px;letter-spacing:-.4px">
+                <div style="padding:10px 16px 4px;font-size:13px;color:var(--fb-l2)">Sort by</div>
+                <sc-for list="{{ p.sp.sorts }}" as="o" hint-placeholder-count="4"><div onClick="{{ o.on }}" style="height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:pointer"><span style="width:18px;color:var(--fb-l1)"><sc-if value="{{ o.sel }}"><i class="ph ph-check" title="checkmark" style="font-size:16px"></i></sc-if></span><span>{{ o.label }}</span></div></sc-for>
+                <div style="height:8px;background:var(--fb-fill)"></div>
+                <div style="padding:10px 16px 4px;font-size:13px;color:var(--fb-l2)">Material</div>
+                <sc-for list="{{ p.sp.mats }}" as="o" hint-placeholder-count="6"><div onClick="{{ o.on }}" style="height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:pointer"><span style="width:18px;color:var(--fb-l1)"><sc-if value="{{ o.sel }}"><i class="ph ph-check" title="checkmark" style="font-size:16px"></i></sc-if></span><span>{{ o.label }}</span></div></sc-for>
+              </div>
+            </sc-if>
+
             <sc-if value="{{ p.confirmClear }}">
               <div style="position:absolute;inset:0;z-index:6;display:flex;align-items:flex-end;padding:0 8px 34px;box-sizing:border-box">
                 <div style="width:100%;display:flex;flex-direction:column;gap:8px">
@@ -339,6 +451,8 @@ const UI0 = () => ({
   pn: {tab: 'feed', sheet: 'new', rowId: 'r4', form: {material: 'PLA', subtype: 'Matte', colorName: 'Lilac', rgba: '#B9A3D9', brand: '', label: '1000'}},
   pk: {tab: 'feed', sheet: 'link', rowId: 'r4', q: '', pick: 14, confirm: true},
   ps: {tab: 'settings'}, pq: {tab: 'settings', qr: true},
+  sl: {tab: 'spools'}, sd: {tab: 'spools', sheet: 'spool', spoolId: 12},
+  sr: {tab: 'spools', menu: true, sort: 'left'}, su: {tab: 'spools'},
 });
 
 class Component extends DCLogic {
@@ -409,6 +523,31 @@ class Component extends DCLogic {
     };
   }
 
+  // The Spools tab: `d.spools` pins a state for the static frames; live frames follow the Bambuddy control.
+  spoolsVM(d, u, cfg) {
+    const C = this.C, S = this.S;
+    const o = {scope: u.scope || 'active', q: u.q || '', material: u.material || '', sort: u.sort || 'updated'};
+    const v = C.spoolsVM(S.inv, o);
+    const state = d.spools || ({spoolman: 'spoolman', noperm: 'noperm'})[cfg.bambuddy] || null;
+    const stale = d.spools === 'stale' || (!d.spools && cfg.bambuddy === 'unreachable');
+    const cuv = state && state !== 'stale' ? C.spoolState(state) : v.hasEmpty ? {...v.empty, icon: v.empty.sym === 'magnifyingglass' ? 'ph ph-magnifying-glass' : v.empty.sym === 'shippingbox' ? 'ph ph-package' : 'ph ph-funnel', color: 'var(--fb-l2)', spin: false, hasIcon: true, hasDesc: true, hasAct: false} : null;
+    const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
+    const set = p => () => this.ui(d.id, p);
+    const list = !state || state === 'stale';
+    return {
+      ...v, q: o.q, onQ: e => this.ui(d.id, {q: e.target.value}), searchable: list,
+      scopes: C.SPOOL_SCOPES.map(([k, label]) => ({label, ...seg(o.scope === k), on: set({scope: k})})),
+      sorts: C.SPOOL_SORTS.map(([k, label]) => ({label, sel: o.sort === k, on: set({sort: k, menu: false})})),
+      mats: [['', 'All materials'], ...v.materials.map(m => [m, m])].map(([k, label]) => ({label, sel: o.material === k, on: set({material: k, menu: false})})),
+      menu: !!u.menu && list, onMenu: list ? () => this.ui(d.id, {menu: !u.menu}) : () => {},
+      menuIcon: o.material ? 'ph-fill ph-funnel' : 'ph ph-funnel', menuFg: o.material ? 'var(--fb-blue)' : 'var(--fb-l1)',
+      stale: stale && list, staleText: 'Couldn’t refresh · showing 10:42',
+      cuv: cuv || {}, hasCUV: !!cuv, cuvPad: state ? '150px' : '80px', hasRows: !cuv,
+      rows: v.rows.map(r => ({...r, onOpen: () => this.ui(d.id, {sheet: 'spool', spoolId: r.id, menu: false})})),
+      footer: v.active + ' active spools. Pull down to refresh.',
+    };
+  }
+
   renderVals() {
     if (!this.state.ready) return {phones: [], ctl: {}};
     const C = this.C, S = this.S, set = this.state.set, noop = () => {};
@@ -421,6 +560,10 @@ class Component extends DCLogic {
       {id: 'pq', label: 'Scan QR code · dark', note: 'Full-screen camera. Tap the frame to simulate a scan.', vars: C.DARK, dark: true, live: true},
       {id: 'pe', label: 'Empty feed · No Flipper · light', note: 'First launch; the Flipper is not found yet.', vars: C.LIGHT, dark: false, cfg: {flipper: 'none', bambuddy: 'unchecked'}, rows: []},
       {id: 'pb', label: 'Blocking · Spoolman mode · dark', note: 'FliBuddy refuses to work until Bambuddy is switched back.', vars: C.DARK, dark: true, cfg: {flipper: 'ble', bambuddy: 'spoolman'}, rows: []},
+      {id: 'sl', label: 'Spools · light', note: 'Read-only inventory. Search, Active · Archived · All, sort and material in the menu. Tap a row for its detail.', vars: C.LIGHT, dark: false, live: true},
+      {id: 'sd', label: 'Spool detail · dark', note: 'A sheet. The gauge, every fact Bambuddy keeps, today’s feed line, and the way to Bambuddy for edits.', vars: C.DARK, dark: true, live: true},
+      {id: 'sr', label: 'Spools · couldn’t refresh · light', note: 'Bambuddy went away after a load: the last list stays, with the time it was loaded. The sort and filter menu is open.', vars: C.LIGHT, dark: false, live: true, spools: 'stale'},
+      {id: 'su', label: 'Spools · can’t reach Bambuddy · dark', note: 'Nothing loaded yet and no answer. The other states (no server, no permission, Spoolman, empty, first load) use the same layout.', vars: C.DARK, dark: true, live: true, spools: 'down'},
     ];
     const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
     const T = {idle: ['Not tested', '', ''], testing: ['Testing…', '', ''], ok: ['Ready · inventory OK', 'ph-fill ph-check-circle', 'var(--fb-green)'], fail: ['Unreachable', 'ph-fill ph-x-circle', 'var(--fb-red)']}[set.test];
@@ -431,28 +574,33 @@ class Component extends DCLogic {
       const showCUV = st.blocking || rows.length === 0;
       const cuv = st.blocking ? {icon: 'ph ph-prohibit', sym: 'nosign', color: 'var(--fb-red)', title: 'Bambuddy is in Spoolman mode', desc: 'FliBuddy works with Bambuddy’s own inventory. Switch it back from Spoolman in Bambuddy’s settings, then retry.', act: 'Retry', hasAct: true}
         : {icon: 'ph ph-broadcast', sym: 'wave.3.right', color: 'var(--fb-l2)', title: 'No scans yet', desc: 'Hold a spool’s tag to the Flipper running FliBuddy.', hasAct: false};
-      const isFeed = u.tab !== 'settings';
+      const isFeed = !u.tab || u.tab === 'feed', isSpools = u.tab === 'spools';
       const kpRow = d.live && isFeed && !u.sheet && u.kp && S.find(u.kp);
       const keypad = !!(kpRow && ['enter', 'created', 'error'].includes(kpRow.status));
       const sh = d.live ? this.sheetVM(d.id) : {};
+      const sp = isSpools ? this.spoolsVM(d, u, cfg) : {};
+      const spool = u.sheet === 'spool' && S.inv.find(x => x.id === u.spoolId);
+      const sd = spool ? C.spoolDetailVM(spool, S.rows) : {};
+      if (spool) sd.facts = sd.facts.map(f => ({...f, font: f.mono ? "ui-monospace,'SF Mono',Menlo,monospace" : 'inherit'}));
       const n = seg(set.mode === 'net'), g = seg(set.mode === 'gross');
       const close = () => this.ui(d.id, null);
       return {
-        ...d, st, cuv, showCUV, showList: !showCUV, isFeed, isSettings: !isFeed,
+        ...d, st, cuv, showCUV, showList: !showCUV, isFeed, isSpools, isSettings: u.tab === 'settings', sp, sd,
         rows: this.rowsFor(d.id, rows, st, d.live),
         keypad, keys: KEYS.map(([k, l]) => {
           const digit = !!k && k !== 'del';
           return {d: k, l, isDigit: digit, isDel: k === 'del', bg: digit ? 'var(--fb-key)' : 'transparent', sh: digit ? '0 1px 0 rgba(0,0,0,.28)' : 'none', aria: k === 'del' ? 'Delete' : k, on: k && kpRow ? () => S.key(kpRow.id, k) : noop};
         }),
         showTabs: !keypad && !u.qr,
-        dimmed: !!u.sheet, isNew: u.sheet === 'new', isLink: u.sheet === 'link', confirmClear: u.sheet === 'clear', sh,
+        dimmed: !!u.sheet, isNew: u.sheet === 'new', isLink: u.sheet === 'link', isSpool: !!spool, confirmClear: u.sheet === 'clear', sh,
         qr: !!u.qr,
         onBg: d.live ? e => { if (e.target === e.currentTarget && u.kp) this.ui(d.id, {kp: null}); } : noop,
         onClear: d.live ? e => { e.stopPropagation(); this.ui(d.id, {sheet: 'clear', kp: null}); } : noop,
         doClear: () => { S.clear(); close(); }, closeAll: close,
-        toFeed: () => this.ui(d.id, {tab: 'feed'}), toSettings: () => this.ui(d.id, {tab: 'settings', kp: null}),
+        toFeed: () => this.ui(d.id, {tab: 'feed'}), toSpools: () => this.ui(d.id, {tab: 'spools', kp: null}), toSettings: () => this.ui(d.id, {tab: 'settings', kp: null}),
         feedTabBg: isFeed ? 'var(--fb-fill)' : 'transparent', feedTabFg: isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
-        setTabBg: !isFeed ? 'var(--fb-fill)' : 'transparent', setTabFg: !isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        spTabBg: isSpools ? 'var(--fb-fill)' : 'transparent', spTabFg: isSpools ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        setTabBg: u.tab === 'settings' ? 'var(--fb-fill)' : 'transparent', setTabFg: u.tab === 'settings' ? 'var(--fb-blue)' : 'var(--fb-l1)',
         set, onUrl: e => this.setSet({url: e.target.value, test: 'idle'}), onKey: e => this.setSet({key: e.target.value, test: 'idle'}),
         onSpool: e => this.setSet({spool: e.target.value}), onCore: e => this.setSet({core: e.target.value.replace(/\D/g, '').slice(0, 4)}),
         onQR: () => { if (set.camera) this.ui(d.id, {qr: true}); },

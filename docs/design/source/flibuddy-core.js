@@ -34,13 +34,18 @@ export function statusVM(cfg) {
   return {flip: f, bambu: b, banner, blocking: cfg.bambuddy === 'spoolman', noColors: cfg.bambuddy === 'nocolors', watch: {icon: w.icon, color: WT[w.tint], spin: !!w.spin, text: p ? p.short : 'Flipper connected'}};
 }
 
+// Bambuddy's spools (GET /inventory/spools?include_archived=true). upd: minutes since updated_at;
+// core: grams of the empty spool, catalog: its catalog entry; lastScale: last gross weight; archived: the day it went.
 export const INV = [
-  {id:14, material:'PETG', subtype:'HF', colorName:'Black', rgba:'#000000', brand:'Bambu Lab', remaining:742, label:1000, tag:'5B21C0DE', note:''},
-  {id:21, material:'PLA', subtype:'Matte', colorName:'Charcoal', rgba:'#3B3B3B', brand:'Bambu Lab', remaining:410, label:1000, tag:'A1C3770E', note:''},
-  {id:27, material:'PETG', subtype:'', colorName:'Transparent Blue', rgba:'#2F6DB5', brand:'Sunlu', remaining:880, label:1000, tag:null, note:'drawer 3'},
-  {id:30, material:'PLA', subtype:'Silk', colorName:'Copper', rgba:'#B87333', brand:'eSun', remaining:655, label:1000, tag:null, note:'opened in September'},
-  {id:31, material:'TPU', subtype:'95A', colorName:'Red', rgba:'#D62D20', brand:'Overture', remaining:420, label:500, tag:null, note:''},
-  {id:33, material:'ASA', subtype:'', colorName:'White', rgba:'#F4F4F4', brand:'Polymaker', remaining:990, label:1000, tag:'C07A4411', note:'enclosure parts'},
+  {id:14, material:'PETG', subtype:'HF', colorName:'Black', rgba:'#000000', brand:'Bambu Lab', remaining:742, label:1000, tag:'5B21C0DE', note:'', upd:2880, core:242, catalog:'Bambu Lab - Reusable spool + refill', lastScale:984, archived:null},
+  {id:21, material:'PLA', subtype:'Matte', colorName:'Charcoal', rgba:'#3B3B3B', brand:'Bambu Lab', remaining:410, label:1000, tag:'A1C3770E', note:'', upd:4320, core:242, catalog:'Bambu Lab - Reusable spool + refill', lastScale:652, archived:null},
+  {id:27, material:'PETG', subtype:'', colorName:'Transparent Blue', rgba:'#2F6DB5', brand:'Sunlu', remaining:880, label:1000, tag:null, note:'drawer 3', upd:30240, core:165, catalog:'Sunlu - Plastic', lastScale:null, archived:null},
+  {id:30, material:'PLA', subtype:'Silk', colorName:'Copper', rgba:'#B87333', brand:'eSun', remaining:655, label:1000, tag:null, note:'opened in September', upd:17280, core:172, catalog:null, lastScale:827, archived:null},
+  {id:31, material:'TPU', subtype:'95A', colorName:'Red', rgba:'#D62D20', brand:'Overture', remaining:420, label:500, tag:null, note:'', upd:50400, core:150, catalog:null, lastScale:null, archived:null},
+  {id:33, material:'ASA', subtype:'', colorName:'White', rgba:'#F4F4F4', brand:'Polymaker', remaining:990, label:1000, tag:'C07A4411', note:'enclosure parts', upd:86400, core:140, catalog:'Polymaker - Cardboard', lastScale:1130, archived:null},
+  {id:12, material:'PLA', subtype:'Basic', colorName:'Pumpkin Orange', rgba:'#FF9016', brand:'Bambu Lab', remaining:15, label:1000, tag:'7EF1AB04', note:'', upd:0, core:242, catalog:'Bambu Lab - Reusable spool + refill', lastScale:257, archived:null},
+  {id:6, material:'PLA', subtype:'Matte', colorName:'Ivory White', rgba:'#FFFFFF', brand:'Bambu Lab', remaining:0, label:1000, tag:null, note:'', upd:25920, core:242, catalog:'Bambu Lab - Reusable spool + refill', lastScale:242, archived:'Oct 18, 2026'},
+  {id:5, material:'ABS', subtype:'', colorName:'Black', rgba:'#000000', brand:'Bambu Lab', remaining:0, label:1000, tag:'3F0A9C12', note:'', upd:51840, core:242, catalog:'Bambu Lab - Reusable spool + refill', lastScale:null, archived:'Sep 30, 2026'},
 ];
 const KNOWN = [
   {uid:'5B21C0DE', rgba:'#000000', material:'PETG', subtype:'HF', colorName:'Black', remaining:742, label:1000},
@@ -206,7 +211,7 @@ export class Session {
   }
   filterInv(q) {
     const s = (q || '').trim().toLowerCase();
-    return this.inv.filter(x => !s || [x.material, x.subtype, x.colorName, x.brand, x.note].join(' ').toLowerCase().includes(s));
+    return this.inv.filter(x => !x.archived && matches(x, s));
   }
   clear() { this.rows = []; this.emit(); }
   reset() { this.rows = seed(); this.inv = INV.map(s => ({...s})); this.k = {known: 0, unknown: 0, blank: 0}; this.cfg = {...this.cfg, failNext: false, timeoutNext: false}; this.emit(); }
@@ -218,3 +223,82 @@ export const invVM = (s, uid) => ({
   note: s.note, hasNote: !!s.note, tag: s.tag, tagged: !!s.tag && s.tag !== uid, tagText: s.tag ? 'Tag ' + s.tag : '',
 });
 export const MATERIALS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA', 'PC', 'PVA'];
+
+// The Link picker's filter, also the Spools search: every word in material, subtype, colour, brand or note.
+const matches = (x, q) => (q || '').trim().toLowerCase().split(/\s+/).filter(Boolean)
+  .every(w => [x.material, x.subtype, x.colorName, x.brand, x.note].join(' ').toLowerCase().includes(w));
+
+// "updated 3 d ago": minutes, hours, days, months, years; under a minute "just now".
+export const ago = (m, full) => {
+  if (m < 1) return 'just now';
+  const [n, u, w] = m < 60 ? [m, 'min', 'minute'] : m < 1440 ? [Math.floor(m / 60), 'h', 'hour'] : m < 43200 ? [Math.floor(m / 1440), 'd', 'day']
+    : m < 525600 ? [Math.floor(m / 43200), 'mo', 'month'] : [Math.floor(m / 525600), 'y', 'year'];
+  return full ? n + ' ' + w + (n === 1 ? '' : 's') + ' ago' : n + ' ' + u + ' ago';
+};
+export const SPOOL_SCOPES = [['active', 'Active'], ['archived', 'Archived'], ['all', 'All']];
+export const SPOOL_SORTS = [['updated', 'Recently updated'], ['left', 'Least left'], ['material', 'Material'], ['colour', 'Colour']];
+const title = s => s.material + (s.subtype ? ' ' + s.subtype : '');
+const isLow = s => !s.archived && s.label > 0 && s.remaining * 100 < s.label * 15;
+
+// What the Spools tab shows instead of the list; the feed's Spoolman screen is shared.
+export const SPOOL_STATES = {
+  loading: {spin: true, icon: '', sym: 'ProgressView', color: 'var(--fb-l2)', title: 'Loading spools…', desc: '', act: ''},
+  noserver: {icon: 'ph ph-hard-drives', sym: 'server.rack', color: 'var(--fb-l2)', title: 'Connect Bambuddy', desc: 'Scan the API-key QR code in Bambuddy, or type its address.', act: 'Open Settings'},
+  down: {icon: 'ph ph-wifi-slash', sym: 'wifi.exclamationmark', color: 'var(--fb-red)', title: 'Can’t reach Bambuddy', desc: 'Check that Bambuddy is running and on the same network.', act: 'Retry'},
+  noperm: {icon: 'ph ph-lock-key', sym: 'lock.trianglebadge.exclamationmark', color: 'var(--fb-red)', title: 'Can’t read the inventory', desc: 'The API key needs the inventory:read permission. Add it to the key in Bambuddy.', act: 'Open Settings'},
+  rejected: {icon: 'ph ph-lock-key', sym: 'lock.trianglebadge.exclamationmark', color: 'var(--fb-red)', title: 'Bambuddy rejected the API key', desc: 'Check the key in Settings, or scan the QR code of a new one.', act: 'Open Settings'},
+  spoolman: {icon: 'ph ph-prohibit', sym: 'nosign', color: 'var(--fb-red)', title: 'Bambuddy is in Spoolman mode', desc: 'FliBuddy works with Bambuddy’s own inventory. Switch it back from Spoolman in Bambuddy’s settings, then retry.', act: 'Retry'},
+};
+export const spoolState = k => {
+  const x = SPOOL_STATES[k];
+  return x && {...x, spin: !!x.spin, hasIcon: !x.spin, hasAct: !!x.act, hasDesc: !!x.desc};
+};
+
+// One row of the Spools list.
+export const spoolRowVM = s => {
+  const sub = [s.colorName, s.brand].filter(Boolean).join(' · ');
+  const line = s.remaining + ' g left of ' + s.label + ' · updated ' + ago(s.upd);
+  const low = isLow(s);
+  const aria = [title(s), s.colorName, s.brand, s.remaining + ' grams left of ' + s.label, low ? 'low' : '', s.archived ? 'archived' : '',
+    s.tag ? 'tag linked' : '', 'updated ' + ago(s.upd, true)].filter(Boolean).join(', ') + '.';
+  return {id: s.id, title: title(s), swatch: s.rgba, sub, hasSub: !!sub, line, tagged: !!s.tag, low, archived: !!s.archived, aria};
+};
+
+// The list for a scope, search text, material filter and sort; `empty` says what shows instead of rows.
+export function spoolsVM(inv, o = {}) {
+  const scope = o.scope || 'active', sort = o.sort || 'updated';
+  const inScope = inv.filter(s => scope === 'all' || (scope === 'archived') === !!s.archived);
+  const shown = inScope.filter(s => (!o.material || s.material === o.material) && matches(s, o.q));
+  const cmp = (a, b) => String(a || '\uffff').localeCompare(String(b || '\uffff'));
+  const by = {updated: (a, b) => a.upd - b.upd, left: (a, b) => a.remaining - b.remaining || cmp(title(a), title(b)),
+    material: (a, b) => cmp(title(a), title(b)) || cmp(a.colorName, b.colorName), colour: (a, b) => cmp(a.colorName, b.colorName) || cmp(title(a), title(b))}[sort];
+  const q = (o.q || '').trim();
+  const empty = inv.length === 0 ? {title: 'No spools in Bambuddy', desc: 'Spools added in Bambuddy, or with New in the feed, show here.', sym: 'shippingbox'}
+    : shown.length > 0 ? null
+    : q ? {title: 'No spools match “' + q + '”', desc: 'Search looks at material, colour, brand and note.', sym: 'magnifyingglass'}
+    : o.material ? {title: 'No ' + o.material + ' spools', desc: 'Choose All materials to see every spool.', sym: 'line.3.horizontal.decrease.circle'}
+    : {title: scope === 'archived' ? 'No archived spools' : 'No active spools', desc: 'Bambuddy has spools in the other scope.', sym: 'shippingbox'};
+  return {
+    rows: shown.slice().sort(by).map(spoolRowVM), empty, hasEmpty: !!empty, hasRows: !empty,
+    active: inv.filter(s => !s.archived).length,
+    materials: [...new Set(inv.map(s => s.material))].sort(),
+  };
+}
+
+// The read-only detail; `rows`: the feed, for today's line.
+export function spoolDetailVM(s, rows = []) {
+  const r = rows.find(x => x.known && x.uid === s.tag);
+  const today = r ? vm(r) : null;
+  const pct = s.label > 0 ? Math.round(s.remaining * 100 / s.label) : 0;
+  const facts = [
+    ['Material', s.material], ['Subtype', s.subtype], ['Brand', s.brand], ['Label weight', s.label + ' g'],
+    ['Empty spool', (s.catalog ? s.catalog + ' · ' : '') + s.core + ' g'], ['Last scale weight', s.lastScale != null ? s.lastScale + ' g' : 'Never weighed'],
+    ['Tag', s.tag || 'No tag', !!s.tag], ['Note', s.note], ['Spool #', String(s.id)], ['Archived on', s.archived],
+  ].filter(f => f[1]).map(([k, v, mono]) => ({k, v, mono: !!mono}));
+  return {
+    ...spoolRowVM(s), colorName: s.colorName || '', brand: s.brand || '', sub: [s.colorName, s.brand].filter(Boolean).join(' · '),
+    gauge: s.remaining + ' g left of ' + s.label + ' g', pct: pct + ' %', pctW: Math.min(100, pct) + '%', gaugeColor: isLow(s) ? 'var(--fb-orange)' : 'var(--fb-blue)',
+    facts, today: today ? today.statusText : '', todayIcon: today ? today.icon : '', todayColor: today ? today.iconColor : '', hasToday: !!today,
+    url: 'bambuddy.local:8000/inventory?spool=' + s.id,
+  };
+}

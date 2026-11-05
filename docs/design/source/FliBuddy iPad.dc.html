@@ -18,7 +18,7 @@
 <header style="display:flex;flex-direction:column;gap:12px;max-width:1100px">
   <a href="FliBuddy Spec.dc.html" style="font-size:14px;font-weight:500">← FliBuddy spec</a>
   <h1 style="margin:0;font-size:48px;line-height:1.05;font-weight:700;letter-spacing:-.02em">iPad</h1>
-  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">Landscape on a bench stand, usually with a keyboard. NavigationSplitView: the sidebar carries both connection states, Settings and Clear; the detail is the feed as compact tiles, at most three to a row: three on a 13" iPad, two on an 11". Portrait keeps the tiles and swaps the sidebar for a top tab bar. A narrow Split View or Stage Manager window (compact width) gets the iPhone layout.</p>
+  <p style="margin:0;font-size:19px;line-height:1.45;color:#424245;text-wrap:pretty">Landscape on a bench stand, usually with a keyboard. NavigationSplitView: the sidebar carries both connection states, Feed, Spools (the read-only inventory), Settings and Clear; the detail is the feed as compact tiles, at most three to a row: three on a 13" iPad, two on an 11". Portrait keeps the tiles and swaps the sidebar for a top tab bar. A narrow Split View or Stage Manager window (compact width) gets the iPhone layout.</p>
 </header>
 
 <section style="display:flex;gap:40px;align-items:flex-start">
@@ -31,6 +31,9 @@
     NavigationLink(value: .feed) {
       Label("Feed", systemImage:
         "list.bullet") }.badge(feed.count)
+    NavigationLink(value: .spools) {
+      Label("Spools", systemImage:
+        "shippingbox") }.badge(active)
     NavigationLink(value: .settings) {
       Label("Settings", systemImage:
         "gearshape") }
@@ -51,7 +54,10 @@
 // TabView, top tab bar, banner,
 // same tiles
 // compact width (Split View, Stage
-// Manager): the iPhone TabView, cards</pre>
+// Manager): the iPhone TabView, cards
+// Spools: List + .searchable, detail
+// in .inspector (320 pt) beside the
+// sidebar, a .sheet in portrait</pre>
     <div style="background:#fff;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px">
       <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:15px;font-weight:600">Prototype controls</span><button onClick="{{ ctl.reset }}" style="border:0;background:none;color:#0066CC;font-size:13px;cursor:pointer;padding:0">Reset</button></div>
       <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#6E6E73">Hold a tag to the Flipper</span>
@@ -110,6 +116,7 @@
                   </div>
                   <div style="height:.5px;background:var(--fb-sep);margin:8px 8px"></div>
                   <button onClick="{{ p.toFeed }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:{{ p.feedBg }};color:{{ p.feedFg }};font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-list-bullets" title="list.bullet" style="font-size:22px"></i><span style="flex:1">Feed</span><span style="font-size:15px;opacity:.75">{{ p.count }}</span></button>
+                  <button onClick="{{ p.toSpools }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:{{ p.spBg }};color:{{ p.spFg }};font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-package" title="shippingbox" style="font-size:22px"></i><span style="flex:1">Spools</span><span style="font-size:15px;opacity:.75">{{ p.spCount }}</span></button>
                   <button onClick="{{ p.toSettings }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:{{ p.setBg }};color:{{ p.setFg }};font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-gear-six" title="gearshape" style="font-size:22px"></i><span style="flex:1">Settings</span><span style="font-size:13px;opacity:.6">⌘,</span></button>
                   <span style="flex:1"></span>
                   <button onClick="{{ p.onClear }}" style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border:0;border-radius:22px;background:transparent;color:var(--fb-red);font-size:17px;cursor:pointer;text-align:left"><i class="ph ph-trash" title="trash" style="font-size:22px"></i><span style="flex:1">Clear feed</span><span style="font-size:13px;opacity:.6">⌘⌫</span></button>
@@ -120,15 +127,17 @@
                 <div style="position:absolute;left:0;right:0;top:34px;z-index:4;display:flex;justify-content:center;pointer-events:none">
                   <div style="pointer-events:auto;display:flex;gap:2px;padding:4px;border-radius:24px;background:var(--fb-glass);backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 4px 14px rgba(0,0,0,.1)">
                     <button onClick="{{ p.toFeed }}" style="height:38px;padding:0 20px;border:0;border-radius:19px;background:{{ p.feedTabBg }};color:{{ p.feedTabFg }};font-size:15px;font-weight:600;cursor:pointer">Feed</button>
+                    <button onClick="{{ p.toSpools }}" style="height:38px;padding:0 20px;border:0;border-radius:19px;background:{{ p.spTabBg }};color:{{ p.spTabFg }};font-size:15px;font-weight:600;cursor:pointer">Spools</button>
                     <button onClick="{{ p.toSettings }}" style="height:38px;padding:0 20px;border:0;border-radius:19px;background:{{ p.setTabBg }};color:{{ p.setTabFg }};font-size:15px;font-weight:600;cursor:pointer">Settings</button>
                   </div>
                 </div>
               </sc-if>
 
-              <div style="position:absolute;top:0;right:0;bottom:0;left:{{ p.left }};overflow:auto">
+              <div style="position:absolute;top:0;right:{{ p.right }};bottom:0;left:{{ p.left }};overflow:auto">
                 <div style="max-width:{{ p.maxW }};margin:0 auto;padding:30px 28px 60px;display:flex;flex-direction:column;gap:14px">
                   <div style="height:44px;display:flex;justify-content:flex-end;align-items:center">
-                    <sc-if value="{{ p.port }}"><button onClick="{{ p.onClear }}" aria-label="Clear feed" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-trash" title="trash" style="font-size:20px"></i></button></sc-if>
+                    <sc-if value="{{ p.isSpools }}"><button onClick="{{ p.sp.onMenu }}" aria-label="Sort and filter" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:{{ p.sp.menuFg }};cursor:pointer"><i class="{{ p.sp.menuIcon }}" title="line.3.horizontal.decrease.circle" style="font-size:22px"></i></button></sc-if>
+                    <sc-if value="{{ p.showClear }}"><button onClick="{{ p.onClear }}" aria-label="Clear feed" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 10px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-trash" title="trash" style="font-size:20px"></i></button></sc-if>
                   </div>
                   <div style="font-size:34px;line-height:41px;font-weight:700;letter-spacing:.37px;margin-top:-6px">{{ p.title }}</div>
                   <sc-if value="{{ p.showBanner }}">
@@ -193,6 +202,49 @@
                     </sc-if>
                   </sc-if>
 
+
+                  <sc-if value="{{ p.isSpools }}">
+                    <sc-if value="{{ p.sp.searchable }}">
+                      <div style="display:flex;gap:12px;align-items:center">
+                        <div style="flex:1;height:40px;border-radius:20px;background:var(--fb-fill);display:flex;align-items:center;gap:8px;padding:0 14px"><i class="ph ph-magnifying-glass" title="magnifyingglass" style="font-size:17px;color:var(--fb-l2)"></i><input value="{{ p.sp.q }}" onChange="{{ p.sp.onQ }}" placeholder="Material, colour, brand or note" aria-label="Search spools" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:17px;color:var(--fb-l1)"></div>
+                        <div role="radiogroup" aria-label="Scope" style="width:300px;height:36px;border-radius:18px;background:var(--fb-fill);padding:2px;display:grid;grid-template-columns:1fr 1fr 1fr;box-sizing:border-box">
+                          <sc-for list="{{ p.sp.scopes }}" as="c" hint-placeholder-count="3"><button onClick="{{ c.on }}" role="radio" style="border:0;font-size:14px;font-weight:600;color:var(--fb-l1);border-radius:16px;background:{{ c.bg }};box-shadow:{{ c.sh }};cursor:pointer">{{ c.label }}</button></sc-for>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ p.sp.stale }}">
+                      <div style="display:flex;align-items:center;gap:8px;padding:0 4px 0 16px;min-height:36px;font-size:13px;color:var(--fb-l2)"><i class="ph-fill ph-warning" title="exclamationmark.triangle.fill" style="font-size:16px;color:var(--fb-orange)"></i><span style="flex:1">{{ p.sp.staleText }}</span><span style="height:28px;padding:0 12px;border-radius:14px;background:var(--fb-tint);color:var(--fb-blue);font-size:13px;font-weight:600;display:flex;align-items:center">Retry</span></div>
+                    </sc-if>
+                    <sc-if value="{{ p.sp.hasCUV }}">
+                      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:{{ p.sp.cuvPad }} 24px 0;text-align:center">
+                        <sc-if value="{{ p.sp.cuv.spin }}"><span style="width:28px;height:28px;border-radius:50%;border:3px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box"></span></sc-if>
+                        <sc-if value="{{ p.sp.cuv.hasIcon }}"><i class="{{ p.sp.cuv.icon }}" title="{{ p.sp.cuv.sym }}" style="font-size:60px;color:{{ p.sp.cuv.color }}"></i></sc-if>
+                        <div style="font-size:22px;font-weight:700;margin-top:4px">{{ p.sp.cuv.title }}</div>
+                        <sc-if value="{{ p.sp.cuv.hasDesc }}"><div style="font-size:15px;line-height:20px;color:var(--fb-l2);max-width:340px">{{ p.sp.cuv.desc }}</div></sc-if>
+                        <sc-if value="{{ p.sp.cuv.hasAct }}"><span style="margin-top:8px;height:44px;padding:0 22px;border-radius:22px;background:var(--fb-blue);color:#fff;font-size:17px;font-weight:600;display:flex;align-items:center">{{ p.sp.cuv.act }}</span></sc-if>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ p.sp.hasRows }}">
+                      <div style="border-radius:24px;background:var(--fb-card);overflow:hidden">
+                        <sc-for list="{{ p.sp.rows }}" as="s" hint-placeholder-count="7">
+                          <div onClick="{{ s.onOpen }}" role="button" aria-label="{{ s.aria }}" style="display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px 11px 16px;box-shadow:inset 0 -.5px 0 var(--fb-sep);background:{{ s.bg }};cursor:pointer">
+                            <span aria-hidden="true" style="width:28px;height:28px;border-radius:50%;background:{{ s.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                            <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+                              <span style="font-size:17px;line-height:22px;font-weight:600;letter-spacing:-.4px">{{ s.title }}</span>
+                              <sc-if value="{{ s.hasSub }}"><span style="font-size:15px;line-height:20px;color:var(--fb-l2)">{{ s.sub }}</span></sc-if>
+                              <span style="font-size:13px;line-height:18px;color:var(--fb-l2);font-variant-numeric:tabular-nums">{{ s.line }}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px">
+                              <sc-if value="{{ s.low }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:rgba(255,149,0,.16);color:var(--fb-orange)">Low</span></sc-if>
+                              <sc-if value="{{ s.archived }}"><span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:7px;background:var(--fb-fill);color:var(--fb-l2)">Archived</span></sc-if>
+                              <sc-if value="{{ s.tagged }}"><i class="ph ph-tag" title="tag" style="font-size:17px;color:var(--fb-l2)"></i></sc-if>
+                            </div>
+                          </div>
+                        </sc-for>
+                      </div>
+                      <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 16px">{{ p.sp.footer }}</span>
+                    </sc-if>
+                  </sc-if>
                   <sc-if value="{{ p.isSettings }}">
                     <div style="display:flex;flex-direction:column;gap:8px;font-size:17px;letter-spacing:-.4px;max-width:640px">
                       <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:0 16px">Bambuddy</span>
@@ -232,6 +284,34 @@
                   </sc-if>
                 </div>
               </div>
+
+              <sc-if value="{{ p.inspector }}">
+                <div style="position:absolute;top:0;right:0;bottom:0;width:320px;z-index:3;background:var(--fb-card);box-shadow:-.5px 0 0 var(--fb-sep);overflow:auto;padding:34px 16px 30px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px">
+                  <div style="height:44px;display:flex;justify-content:flex-end;align-items:center"><button onClick="{{ p.closeSpool }}" aria-label="Close" style="width:40px;height:40px;border-radius:20px;border:0;background:var(--fb-fill);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-x" title="xmark" style="font-size:18px"></i></button></div>
+
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 0 10px;text-align:center">
+                      <span aria-hidden="true" style="width:64px;height:64px;border-radius:50%;background:{{ p.sd.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                      <span style="font-size:22px;line-height:28px;font-weight:700;margin-top:6px">{{ p.sd.title }}</span>
+                      <span style="font-size:15px;color:var(--fb-l2)">{{ p.sd.sub }}</span>
+                    </div>
+                    <div role="meter" aria-label="{{ p.sd.gauge }}" style="border-radius:20px;background:var(--fb-bg);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+                      <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ p.sd.gauge }}</span><sc-if value="{{ p.sd.low }}"><span style="font-size:13px;font-weight:600;color:var(--fb-orange)">Low</span></sc-if><span style="font-size:13px;color:var(--fb-l2)">{{ p.sd.pct }}</span></div>
+                      <div style="height:8px;border-radius:4px;background:var(--fb-fill2);overflow:hidden"><div style="height:100%;width:{{ p.sd.pctW }};border-radius:4px;background:{{ p.sd.gaugeColor }}"></div></div>
+                    </div>
+                    <sc-if value="{{ p.sd.hasToday }}">
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:10px 14px 0">Today</span>
+                      <div style="border-radius:20px;background:var(--fb-bg);min-height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:15px"><i class="{{ p.sd.todayIcon }}" style="font-size:16px;color:{{ p.sd.todayColor }}"></i><span>{{ p.sd.today }}</span></div>
+                    </sc-if>
+                    <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:10px 14px 0">Details</span>
+                    <div style="border-radius:20px;background:var(--fb-bg);overflow:hidden">
+                      <sc-for list="{{ p.sd.facts }}" as="f" hint-placeholder-count="9">
+                        <div style="min-height:40px;display:flex;align-items:center;gap:10px;padding:7px 14px;box-shadow:inset 0 -.5px 0 var(--fb-sep);box-sizing:border-box;font-size:15px"><span style="flex:none">{{ f.k }}</span><span style="flex:1;min-width:0;text-align:right;color:var(--fb-l2);font-family:{{ f.font }}">{{ f.v }}</span></div>
+                      </sc-for>
+                    </div>
+                    <div style="border-radius:20px;background:var(--fb-bg);margin-top:12px;min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;color:var(--fb-blue);font-size:15px;cursor:pointer"><i class="ph ph-arrow-square-out" title="arrow.up.right.square" style="font-size:18px"></i><span>Open in Bambuddy</span></div>
+                    <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 14px">Read-only. Edit spools in Bambuddy.</span>
+                </div>
+              </sc-if>
 
               <sc-if value="{{ p.dimmed }}"><div onClick="{{ p.closeAll }}" style="position:absolute;inset:0;z-index:5;background:var(--fb-dim)"></div></sc-if>
 
@@ -282,6 +362,51 @@
                 </div>
               </sc-if>
 
+              <sc-if value="{{ p.spoolSheet }}">
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:540px;height:760px;z-index:6;border-radius:38px;background:var(--fb-bg);color:var(--fb-l1);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+                  <div style="height:68px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+                    <button onClick="{{ p.closeAll }}" aria-label="Done" style="width:44px;height:44px;border-radius:22px;border:0;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb);display:flex;align-items:center;justify-content:center;color:var(--fb-l1);cursor:pointer"><i class="ph ph-x" title="xmark" style="font-size:20px"></i></button>
+                    <span style="font-size:17px;font-weight:600">{{ p.sd.title }}</span>
+                    <span style="width:44px"></span>
+                  </div>
+                  <div style="flex:1;overflow:auto;padding:4px 20px 30px;display:flex;flex-direction:column;gap:8px">
+
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 0 10px;text-align:center">
+                      <span aria-hidden="true" style="width:64px;height:64px;border-radius:50%;background:{{ p.sd.swatch }};box-shadow:inset 0 0 0 .5px var(--fb-sep)"></span>
+                      <span style="font-size:22px;line-height:28px;font-weight:700;margin-top:6px">{{ p.sd.title }}</span>
+                      <span style="font-size:15px;color:var(--fb-l2)">{{ p.sd.sub }}</span>
+                    </div>
+                    <div role="meter" aria-label="{{ p.sd.gauge }}" style="border-radius:20px;background:var(--fb-card);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+                      <div style="display:flex;align-items:baseline;gap:8px"><span style="flex:1;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ p.sd.gauge }}</span><sc-if value="{{ p.sd.low }}"><span style="font-size:13px;font-weight:600;color:var(--fb-orange)">Low</span></sc-if><span style="font-size:13px;color:var(--fb-l2)">{{ p.sd.pct }}</span></div>
+                      <div style="height:8px;border-radius:4px;background:var(--fb-fill2);overflow:hidden"><div style="height:100%;width:{{ p.sd.pctW }};border-radius:4px;background:{{ p.sd.gaugeColor }}"></div></div>
+                    </div>
+                    <sc-if value="{{ p.sd.hasToday }}">
+                      <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:10px 14px 0">Today</span>
+                      <div style="border-radius:20px;background:var(--fb-card);min-height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:15px"><i class="{{ p.sd.todayIcon }}" style="font-size:16px;color:{{ p.sd.todayColor }}"></i><span>{{ p.sd.today }}</span></div>
+                    </sc-if>
+                    <span style="font-size:13px;color:var(--fb-l2);text-transform:uppercase;padding:10px 14px 0">Details</span>
+                    <div style="border-radius:20px;background:var(--fb-card);overflow:hidden">
+                      <sc-for list="{{ p.sd.facts }}" as="f" hint-placeholder-count="9">
+                        <div style="min-height:40px;display:flex;align-items:center;gap:10px;padding:7px 14px;box-shadow:inset 0 -.5px 0 var(--fb-sep);box-sizing:border-box;font-size:15px"><span style="flex:none">{{ f.k }}</span><span style="flex:1;min-width:0;text-align:right;color:var(--fb-l2);font-family:{{ f.font }}">{{ f.v }}</span></div>
+                      </sc-for>
+                    </div>
+                    <div style="border-radius:20px;background:var(--fb-card);margin-top:12px;min-height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;color:var(--fb-blue);font-size:15px;cursor:pointer"><i class="ph ph-arrow-square-out" title="arrow.up.right.square" style="font-size:18px"></i><span>Open in Bambuddy</span></div>
+                    <span style="font-size:13px;line-height:18px;color:var(--fb-l2);padding:0 14px">Read-only. Edit spools in Bambuddy.</span>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ p.sp.menu }}">
+                <div onClick="{{ p.sp.onMenu }}" style="position:absolute;inset:0;z-index:6"></div>
+                <div style="position:absolute;top:84px;right:{{ p.menuRight }};width:250px;z-index:7;border-radius:24px;background:var(--fb-card);color:var(--fb-l1);box-shadow:0 10px 40px rgba(0,0,0,.22),inset 0 0 0 .5px var(--fb-glassb);overflow:hidden;font-size:17px">
+                  <div style="padding:10px 16px 4px;font-size:13px;color:var(--fb-l2)">Sort by</div>
+                  <sc-for list="{{ p.sp.sorts }}" as="o" hint-placeholder-count="4"><div onClick="{{ o.on }}" style="height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:pointer"><span style="width:18px"><sc-if value="{{ o.sel }}"><i class="ph ph-check" title="checkmark" style="font-size:16px"></i></sc-if></span><span>{{ o.label }}</span></div></sc-for>
+                  <div style="height:8px;background:var(--fb-fill)"></div>
+                  <div style="padding:10px 16px 4px;font-size:13px;color:var(--fb-l2)">Material</div>
+                  <sc-for list="{{ p.sp.mats }}" as="o" hint-placeholder-count="6"><div onClick="{{ o.on }}" style="height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:pointer"><span style="width:18px"><sc-if value="{{ o.sel }}"><i class="ph ph-check" title="checkmark" style="font-size:16px"></i></sc-if></span><span>{{ o.label }}</span></div></sc-for>
+                </div>
+              </sc-if>
+
               <sc-if value="{{ p.confirmClear }}">
                 <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;z-index:6;border-radius:30px;background:var(--fb-card);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:20px;display:flex;flex-direction:column;gap:8px;text-align:center">
                   <span style="font-size:17px;font-weight:600">Clear the feed?</span>
@@ -301,9 +426,10 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 const SET0 = {url: 'http://bambuddy.local:8000', key: 'bbd_live_9f2c4e1a7b33', core: '242', mode: 'gross', test: 'ok'};
+const UI0 = () => ({al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}, sl: {pane: 'spools', spoolId: 21}, sp: {pane: 'spools', sheet: 'spool', spoolId: 12, scope: 'all'}});
 
 class Component extends DCLogic {
-  state = {ready: false, ui: {al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}}, focus: null, set: {...SET0}};
+  state = {ready: false, ui: UI0(), focus: null, set: {...SET0}};
   componentDidMount() {
     import(new URL('flibuddy-core.js', document.baseURI).href).then(C => {
       this.C = C;
@@ -351,6 +477,30 @@ class Component extends DCLogic {
     };
   }
 
+  // The Spools pane, as on the iPhone page; landscape opens the detail in the inspector, portrait in a sheet.
+  spoolsVM(d, u) {
+    const C = this.C, S = this.S, cfg = S.cfg;
+    const o = {scope: u.scope || 'active', q: u.q || '', material: u.material || '', sort: u.sort || 'updated'};
+    const v = C.spoolsVM(S.inv, o);
+    const state = ({spoolman: 'spoolman', noperm: 'noperm'})[cfg.bambuddy] || null;
+    const cuv = state ? C.spoolState(state) : v.hasEmpty ? {...v.empty, icon: v.empty.sym === 'magnifyingglass' ? 'ph ph-magnifying-glass' : v.empty.sym === 'shippingbox' ? 'ph ph-package' : 'ph ph-funnel', color: 'var(--fb-l2)', spin: false, hasIcon: true, hasDesc: true, hasAct: false} : null;
+    const seg = on => ({bg: on ? 'var(--fb-thumb)' : 'transparent', sh: on ? '0 1px 3px rgba(0,0,0,.14)' : 'none'});
+    const set = p => () => this.ui(d.id, p);
+    return {
+      ...v, q: o.q, onQ: e => this.ui(d.id, {q: e.target.value}), searchable: !state,
+      scopes: C.SPOOL_SCOPES.map(([k, label]) => ({label, ...seg(o.scope === k), on: set({scope: k})})),
+      sorts: C.SPOOL_SORTS.map(([k, label]) => ({label, sel: o.sort === k, on: set({sort: k, menu: false})})),
+      mats: [['', 'All materials'], ...v.materials.map(m => [m, m])].map(([k, label]) => ({label, sel: o.material === k, on: set({material: k, menu: false})})),
+      menu: !!u.menu && !state, onMenu: () => this.ui(d.id, {menu: !u.menu}),
+      menuIcon: o.material ? 'ph-fill ph-funnel' : 'ph ph-funnel', menuFg: o.material ? 'var(--fb-blue)' : 'var(--fb-l1)',
+      stale: !state && cfg.bambuddy === 'unreachable', staleText: 'Couldn’t refresh · showing 10:42',
+      cuv: cuv || {}, hasCUV: !!cuv, cuvPad: state ? '160px' : '80px', hasRows: !cuv,
+      rows: v.rows.map(r => ({...r, bg: d.land && r.id === u.spoolId ? 'var(--fb-sel)' : 'transparent',
+        onOpen: () => this.ui(d.id, d.land ? {spoolId: r.id, menu: false} : {sheet: 'spool', spoolId: r.id, menu: false})})),
+      footer: v.active + ' active spools.',
+    };
+  }
+
   renderVals() {
     if (!this.state.ready) return {devices: [], ctl: {}};
     const C = this.C, S = this.S, set = this.state.set, f = this.state.focus;
@@ -362,10 +512,17 @@ class Component extends DCLogic {
       {id: 'ad', label: 'Landscape · dark', note: 'Same session.', vars: C.DARK, land: true},
       {id: 'ql', label: 'Portrait · light', note: 'Same tiles, three columns on a 13" iPad (two on 11"); a top tab bar replaces the sidebar.', vars: C.LIGHT, land: false},
       {id: 'qd', label: 'Portrait · dark', note: 'Same session.', vars: C.DARK, land: false},
+      {id: 'sl', label: 'Spools · landscape · light', note: 'The read-only inventory beside the sidebar; the picked spool opens in the inspector (320 pt). The sidebar counts active spools.', vars: C.LIGHT, land: true},
+      {id: 'sp', label: 'Spools · portrait · dark', note: 'Portrait opens the detail in a sheet. Scope All shows archived spools with the word Archived.', vars: C.DARK, land: false},
     ];
     const devices = defs.map(d => {
       const u = this.state.ui[d.id] || {pane: 'feed'};
-      const isFeed = u.pane !== 'settings';
+      const isFeed = !u.pane || u.pane === 'feed', isSpools = u.pane === 'spools', isSettings = u.pane === 'settings';
+      const sp = isSpools ? this.spoolsVM(d, u) : {};
+      const spool = isSpools && u.spoolId != null && (d.land || u.sheet === 'spool') && S.inv.find(x => x.id === u.spoolId);
+      const sd = spool ? C.spoolDetailVM(spool, S.rows) : {};
+      if (spool) sd.facts = sd.facts.map(f => ({...f, font: f.mono ? "ui-monospace,'SF Mono',Menlo,monospace" : 'inherit'}));
+      const inspector = !!spool && d.land;
       const showCUV = st.blocking || S.rows.length === 0;
       const n = seg(set.mode === 'net'), g = seg(set.mode === 'gross');
       const rows = S.rows.map(r => {
@@ -392,9 +549,10 @@ class Component extends DCLogic {
       });
       return {
         ...d, port: !d.land, w: d.land ? '1366px' : '1024px', h: d.land ? '1024px' : '1366px',
-        left: d.land ? '320px' : '0px', maxW: 'none',
-        st, title: isFeed ? 'Feed' : 'Settings', showBanner: !d.land && isFeed,
-        isFeed, isSettings: !isFeed, showCUV: isFeed && showCUV, cardRows: !showCUV, rows,
+        left: d.land ? '320px' : '0px', right: inspector ? '320px' : '0px', maxW: 'none', menuRight: (inspector ? 348 : 28) + 'px',
+        st, title: isFeed ? 'Feed' : isSpools ? 'Spools' : 'Settings', showBanner: !d.land && isFeed, showClear: !d.land && !isSpools,
+        isFeed, isSpools, isSettings, showCUV: isFeed && showCUV, cardRows: !showCUV, rows, sp, sd, inspector, spoolSheet: !!spool && !d.land,
+        closeSpool: () => this.ui(d.id, {spoolId: null}), spCount: String(C.spoolsVM(S.inv).active),
         cuv: st.blocking ? {icon: 'ph ph-prohibit', sym: 'nosign', color: 'var(--fb-red)', title: 'Bambuddy is in Spoolman mode', desc: 'FliBuddy works with Bambuddy’s own inventory. Switch it back from Spoolman in Bambuddy’s settings, then retry.', act: 'Retry', hasAct: true}
           : {icon: 'ph ph-broadcast', sym: 'wave.3.right', color: 'var(--fb-l2)', title: 'No scans yet', desc: 'Hold a spool’s tag to the Flipper running FliBuddy.', hasAct: false},
         flipSub: S.cfg.flipper === 'ble' ? 'Workshop · Bluetooth' : st.flip.text.replace('Flipper · ', ''),
@@ -402,12 +560,14 @@ class Component extends DCLogic {
         bambuSubColor: st.bambu.tint === 'red' ? 'var(--fb-red)' : 'var(--fb-l2)',
         count: String(S.rows.length),
         feedBg: isFeed ? 'var(--fb-blue)' : 'transparent', feedFg: isFeed ? '#fff' : 'var(--fb-l1)',
-        setBg: !isFeed ? 'var(--fb-blue)' : 'transparent', setFg: !isFeed ? '#fff' : 'var(--fb-l1)',
+        spBg: isSpools ? 'var(--fb-blue)' : 'transparent', spFg: isSpools ? '#fff' : 'var(--fb-l1)',
+        setBg: isSettings ? 'var(--fb-blue)' : 'transparent', setFg: isSettings ? '#fff' : 'var(--fb-l1)',
         feedTabBg: isFeed ? 'var(--fb-fill2)' : 'transparent', feedTabFg: isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
-        setTabBg: !isFeed ? 'var(--fb-fill2)' : 'transparent', setTabFg: !isFeed ? 'var(--fb-blue)' : 'var(--fb-l1)',
-        toFeed: () => this.ui(d.id, {pane: 'feed'}), toSettings: () => this.ui(d.id, {pane: 'settings'}),
+        spTabBg: isSpools ? 'var(--fb-fill2)' : 'transparent', spTabFg: isSpools ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        setTabBg: isSettings ? 'var(--fb-fill2)' : 'transparent', setTabFg: isSettings ? 'var(--fb-blue)' : 'var(--fb-l1)',
+        toFeed: () => this.ui(d.id, {pane: 'feed'}), toSpools: () => this.ui(d.id, {pane: 'spools'}), toSettings: () => this.ui(d.id, {pane: 'settings'}),
         onClear: () => this.ui(d.id, {sheet: 'clear'}), doClear: () => { S.clear(); this.ui(d.id, null); }, closeAll: () => this.ui(d.id, null),
-        dimmed: !!u.sheet, isNew: u.sheet === 'new', isLink: u.sheet === 'link', confirmClear: u.sheet === 'clear', sh: this.sheetVM(d.id),
+        dimmed: !!u.sheet && (u.sheet !== 'spool' || !d.land), isNew: u.sheet === 'new', isLink: u.sheet === 'link', confirmClear: u.sheet === 'clear', sh: this.sheetVM(d.id),
         set, onUrl: e => this.setSet({url: e.target.value, test: 'idle'}), onKeyField: e => this.setSet({key: e.target.value, test: 'idle'}),
         onCore: e => this.setSet({core: e.target.value.replace(/\D/g, '').slice(0, 4)}),
         testing: set.test === 'testing', testText: TT[0], testIcon: TT[1], testHasIcon: !!TT[1], testColor: TT[2],
@@ -420,7 +580,7 @@ class Component extends DCLogic {
     return {
       devices,
       ctl: {
-        reset: () => { S.reset(); this.setState({ui: {al: {pane: 'feed'}, ad: {pane: 'feed'}, ql: {pane: 'feed'}, qd: {pane: 'feed'}}}); this.focusRow('r3'); },
+        reset: () => { S.reset(); this.setState({ui: UI0()}); this.focusRow('r3'); },
         scanKnown: () => S.scan('known'), scanUnknown: () => S.scan('unknown'), scanBlank: () => S.scan('blank'),
         flipperSave: () => S.flipperSave(), askCreate: () => S.flipperAsk('create'), askLink: () => S.flipperAsk('link'),
         toggleFail: () => S.setCfg({failNext: !cfg.failNext}), toggleTimeout: () => S.setCfg({timeoutNext: !cfg.timeoutNext}),

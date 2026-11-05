@@ -39,7 +39,7 @@ detail is the feed as tiles in both.
 - **Landscape (regular width, the window wider than tall):** sidebar +
   tiles, below.
 - **Portrait (regular width, the window taller than wide):** the `TabView`
-  (Feed / Settings) as iPadOS's top tab bar, the iPhone connection banner
+  (Feed / Spools / Settings) as iPadOS's top tab bar, the iPhone connection banner
   under the title, Clear as the `trash` icon button in the navigation bar,
   the same tiles. The tab bar stays while the keyboard is up.
 - **Compact width** (a narrow Split View or Stage Manager window): the
@@ -58,6 +58,8 @@ NavigationSplitView {
       BambuddyStatusRow() }
     NavigationLink(value: .feed) {
       Label("Feed", systemImage: "list.bullet") }.badge(feed.count)
+    NavigationLink(value: .spools) {
+      Label("Spools", systemImage: "shippingbox") }.badge(activeSpools)
     NavigationLink(value: .settings) {
       Label("Settings", systemImage: "gearshape") }   // shows "⌘," trailing
   }
@@ -72,6 +74,8 @@ NavigationSplitView {
 }
 // portrait: TabView (top tab bar), banner, same tiles
 // compact width: the iPhone TabView and cards
+// Spools pane: SpoolList().inspector(isPresented:) { SpoolDetail() }
+//   .inspectorColumnWidth(320); portrait and compact: .sheet instead
 ```
 
 Sidebar (system sidebar, ≈ 300 wide, glass on iPadOS 26):
@@ -84,6 +88,7 @@ Sidebar (system sidebar, ≈ 300 wide, glass on iPadOS 26):
 | Flipper sub line | `Workshop · Bluetooth` when connected (the Flipper's name), else the status bar phrase without the `Flipper · ` prefix: `No Flipper · searching` (with a 10 pt spinner), `Flipper nearby, not connected`, `Open FliBuddy on the Flipper` |
 | Bambuddy sub line | the core's `BAMBU` phrase without the `Bambuddy` prefix, capitalised: `Ready · bambuddy.local` (the URL's host), `Not checked`, `Not set up`, `Unreachable`, `Rejected the API key`, `API key lacks inventory permission`, `In Spoolman mode`, `Ready · colour names unavailable` (the prototype strips the prefix with string replaces, which leaves `· not checked` for one state; the capitalised forms are the intent) |
 | Feed | `list.bullet` · `Feed` · the row count as a badge |
+| Spools | `shippingbox` · `Spools` · the number of active spools as a badge (none until the first load) |
 | Settings | `gearshape` · `Settings` · `⌘,` in `.footnote` `.tertiary` |
 | Clear feed | bottom of the sidebar, `trash` · `Clear feed` in red · `⌘⌫`; disabled while the feed is empty |
 
@@ -112,6 +117,24 @@ corner 22, padding 14, 10 between the header and the entry block.
 The focused row is marked by its field's focus ring; a row waiting behind a
 touched field gets the 2 pt `.tint` outline on the tile. A tap on a saved
 or added tile reopens it.
+
+## Spools
+
+As on the iPhone (`ios-ui-spec.md`, "Spools"): the same data, search,
+scopes, menu, rows, states and detail. Design: the `Spools · landscape` and
+`Spools · portrait` frames of `FliBuddy iPad.dc.html`.
+
+- **Landscape (sidebar):** the list fills the detail column; the search
+  field and the scope control share one row above it. A tapped row stays
+  highlighted and its detail opens in an `.inspector` on the trailing edge,
+  320 pt wide (`inspectorColumnWidth(320)`), with a close button; picking
+  another row swaps the inspector's spool.
+- **Portrait (top tabs) and compact width:** the detail opens in a sheet,
+  as on the iPhone.
+- The sidebar's Spools badge counts the active spools of the last list; the
+  iPad loads the list when the sidebar first shows so the count is there.
+- The connection banner stays on the feed; on Spools a Bambuddy problem
+  shows as the Spools state instead.
 
 ## Keyboard and touch
 
