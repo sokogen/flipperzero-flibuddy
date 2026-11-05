@@ -419,10 +419,11 @@ static AppEffect key_result(AppState* s, AppKey key, uint32_t now_ms) {
     switch(s->result_kind) {
     case AppResultKnown:
         if(key == AppKeyOk && s->connected) open_weight(s);
+        if(key == AppKeyRight) mark(s, IntentActionFull, now_ms); /* New */
         break;
     case AppResultUnknownPrefill:
         if(key == AppKeyOk) return act(s, IntentActionNew, now_ms);
-        if(key == AppKeyRight && s->connected) open_weight(s); /* save with a weight */
+        if(key == AppKeyRight) return act(s, IntentActionLinkOnHost, now_ms);
         break;
     case AppResultUnknownBare:
         if(key == AppKeyOk) return act(s, IntentActionCreateOnHost, now_ms);

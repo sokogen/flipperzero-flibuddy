@@ -4,9 +4,10 @@ import Foundation
 /// tag identity, colour value and core weight come along unchanged.
 public struct NewSpoolForm: Equatable, Sendable {
     public static let title = "New spool"
-    public static let footer = "Material is required. The row asks for a weight once Bambuddy has created the spool."
+    /// The Mac form's footer.
+    public static let footer = "Material is required. The spool is added at its label weight."
     /// The iPhone form's footer.
-    public static let phoneFooter = "FliBuddy creates the spool in Bambuddy, then asks for its weight."
+    public static let phoneFooter = "FliBuddy adds the spool to Bambuddy at its label weight."
     /// The Material menu; "Choose…" is the empty material.
     public static let materials = ["PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC", "PVA"]
 

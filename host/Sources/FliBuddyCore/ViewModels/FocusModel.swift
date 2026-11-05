@@ -13,9 +13,8 @@ extension FeedViewModel {
 
         public struct Row: Equatable, Sendable {
             public var id: FeedRow.ID
-            /// Enter weight, or a revealed New spool or Created entry: the row
-            /// waits for a weight. A New spool or Created row whose entry is
-            /// hidden never takes focus.
+            /// Enter weight: the row waits for a weight. A tag no spool
+            /// carries and an Added row never take focus.
             public var isWaiting: Bool
             /// The user typed in the row's field.
             public var isTouched: Bool
@@ -56,7 +55,7 @@ extension FeedViewModel {
             rows.first { $0.isWaiting && $0.id != excluded }?.id
         }
 
-        /// `id` started waiting (a scan, a rescan, a reopen, Created): it takes
+        /// `id` started waiting (a scan, a rescan, a reopen): it takes
         /// focus unless the focused row is touched; then it is hinted.
         public mutating func onRowBecameWaiting(_ id: FeedRow.ID) {
             if let focusedRow, focusedRow != id, row(focusedRow)?.isTouched == true {

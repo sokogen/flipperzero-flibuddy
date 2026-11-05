@@ -185,29 +185,23 @@ struct FeedViewModelTests {
         #expect(model.error(for: id) == nil)
     }
 
-    @Test func savingAnUnknownBambuRowCreatesTheSpoolAndWeighsIt() async throws {
+    /// The design has no weight entry on a tag not in Bambuddy: New adds
+    /// it first, then the added row reopens for a weight.
+    @Test func aTagNotInBambuddyCannotBeSavedFromTheHost() async throws {
         let inventory = FakeInventory()
         let (model, session) = makeModel(inventory)
         let id = await session.record(try scan("s-1"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
-        #expect(model.items.first?.statusText == "New spool")
-        #expect(inventory.creates.isEmpty)
+        #expect(model.items.first?.statusText == "Not in Bambuddy")
         #expect(!model.canSave(id))
 
-        model.revealEntry(id)
-        #expect(model.canSave(id))
         model.setWeightText("1150", for: id)
-        await model.save(id)
+        #expect(!(await model.save(id)))
 
-        #expect(inventory.creates.count == 1)
-        #expect(inventory.updates.count == 1)
-        let item = try #require(model.items.first)
-        #expect(item.statusText.hasPrefix("Saved "))
-        #expect(item.statusText.hasSuffix(" · by host"))
-        #expect(item.spoolId != nil)
-        #expect(!item.offersLinkExisting)
-        #expect(model.error(for: id) == nil)
+        #expect(inventory.creates.isEmpty)
+        #expect(inventory.updates.isEmpty)
+        #expect(model.items.first?.statusText == "Not in Bambuddy")
     }
 
     @Test func aFailedSaveKeepsTheDraftAndShowsTheError() async throws {
@@ -248,12 +242,12 @@ struct FeedViewModelTests {
         let cases: [(FeedRow, String)] = [
             (try row(status: .scanned), "Looking up"),
             (try row(status: .awaitingWeight, spool: knownSpool()), "Enter weight"),
-            (try row(status: .unknown(prefill: true)), "New spool"),
+            (try row(status: .unknown(prefill: true)), "Not in Bambuddy"),
             (try row(status: .unknown(prefill: false)), "Not in Bambuddy; tag has no material"),
             (try row(status: .saved, spool: knownSpool()), "Saved 484 g left"),
             (try row(status: .saved), "Saved"),
             (saved, "Saved 484 g left · by Flipper"),
-            (try row(status: .created, spool: knownSpool()), "Created in Bambuddy"),
+            (try row(status: .created, spool: knownSpool()), "Added to Bambuddy"),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable"),
         ]
         for (row, text) in cases {
@@ -365,20 +359,18 @@ struct FeedViewModelTests {
         // the hex is never a colour name; the swatch shows the colour
         #expect(item.colorName == nil)
         #expect(item.remainingText == "label \(tag.labelWeight ?? 0) g")
-        // autosave off: a New spool, its weight optional
-        #expect(item.statusText == "New spool")
+        // autosave off: not in Bambuddy, New and Link, no weight
+        #expect(item.statusText == "Not in Bambuddy")
         #expect(!item.isEntry)
         #expect(!item.isWaiting)
-        #expect(!item.savesNewSpool)
         #expect(item.offersUnknownActions)
-        #expect(item.rowActions.contains(.saveAsNew))
-        #expect(!item.offersLinkExisting)
+        #expect(item.rowActions == [.new, .link])
     }
 
-    @Test func anUnknownBambuRowKeepsItsEntryWhileSavingAndAfterAnError() throws {
+    @Test func anUnknownBambuRowHasNoEntryWhileSavingAndAfterAnError() throws {
         for status: FeedRow.Status in [.saving, .error("Bambuddy unreachable")] {
-            let item = FeedItem(try row(status: status), coreWeight: 250, entryRevealed: true)
-            #expect(item.isEntry)
+            let item = FeedItem(try row(status: status), coreWeight: 250)
+            #expect(!item.isEntry)
             #expect(!item.isWaiting)
             #expect(item.offersUnknownActions)
         }
@@ -388,7 +380,7 @@ struct FeedViewModelTests {
         // a tag without material has nothing to create from
         let blank = FeedItem(try row("scan_ntag", status: .unknown(prefill: false)))
         #expect(!blank.isEntry)
-        #expect(!blank.savesNewSpool)
+        #expect(blank.rowActions == [.newForm, .link])
     }
 
     @Test func theReadoutOfAnUnknownBambuRowUsesTheSettingsCore() throws {
@@ -769,9 +761,10 @@ struct FeedViewModelUnknownTests {
         guard case .create(let sent) = try #require(inventory.creates.first) else { return }
         #expect(sent.colorName == "Jade White")
         let item = try #require(model.items.first)
-        #expect(item.statusText == "Created in Bambuddy")
+        #expect(item.statusText == "Added to Bambuddy")
         #expect(!item.isEntry)
-        #expect(item.rowActions == [.setWeight, .link])
+        #expect(item.isReopenable)
+        #expect(item.rowActions.isEmpty)
     }
 
     @Test func noRowNoForm() {
@@ -792,33 +785,27 @@ struct FeedViewModelUnknownTests {
         SessionSnapshot(rows: rows, bambuddy: .unchecked)
     }
 
-    @Test func onlyEnterWeightAndRevealedEntriesWait() throws {
+    @Test func onlyEnterWeightWaits() throws {
         #expect(FeedItem(try spoolRow("s", .awaitingWeight)).isWaiting)
-        #expect(!FeedItem(try spoolRow("s", .created)).isWaiting)
-        #expect(FeedItem(try spoolRow("s", .created), entryRevealed: true).isWaiting)
-        for status: FeedRow.Status in [.scanned, .saving, .saved, .savedAfterTimeout, .error("x"), .unknown(prefill: true)] {
+        for status: FeedRow.Status in [
+            .scanned, .saving, .saved, .savedAfterTimeout, .created, .error("x"), .unknown(prefill: true),
+        ] {
             #expect(!FeedItem(try spoolRow("s", status)).isWaiting)
         }
         #expect(!FeedItem(try row(status: .awaitingWeight)).isWaiting)
-        // a Bambu tag no spool carries waits once Save with weight… reveals the entry
+        // a tag no spool carries never waits: New and Link need no weight
         #expect(!FeedItem(try row(status: .unknown(prefill: true))).isWaiting)
-        #expect(FeedItem(try row(status: .unknown(prefill: true)), entryRevealed: true).isWaiting)
         #expect(!FeedItem(try row("scan_ntag", status: .unknown(prefill: false))).isWaiting)
     }
 
-    @Test func anUnknownBambuRowTakesFocusOnlyOnceItsEntryIsRevealed() async throws {
+    @Test func anUnknownBambuRowNeverTakesFocus() async throws {
         let (model, session) = makeModel(FakeInventory())
         let id = await session.record(try scan("s-1"))
         _ = await session.lookup(row: id)
         model.apply(await session.snapshot)
+
         #expect(model.focusedRow == nil)
-
-        model.revealEntry(id)
-
-        #expect(model.focusedRow == id)
-        #expect(model.focusedField == id)
-        // label 1000 + the settings' core 250, in the settings' gross
-        #expect(model.weightText(for: id) == "1250")
+        #expect(model.focusedField == nil)
     }
 
     @Test func theNewestWaitingRowTakesFocus() throws {

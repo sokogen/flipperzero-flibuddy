@@ -66,7 +66,7 @@ struct FeedItemRulesTests {
             (try row(status: .saving), "Saving\u{2026}", .progress, .secondary),
             (saved, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
             (timedOut, "Saved 484 g left · by host", .symbol("checkmark.circle.fill"), .green),
-            (try row(status: .created), "Created in Bambuddy", .symbol("plus.circle.fill"), .green),
+            (try row(status: .created), "Added to Bambuddy", .symbol("plus.circle.fill"), .green),
             (try row(status: .updating), "Updating\u{2026}", .progress, .secondary),
             (try row(status: .markedNew), "Marked as new · 484 g left", .symbol("arrow.counterclockwise.circle.fill"), .green),
             (try row(status: .markedEmpty), "Marked as empty · archived", .symbol("archivebox"), .secondary),
@@ -75,7 +75,8 @@ struct FeedItemRulesTests {
              .symbol("exclamationmark.triangle.fill"), .red),
             (try row(status: .unknown(prefill: false), spool: nil), "Not in Bambuddy; tag has no material",
              .symbol("questionmark.circle"), .secondary),
-            (try row(status: .unknown(prefill: true), spool: nil), "New spool", .symbol("plus.circle"), .secondary),
+            (try row(status: .unknown(prefill: true), spool: nil), "Not in Bambuddy", .symbol("questionmark.circle"),
+             .secondary),
             (try row(status: .unknown(prefill: false), spool: nil, request: .create), "Flipper asks to create it here",
              .symbol("dot.radiowaves.left.and.right"), .blue),
             (try row(status: .unknown(prefill: true), spool: nil, request: .link), "Flipper asks to link it here",
@@ -96,8 +97,11 @@ struct FeedItemRulesTests {
             #expect(FeedItem(try row(status: status)).isEntry, "\(status)")
             #expect(!FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
-        for status in [FeedRow.Status.saved, .savedAfterTimeout, .markedNew, .markedEmpty] {
+        // Added to Bambuddy reopens like a saved row: the design's New adds
+        // the spool at its label weight and asks for no weight
+        for status in [FeedRow.Status.saved, .savedAfterTimeout, .created, .markedNew, .markedEmpty] {
             #expect(!FeedItem(try row(status: status)).isEntry, "\(status)")
+            #expect(!FeedItem(try row(status: status)).isWaiting, "\(status)")
             #expect(FeedItem(try row(status: status)).isReopenable, "\(status)")
         }
         for status in [FeedRow.Status.scanned, .deleted] {
@@ -109,30 +113,17 @@ struct FeedItemRulesTests {
             #expect(!FeedItem(try row(status: status, spool: nil, "scan_ntag")).isEntry, "\(status)")
             #expect(FeedItem(try row(status: status, spool: nil, "scan_ntag")).offersUnknownActions, "\(status)")
         }
-        // a Bambu tag no spool carries (Auto-save new off) and a spool
-        // created on scan: no weight until Save with weight… / Set weight…
+        // a Bambu tag no spool carries (Auto-save new off): New and Link,
+        // never a weight field; a Flipper weigh on it saves without one
         for status in [FeedRow.Status.unknown(prefill: true), .saving, .error("boom")] {
             let item = FeedItem(try row(status: status, spool: nil))
             #expect(!item.isEntry, "\(status)")
-            #expect(!item.savesNewSpool, "\(status)")
+            #expect(!item.isWaiting, "\(status)")
             #expect(item.offersUnknownActions, "\(status)")
             #expect(!item.isReopenable, "\(status)")
-            let revealed = FeedItem(try row(status: status, spool: nil), entryRevealed: true)
-            #expect(revealed.isEntry, "\(status)")
-            #expect(revealed.savesNewSpool, "\(status)")
         }
-        #expect(!FeedItem(try row(status: .created)).isEntry)
-        #expect(FeedItem(try row(status: .created), entryRevealed: true).isEntry)
         #expect(FeedItem(try row(status: .saving)).isSaving)
         #expect(FeedItem(try row(status: .updating)).isSaving)
-        var created = try row(status: .created)
-        created.createdSpoolId = created.spool?.id
-        #expect(FeedItem(created).offersLinkExisting)
-        // a failed save or delete keeps Link; a known spool never offers it
-        created.status = .error("boom")
-        #expect(FeedItem(created).offersLinkExisting)
-        #expect(!FeedItem(try row(status: .error("boom"))).offersLinkExisting)
-        #expect(!FeedItem(try row(status: .awaitingWeight)).offersLinkExisting)
     }
 
     @Test func onlyATimedOutSaveHasTheNote() throws {
@@ -146,7 +137,7 @@ struct FeedItemRulesTests {
             == "PLA Basic, Jade White, 484 grams left of 1000, Enter weight")
         // an unnamed colour is left out rather than read as hex
         let unknown = FeedItem(try row(status: .unknown(prefill: true), spool: nil))
-        #expect(unknown.accessibilityHeader == "\(unknown.title), label 1000 grams, New spool")
+        #expect(unknown.accessibilityHeader == "\(unknown.title), label 1000 grams, Not in Bambuddy")
     }
 }
 
@@ -202,9 +193,9 @@ struct FeedItemDisplayTests {
             (try row(status: .saving), "Saving\u{2026}", true, false, false),
             (saved, "Saved 484 g left · by Flipper", false, true, false),
             (timedOut, "Saved 484 g left · by host", false, true, true),
-            (try row(status: .created), "Created in Bambuddy", false, false, false),
+            (try row(status: .created), "Added to Bambuddy", false, true, false),
             (try row(status: .error("Bambuddy unreachable")), "Error: Bambuddy unreachable", true, false, false),
-            (try row(status: .unknown(prefill: true), spool: nil), "New spool", false, false, false),
+            (try row(status: .unknown(prefill: true), spool: nil), "Not in Bambuddy", false, false, false),
             (try row(status: .unknown(prefill: false), spool: nil, "scan_ntag"), "Not in Bambuddy; tag has no material",
              false, false, false),
             (try row(status: .unknown(prefill: false), spool: nil, request: .create, "scan_ntag"),
@@ -225,7 +216,7 @@ struct FeedItemDisplayTests {
 
     @Test func theAccessibilityHeaderOfEachKindOfRow() throws {
         #expect(FeedItem(try row(status: .created)).accessibilityHeader
-            == "PLA Basic, Jade White, 484 grams left of 1000, Created in Bambuddy")
+            == "PLA Basic, Jade White, 484 grams left of 1000, Added to Bambuddy")
         var named = try row(status: .unknown(prefill: true), spool: nil, request: .create)
         named.colorName = "Bambu Green"
         let tagged = FeedItem(named)
@@ -235,20 +226,21 @@ struct FeedItemDisplayTests {
         #expect(blank.accessibilityHeader == "NTAG 7-byte UID 0411\u{2026}, Not in Bambuddy; tag has no material")
     }
 
-    /// "New…" opens the form for a tag without material; "Save as new" creates
-    /// from the tag in one step; the Flipper's request makes its action prominent.
+    /// "New…" opens the form for a tag without material; "New" adds the
+    /// spool from the tag in one step. New is prominent unless the Flipper
+    /// asked to link.
     @Test func newAndLinkOnAnUnknownRow() throws {
         let blank = FeedItem(FeedRow(scanId: "s-2", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false)))
         #expect(blank.rowActions == [.newForm, .link])
         #expect(FeedItem.RowAction.newForm.title == "New\u{2026}")
-        #expect(blank.prominentRowAction == nil)
+        #expect(blank.prominentRowAction == .newForm)
 
-        // a failed create on scan leaves the one-step Save as new as the retry
+        // a failed create on scan leaves the one-step New as the retry
         let failed = FeedItem(try row(status: .error("timed out"), spool: nil))
-        #expect(failed.rowActions == [.saveAsNew, .saveWithWeight, .link])
-        #expect(failed.prominentRowAction == .saveAsNew)
+        #expect(failed.rowActions == [.new, .link])
+        #expect(failed.prominentRowAction == .new)
 
-        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create)).prominentRowAction == .saveAsNew)
+        #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .create)).prominentRowAction == .new)
         #expect(FeedItem(try row(status: .unknown(prefill: true), spool: nil, request: .link)).prominentRowAction == .link)
         var asked = FeedRow(scanId: "s-3", dump: try fixtureScan("scan_ntag").tag, status: .unknown(prefill: false))
         asked.request = .create
@@ -433,10 +425,10 @@ struct FeedViewModelRulesTests {
         #expect(lookup.spoolId == 100)
         #expect(lookup.defaults == Lookup.Defaults(gross: 1250, label: 1000, core: 250))
         let item = try #require(model.items.first)
-        #expect(item.statusText == "Created in Bambuddy")
+        #expect(item.statusText == "Added to Bambuddy")
         #expect(!item.isEntry)
-        #expect(item.offersLinkExisting)
-        model.revealEntry(item.id)
+        #expect(item.rowActions.isEmpty)
+        await model.reopen(item.id)
         #expect(model.draft(for: item.id) == FeedViewModel.Draft(value: "1250", touched: false, mode: .gross))
         #expect(model.readout(for: item.id)?.text == "Saves 1000 g left · 1250 \u{2212} 250 g core")
 
@@ -474,15 +466,14 @@ struct FeedViewModelRulesTests {
         #expect(lookup.prefill == true)
         let item = try #require(model.items.first)
         #expect(item.statusText == "Error: \(BambuddyError.network("timed out").localizedDescription)")
-        // Save as new, or Save with weight…, retries
+        // New retries
         #expect(!item.isEntry)
-        #expect(item.rowActions == [.saveAsNew, .saveWithWeight, .link])
+        #expect(item.rowActions == [.new, .link])
         #expect(item.offersUnknownActions)
-        #expect(item.rowActions.contains(.saveAsNew))
 
         inventory.createError = nil
-        #expect(await model.createFromTag(item.id))
-        #expect(model.items.first?.statusText == "Created in Bambuddy")
+        #expect(await model.addNew(item.id))
+        #expect(model.items.first?.statusText == "Added to Bambuddy")
         #expect(inventory.creates.count == 2)
     }
 
@@ -503,7 +494,7 @@ struct FeedViewModelRulesTests {
         let item = try #require(model.items.first)
         #expect(item.spoolId == 7)
         #expect(item.statusText == "Enter weight")
-        #expect(!item.offersLinkExisting)
+        #expect(await session.rows.first?.createdSpoolId == nil)
         #expect(model.error(for: id) == nil)
     }
 
@@ -526,9 +517,9 @@ struct FeedViewModelRulesTests {
         let item = try #require(model.items.first)
         #expect(item.spoolId == 100)
         #expect(item.statusText == "Error: \(message)")
-        // the weight can still be set on the created spool, and Link retried
-        #expect(item.rowActions == [.setWeight, .link])
-        #expect(item.offersLinkExisting)
+        // the created spool keeps its entry for a weight, and Link can be retried
+        #expect(item.isEntry)
+        #expect(item.rowActions.isEmpty)
         inventory.deleteError = nil
         await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 7))
@@ -557,7 +548,7 @@ struct FeedViewModelRulesTests {
         _ = await session.handleScan(try scan("s-1", autosave: true))
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
-        model.revealEntry(id)
+        await model.reopen(id)
         model.setWeightText("1100", for: id)
         await model.save(id)
         await model.reopen(id)
@@ -567,7 +558,7 @@ struct FeedViewModelRulesTests {
 
         // a failed re-weigh: the spool holds a saved weight, so Link would not delete it
         #expect(model.items.first?.isError == true)
-        #expect(model.items.first?.offersLinkExisting == false)
+        #expect(await session.rows.first?.createdSpoolId == nil)
     }
 
     @Test func newSettingsForgetTheSpoolCreatedOnTheOldBambuddy() async throws {
@@ -579,7 +570,7 @@ struct FeedViewModelRulesTests {
         model.apply(await session.snapshot)
         let id = try #require(model.items.first?.id)
 
-        #expect(model.items.first?.offersLinkExisting == false)
+        #expect(await session.rows.first?.createdSpoolId == nil)
         await model.loadLinkCandidates()
         #expect(await model.link(id, toSpool: 100))
         // spool 100 on the new Bambuddy is someone else's: it is linked, never deleted

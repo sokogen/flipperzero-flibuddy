@@ -701,11 +701,11 @@ public actor Session {
         }
     }
 
-    /// Takes a saved or marked row back to weight entry for a re-weigh.
+    /// Takes a saved, marked or added row back to weight entry for a
+    /// (re-)weigh.
     public func reopen(row id: FeedRow.ID) {
-        let reopenable: [FeedRow.Status] = [.saved, .savedAfterTimeout, .markedNew, .markedEmpty]
         updateRow(id) {
-            if reopenable.contains($0.status), $0.spool != nil { $0.status = .awaitingWeight }
+            if $0.status.isReopenable, $0.spool != nil { $0.status = .awaitingWeight }
         }
     }
 

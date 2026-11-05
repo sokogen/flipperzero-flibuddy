@@ -3,21 +3,15 @@ import SwiftUI
 
 // The watch has its own compact views (Watch/).
 #if !os(watchOS)
-/// A row's actions (`FeedItem.rowActions`): Save as new, Save with weight…
-/// and Link to existing… on a New spool; Set weight… and Link on a Created
-/// row; New… (the form) or Save as new and Link on another tag no spool
-/// carries; Cancel beside a revealed entry.
+/// A row's actions (`FeedItem.rowActions`) on a tag no spool carries: New
+/// (from the tag, at its label weight) or New… (the form), and Link to
+/// existing…; the prominent one first, New unless the Flipper asked to link.
 struct RowActions: View {
     enum Style {
         /// Bordered buttons, the prominent one `.borderedProminent` (macOS).
         case buttons
-        /// Link-style buttons beside the readout of a revealed entry, or
-        /// under the iPad table's status, where the Flipper's request is
-        /// semibold rather than prominent.
-        case compact
-        /// The lead action full width and 50 pt high over the others as
-        /// equal 44 pt capsules 10 apart; without a lead, the first capsule
-        /// is the prominent one (iPhone card).
+        /// Two equal 44 pt capsules 10 apart, the prominent one first
+        /// (iPhone card).
         case card
         /// Capsules sized to their titles, 44 high and 8 apart, the
         /// prominent one tinted (iPad table's trailing column).
@@ -46,45 +40,19 @@ struct RowActions: View {
     @ViewBuilder private var content: some View {
         switch style {
         case .buttons:
-            // Three buttons fit the entry's column at the regular size.
-            ViewThatFits(in: .horizontal) {
-                buttons
-                buttons.controlSize(.regular)
-                buttons.controlSize(.small)
-            }
-        case .compact:
-            HStack(spacing: 12) {
-                cancelButton
-                ForEach(compactActions, id: \.self) { action in
-                    button(action).fontWeight(action == item.prominentRowAction ? .semibold : .regular)
-                }
-            }
-            #if os(macOS)
-            .buttonStyle(.link).font(.footnote).controlSize(.small)
-            #else
-            // Borderless: in a list row each button keeps its own tap.
-            .buttonStyle(.borderless).font(.footnote)
-            #endif
+            buttons
         case .card:
             // The row's status shows the spinner while an action runs.
-            VStack(spacing: 10) {
-                if let lead = item.cardLeadAction {
-                    capsule(lead, prominent: true, height: 36)
-                }
-                HStack(spacing: 10) {
-                    if item.offersCancel {
-                        capsule(nil, prominent: false, height: 30)
-                    }
-                    ForEach(item.cardCapsuleActions, id: \.self) { action in
-                        capsule(action, prominent: action == item.cardProminentCapsule, height: 30)
-                    }
+            HStack(spacing: 10) {
+                ForEach(item.rowActions, id: \.self) { action in
+                    capsule(action, prominent: action == item.prominentRowAction)
                 }
             }
         case .pills:
             #if os(iOS)
             HStack(spacing: 8) {
-                ForEach(item.tableTrailingActions, id: \.self) { action in
-                    pill(action, prominent: action == item.tableProminentAction)
+                ForEach(item.rowActions, id: \.self) { action in
+                    pill(action, prominent: action == item.prominentRowAction)
                 }
             }
             #else
@@ -93,20 +61,9 @@ struct RowActions: View {
         }
     }
 
-    /// Beside a revealed entry: its Link; under the iPad table's status:
-    /// the Link a New spool or Created row has no room for elsewhere.
-    private var compactActions: [FeedItem.RowAction] {
-        #if os(iOS)
-        item.tableStatusActions
-        #else
-        item.rowActions
-        #endif
-    }
-
     private func perform(_ action: FeedItem.RowAction) {
         switch action {
-        case .saveAsNew: Task { await feed.saveAsNew(item.id) }
-        case .saveWithWeight, .setWeight: feed.revealEntry(item.id)
+        case .new: Task { await feed.addNew(item.id) }
         case .newForm: showingNew = true
         case .link: showingLink = true
         }
@@ -114,28 +71,15 @@ struct RowActions: View {
 
     private func help(_ action: FeedItem.RowAction) -> String {
         switch action {
-        case .saveAsNew: "Create the spool in Bambuddy from the tag, full"
-        case .saveWithWeight: "Enter a weight; Save creates the spool from the tag and records it"
-        case .setWeight: "Enter the weight of the spool created on scan"
+        case .new: "Add the spool to Bambuddy from the tag, at its label weight"
         case .newForm: "Create a Bambuddy item; enter the material"
-        case .link:
-            item.offersLinkExisting
-                ? "Move this tag to a spool already in Bambuddy and delete the one created on scan"
-                : "Attach this tag to a spool already in Bambuddy"
+        case .link: "Attach this tag to a spool already in Bambuddy"
         }
     }
 
     private func button(_ action: FeedItem.RowAction) -> some View {
         Button(action.title) { perform(action) }
             .help(help(action))
-    }
-
-    @ViewBuilder private var cancelButton: some View {
-        if item.offersCancel {
-            Button("Cancel") { feed.hideEntry(item.id) }
-                .help("Hide the weight entry without saving (Esc)")
-                .disabled(feed.isSaving(item.id))
-        }
     }
 
     private var buttons: some View {
@@ -154,19 +98,17 @@ struct RowActions: View {
         .fixedSize()
     }
 
-    /// `action` nil: Cancel.
-    @ViewBuilder private func capsule(_ action: FeedItem.RowAction?, prominent: Bool, height: CGFloat) -> some View {
+    @ViewBuilder private func capsule(_ action: FeedItem.RowAction, prominent: Bool) -> some View {
         let button = Button {
-            if let action { perform(action) } else { feed.hideEntry(item.id) }
+            perform(action)
         } label: {
-            Text(action?.title ?? "Cancel")
-                .font(height > 30 ? .headline : .subheadline.weight(.semibold))
+            Text(action.title)
+                .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: height)
+                .frame(maxWidth: .infinity, minHeight: 30)
         }
         .buttonBorderShape(.capsule)
         .controlSize(.large)
-        .disabled(action == nil && feed.isSaving(item.id))
         if prominent {
             button.buttonStyle(.borderedProminent)
         } else {

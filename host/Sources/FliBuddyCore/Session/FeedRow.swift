@@ -88,4 +88,13 @@ extension FeedRow.Status {
     public var isUnknown: Bool {
         if case .unknown = self { true } else { false }
     }
+
+    /// Saved, timed out, marked, or added to Bambuddy: the row reopens for a
+    /// weight (`Session.reopen`, `FeedItem.isReopenable`).
+    public var isReopenable: Bool {
+        switch self {
+        case .saved, .savedAfterTimeout, .created, .markedNew, .markedEmpty: true
+        case .scanned, .awaitingWeight, .unknown, .saving, .updating, .deleted, .error: false
+        }
+    }
 }

@@ -14,7 +14,7 @@ struct NewSpoolFormTests {
         #expect(NewSpoolForm(tag: try tag("scan_mfc"), settings: testSettings).subtitle == "Bambu tag · 5A3C9E21")
         #expect(
             NewSpoolForm.footer
-                == "Material is required. The row asks for a weight once Bambuddy has created the spool."
+                == "Material is required. The spool is added at its label weight."
         )
     }
 
@@ -57,7 +57,7 @@ struct NewSpoolFormTests {
     }
 
     @Test func theiPhoneFooterSaysWhatHappensNext() {
-        #expect(NewSpoolForm.phoneFooter == "FliBuddy creates the spool in Bambuddy, then asks for its weight.")
+        #expect(NewSpoolForm.phoneFooter == "FliBuddy adds the spool to Bambuddy at its label weight.")
     }
 
     @Test func theColourStartsAsTheTagsAndGoesIntoTheSpool() throws {

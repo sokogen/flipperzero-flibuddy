@@ -213,6 +213,20 @@ struct SessionMarkTests {
         #expect(await session.rows.first?.status == .awaitingWeight)
     }
 
+    /// Added to Bambuddy (here a create on scan) reopens like a saved row.
+    @Test func anAddedRowReopensForAWeight() async throws {
+        let session = makeSession(FakeInventory())
+        var scan = try fixtureScan()
+        scan.autosave = true
+        _ = await session.handleScan(scan)
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .created)
+
+        await session.reopen(row: row.id)
+
+        #expect(await session.rows.first?.status == .awaitingWeight)
+    }
+
     // MARK: Archived spools
 
     @Test func anArchivedSpoolIsFoundAndSaysSo() async throws {

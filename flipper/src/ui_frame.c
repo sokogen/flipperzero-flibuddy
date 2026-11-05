@@ -189,11 +189,11 @@ static void put_outcome(Text* t, const AppState* s) {
         }
         break;
     case AppOutcomeAdded:
-        put(t, "Saved new ");
+        put(t, "Added ");
         put_name(t, s);
         break;
     case AppOutcomeMarkedNew:
-        put(t, "Full ");
+        put(t, "New ");
         put_name(t, s);
         if(s->has_spool) {
             put(t, " ");
@@ -308,11 +308,12 @@ static void build_result(UiFrame* f, const AppState* s) {
             put(&t, host_line(s, 2));
         }
         SET(f->center, "Weigh");
+        SET(f->right, "New");
         break;
     case AppResultUnknownPrefill:
-        SET(f->bar, "New spool");
-        SET(f->center, "Save");
-        SET(f->right, "Weigh");
+        SET(f->bar, "Not in Bambuddy");
+        SET(f->center, "Add");
+        SET(f->right, "Link");
         break;
     case AppResultUnknownBare:
         SET(f->bar, "Not in Bambuddy");
@@ -334,7 +335,7 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuWeigh:
         return "Weigh";
     case AppMenuMarkNew:
-        return "Reset to full";
+        return "Mark as new";
     case AppMenuMarkEmpty:
         return "Mark as empty";
     case AppMenuRelink:
@@ -344,9 +345,9 @@ static const char* menu_label(AppMenuItem item) {
     case AppMenuDelete:
         return "Delete spool";
     case AppMenuAddNew:
-        return "Save as new";
+        return "Add new";
     case AppMenuAddAndWeigh:
-        return "Save with weight";
+        return "Add and weigh";
     case AppMenuCreateOnHost:
         return "Create on host";
     case AppMenuLinkOnHost:
@@ -484,7 +485,7 @@ static void build_busy(UiFrame* f, const AppState* s) {
         SET(f->title, "Saving");
         break;
     case IntentActionNew:
-        SET(f->title, "Saving");
+        SET(f->title, "Adding");
         break;
     case IntentActionDelete:
         SET(f->title, "Deleting");
@@ -524,7 +525,7 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
     t = TEXT(f->line[1]);
     switch(s->toast) {
     case AppToastAdded:
-        SET(f->title, "Saved as new");
+        SET(f->title, "Added to Bambuddy");
         if(s->has_spool) {
             put(&t, "Spool #");
             put_uint(&t, (uint32_t)s->spool.id);
@@ -536,9 +537,9 @@ static void build_toast(UiFrame* f, const AppState* s, const UiEnv* env) {
         SET(f->right, "Next");
         return; /* no deadline */
     case AppToastMarkedNew:
-        SET(f->title, "Reset to full");
+        SET(f->title, "Marked as new");
         put_uint(&t, s->spool.label);
-        put(&t, " g left");
+        put(&t, " g left - full");
         SET(f->left, "Undo");
         SET(f->center, "Weigh");
         break;

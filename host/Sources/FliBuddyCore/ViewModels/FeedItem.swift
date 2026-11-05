@@ -45,34 +45,24 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let isError: Bool
     public let spoolId: Int?
     /// Filament grams the suggestion starts from: the spool's remaining
-    /// grams, which right after Created are its label weight; for a tag
+    /// grams, which right after Added are its label weight; for a tag
     /// with material and no spool, the label weight.
     public let base: Int?
-    /// The spool's core weight (`core_weight`); for a Created row the
+    /// The spool's core weight (`core_weight`); for an Added row the
     /// settings value just sent; for a tag with material and no spool, the
     /// settings value a spool created from it gets.
     public let core: Int?
     /// The row shows the weight field, mode and Save (Enter weight, Saving…,
     /// or an error on a known spool, which keeps the value for a retry). A
-    /// New spool or a Created row shows it only once revealed (`revealsEntry`).
+    /// tag no spool carries never does: New adds it first.
     public let isEntry: Bool
-    /// A New spool (a tag with material and no spool, the Flipper's Auto-save
-    /// new off) or a Created row: the weight is optional, and the entry
-    /// shows only after Save with weight… / Set weight… reveals it.
-    public let revealsEntry: Bool
-    /// Save creates the spool before it records the weight: a New spool's
-    /// revealed entry.
-    public let savesNewSpool: Bool
-    /// Enter weight, or a revealed New spool or Created entry: the row waits
-    /// for a weight and may take focus.
+    /// Enter weight: the row waits for a weight and may take focus.
     public let isWaiting: Bool
     /// A weight is on its way to Bambuddy; the entry block is disabled.
     public let isSaving: Bool
-    /// A saved row; a click opens it again for a re-weigh.
+    /// A saved, marked or added row (Added to Bambuddy asks for no weight);
+    /// a tap or click opens it again for a weight.
     public let isReopenable: Bool
-    /// Created in Bambuddy and not weighed yet (also after a failed save or
-    /// delete): Link to existing… moves the tag and deletes this spool.
-    public let offersLinkExisting: Bool
     /// The spool was deleted from Bambuddy (here or on the Flipper).
     public let isDeleted: Bool
     /// Under the status of a save the Flipper gave up waiting for.
@@ -84,50 +74,34 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
     public let accessibilityHeader: String
     /// The lookup is done and found no spool: offer New and Link.
     public let offersUnknownActions: Bool
-    /// What the row offers besides the weight entry, the prominent one
-    /// first; none while a weight or an update is on its way.
+    /// New (or New… for a tag without material) and Link to existing… on a
+    /// tag no spool carries, the prominent one first; none on other rows
+    /// and while the tag is looked up or saved.
     public let rowActions: [RowAction]
-    /// Save as new on a New spool, Set weight… on a Created row, else the
-    /// action the Flipper asked for; none while the entry is shown.
+    /// New, unless the Flipper asked to link the tag; the first of
+    /// `rowActions`.
     public let prominentRowAction: RowAction?
 
     /// A row's actions, worded the same on every platform.
     public enum RowAction: Hashable, Sendable {
-        /// Creates the spool from the tag, full.
-        case saveAsNew
-        /// Reveals the entry; its Save creates the spool and records the weight.
-        case saveWithWeight
-        /// Reveals a Created row's entry; its Save records the weight.
-        case setWeight
+        /// Adds the spool from the tag at its label weight.
+        case new
         /// The New form, for a tag without material.
         case newForm
         case link
 
         public var title: String {
             switch self {
-            case .saveAsNew: "Save as new"
-            case .saveWithWeight: "Save with weight\u{2026}"
-            case .setWeight: "Set weight\u{2026}"
+            case .new: "New"
             case .newForm: "New\u{2026}"
             case .link: "Link to existing\u{2026}"
-            }
-        }
-
-        /// The watch's shorter button titles.
-        public var watchTitle: String {
-            switch self {
-            case .saveWithWeight: "With weight"
-            case .setWeight: "Set weight"
-            case .saveAsNew, .newForm, .link: title
             }
         }
     }
 
     /// `coreWeight`: the settings' core weight, which a spool created from
     /// the tag gets; the suggestion and readout of a tag without a spool use it.
-    /// `entryRevealed`: Save with weight… / Set weight… showed the entry of
-    /// a row that `revealsEntry`.
-    public init(_ row: FeedRow, coreWeight: Int? = nil, entryRevealed: Bool = false) {
+    public init(_ row: FeedRow, coreWeight: Int? = nil) {
         id = row.id
         scanId = row.scanId
         scannedAt = row.scannedAt
@@ -171,22 +145,13 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         isError = if case .error = row.status { true } else { false }
         spoolId = spool?.id
         offersUnknownActions = spool == nil && row.status != .scanned
-        let isNewSpool = Self.isNewSpool(row)
-        revealsEntry = Self.revealsEntry(row)
-        let revealed = revealsEntry && entryRevealed
-        savesNewSpool = isNewSpool && revealed
-        isEntry = revealsEntry ? revealed : spool != nil && Self.isEntryState(row.status)
-        isWaiting = (spool != nil && row.status == .awaitingWeight)
-            || (revealed && (row.status == .created || row.status.isUnknown))
+        isEntry = spool != nil && Self.isEntryState(row.status)
+        isWaiting = spool != nil && row.status == .awaitingWeight
         isSaving = row.status == .saving || row.status == .updating
-        isReopenable = spool != nil && [.saved, .savedAfterTimeout, .markedNew, .markedEmpty].contains(row.status)
-        offersLinkExisting = spool != nil && row.createdSpoolId == spool?.id
-            && (row.status == .created || isError)
+        isReopenable = spool != nil && row.status.isReopenable
         isDeleted = row.status == .deleted
-        (rowActions, prominentRowAction) = Self.rowActions(
-            row, isNewSpool: isNewSpool, revealed: revealed, offersUnknown: offersUnknownActions,
-            offersLink: offersLinkExisting, isSaving: isSaving
-        )
+        rowActions = offersUnknownActions && !isSaving ? Self.unknownActions(row) : []
+        prominentRowAction = rowActions.first
         timeoutNote = row.status == .savedAfterTimeout ? Self.timeoutNoteText : nil
         (statusSymbol, statusTint) = Self.statusLook(row)
         accessibilityHeader = Self.accessibilityHeader(
@@ -260,48 +225,6 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         mode == .gross ? "gross" : "net"
     }
 
-    /// The iPhone card's full-width button over its capsules: the prominent
-    /// action of a New spool or Created card.
-    public var cardLeadAction: RowAction? {
-        revealsEntry ? prominentRowAction : nil
-    }
-
-    /// The iPhone card's 44 pt capsules: under the lead button, or under
-    /// Save on a revealed entry, or the row's actions as two equal capsules.
-    public var cardCapsuleActions: [RowAction] {
-        rowActions.filter { $0 != cardLeadAction }
-    }
-
-    /// The prominent capsule: the first, on a row with neither a lead button
-    /// nor an entry (New…, or the action the Flipper asked for).
-    public var cardProminentCapsule: RowAction? {
-        cardLeadAction == nil && !isEntry ? cardCapsuleActions.first : nil
-    }
-
-    /// The iPad table's footnote buttons under the status: Link to existing…
-    /// of a New spool or Created row, which has no room beside the pills or
-    /// the entry.
-    public var tableStatusActions: [RowAction] {
-        revealsEntry || isEntry ? rowActions.filter { $0 == .link } : []
-    }
-
-    /// The iPad table's pills in the trailing column, unless the entry is there.
-    public var tableTrailingActions: [RowAction] {
-        isEntry ? [] : rowActions.filter { !tableStatusActions.contains($0) }
-    }
-
-    /// The tinted pill: the prominent action, else the first pill; none when
-    /// the prominent one sits under the status.
-    public var tableProminentAction: RowAction? {
-        guard let prominent = prominentRowAction else { return tableTrailingActions.first }
-        return tableTrailingActions.contains(prominent) ? prominent : nil
-    }
-
-    /// Cancel (Esc on the Mac) beside a revealed entry: hides it without saving.
-    public var offersCancel: Bool {
-        revealsEntry && isEntry
-    }
-
     /// "PLA" + "PLA Basic" reads "PLA Basic"; "PETG" + "HF" reads "PETG HF".
     public static func title(material: String, subtype: String?) -> String {
         guard let subtype, !subtype.isEmpty else { return material }
@@ -310,73 +233,16 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
 
     static func isEntryState(_ status: FeedRow.Status) -> Bool {
         switch status {
-        case .awaitingWeight, .saving, .created, .updating, .error: true
-        case .scanned, .unknown, .saved, .savedAfterTimeout, .markedNew, .markedEmpty, .deleted: false
+        case .awaitingWeight, .saving, .updating, .error: true
+        case .scanned, .unknown, .saved, .savedAfterTimeout, .created, .markedNew, .markedEmpty, .deleted: false
         }
     }
 
-    /// A New spool or a Created row, whose entry shows only when revealed.
-    public static func revealsEntry(_ row: FeedRow) -> Bool {
-        isNewSpool(row) || isCreated(row)
-    }
-
-    /// A tag with material and no spool, not yet looked up again or deleted:
-    /// also while the save that creates it runs, and after it (or a create
-    /// on scan) fails.
-    static func isNewSpool(_ row: FeedRow) -> Bool {
-        row.spool == nil && row.tag.hasPrefill && isNewEntryState(row.status)
-    }
-
-    /// Created in Bambuddy, also while its weight saves and after that, or
-    /// a Link, fails.
-    static func isCreated(_ row: FeedRow) -> Bool {
-        guard let spool = row.spool else { return false }
-        if row.status == .created { return true }
-        guard row.createdSpoolId == spool.id else { return false }
-        return switch row.status {
-        case .saving, .error: true
-        default: false
-        }
-    }
-
-    /// The row's actions, prominent first, and the prominent one.
-    static func rowActions(
-        _ row: FeedRow, isNewSpool: Bool, revealed: Bool, offersUnknown: Bool, offersLink: Bool, isSaving: Bool
-    ) -> ([RowAction], RowAction?) {
-        guard !isSaving else { return ([], nil) }
-        let link: [RowAction] = offersLink || offersUnknown ? [.link] : []
-        if revealed { return (link, nil) }
-        let actions: [RowAction]
-        let preferred: RowAction?
-        if isNewSpool {
-            actions = [.saveAsNew, .saveWithWeight] + link
-            preferred = .saveAsNew
-        } else if isCreated(row) {
-            actions = [.setWeight] + link
-            preferred = .setWeight
-        } else if offersUnknown {
-            actions = [row.tag.hasPrefill ? .saveAsNew : .newForm] + link
-            preferred = nil
-        } else {
-            return ([], nil)
-        }
-        let asked: RowAction? = switch row.request {
-        case .link: .link
-        case .create: actions.first
-        case nil: nil
-        }
-        guard let prominent = asked ?? preferred else { return (actions, nil) }
-        return ([prominent] + actions.filter { $0 != prominent }, prominent)
-    }
-
-    /// A tag with material and no spool: the weight entry stays through the
-    /// save that creates the spool, and after it fails.
-    static func isNewEntryState(_ status: FeedRow.Status) -> Bool {
-        switch status {
-        case .unknown, .saving, .error: true
-        case .scanned, .awaitingWeight, .saved, .savedAfterTimeout, .created, .updating, .markedNew, .markedEmpty,
-             .deleted: false
-        }
+    /// New (from the tag, or the form for a tag without material) and Link,
+    /// the action the Flipper asked for first: New unless it asked to link.
+    static func unknownActions(_ row: FeedRow) -> [RowAction] {
+        let new: RowAction = row.tag.hasPrefill ? .new : .newForm
+        return row.request == .link ? [.link, new] : [new, .link]
     }
 
     static func statusText(_ row: FeedRow) -> String {
@@ -385,12 +251,12 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         case .awaitingWeight: return "Enter weight"
         case .unknown(let prefill):
             if let request = row.request { return requestText(request) }
-            return prefill ? "New spool" : "Not in Bambuddy; tag has no material"
+            return prefill ? "Not in Bambuddy" : "Not in Bambuddy; tag has no material"
         case .saving: return "Saving\u{2026}"
         case .saved, .savedAfterTimeout:
             let saved = row.spool.map { "Saved \($0.remaining) g left" } ?? "Saved"
             return row.savedBy.map { "\(saved) · \(savedByText($0))" } ?? saved
-        case .created: return "Created in Bambuddy"
+        case .created: return "Added to Bambuddy"
         case .updating: return "Updating\u{2026}"
         case .markedNew:
             let marked = row.spool.map { "Marked as new · \($0.remaining) g left" } ?? "Marked as new"
@@ -405,11 +271,9 @@ public struct FeedItem: Identifiable, Equatable, Sendable {
         switch row.status {
         case .scanned, .saving, .updating: (.progress, .secondary)
         case .awaitingWeight: (.symbol("scalemass"), .blue)
-        case .unknown(let prefill): if row.request != nil {
-            (.symbol("dot.radiowaves.left.and.right"), .blue)
-        } else {
-            (.symbol(prefill ? "plus.circle" : "questionmark.circle"), .secondary)
-        }
+        case .unknown: row.request == nil
+            ? (.symbol("questionmark.circle"), .secondary)
+            : (.symbol("dot.radiowaves.left.and.right"), .blue)
         case .saved, .savedAfterTimeout: (.symbol("checkmark.circle.fill"), .green)
         case .created: (.symbol("plus.circle.fill"), .green)
         case .markedNew: (.symbol("arrow.counterclockwise.circle.fill"), .green)

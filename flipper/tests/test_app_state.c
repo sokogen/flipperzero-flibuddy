@@ -335,19 +335,36 @@ static void test_other_host_version_is_remembered_until_a_host_connects(void) {
     CHECK_EQ_INT(app.other_version, 0);
 }
 
-static void test_unknown_right_opens_weight_and_known_right_does_nothing(void) {
+/* ▶ on a Bambu tag not in Bambuddy links it on the host; on a known spool
+ * it marks the spool as new, with the toast's Undo. */
+static void test_unknown_right_links_and_known_right_marks_new(void) {
     setup();
     scan_unknown();
-    CHECK(press(AppKeyRight) == AppEffectNone);
-    CHECK(app.screen == AppScreenWeight);
-    CHECK(press(AppKeyOk) == AppEffectSendIntent);
-    CHECK(in_flight_action() == IntentActionWeigh);
+    CHECK(press(AppKeyRight) == AppEffectSendIntent);
+    CHECK(app.screen == AppScreenLinkOnHost);
+    CHECK(in_flight_action() == IntentActionLinkOnHost);
 
     setup();
     scan_found();
-    CHECK(press(AppKeyRight) == AppEffectNone);
+    CHECK(press_at(AppKeyRight, 1000) == AppEffectNone);
+    CHECK(app.screen == AppScreenToast);
+    CHECK(app.toast == AppToastMarkedNew);
+    CHECK(app.cue == AppCueSuccess);
+    CHECK(in_flight() == NULL);
+    CHECK(press(AppKeyLeft) == AppEffectNone); /* Undo */
     CHECK(app.screen == AppScreenResult);
     CHECK(in_flight() == NULL);
+    CHECK(press_at(AppKeyRight, 2000) == AppEffectNone);
+    CHECK(tick(2000 + APP_TOAST_MS) == AppEffectSendIntent);
+    CHECK(in_flight_action() == IntentActionFull);
+
+    /* without a host ▶ does nothing */
+    setup_no_host();
+    CHECK(send(AppEventTagDetected) == AppEffectNone);
+    CHECK(send_tag(&mfc) == AppEffectNone);
+    CHECK(app.result_kind == AppResultNoHost);
+    CHECK(press(AppKeyRight) == AppEffectNone);
+    CHECK(app.screen == AppScreenResult);
 }
 
 static void test_read_failed_and_back_while_reading(void) {
@@ -1614,7 +1631,7 @@ int main(void) {
     RUN_TEST(test_unsupported_tag_is_its_own_quiet_outcome);
     RUN_TEST(test_forget_the_tag_when_the_result_is_left_unanswered);
     RUN_TEST(test_other_host_version_is_remembered_until_a_host_connects);
-    RUN_TEST(test_unknown_right_opens_weight_and_known_right_does_nothing);
+    RUN_TEST(test_unknown_right_links_and_known_right_marks_new);
     RUN_TEST(test_read_failed_and_back_while_reading);
     RUN_TEST(test_looking_up_back_and_stale_lookups);
     RUN_TEST(test_no_host_scan_shows_local_facts);

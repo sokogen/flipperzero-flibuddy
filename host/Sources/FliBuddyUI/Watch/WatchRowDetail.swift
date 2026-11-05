@@ -3,15 +3,13 @@ import SwiftUI
 
 #if os(watchOS)
 /// One row on the watch: a header line, then the body `WatchRowScreen`
-/// picks (the crown entry, the saved result, the new spool card, an unknown
-/// tag, a spinner), then the tag's Details. `onSaved` follows a save or a
-/// Save as new Bambuddy took. Leaving the detail hides an entry With weight
-/// / Set weight opened, so the row stops waiting.
+/// picks (the crown entry, the saved result, an unknown tag, a spinner),
+/// then the tag's Details. `onSaved` follows a save or a New Bambuddy took.
 struct WatchRowDetail: View {
     let feed: FeedViewModel
     let id: FeedRow.ID
     let onSaved: (FeedRow.ID) -> Void
-    /// Save as new on the watch is on its way to Bambuddy.
+    /// New on the watch is on its way to Bambuddy.
     @ViewState private var isCreating = false
 
     var body: some View {
@@ -25,14 +23,10 @@ struct WatchRowDetail: View {
                             .lineLimit(1)
                     }
                     switch WatchRowScreen(item, isCreating: isCreating) {
-                    case .entry(let offersCancel):
-                        WatchWeightEntry(feed: feed, item: item, offersCancel: offersCancel, onSaved: onSaved)
+                    case .entry:
+                        WatchWeightEntry(feed: feed, item: item, onSaved: onSaved)
                     case .saved:
                         WatchSavedBody(feed: feed, item: item)
-                    case .card(let hint, let actions, let prominent):
-                        WatchCardBody(
-                            feed: feed, item: item, hint: hint, actions: actions, prominent: prominent, onNew: create
-                        )
                     case .unknown(let hint, let offersNew):
                         WatchUnknownBody(feed: feed, item: item, hint: hint, offersNew: offersNew, onNew: create)
                     case .busy(let phrase):
@@ -43,17 +37,16 @@ struct WatchRowDetail: View {
                     }
                 }
             }
-            .onDisappear { feed.hideEntry(id) }
         } else {
             ContentUnavailableView("Row cleared", systemImage: "trash")
         }
     }
 
-    /// Save as new in one tap: the spool from the tag's own data, full.
+    /// New in one tap: the spool from the tag's own data, at its label weight.
     private func create() {
         isCreating = true
         Task {
-            let created = await feed.saveAsNew(id)
+            let created = await feed.addNew(id)
             isCreating = false
             if created { onSaved(id) }
         }
@@ -61,12 +54,10 @@ struct WatchRowDetail: View {
 }
 
 /// The weight on the Digital Crown (1 g per detent, 5 g on fast turns), its
-/// line, the Net / Gross pills (which convert it), Save and, for an entry
-/// With weight / Set weight opened, Cancel, which hides it again.
+/// line, the Net / Gross pills (which convert it) and Save.
 struct WatchWeightEntry: View {
     let feed: FeedViewModel
     let item: FeedItem
-    let offersCancel: Bool
     let onSaved: (FeedRow.ID) -> Void
     @ViewState private var velocity = 0.0
     @FocusState private var isFocused: Bool
@@ -118,11 +109,6 @@ struct WatchWeightEntry: View {
             .buttonStyle(WatchCapsuleButtonStyle(fill: StatusTint.blue.watchColor))
             .opacity(canSave ? 1 : 0.45)
             .disabled(!canSave)
-            if offersCancel {
-                Button("Cancel") { feed.hideEntry(id) }
-                    .buttonStyle(WatchCapsuleButtonStyle(fill: .white.opacity(0.16)))
-                    .disabled(item.isSaving || feed.isBusy(id))
-            }
         }
         .onAppear { isFocused = true }
     }
@@ -178,8 +164,8 @@ struct WatchCapsuleButtonStyle: ButtonStyle {
     }
 }
 
-/// Saved, Timeout, Marked as new / empty: the state symbol, what is left,
-/// the phrase and Weigh again.
+/// Saved, Timeout, Added to Bambuddy, Marked as new / empty: the state
+/// symbol, what is left, the phrase and Weigh again.
 struct WatchSavedBody: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -203,63 +189,8 @@ struct WatchSavedBody: View {
     }
 }
 
-/// A New spool or a Created row: the colour line, the weight (`label
-/// 1000 g`), the status, a hint where the phone or the Mac has to act, an
-/// error, and the buttons: Save as new in one tap, With weight / Set weight,
-/// which open the crown entry; the prominent one blue.
-struct WatchCardBody: View {
-    let feed: FeedViewModel
-    let item: FeedItem
-    let hint: String?
-    let actions: [FeedItem.RowAction]
-    let prominent: FeedItem.RowAction?
-    let onNew: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach([item.colorLine, item.remainingText].filter { !$0.isEmpty }, id: \.self) { line in
-                Text(line)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                WatchStatusSymbol(item: item, size: 17)
-                Text(item.statusText).font(.system(size: 15))
-            }
-            if let hint {
-                Text(hint)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-            }
-            if let error = feed.error(for: item.id) {
-                Text("Error: \(error)")
-                    .font(.system(size: 13))
-                    .foregroundStyle(StatusTint.red.watchColor)
-            }
-            VStack(spacing: 6) {
-                ForEach(actions, id: \.self) { action in
-                    Button(action.watchTitle) { perform(action) }
-                        .buttonStyle(WatchCapsuleButtonStyle(
-                            fill: action == prominent ? StatusTint.blue.watchColor : .white.opacity(0.16)
-                        ))
-                        .disabled(feed.isBusy(item.id))
-                }
-            }
-            .padding(.top, 4)
-        }
-    }
-
-    private func perform(_ action: FeedItem.RowAction) {
-        switch action {
-        case .saveAsNew: onNew()
-        case .saveWithWeight, .setWeight: feed.revealEntry(item.id)
-        case .newForm, .link: break
-        }
-    }
-}
-
 /// No spool: the sub line, the phrase, a hint where the phone or the Mac has
-/// to act, and Save as new in one tap for a tag with material.
+/// to act, and the one New button for a tag with material.
 struct WatchUnknownBody: View {
     let feed: FeedViewModel
     let item: FeedItem
@@ -287,7 +218,7 @@ struct WatchUnknownBody: View {
                     .foregroundStyle(StatusTint.red.watchColor)
             }
             if offersNew {
-                Button(FeedItem.RowAction.saveAsNew.watchTitle, action: onNew)
+                Button(FeedItem.RowAction.new.title, action: onNew)
                     .buttonStyle(WatchCapsuleButtonStyle(fill: StatusTint.blue.watchColor))
                     .disabled(feed.isBusy(item.id))
                     .padding(.top, 4)

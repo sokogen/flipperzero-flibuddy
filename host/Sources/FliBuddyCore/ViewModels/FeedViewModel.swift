@@ -78,9 +78,6 @@ public final class FeedViewModel {
     /// Rows that waited for a weight, or were saving one, at the last snapshot.
     private var waitingIDs: Set<FeedRow.ID> = []
     private var entryIDs: Set<FeedRow.ID> = []
-    /// New spool and Created rows whose entry Save with weight… / Set
-    /// weight… showed; a row that leaves those states forgets it.
-    private var revealedIDs: Set<FeedRow.ID> = []
 
     public init(session: Session, settings: Settings) {
         self.session = session
@@ -98,7 +95,6 @@ public final class FeedViewModel {
         // The session keeps rows by last scan, newest last.
         sessionRows = snapshot.rows
         rows = Dictionary(uniqueKeysWithValues: snapshot.rows.map { ($0.id, $0) })
-        revealedIDs = revealedIDs.filter { rows[$0].map(FeedItem.revealsEntry) == true }
         bambuddy = snapshot.bambuddy
         colorNamesProblem = snapshot.colorNamesProblem
         isCheckingBambuddy = snapshot.isCheckingBambuddy
@@ -108,15 +104,13 @@ public final class FeedViewModel {
         refresh()
     }
 
-    /// Builds the items from the session's rows and the reveals, drops the
-    /// drafts of rows that left weight entry and moves focus.
+    /// Builds the items from the session's rows, drops the drafts of rows
+    /// that left weight entry and moves focus.
     private func refresh() {
-        items = sessionRows.reversed().map {
-            FeedItem($0, coreWeight: settings.coreWeight, entryRevealed: revealedIDs.contains($0.id))
-        }
+        items = sessionRows.reversed().map { FeedItem($0, coreWeight: settings.coreWeight) }
         itemsByID = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
-        // A row that left weight entry (saved, also from the Flipper, scanned
-        // again, or its entry hidden) drops the host's draft.
+        // A row that left weight entry (saved, also from the Flipper, or
+        // scanned again) drops the host's draft.
         for id in Set(weightTexts.keys).union(modes.keys) where itemsByID[id]?.isEntry != true {
             weightTexts[id] = nil
             modes[id] = nil
@@ -236,7 +230,7 @@ public final class FeedViewModel {
         return readout(for: id).map { !$0.isError } == true && Self.grams(from: weightText(for: id)) != nil
     }
 
-    /// Opens a saved row again for a re-weigh.
+    /// Opens a saved, marked or added row again for a weight.
     public func reopen(_ id: FeedRow.ID) async {
         guard itemsByID[id]?.isReopenable == true else { return }
         await session.reopen(row: id)
@@ -312,35 +306,16 @@ public final class FeedViewModel {
         items.map { FocusModel.Row(id: $0.id, isWaiting: $0.isWaiting, isTouched: weightTexts[$0.id] != nil) }
     }
 
-    // MARK: New spool and Created rows
+    // MARK: Unknown tags
 
-    /// Save with weight… / Set weight…: shows the row's entry and gives it
-    /// the keyboard, even from a row the user is typing in.
-    public func revealEntry(_ id: FeedRow.ID) {
-        guard let row = rows[id], FeedItem.revealsEntry(row), !revealedIDs.contains(id) else { return }
-        revealedIDs.insert(id)
-        refresh()
-        focus.focus(id)
-    }
-
-    /// Esc / Cancel: hides the revealed entry without saving and drops its
-    /// draft; focus moves on as after a save.
-    public func hideEntry(_ id: FeedRow.ID) {
-        guard revealedIDs.remove(id) != nil else { return }
-        let wasFocused = focus.focusedRow == id
-        refresh()
-        if wasFocused { focus.focus(focus.nextWaitingRow(excluding: id) ?? id) }
-    }
-
-    /// Save as new: creates the spool from the tag, full, without a weight.
-    public func saveAsNew(_ id: FeedRow.ID) async -> Bool {
-        guard itemsByID[id]?.rowActions.contains(.saveAsNew) == true else { return false }
+    /// New: adds the spool from the tag at its label weight, without a
+    /// weight; the row says "Added to Bambuddy" and reopens for one.
+    public func addNew(_ id: FeedRow.ID) async -> Bool {
+        guard itemsByID[id]?.rowActions.contains(.new) == true else { return false }
         guard await createFromTag(id) else { return false }
         play(.success)
         return true
     }
-
-    // MARK: Unknown tags
 
     public func newSpoolForm(for id: FeedRow.ID) -> NewSpoolForm? {
         rows[id].map { NewSpoolForm(tag: $0.tag, settings: settings, colorName: $0.colorName) }

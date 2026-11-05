@@ -15,7 +15,7 @@ private func scan(_ scanId: String, _ name: String = "scan_mfc", autosave: Bool 
     return scan
 }
 
-/// A spool on the NTAG fixture, so that the Bambu fixture next to it is a New spool.
+/// A spool on the NTAG fixture, so that the Bambu fixture next to it is not in Bambuddy.
 private func ntagSpool() throws -> Spool {
     let tag = TagParser.parse(try fixtureScan("scan_ntag").tag)
     return Spool(id: 7, material: "PLA", labelWeight: 1000, coreWeight: 250, weightUsed: 400, tagUid: tag.bambuddyTagUid)
@@ -246,10 +246,10 @@ struct WatchNavigationTests {
         #expect(navigation.path.isEmpty)
     }
 
-    /// A New spool waits for nothing: its detail does not open, and a
-    /// known spool scanned after it still does.
+    /// A tag not in Bambuddy waits for nothing: its detail does not open,
+    /// and a known spool scanned after it still does.
     @MainActor
-    @Test func aNewSpoolDoesNotOpen() async throws {
+    @Test func aTagNotInBambuddyDoesNotOpen() async throws {
         let session = Session(settings: testSettings, inventory: FakeInventory(spools: [try ntagSpool()]))
         let feed = FeedViewModel(session: session, settings: testSettings)
         var navigation = WatchNavigation(feed.items)
@@ -257,7 +257,7 @@ struct WatchNavigationTests {
         _ = await session.lookup(row: new)
         feed.apply(await session.snapshot)
         navigation.update(feed.items)
-        #expect(feed.item(new)?.statusText == "New spool")
+        #expect(feed.item(new)?.statusText == "Not in Bambuddy")
         #expect(navigation.path.isEmpty)
 
         let known = await session.record(try scan("s-2", "scan_ntag"))
@@ -268,7 +268,7 @@ struct WatchNavigationTests {
     }
 
     @MainActor
-    @Test func aRowCreatedOnScanDoesNotOpen() async throws {
+    @Test func aRowAddedOnScanDoesNotOpen() async throws {
         let session = Session(settings: testSettings, inventory: FakeInventory())
         let feed = FeedViewModel(session: session, settings: testSettings)
         var navigation = WatchNavigation(feed.items)
@@ -276,28 +276,32 @@ struct WatchNavigationTests {
         feed.apply(await session.snapshot)
         navigation.update(feed.items)
 
-        #expect(feed.items.first?.statusText == "Created in Bambuddy")
+        #expect(feed.items.first?.statusText == "Added to Bambuddy")
         #expect(navigation.path.isEmpty)
     }
 
-    /// With weight on an opened New spool: nothing else opens, Save creates
-    /// and weighs, and the detail pops without opening the other New spool.
+    /// Weigh again on an added row: the crown entry, Save records the
+    /// weight, and the detail pops without opening the tag next to it.
     @MainActor
-    @Test func withWeightOnTheDetailSavesAndPops() async throws {
+    @Test func weighAgainOnAnAddedRowSavesAndPops() async throws {
         let inventory = FakeInventory()
         let session = Session(settings: testSettings, inventory: inventory)
         let feed = FeedViewModel(session: session, settings: testSettings)
         let other = await session.record(try scan("s-0"))
-        let id = await session.record(try scan("s-1"))
+        let id = await session.record(try scan("s-1", "scan_ntag"))
         _ = await session.lookup(row: other)
         _ = await session.lookup(row: id)
         feed.apply(await session.snapshot)
+        var form = try #require(feed.newSpoolForm(for: id))
+        form.material = "PLA"
+        #expect(await feed.create(id, form))
         var navigation = WatchNavigation(feed.items)
         navigation.open(id)
+        #expect(WatchRowScreen(try #require(feed.item(id)), isCreating: false) == .saved)
 
-        feed.revealEntry(id)
+        await feed.reopen(id)
         navigation.update(feed.items)
-        #expect(WatchRowScreen(try #require(feed.item(id)), isCreating: false) == .entry(offersCancel: true))
+        #expect(WatchRowScreen(try #require(feed.item(id)), isCreating: false) == .entry)
         #expect(navigation.path == [.row(id)])
         feed.setWeightText("1100", for: id)
         #expect(await feed.save(id))
@@ -305,12 +309,14 @@ struct WatchNavigationTests {
         navigation.popAfterSave(id)
 
         #expect(inventory.creates.count == 1)
+        #expect(inventory.updates.count == 1)
         #expect(navigation.path.isEmpty)
     }
 
-    /// Save as new on the detail: the row is Created, the detail pops back.
+    /// New on the detail: the row is added at its label weight, the detail
+    /// pops back.
     @MainActor
-    @Test func saveAsNewOnTheDetailPops() async throws {
+    @Test func newOnTheDetailPops() async throws {
         let session = Session(settings: testSettings, inventory: FakeInventory())
         let feed = FeedViewModel(session: session, settings: testSettings)
         let id = await session.record(try scan("s-1"))
@@ -318,11 +324,13 @@ struct WatchNavigationTests {
         feed.apply(await session.snapshot)
         var navigation = WatchNavigation(feed.items)
         navigation.open(id)
+        #expect(WatchRowScreen(try #require(feed.item(id)), isCreating: false) == .unknown(hint: nil, offersNew: true))
 
-        #expect(await feed.saveAsNew(id))
+        #expect(await feed.addNew(id))
         navigation.update(feed.items)
-        let created = try #require(feed.item(id))
-        #expect(WatchRowScreen(created, isCreating: false) == .card(hint: nil, actions: [.setWeight], prominent: .setWeight))
+        let added = try #require(feed.item(id))
+        #expect(added.statusText == "Added to Bambuddy")
+        #expect(WatchRowScreen(added, isCreating: false) == .saved)
         navigation.popAfterSave(id)
         #expect(navigation.path.isEmpty)
     }

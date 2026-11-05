@@ -104,7 +104,7 @@
   <div style="background:#fff;border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px">
     <div style="font-size:19px;font-weight:600">SF Symbols</div>
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 20px">
-      <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="24">
+      <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="26">
         <div style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.06)">
           <i class="{{ s.i }}" style="font-size:20px;color:{{ s.c }};text-align:center"></i>
           <div style="display:flex;flex-direction:column;min-width:0"><span style="font:600 12.5px ui-monospace,'SF Mono',Menlo,monospace">{{ s.n }}</span><span style="font-size:13px;color:#6E6E73">{{ s.u }}</span></div>
@@ -171,7 +171,7 @@
       <div style="background:var(--fb-bg);border-radius:24px;padding:28px;display:flex;flex-direction:column;gap:18px">
         <div style="font-size:15px;font-weight:600;color:var(--fb-l2)">{{ th.name }} · all row states</div>
         <div style="display:grid;grid-template-columns:repeat(4,370px);gap:20px 24px;align-items:start">
-          <sc-for list="{{ th.rows }}" as="r" hint-placeholder-count="12">
+          <sc-for list="{{ th.rows }}" as="r" hint-placeholder-count="15">
             <div style="display:flex;flex-direction:column;gap:8px">
               <span style="font:600 11px ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;color:var(--fb-l2)">{{ r.k }}</span>
               <div style="background:var(--fb-card);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px;font-family:-apple-system,system-ui,sans-serif">
@@ -315,13 +315,14 @@ const CORE = 242;
 const LIGHT = {'--fb-bg':'#F2F2F7','--fb-card':'#FFFFFF','--fb-card2':'#F2F2F7','--fb-l1':'#000000','--fb-l2':'rgba(60,60,67,0.6)','--fb-l3':'rgba(60,60,67,0.3)','--fb-sep':'rgba(60,60,67,0.18)','--fb-fill':'rgba(118,118,128,0.12)','--fb-fill2':'rgba(120,120,128,0.2)','--fb-blue':'#007AFF','--fb-tint':'rgba(0,122,255,0.14)','--fb-red':'#FF3B30','--fb-green':'#34C759','--fb-orange':'#FF9500','--fb-gray':'#8E8E93','--fb-glass':'rgba(255,255,255,0.72)','--fb-glassb':'rgba(0,0,0,0.06)','--fb-thumb':'#FFFFFF','--fb-sel':'rgba(0,122,255,0.22)','--fb-bar':'#F2F2F4'};
 const DARK = {'--fb-bg':'#000000','--fb-card':'#1C1C1E','--fb-card2':'#2C2C2E','--fb-l1':'#FFFFFF','--fb-l2':'rgba(235,235,245,0.6)','--fb-l3':'rgba(235,235,245,0.3)','--fb-sep':'rgba(84,84,88,0.6)','--fb-fill':'rgba(118,118,128,0.24)','--fb-fill2':'rgba(120,120,128,0.36)','--fb-blue':'#0A84FF','--fb-tint':'rgba(10,132,255,0.24)','--fb-red':'#FF453A','--fb-green':'#30D158','--fb-orange':'#FF9F0A','--fb-gray':'#8E8E93','--fb-glass':'rgba(44,44,48,0.72)','--fb-glassb':'rgba(255,255,255,0.12)','--fb-thumb':'#636366','--fb-sel':'rgba(10,132,255,0.35)','--fb-bar':'#2A2A2C'};
 const T = {green:'var(--fb-green)',red:'var(--fb-red)',orange:'var(--fb-orange)',blue:'var(--fb-blue)',gray:'var(--fb-gray)',l2:'var(--fb-l2)'};
-const SYM = {'ph ph-scales':'scalemass','ph-fill ph-check-circle':'checkmark.circle.fill','ph ph-question':'questionmark.circle','ph-fill ph-plus-circle':'plus.circle.fill','ph-fill ph-warning':'exclamationmark.triangle.fill','ph ph-broadcast':'dot.radiowaves.left.and.right'};
+const SYM = {'ph ph-scales':'scalemass','ph-fill ph-check-circle':'checkmark.circle.fill','ph ph-question':'questionmark.circle','ph-fill ph-plus-circle':'plus.circle.fill','ph-fill ph-warning':'exclamationmark.triangle.fill','ph ph-broadcast':'dot.radiowaves.left.and.right','ph-fill ph-arrow-counter-clockwise':'arrow.counterclockwise.circle.fill','ph ph-archive':'archivebox','ph ph-trash':'trash'};
 
 function vm(r) {
   const title = r.material ? r.material + (r.subtype ? ' ' + r.subtype : '') : 'NTAG 7-byte UID ' + r.uid.slice(0, 4) + '…';
-  const rem = r.known ? r.remaining + ' g left of ' + r.label : (r.material && r.label ? 'label ' + r.label + ' g' : '');
+  const rem = r.archived ? 'archived' : r.known ? r.remaining + ' g left of ' + r.label : (r.material && r.label ? 'label ' + r.label + ' g' : '');
   const sub = [r.colorName, rem].filter(Boolean).join(' · ');
   const by = r.savedBy === 'flipper' ? 'Flipper' : 'host';
+  const bySide = r.savedBy ? ' · by ' + by : '';
   const M = {
     lookup: ['Looking up', '', 'l2', 1], enter: ['Enter weight', 'ph ph-scales', 'blue'], saving: ['Saving…', '', 'l2', 1],
     saved: ['Saved ' + r.savedLeft + ' g left · by ' + by, 'ph-fill ph-check-circle', 'green'],
@@ -329,6 +330,9 @@ function vm(r) {
     unknown: ['Not in Bambuddy', 'ph ph-question', 'l2'], unknownNoMat: ['Not in Bambuddy; tag has no material', 'ph ph-question', 'l2'],
     created: ['Added to Bambuddy', 'ph-fill ph-plus-circle', 'green'], error: ['Error: ' + r.error, 'ph-fill ph-warning', 'red'],
     flipperCreate: ['Flipper asks to create it here', 'ph ph-broadcast', 'blue'], flipperLink: ['Flipper asks to link it here', 'ph ph-broadcast', 'blue'],
+    markedNew: ['Marked as new · ' + r.remaining + ' g left' + bySide, 'ph-fill ph-arrow-counter-clockwise', 'green'],
+    markedEmpty: ['Marked as empty · archived' + bySide, 'ph ph-archive', 'l2'],
+    deleted: ['Deleted from Bambuddy' + bySide, 'ph ph-trash', 'l2'],
   }[r.status];
   const entry = ['enter', 'saving', 'error'].includes(r.status);
   const raw = r.value != null ? r.value : String(r.suggested ?? '');
@@ -337,7 +341,7 @@ function vm(r) {
   const bad = net != null && net < 0;
   const readout = net == null ? 'Type the scale reading' : bad ? 'Below the core weight (' + CORE + ' g)' : r.mode === 'gross' ? 'Saves ' + net + ' g left · ' + n + ' − ' + CORE + ' g core' : 'Saves ' + net + ' g left';
   let acts = [];
-  if (['unknown', 'unknownNoMat', 'flipperCreate', 'flipperLink'].includes(r.status)) {
+  if (['unknown', 'unknownNoMat', 'flipperCreate', 'flipperLink', 'deleted'].includes(r.status)) {
     const lf = r.status === 'flipperLink';
     const nw = { label: r.material ? 'New' : 'New…', p: !lf }, lk = { label: 'Link to existing…', p: lf };
     acts = (lf ? [lk, nw] : [nw, lk]).map(a => ({ ...a, bg: a.p ? T.blue : 'var(--fb-fill)', fg: a.p ? '#fff' : T.blue }));
@@ -370,6 +374,9 @@ const STATES = [
   { k: 'Not in Bambuddy · no material', uid: '04A2C93B1F5E80', status: 'unknownNoMat' },
   { k: 'Flipper asks to create', uid: 'D40E19A7', rgba: '#FFFFFF', material: 'PETG', subtype: 'HF', label: 1000, status: 'flipperCreate' },
   { k: 'Flipper asks to link', uid: '04B7E2116A3C80', status: 'flipperLink' },
+  { k: 'Marked as new · by Flipper', uid: 'A1C3770E', rgba: '#3B3B3B', material: 'PLA', subtype: 'Matte', colorName: 'Charcoal', known: true, remaining: 1000, label: 1000, status: 'markedNew', savedBy: 'flipper' },
+  { k: 'Marked as empty · by Flipper', uid: '7EF1AB04', rgba: '#FF9016', material: 'PLA', subtype: 'Basic', colorName: 'Pumpkin Orange', known: true, archived: true, remaining: 0, label: 1000, status: 'markedEmpty', savedBy: 'flipper' },
+  { k: 'Deleted from Bambuddy · by Flipper', uid: '5B21C0DE', rgba: '#000000', material: 'PETG', subtype: 'HF', label: 1000, status: 'deleted', savedBy: 'flipper' },
 ];
 
 const CONN = [
@@ -426,7 +433,8 @@ class Component extends DCLogic {
         ['exclamationmark.triangle.fill', 'Error, timeout note', 'ph-fill ph-warning', '#FF3B30'], ['xmark.circle.fill', 'Test failed', 'ph-fill ph-x-circle', '#FF3B30'], ['dot.radiowaves.left.and.right', 'Flipper request', 'ph ph-broadcast', '#007AFF'], ['antenna.radiowaves.left.and.right', 'Flipper over Bluetooth', 'ph ph-broadcast', '#34C759'],
         ['antenna.radiowaves.left.and.right.slash', 'No Flipper', 'ph ph-broadcast', '#8E8E93'], ['cable.connector', 'Flipper over USB', 'ph ph-usb', '#34C759'], ['app.dashed', 'Connected, no hello', 'ph ph-app-window', '#FF9500'], ['server.rack', 'Bambuddy', 'ph ph-hard-drives', '#34C759'],
         ['wifi.exclamationmark', 'Bambuddy unreachable', 'ph ph-wifi-slash', '#FF3B30'], ['lock.trianglebadge.exclamationmark', 'Key lacks permission', 'ph ph-lock-key', '#FF3B30'], ['nosign', 'Spoolman mode', 'ph ph-prohibit', '#FF3B30'], ['paintpalette', 'Colour names unavailable', 'ph ph-palette', '#FF9500'],
-        ['wave.3.right', 'Empty feed', 'ph ph-broadcast', '#8E8E93'], ['list.bullet', 'Feed tab', 'ph ph-list-bullets', '#1D1D1F'], ['gearshape', 'Settings', 'ph ph-gear-six', '#1D1D1F'], ['trash', 'Clear', 'ph ph-trash', '#1D1D1F'],
+        ['wave.3.right', 'Empty feed', 'ph ph-broadcast', '#8E8E93'], ['list.bullet', 'Feed tab', 'ph ph-list-bullets', '#1D1D1F'], ['gearshape', 'Settings', 'ph ph-gear-six', '#1D1D1F'], ['trash', 'Clear, deleted spool', 'ph ph-trash', '#1D1D1F'],
+        ['arrow.counterclockwise.circle.fill', 'Marked as new', 'ph-fill ph-arrow-counter-clockwise', '#34C759'], ['archivebox', 'Marked as empty', 'ph ph-archive', '#8E8E93'],
         ['qrcode.viewfinder', 'Scan QR code', 'ph ph-qr-code', '#007AFF'], ['link', 'Link to existing', 'ph ph-link', '#007AFF'], ['arrow.left.arrow.right', 'Move tag link', 'ph ph-arrows-left-right', '#007AFF'], ['digitalcrown.horizontal.arrow.clockwise', 'Crown hint (watch)', 'ph ph-arrows-clockwise', '#1D1D1F'],
       ].map(([n, u, i, c]) => ({ n, u, i, c })),
       flows: FLOWS.map(f => ({ ...f, steps: f.steps.map((t, i) => ({ n: i + 1, t })), hasKeys: !!f.keys, keys: (f.keys || []).map(([a, k]) => ({ a, k })) })),

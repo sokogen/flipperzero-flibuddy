@@ -246,10 +246,10 @@ static void test_ready_names_the_last_outcome(void) {
 
     app.last = AppOutcomeAdded;
     build();
-    CHECK_STR_EQ(frame.bar, "Saved new PLA Basic");
+    CHECK_STR_EQ(frame.bar, "Added PLA Basic");
     app.last = AppOutcomeMarkedNew;
     build();
-    CHECK_STR_EQ(frame.bar, "Full PLA Basic 1000 g");
+    CHECK_STR_EQ(frame.bar, "New PLA Basic 1000 g");
     app.last = AppOutcomeMarkedEmpty;
     build();
     CHECK_STR_EQ(frame.bar, "Empty PLA Basic");
@@ -295,7 +295,7 @@ static void test_result_known(void) {
     CHECK_STR_EQ(frame.line[2], "484 / 1000 g");
     CHECK_EQ_INT(frame.level, 484);
     CHECK_STR_EQ(frame.bar, "");
-    check_chips("Menu", "Weigh", "");
+    check_chips("Menu", "Weigh", "New");
 
     /* never printed from: Unused in place of the level */
     app.spool.remaining = app.spool.label;
@@ -333,7 +333,7 @@ static void test_result_known_without_spool_shows_host_lines(void) {
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
     CHECK_STR_EQ(frame.line[2], "484 g left of 1000");
     CHECK_EQ_INT(frame.level, -1);
-    check_chips("Menu", "Weigh", "");
+    check_chips("Menu", "Weigh", "New");
 
     /* no lines either: the tag itself */
     l.lines.count = 0;
@@ -375,8 +375,8 @@ static void test_result_unknown(void) {
     CHECK_STR_EQ(frame.line[0], "Jade White");
     CHECK_STR_EQ(frame.line[1], "10100 - 1.75 mm - 1000 g");
     CHECK_STR_EQ(frame.line[2], "");
-    CHECK_STR_EQ(frame.bar, "New spool");
-    check_chips("Menu", "Save", "Weigh");
+    CHECK_STR_EQ(frame.bar, "Not in Bambuddy");
+    check_chips("Menu", "Add", "Link");
     /* without a colour name or specs: the hex colour and the UID */
     ProtoLookup l = fixture_message("lookup_unknown.json")->lookup;
     strcpy(l.scan_id, app.scan.id);
@@ -391,9 +391,9 @@ static void test_result_unknown(void) {
     CHECK_STR_EQ(frame.line[0], "Color #FFFFFF");
     CHECK_STR_EQ(frame.line[1], "Tag 5A3C9E21");
 
-    /* ▶ Weigh opens Weight: saved as new with that weight */
+    /* ▶ Link asks the host to link the tag */
     press(AppKeyRight);
-    CHECK(app.screen == AppScreenWeight);
+    CHECK(app.screen == AppScreenLinkOnHost);
 }
 
 static void test_result_unknown_without_material(void) {
@@ -455,7 +455,7 @@ static void test_menu_lists_the_actions(void) {
     CHECK_STR_EQ(frame.title, "PLA Basic");
     CHECK_EQ_INT(frame.count, 6);
     CHECK_STR_EQ(frame.item[0], "Weigh");
-    CHECK_STR_EQ(frame.item[1], "Reset to full");
+    CHECK_STR_EQ(frame.item[1], "Mark as new");
     CHECK_STR_EQ(frame.item[2], "Mark as empty");
     CHECK_STR_EQ(frame.item[3], "Relink on host");
     CHECK_STR_EQ(frame.item[4], "Tag details");
@@ -473,8 +473,8 @@ static void test_menu_lists_the_actions(void) {
     press(AppKeyLeft);
     build();
     CHECK_EQ_INT(frame.count, 4);
-    CHECK_STR_EQ(frame.item[0], "Save as new");
-    CHECK_STR_EQ(frame.item[1], "Save with weight");
+    CHECK_STR_EQ(frame.item[0], "Add new");
+    CHECK_STR_EQ(frame.item[1], "Add and weigh");
     CHECK_STR_EQ(frame.item[2], "Link on host");
     CHECK_STR_EQ(frame.item[3], "Tag details");
 
@@ -658,7 +658,7 @@ static void test_busy_says_what_is_sent(void) {
     send_fixture_lookup("lookup_unknown.json");
     press(AppKeyOk);
     build();
-    CHECK_STR_EQ(frame.title, "Saving");
+    CHECK_STR_EQ(frame.title, "Adding");
     CHECK_STR_EQ(frame.line[0], "PLA Basic");
 
     setup();
@@ -683,7 +683,7 @@ static void test_toast_added(void) {
     CHECK(app.screen == AppScreenToast);
     build();
     CHECK(frame.toast == AppToastAdded);
-    CHECK_STR_EQ(frame.title, "Saved as new");
+    CHECK_STR_EQ(frame.title, "Added to Bambuddy");
     CHECK_STR_EQ(frame.line[0], "PLA Basic Jade White");
     CHECK_STR_EQ(frame.line[1], "Spool #31 - 1000 g");
     CHECK_STR_EQ(frame.line[2], "");
@@ -697,9 +697,9 @@ static void test_toast_marks_count_down(void) {
     CHECK(app.screen == AppScreenToast);
     env.now_ms = 1000;
     build();
-    CHECK_STR_EQ(frame.title, "Reset to full");
+    CHECK_STR_EQ(frame.title, "Marked as new");
     CHECK_STR_EQ(frame.line[0], "PLA Basic Jade White");
-    CHECK_STR_EQ(frame.line[1], "1000 g left");
+    CHECK_STR_EQ(frame.line[1], "1000 g left - full");
     CHECK_STR_EQ(frame.line[2], "Next spool in 3 s");
     CHECK_EQ_INT(frame.progress, UI_TOAST_MAX);
     check_chips("Undo", "Weigh", "");
