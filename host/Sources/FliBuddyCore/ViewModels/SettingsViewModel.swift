@@ -365,6 +365,15 @@ public final class SettingsViewModel {
         stopScanning()
     }
 
+    /// The app went to the background (iPhone, iPad): commits the field
+    /// being typed, as iOS may end the app there before the field loses
+    /// focus (a pasted key would be lost). The save is the apply's first
+    /// step, before any network call, so it runs in the moment iOS leaves.
+    public func enteredBackground() {
+        Log.debug(.settings, "background: commit")
+        commit()
+    }
+
     /// Settings came on screen: loads the catalog for the Empty spool
     /// picker, each time, so a spool type added in Bambuddy shows. There is
     /// no Reload; a failure shows in `catalogError`, and Test connection

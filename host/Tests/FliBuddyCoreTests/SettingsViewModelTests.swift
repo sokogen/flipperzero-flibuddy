@@ -1269,6 +1269,30 @@ struct SettingsApplyOnChangeTests {
         #expect(applied.value.map(\.baseURL) == ["http://10.0.0.5:8000"])
     }
 
+    @Test func goingToTheBackgroundCommitsAPastedKey() async {
+        // iOS may end the app in the background before the field loses focus.
+        let applied = LockedBox<[Settings]>([])
+        let model = makeModel(appliesOnChange: true, apply: { settings in applied.mutate { $0.append(settings) } })
+        model.apiKey = "bb_pasted"
+        model.baseURL = "https://bambuddy.example.com"
+
+        model.enteredBackground()
+        await model.settled()
+
+        #expect(applied.value.map(\.apiKey) == ["bb_pasted"])
+        #expect(applied.value.map(\.baseURL) == ["https://bambuddy.example.com"])
+    }
+
+    @Test func goingToTheBackgroundWithNothingTypedAppliesNothing() async {
+        let applied = LockedBox<[Settings]>([])
+        let model = makeModel(appliesOnChange: true, apply: { settings in applied.mutate { $0.append(settings) } })
+
+        model.enteredBackground()
+        await model.settled()
+
+        #expect(applied.value.isEmpty)
+    }
+
     @Test(arguments: [
         Settings(baseURL: "", apiKey: "bb_test"),
         Settings(baseURL: "https://bambuddy.example.com", apiKey: ""),

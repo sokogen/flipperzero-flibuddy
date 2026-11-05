@@ -401,11 +401,17 @@ extension View {
 private struct SettingsSession: ViewModifier {
     let model: SettingsViewModel?
     let showing: Bool
+    @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
         content
             .onChange(of: showing) { _, now in
                 if !now { model?.left() }
+            }
+            // iOS may end the app in the background before a field loses
+            // focus: what was typed or pasted is applied first.
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background { model?.enteredBackground() }
             }
             .fullScreenCover(
                 isPresented: Binding(
