@@ -219,10 +219,21 @@ public final class SettingsViewModel {
     public var canSave: Bool { hasChanges }
     public var canRevert: Bool { hasChanges }
 
-    /// The key was read again after it was unknown: shows it in the field,
-    /// unless a different one is being typed. Called when the host's settings
-    /// change.
-    public func adoptRestoredAPIKey(_ restored: Settings) {
+    /// The settings were read again after the launch could not read them
+    /// (the host's `reloadSettings`); called when the host's settings change.
+    /// Settings that were all unknown (before the first unlock) are replaced
+    /// as a whole when nothing was edited. A key that was unknown shows in
+    /// the field, unless a different one is being typed.
+    public func adoptRestoredSettings(_ restored: Settings) {
+        if saved.protectedDataUnavailable {
+            guard !restored.protectedDataUnavailable, !hasChanges else { return }
+            // `saved` first: each field's change then equals it and applies nothing.
+            saved = restored
+            holdsApply = true
+            revert()
+            holdsApply = false
+            return
+        }
         guard saved.apiKeyUnknown, !restored.apiKeyUnknown, apiKey == saved.apiKey else { return }
         saved.apiKey = restored.apiKey
         saved.apiKeyUnknown = false

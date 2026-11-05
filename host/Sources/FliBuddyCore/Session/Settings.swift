@@ -49,6 +49,13 @@ public struct Settings: Equatable, Sendable {
     /// the Keychain item alone, and the key is not synced, until a different
     /// key is set or the settings are reloaded.
     public var apiKeyUnknown = false
+    /// Nothing stored could be read: the device has not been unlocked since
+    /// it started, so neither the Keychain nor `UserDefaults` is available
+    /// (a background launch for Bluetooth). Every field holds its default
+    /// and `apiKeyUnknown` is set; none of them is the user's. Such settings
+    /// are never saved or sent; `HostModel.reloadSettings` replaces them once
+    /// the data is available.
+    public var protectedDataUnavailable = false
     /// The empty-spool catalog entry recorded on new items (`core_weight_catalog_id`).
     public var catalogEntryId: Int?
     /// `core_weight` of new items in grams. Picking a catalog entry copies its
@@ -141,6 +148,9 @@ public enum SettingsError: Error, Equatable, Sendable {
     case missingAPIKey
     /// An `http://` address where only `https://` is allowed.
     case httpsRequired
+    /// The settings could not be read (before the first unlock), so they
+    /// cannot be changed either.
+    case protectedDataUnavailable
 }
 
 extension SettingsError: LocalizedError {
@@ -148,6 +158,7 @@ extension SettingsError: LocalizedError {
         switch self {
         case .missingAPIKey: "Enter a Bambuddy API key"
         case .httpsRequired: "FliBuddy needs an https:// address."
+        case .protectedDataUnavailable: "Unlock the device to change the settings."
         }
     }
 }
@@ -180,19 +191,31 @@ public struct SettingsStore: Sendable {
         self.secrets = secrets
     }
 
+    /// The Keychain's "user interaction is not allowed": the item is not
+    /// available while the device is locked.
+    static let interactionNotAllowed = SecretStoreError.status(errSecInteractionNotAllowed)
+
     /// Saved settings; defaults for anything never saved. An unreadable
     /// Keychain item loads as an unknown API key (`apiKeyUnknown`), not as an
-    /// empty one.
+    /// empty one. A locked Keychain beside a store that holds no version
+    /// (every load writes one) is the time before the first unlock, when
+    /// `UserDefaults` reads empty too: the settings load as
+    /// `protectedDataUnavailable` and the migration waits.
     public func load() -> Settings {
-        migrate()
         var settings = Settings()
-        settings.baseURL = defaults.string(forKey: Key.baseURL) ?? settings.baseURL
         do {
             settings.apiKey = try secrets.secret(for: Self.apiKeyAccount) ?? ""
         } catch {
             settings.apiKeyUnknown = true
             Log.error(.settings, "keychain read failed: \(SecretStoreError.logDescription(error))")
+            if error as? SecretStoreError == Self.interactionNotAllowed, defaults.object(forKey: Key.version) == nil {
+                settings.protectedDataUnavailable = true
+                Log.notice(.settings, "load: protected data unavailable, the settings wait for the first unlock")
+                return settings
+            }
         }
+        migrate()
+        settings.baseURL = defaults.string(forKey: Key.baseURL) ?? settings.baseURL
         settings.catalogEntryId = defaults.object(forKey: Key.catalogEntryId) as? Int
         settings.coreWeight = defaults.object(forKey: Key.coreWeight) as? Int ?? settings.coreWeight
         settings.defaultMode = defaults.string(forKey: Key.defaultMode)
@@ -222,7 +245,13 @@ public struct SettingsStore: Sendable {
 
     /// Saves everything; an empty API key removes the Keychain item. An
     /// unknown API key (`apiKeyUnknown`) leaves the item as it is.
+    /// Settings that could not be read (`protectedDataUnavailable`) are
+    /// refused: their defaults would overwrite what is stored.
     public func save(_ settings: Settings) throws {
+        guard !settings.protectedDataUnavailable else {
+            Log.notice(.settings, "save refused: protected data unavailable")
+            throw SettingsError.protectedDataUnavailable
+        }
         if !settings.apiKeyUnknown {
             let key = settings.trimmedAPIKey
             do {

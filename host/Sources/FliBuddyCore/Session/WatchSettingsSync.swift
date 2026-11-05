@@ -46,8 +46,9 @@ public final class WatchSettingsSender {
     /// until there is something to send.
     public private(set) var state: WatchSyncState?
     /// The settings as they are now. A held send is built from them when it
-    /// goes out, so it never carries what was current at an earlier save.
-    @ObservationIgnored public var settingsProvider: (@MainActor () -> Settings)?
+    /// goes out, so it never carries what was current at an earlier save;
+    /// `nil` (the host is gone) drops it.
+    @ObservationIgnored public var settingsProvider: (@MainActor () -> Settings?)?
 
     private let session: any SessionMessaging
     private let debounce: Duration
@@ -78,6 +79,11 @@ public final class WatchSettingsSender {
     }
 
     public func settingsSaved(_ settings: Settings) {
+        // Defaults loaded before the first unlock are not the user's settings.
+        guard !settings.protectedDataUnavailable else {
+            Log.notice(.sync, "not sent: settings unreadable")
+            return
+        }
         pending = payload(for: settings)
         guard debounce > .zero else { return flush() }
         debounceTask?.cancel()
@@ -118,7 +124,14 @@ public final class WatchSettingsSender {
     }
 
     private func flush() {
-        if pending != nil, let settings = settingsProvider?() { pending = payload(for: settings) }
+        if pending != nil, let provider = settingsProvider {
+            if let settings = provider(), !settings.protectedDataUnavailable {
+                pending = payload(for: settings)
+            } else {
+                Log.notice(.sync, "dropped: no current settings")
+                pending = nil
+            }
+        }
         guard let pending else { return refreshState() }
         let held: String? = if !session.isSupported {
             "unsupported"
@@ -328,14 +341,15 @@ extension WatchSettingsSender {
         let session = WatchConnectivitySession()
         let sender = WatchSettingsSender(session: session, debounce: defaultDebounce)
         host.onSettingsSaved = { [weak sender] in sender?.settingsSaved($0) }
-        sender.settingsProvider = { [weak host] in host?.settings ?? Settings() }
+        sender.settingsProvider = { [weak host] in host?.settings }
         host.watchSyncState = { [weak sender] in sender?.state }
         session.activate(
             onStateChange: { [weak sender] in Task { @MainActor in sender?.sessionStateChanged() } },
             onContext: { _ in }
         )
         // Even when nothing is sent yet, a later clear must propagate. Reading
-        // the key again (`reloadSettings`) saves, which queues the send.
+        // the settings again (`reloadSettings`) calls `onSettingsSaved`, which
+        // queues the send.
         sender.seed(host.settings)
         // A watch app installed after the last save still gets the settings.
         if host.settings.isConfigured { sender.settingsSaved(host.settings) }

@@ -83,9 +83,12 @@ public final class HostModel {
     }
 
     /// Whether the link may run with `settings`: always, unless it waits
-    /// for a chosen Flipper and Bluetooth remembers none.
+    /// for a chosen Flipper and Bluetooth remembers none, or the settings
+    /// that would name it could not be read yet.
     private func startsLink(_ settings: Settings) -> Bool {
-        !linkWaitsForChosenFlipper || settings.transport != .bluetooth || settings.peripheralId != nil
+        guard linkWaitsForChosenFlipper else { return true }
+        if settings.protectedDataUnavailable { return false }
+        return settings.transport != .bluetooth || settings.peripheralId != nil
     }
 
     /// What the empty feed says: no server, no Flipper, or hold a tag.
@@ -101,9 +104,13 @@ public final class HostModel {
     /// for it. Without one the link waits for a Flipper to be chosen, so a
     /// relaunch for Bluetooth would create the central for nothing; a fresh
     /// install leaves it to Scan for Flipper, as creating the central asks
-    /// for Bluetooth permission.
+    /// for Bluetooth permission. A relaunch for Bluetooth before the first
+    /// unlock cannot read which Flipper is remembered; it starts too, as iOS
+    /// delivers the restored peripherals only to a central that exists when
+    /// launching returns, and the link waits for `reloadSettings`.
     public static func startsAtLaunch(relaunchedForBluetooth: Bool, settings: Settings) -> Bool {
-        settings.transport == .bluetooth && settings.peripheralId != nil
+        if settings.protectedDataUnavailable { return relaunchedForBluetooth }
+        return settings.transport == .bluetooth && settings.peripheralId != nil
     }
 
     /// Runs the startup check again (the status bar's Check and Retry, and
@@ -159,6 +166,9 @@ public final class HostModel {
             new.apiKey = settings.apiKey
             new.apiKeyUnknown = false
         }
+        // Settings loaded before the first unlock are defaults: saving them
+        // (or what an edit made of them) would overwrite the stored ones.
+        if settings.protectedDataUnavailable { new.protectedDataUnavailable = true }
         try store.save(new)
         let choiceChanged = new.transportChoice != settings.transportChoice
         let serverChanged = Self.serverChanged(from: settings, to: new)
@@ -178,8 +188,16 @@ public final class HostModel {
             await session.update(settings: new)
         }
         Log.info(.settings, "apply: server=\(serverChanged ? "changed" : "same")")
+        updateLink(new, choiceChanged: choiceChanged)
+        await session.checkBambuddy()
+        if reloadSpools { await spools.refresh() }
+    }
+
+    /// Starts, stops or moves the link for settings that just took effect.
+    private func updateLink(_ new: Settings, choiceChanged: Bool) {
         if started, !link.isActive, startsLink(new) {
-            // The first Flipper chosen: the link that waited starts.
+            // The first Flipper chosen (or read after the first unlock): the
+            // link that waited starts.
             Log.info(.link, "start: a Flipper was chosen")
             link.connect(new.transportChoice)
         } else if link.isActive, !startsLink(new) {
@@ -190,8 +208,6 @@ public final class HostModel {
         } else if choiceChanged, link.isActive {
             link.connect(new.transportChoice)
         }
-        await session.checkBambuddy()
-        if reloadSpools { await spools.refresh() }
     }
 
     /// Whether `new` may name another Bambuddy or another key than `old`.
@@ -199,28 +215,42 @@ public final class HostModel {
         old.baseURL != new.baseURL || old.apiKey != new.apiKey
     }
 
-    /// Reads the API key again when it was unknown (the Keychain was locked at
-    /// launch): on protected data becoming available and when the app becomes
-    /// active. A key that reads now replaces the unknown one; every other
-    /// setting stays as it is, the session is reconfigured and the watch gets
-    /// the key. Does nothing when the key is known or still unreadable.
+    /// Reads the settings again when the launch could not (the Keychain was
+    /// locked): on protected data becoming available and when the app
+    /// becomes active. Before the first unlock nothing was readable
+    /// (`protectedDataUnavailable`): every setting now read replaces the
+    /// defaults, and the link starts or moves to the remembered Flipper.
+    /// Otherwise only the key was unknown: a key that reads now replaces it
+    /// and every other setting stays as it is. Either way the session is
+    /// reconfigured and the watch gets what was read (`onSettingsSaved`);
+    /// nothing is saved. Does nothing when everything is known or still
+    /// unreadable.
     public func reloadSettings() async {
-        guard settings.apiKeyUnknown else { return }
+        guard settings.apiKeyUnknown || settings.protectedDataUnavailable else { return }
         let loaded = store.load()
-        guard !loaded.apiKeyUnknown else {
-            Log.info(.settings, "reload: the API key is still unreadable")
+        guard !loaded.apiKeyUnknown, !loaded.protectedDataUnavailable else {
+            Log.info(.settings, "reload: the settings are still unreadable")
             return
         }
-        var new = settings
-        new.apiKey = loaded.apiKey
-        new.apiKeyUnknown = false
-        Log.info(.settings, "reload: the API key is back, key=\(loaded.apiKey.isEmpty ? "absent" : "present")")
+        let new: Settings
+        if settings.protectedDataUnavailable {
+            new = loaded
+            Log.info(.settings, "reload: the settings are back after the first unlock")
+        } else {
+            var merged = settings
+            merged.apiKey = loaded.apiKey
+            merged.apiKeyUnknown = false
+            new = merged
+            Log.info(.settings, "reload: the API key is back, key=\(loaded.apiKey.isEmpty ? "absent" : "present")")
+        }
+        let choiceChanged = new.transportChoice != settings.transportChoice
         settings = new
         onSettingsSaved?(new)
         feed.settings = new
         spools.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
         let reloadSpools = spools.forgetList()
+        updateLink(new, choiceChanged: choiceChanged)
         await session.checkBambuddy()
         if reloadSpools { await spools.refresh() }
     }

@@ -613,6 +613,35 @@ struct WatchSettingsStartTests {
         #expect(session.sentPayloads == [SettingsSyncPayload(current)])
     }
 
+    @Test func settingsThatCouldNotBeReadAreNeverSent() {
+        // Loaded before the first unlock: the empty URL is not the user's.
+        let session = FakeSessionMessaging()
+        let sender = WatchSettingsSender(session: session)
+        var unreadable = Settings()
+        unreadable.apiKeyUnknown = true
+        unreadable.protectedDataUnavailable = true
+        sender.seed(testSettings)
+
+        sender.settingsSaved(unreadable)
+
+        #expect(session.sent.isEmpty)
+    }
+
+    @Test func aHeldSendOfAHostThatIsGoneIsDropped() {
+        // Without the host there are no current settings; an empty
+        // `Settings()` would tell the watch to clear its key.
+        let session = FakeSessionMessaging()
+        session.isActivated = false
+        let sender = WatchSettingsSender(session: session)
+        sender.settingsProvider = { nil }
+        sender.settingsSaved(testSettings)
+
+        session.isActivated = true
+        sender.sessionStateChanged()
+
+        #expect(session.sent.isEmpty)
+    }
+
     @Test func aWhitespaceKeyIsEmptyForTheSender() {
         let session = FakeSessionMessaging()
         let sender = WatchSettingsSender(session: session)

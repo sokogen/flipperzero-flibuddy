@@ -29,7 +29,7 @@ enum AppHost {
 
 /// Starts the link at launch when iOS relaunched the app in the background
 /// for Bluetooth, where SwiftUI may never run the views' tasks; and reads
-/// the API key again once protected data is available.
+/// the settings again once protected data is available.
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -51,7 +51,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     // A launch while the iPhone is locked (Bluetooth restoration) cannot
-    // read the API key; read it again once the data is available.
+    // read the API key, nor before the first unlock any setting; read them
+    // again once the data is available.
     func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
         Task { await AppHost.model.reloadSettings() }
     }
@@ -205,8 +206,8 @@ struct SettingsScreen: View {
             startRequestedScan()
         }
         .onChange(of: navigation.scanRequested) { startRequestedScan() }
-        // The API key was read again after a launch while locked.
-        .onChange(of: host.settings) { _, settings in model?.adoptRestoredAPIKey(settings) }
+        // The settings were read again after a launch while locked.
+        .onChange(of: host.settings) { _, settings in model?.adoptRestoredSettings(settings) }
     }
 
     /// The empty feed's Scan for Flipper: the scan, and with it the
