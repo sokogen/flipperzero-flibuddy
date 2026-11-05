@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FliBuddy support</title>
+<meta name="description" content="Help with FliBuddy: common setup problems and how to report an issue.">
+<link rel="icon" href="../icon.png">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<header>
+<a class="brand" href="../">FliBuddy</a>
+<nav><a href="../privacy/">Privacy</a><a href="../support/">Support</a><a href="https://github.com/sokogen/flipperzero-flibuddy">Source</a></nav>
+</header>
+<main>
+<h1>Support</h1>
+<p>For help, bugs and ideas, open an issue at <a href="https://github.com/sokogen/flipperzero-flibuddy/issues">github.com/sokogen/flipperzero-flibuddy/issues</a>. Say which device and which versions you use (Flipper firmware, iOS, FliBuddy) and attach the log if you can (see below). Never post your API key.</p>
+
+<h2>Setup problems</h2>
+<dl>
+<dt>"FliBuddy needs an https:// address" or "Needs HTTPS"</dt>
+<dd>The iPhone, iPad and Apple Watch apps talk to Bambuddy over HTTPS only. Put Bambuddy behind a reverse proxy with a certificate your device trusts and enter the https:// address.</dd>
+<dt>Test connection fails with a permission error</dt>
+<dd>Create the API key in Bambuddy with inventory read and update and settings read, then scan its QR code in Settings or type it in.</dd>
+<dt>The app reports that Bambuddy is in Spoolman mode</dt>
+<dd>FliBuddy works with Bambuddy's internal inventory only. Switch Bambuddy to internal inventory.</dd>
+<dt>No Flipper found, or "It may be connected to another device"</dt>
+<dd>The FliBuddy app must be open on the Flipper (Apps, NFC, FliBuddy) with Connection set to Auto or Bluetooth. A Flipper already connected to another phone, including the official Flipper mobile app, stops advertising: disconnect it there first, then scan again in FliBuddy Settings.</dd>
+<dt>The Flipper shows a tag but nothing happens in the app</dt>
+<dd>Check that the Flipper is on firmware 1.5.1 or later and that the app shows it as connected. Without the phone app the Flipper still shows the tag's own facts.</dd>
+</dl>
+
+<h2>Sharing the log</h2>
+<p>On the iPhone or iPad open Settings and choose Share Log. The file lists events such as connections and Bambuddy calls; the API key and other secrets are redacted. Attach it to your issue. Read it first if you are unsure, and remove anything you would rather keep private, such as your server address.</p>
+</main>
+<footer>
+<p>FliBuddy is an independent open source project (MIT). It is not affiliated with, endorsed by or sponsored by Bambu Lab, Flipper Devices or Bambuddy. All product names belong to their owners.</p>
+</footer>
+</body>
+</html>

@@ -13,6 +13,8 @@ on:
       - "docs/design/source/flipper-ui.js"
       - "host/Apple/**/Assets.xcassets/**"
       - ".github/workflows/tools.yml"
+      - "site/**"
+      - ".github/workflows/pages.yml"
   pull_request:
     paths:
       - "tools/**"
@@ -22,6 +24,8 @@ on:
       - "docs/design/source/flipper-ui.js"
       - "host/Apple/**/Assets.xcassets/**"
       - ".github/workflows/tools.yml"
+      - "site/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 jobs:
