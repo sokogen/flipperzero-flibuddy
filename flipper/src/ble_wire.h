@@ -72,7 +72,8 @@ size_t ble_wire_scan_response_size(size_t mfg_len);
  * so the Bt service keeps saying advertising after a central connects. A
  * host is connected once it subscribed to TX (a disconnect unsubscribes
  * it); without one the link is advertising when the Bt status says so,
- * else off. */
+ * else off. Verified on SDK API FLIBUDDY_VERIFIED_SDK_API only
+ * (ble_sdk_pin.h): re-check gap.c on a new firmware. */
 typedef enum {
     BleWireLinkOff,
     BleWireLinkAdvertising,

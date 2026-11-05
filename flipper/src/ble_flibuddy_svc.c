@@ -197,6 +197,7 @@ bool flibuddy_ble_notify(FuriHalBleProfileBase* base, const uint8_t* data, size_
     TxValue value = {.data = data, .len = (uint16_t)len};
     /* in SDK 1.5.1 this returns true when the update FAILED (gatt.c returns
      * result != BLE_STATUS_SUCCESS), after retrying a busy stack for up to
-     * a second */
+     * a second. Verified on SDK API FLIBUDDY_VERIFIED_SDK_API only: see
+     * ble_sdk_pin.h for what to re-check on a new firmware. */
     return !ble_gatt_characteristic_update(profile->svc_handle, &profile->chars[CharTx], &value);
 }

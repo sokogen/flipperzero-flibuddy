@@ -16,6 +16,12 @@ ufbt launch                  # builds, installs and starts it on a Flipper
 `ufbt launch` installs the app as `/ext/apps/Tools/flibuddy.fap`; the
 Flipper lists it as **FliBuddy** under Apps → Tools.
 
+Bumping the SDK (`ufbt update --branch=...`) means re-verifying the two
+BLE workarounds (the inverted `ble_gatt_characteristic_update` result and
+the gap.c "connected" detection) and the `FLIBUDDY_VERIFIED_SDK_API` pin;
+see `src/ble_sdk_pin.h`. `cd tools && uv run pytest` fails until the pin
+matches the installed SDK.
+
 `.env` (from `ufbt dotenv_create`) points `UFBT_HOME` at `flipper/.ufbt`.
 `application.fam` limits the sources to `src/`, so the tests and the SDK
 stay out of the FAP.
