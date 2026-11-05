@@ -164,3 +164,18 @@ def test_a_screenshot_is_an_unedited_qflipper_export(path):
 def test_screenshots_present_are_the_listed_ones():
     listed = {Path(s).name for s in manifest()["screenshots"]}
     assert {p.name for p in screenshot_files()} <= listed
+
+
+def test_the_app_folder_carries_the_license():
+    # The catalog bundles only flipper/, so the license goes with it.
+    root = FLIPPER.parent / "LICENSE"
+    assert (FLIPPER / "LICENSE").read_bytes() == root.read_bytes()
+    assert root.read_text(encoding="utf-8").startswith("MIT License")
+
+
+def test_the_description_promises_nothing_unfinished():
+    text = " ".join(included(manifest()["description"]).read_text(encoding="utf-8").split())
+    # the LED and vibration follow the Feedback setting, they are not fixed
+    assert "Feedback setting" in text
+    # no developer-only tools in the catalog text
+    assert "bridge" not in text

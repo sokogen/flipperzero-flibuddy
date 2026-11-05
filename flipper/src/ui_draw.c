@@ -99,7 +99,10 @@ static void chip_ok_at(Canvas* c, int32_t x, const char* s) {
 }
 
 /* The OK chip is centred unless that brings it closer than CHIP_CLEAR to
- * the ◀ or ▶ chip: then it moves aside (Waiting's Get app and Settings). */
+ * the ◀ or ▶ chip: then it moves aside (Waiting's Get app and Settings).
+ * The ◀ limit is applied last, so if both side chips crowded the centre the
+ * OK chip would keep clear of ◀ and touch ▶. No screen has such a trio:
+ * with the firmware widths only Waiting (no ◀ chip) moves at all. */
 static int32_t chip_ok_x(Canvas* c, const UiFrame* f) {
     int32_t w = canvas_string_width(c, f->center) + CHIP_OK_PAD;
     int32_t x = (W - w) / 2;

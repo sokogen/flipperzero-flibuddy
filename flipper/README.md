@@ -277,6 +277,7 @@ submission); name, id, version, category, author and icon come from
 `application.fam`. The catalog page shows `catalog/description.md` and
 `CHANGELOG.md`, which use only the catalog's Markdown (H1 and H2, bold,
 italic, lists, links), and the qFlipper screenshots in `screenshots/` (see
-its README). `tools/tests/test_catalog.py` checks them; the catalog's own
+its README). `LICENSE` is a copy of the repository's, so the bundle of
+this folder carries it. `tools/tests/test_catalog.py` checks them; the catalog's own
 check is its `tools/bundle.py --nolint`. A new catalog release raises
 `fap_version` (and `FLIBUDDY_VERSION`) and adds a `CHANGELOG.md` entry.

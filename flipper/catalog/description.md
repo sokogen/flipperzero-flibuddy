@@ -9,7 +9,7 @@ FliBuddy is an independent open source project. It is not affiliated with Bambu 
 - Reads Bambu Lab spool tags (MIFARE Classic 1K, unlocked with the keys derived from each tag's UID) and NTAG213, NTAG215 and NTAG216 tags.
 - Shows what the tag itself says: the material of a Bambu Lab spool (for example PLA Basic), the tag type and the UID; Tag details adds how much of the tag was read.
 - A tag left on the Flipper is not read again until it is taken away.
-- LED and vibration confirm each read, so the screen need not be watched.
+- The LED and vibration confirm each read (as the Feedback setting chooses, with optional sound), so the screen need not be watched.
 - **Get app** (OK on the start screen) shows a QR code of the project page, where the phone app is.
 
 ## With the FliBuddy app and Bambuddy
@@ -30,7 +30,7 @@ The Flipper sends each tag over Bluetooth to the FliBuddy app, which looks it up
 
 ## Settings
 
-- Connection: Auto, USB or Bluetooth. The apps connect over Bluetooth; USB speaks the same protocol to the developer bridge in the source repository. While the app runs on USB, qFlipper cannot use the cable.
+- Connection: Auto, Bluetooth or USB. The FliBuddy apps connect over Bluetooth. While FliBuddy holds the USB port (Auto or USB), qFlipper cannot use the cable.
 - Auto-save new, After scan (Show or Weigh), Weigh as (Gross or Net), Feedback (Vibro and LED, LED, Off) and Sound.
 - The settings file is the only thing FliBuddy writes, in its own folder under apps data on the SD card.
 
