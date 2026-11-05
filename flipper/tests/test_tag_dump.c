@@ -67,6 +67,21 @@ static void test_pages_fill_up_to_capacity(void) {
     CHECK_MEM_EQ(dump.pages[TAG_DUMP_MAX_PAGES - 1], page, 4);
 }
 
+/* The blocks and the pages share their storage (a dump is one or the
+ * other), so each kind of data goes only into its own kind of dump. */
+static void test_blocks_and_pages_share_storage(void) {
+    static const uint8_t data[16] = {0xAB};
+    static const uint8_t page[4] = {1, 2, 3, 4};
+    CHECK(sizeof(TagDump) < TAG_DUMP_MFC_BLOCKS * TAG_DUMP_BLOCK_LEN + 64);
+    tag_dump_init(&dump, TagTypeNtag);
+    CHECK(!tag_dump_set_block(&dump, 0, data));
+    CHECK_EQ_INT(dump.block_present, 0);
+    tag_dump_init(&dump, TagTypeMfc);
+    CHECK(!tag_dump_append_page(&dump, page));
+    CHECK_EQ_INT(dump.page_count, 0);
+    CHECK(tag_dump_set_block(&dump, 0, data));
+}
+
 static void test_scan_mfc_matches_fixture(void) {
     load_mfc(&dump);
     size_t len = proto_encode_scan(&dump, MFC_SCAN_ID, false, line, sizeof(line));
@@ -210,6 +225,7 @@ int main(void) {
     RUN_TEST(test_uid_lengths);
     RUN_TEST(test_blocks_and_missing_sectors);
     RUN_TEST(test_pages_fill_up_to_capacity);
+    RUN_TEST(test_blocks_and_pages_share_storage);
     RUN_TEST(test_scan_mfc_matches_fixture);
     RUN_TEST(test_scan_mfc_autosave_matches_fixture);
     RUN_TEST(test_scan_mfc_without_missing_sectors_omits_missing);

@@ -19,7 +19,7 @@ bool tag_dump_set_uid(TagDump* dump, const uint8_t* uid, size_t len) {
 }
 
 bool tag_dump_set_block(TagDump* dump, uint8_t block, const uint8_t data[TAG_DUMP_BLOCK_LEN]) {
-    if(block >= TAG_DUMP_MFC_BLOCKS) return false;
+    if(dump->type != TagTypeMfc || block >= TAG_DUMP_MFC_BLOCKS) return false;
     memcpy(dump->blocks[block], data, TAG_DUMP_BLOCK_LEN);
     dump->block_present |= (uint64_t)1 << block;
     return true;
@@ -38,7 +38,7 @@ bool tag_dump_sector_missing(const TagDump* dump, uint8_t sector) {
 }
 
 bool tag_dump_append_page(TagDump* dump, const uint8_t data[TAG_DUMP_PAGE_LEN]) {
-    if(dump->page_count >= TAG_DUMP_MAX_PAGES) return false;
+    if(dump->type != TagTypeNtag || dump->page_count >= TAG_DUMP_MAX_PAGES) return false;
     memcpy(dump->pages[dump->page_count++], data, TAG_DUMP_PAGE_LEN);
     return true;
 }
