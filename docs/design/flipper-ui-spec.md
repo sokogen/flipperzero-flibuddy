@@ -19,8 +19,9 @@ chip does nothing, except where a screen says so below.
 
 Titles use FontPrimary with a dotted rule under them, body text
 FontSecondary, the weight digits FontBigNumbers. The transport icon (USB or
-Bluetooth) sits top right on every screen with a header; the Bluetooth icon
-blinks while the Flipper advertises without a host. Icons are XBM files in
+Bluetooth) sits top right on every screen with a header: the connected
+host's transport, else USB for Connection = USB and Bluetooth otherwise;
+the Bluetooth icon blinks while the Flipper advertises without a host. Icons are XBM files in
 `flipper/images/`, generated from the design's bitmaps by
 `tools/fixtures/make_flipper_icons.py` (a pytest fails when they are stale).
 
@@ -33,14 +34,19 @@ starts with the material (`PLA Silk+`).
 
 Keys: OK / ◀ / ▶ / ▲▼ / Back.
 
-1. **Waiting for app** (no host): title "FliBuddy", the version, a line for
-   the transport in use, "Waiting for app" with animated dots. The line
-   reads `USB: no app`, `USB unavailable` (the port did not open),
-   `Visible as <name>` (Bluetooth, advertising), `Bluetooth: no app`
-   (a central subscribed without a `hello`) or `Bluetooth off`. A host app
-   whose `hello` speaks another protocol version replaces the line with
-   `App protocol N` until a host connects or the port closes. ▶ Settings,
-   Back exits the app. A tag read here shows Result · no host.
+1. **Waiting for app** (no host): title "FliBuddy", the version, a USB
+   line and a Bluetooth line, each with its icon, as in the design, then
+   "Waiting for app" with animated dots. The USB line reads `USB: no app`,
+   `USB unavailable` (the port did not open) or `USB off` (Connection =
+   Bluetooth); the Bluetooth line `Visible as <name>` (advertising; the
+   icon blinks), `Bluetooth: no app` (a central subscribed without a
+   `hello`) or `Bluetooth off` (Connection = USB, not advertising, or the
+   profile did not start). A host app whose `hello` speaks another
+   protocol version replaces its transport's line with `App protocol N`
+   until a host connects or that port closes. The design's "Cable OK, no
+   app" (a cable without the app) is not told apart from no cable: the
+   Flipper only sees the port opened. ▶ Settings, Back exits the app. A
+   tag read here shows Result · no host.
 2. **Ready** (host connected): spool picture with animated waves, "Ready",
    "Hold spool tag to the back". After an action an inverted bar with a
    check names the last outcome (`Saved PLA Basic 590 g`, `Added PLA
@@ -144,11 +150,13 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
     resends the same intent under its id; otherwise there is no Retry chip
     and ◀, ▶ and Back go home.
 21. **Settings** (▲▼ select, ◀▶ change the value in place, Back saves and
-    returns home; four rows show): Connection (USB / Bluetooth), Auto-save
+    returns home; four rows show): Connection (Auto / USB / Bluetooth; Auto
+    runs both and the first host to say hello wins), Auto-save
     new (Off / On), After scan (Show / Weigh), Weigh as (Gross / Net),
     Feedback (Vibro+LED / LED / Off), Sound (Off / On), Version (OK opens
-    About). Leaving with another Connection, or after the transport in use
-    failed to open, restarts the transport.
+    About). Leaving with another Connection closes the transports it no
+    longer uses and opens the new ones; a transport in use that failed to
+    open is opened again. A host on a transport that keeps running stays.
 22. **About**: app icon, "FliBuddy", "for Bambuddy", `Version 0.1.0`,
     `Protocol 2 - fw 1.5.1`, `USB app: <app>` / `BLE app: <app>` (the
     transport first, so a long app name is cut, not the transport) or
@@ -188,7 +196,7 @@ adds the beeps whatever Feedback says. Every event wakes the backlight.
 
 ## Not built
 
-The design's Recent screen (Ready's ◀) and Connection = Auto (the app uses the one transport chosen).
+The design's Recent screen (Ready's ◀).
 
 The Flipper's own texts say "app" for the FliBuddy app on the phone or
 watch (`Waiting for app`, `No app`, `Create in app`, `Pick the spool in the

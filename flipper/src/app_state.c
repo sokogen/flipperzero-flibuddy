@@ -5,10 +5,11 @@
 void app_state_init(AppState* s, IntentStore* intents, uint32_t first_scan, uint32_t first_intent) {
     memset(s, 0, sizeof(*s));
     s->screen = AppScreenWaiting;
-    s->transport = TransportKindUsb;
     s->ble = AppBleOff;
     s->mode = WeightModeGross;
     app_settings_defaults(&s->settings);
+    s->connection = app_settings_connection(&s->settings);
+    s->via = TransportKindUsb;
     s->intents = intents;
     id_seq_init(&s->scan_ids, 's', first_scan);
     id_seq_init(&s->intent_ids, 'i', first_intent);
@@ -613,12 +614,17 @@ static AppEffect key_error(AppState* s, AppKey key, uint32_t now_ms) {
 static void setting_change(AppState* s, AppKey key) {
     AppSettings* st = &s->settings;
     switch((AppSetting)s->sel) {
-    case AppSettingConnection:
-        app_settings_set_transport(
-            st,
-            app_settings_transport(st) == TransportKindUsb ? TransportKindBluetooth :
-                                                             TransportKindUsb);
+    case AppSettingConnection: {
+        /* in the design's order: Auto, USB, Bluetooth */
+        static const AppConnection order[] = {
+            AppConnectionAuto, AppConnectionUsb, AppConnectionBluetooth};
+        unsigned i = 0;
+        while(i < 3 && order[i] != app_settings_connection(st))
+            i++;
+        i = key == AppKeyRight ? (i + 1) % 3 : (i + 2) % 3;
+        app_settings_set_connection(st, order[i]);
         break;
+    }
     case AppSettingAutosave:
         app_settings_set_autosave(st, !app_settings_autosave(st));
         break;
@@ -649,11 +655,17 @@ static void setting_change(AppState* s, AppKey key) {
 
 static AppEffect leave_settings(AppState* s) {
     go_home(s, s->last);
-    TransportKind chosen = app_settings_transport(&s->settings);
-    if(chosen != s->transport || s->transport_failed) {
-        s->transport = chosen;
-        s->transport_failed = false;
-        s->ble = AppBleOff;
+    AppConnection chosen = app_settings_connection(&s->settings);
+    bool retry = false;
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++)
+        retry |= s->transport_failed[k] && app_connection_uses(chosen, (TransportKind)k);
+    if(chosen != s->connection || retry) {
+        bool ble_stays = app_connection_uses(s->connection, TransportKindBluetooth) &&
+                         app_connection_uses(chosen, TransportKindBluetooth) &&
+                         !s->transport_failed[TransportKindBluetooth];
+        s->connection = chosen;
+        memset(s->transport_failed, 0, sizeof(s->transport_failed));
+        if(!ble_stays) s->ble = AppBleOff;
         return AppEffectSwitchTransport;
     }
     if(memcmp(&s->settings, &s->settings_entered, sizeof(s->settings)) != 0) {
@@ -754,7 +766,8 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
     switch(e->type) {
     case AppEventHostConnected:
         s->connected = true;
-        s->other_version = 0;
+        s->via = e->via;
+        memset(s->other_version, 0, sizeof(s->other_version));
         s->cue = AppCueConnected;
         if(s->screen == AppScreenWaiting) go_home(s, AppOutcomeNone);
         break;
@@ -796,10 +809,10 @@ AppEffect app_reduce(AppState* s, const AppEvent* e) {
         s->ble = e->ble;
         break;
     case AppEventTransportFailed:
-        s->transport_failed = true;
+        if(e->via < TRANSPORT_KINDS) s->transport_failed[e->via] = true;
         break;
     case AppEventOtherVersion:
-        s->other_version = s->connected ? 0 : e->version;
+        if(e->via < TRANSPORT_KINDS) s->other_version[e->via] = s->connected ? 0 : e->version;
         break;
     }
     return effect;

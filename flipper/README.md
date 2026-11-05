@@ -26,11 +26,12 @@ matches the installed SDK.
 `application.fam` limits the sources to `src/`, so the tests and the SDK
 stay out of the FAP.
 
-With the USB transport (the default) the app takes the USB CDC port from
-the CLI while it runs (qFlipper and the CLI are unavailable until it exits)
-and gives it back on exit: Back on the Waiting or Ready screen leaves the
-app and hands the port back to the CLI. A host that opens the port gets a `hello`; a host
-`hello` within 2 s marks it connected (`src/host_link.h`).
+With USB in use (Connection USB, or Auto, the default) the app takes the
+USB CDC port from the CLI while it runs (qFlipper and the CLI are
+unavailable until it exits) and gives it back on exit: Back on the Waiting
+or Ready screen leaves the app and hands the port back to the CLI. A host
+that opens the port gets a `hello`; a host `hello` within 2 s marks it
+connected (`src/host_link.h`).
 
 ## Settings
 
@@ -39,7 +40,7 @@ change its value in place, Back saves and returns.
 
 | Setting | Values | Default |
 |---|---|---|
-| Connection | USB / Bluetooth | USB |
+| Connection | Auto / USB / Bluetooth | Auto |
 | Auto-save new | Off / On | Off |
 | After scan | Show / Weigh | Show |
 | Weigh as | Gross / Net | Gross |
@@ -60,36 +61,54 @@ that weight, and the `weigh` intent says which (`mode`). **Feedback** and **Soun
 what the LED, the vibro motor and the speaker do per event
 (`src/feedback.h`).
 
-Leaving Settings with another Connection closes the running backend and
-opens the other (and retries the transport in use when it did not open).
+**Connection** = Auto runs USB and Bluetooth at once (the design's first
+run shows both). The first host to say `hello` on either wins and
+carries the session (`src/link_select.h`): the other port is no longer
+greeted, a host there gets no answer, and its lookups and results are
+dropped. When the winning host goes, the Flipper greets the other port
+again and a host waiting there connects. Two hosts that open their ports
+at the same moment both get the Flipper's first `hello`; the one that
+answers first wins, and the other one believes it is connected until it
+is greeted again. Auto holds the USB port and the Bluetooth profile, so
+neither qFlipper nor the official Flipper mobile app can connect while
+the app runs.
+
+Leaving Settings with another Connection closes the backends it no
+longer uses and opens the new ones (a host on a backend that keeps
+running stays connected), and retries a backend in use that did not
+open.
 The settings are saved with `saved_struct` in
 `/ext/apps_data/flibuddy/settings.bin`, version 3: one byte each for the
-transport (`0` = USB, `1` = Bluetooth), Auto-save new, Feedback (`0` =
+connection (`0` = USB, `1` = Bluetooth, `2` = Auto), Auto-save new, Feedback (`0` =
 Vibro+LED, `1` = LED, `2` = Off), Sound, After scan (`0` = Show, `1` =
 Weigh) and Weigh as (`0` = Gross, `1` = Net). A version 2 file (no After
 scan, no Weigh as) keeps its four values and a version 1 file (transport
-only) its transport; both take the defaults for the rest and are
-rewritten as version 3 on the next save. A missing or unreadable file, one
-of another version or with any value out of range loads the defaults
-(`src/app_settings.h`, the SDK side in `src/app_settings_file.c`). Only the
-chosen backend runs: with Bluetooth the USB port stays with the CLI and
-qFlipper.
+only) its transport (the same numbers); both take the defaults for the
+rest and are rewritten as version 3 on the next save, so an older file
+keeps USB or Bluetooth and only a new install starts on Auto. A missing
+or unreadable file, one of another version or with any value out of
+range loads the defaults (`src/app_settings.h`, the SDK side in
+`src/app_settings_file.c`). Only the chosen backends run: with Bluetooth
+alone the USB port stays with the CLI and qFlipper.
 
-Without a host the Waiting screen names the transport in use; with one it
-gives way to Ready:
+Without a host the Waiting screen shows a line for each transport, USB
+first and Bluetooth below; with one it gives way to Ready, whose header
+icon names the host's transport:
 
 | Text | Meaning |
 |---|---|
-| `USB: no host app` | USB; no host has opened the port and said hello |
+| `USB: no app` | USB; no host has opened the port and said hello |
 | `USB unavailable` | the USB port could not be taken |
+| `USB off` | Connection = Bluetooth: the port stays with the CLI |
 | `Visible as <name>` | Bluetooth; the Bt service says advertising, no host subscribed yet (shown even when the stack refused the advertisement, see "Findings on hardware"); the Bluetooth icon blinks |
-| `Bluetooth: no host app` | Bluetooth; a central subscribed but sent no hello |
-| `Bluetooth off` | Bluetooth does not advertise (switched off in the Flipper's Settings, or the radio stack could not start the profile, in which case the app falls back to a backend that never connects) |
+| `Bluetooth: no app` | Bluetooth; a central subscribed but sent no hello |
+| `Bluetooth off` | Connection = USB, or Bluetooth does not advertise (switched off in the Flipper's Settings, or the radio stack could not start the profile, in which case that backend stays off until Settings retries it) |
+| `App protocol N` | on that transport's line: a host app speaking protocol N said hello |
 
 ### Bluetooth
 
 The app does not use the stock serial profile: its passkey pairing cannot
-be completed on an Apple Watch. While Bluetooth is chosen it starts its own
+be completed on an Apple Watch. While Bluetooth is in use (Bluetooth or Auto) it starts its own
 BLE profile (`src/ble_flibuddy_svc.c`, `src/transport_ble.c`) with
 `bt_profile_start`: no bonding, no pairing, one GATT service. It advertises
 the service UUID and no name, with the Flipper's MAC changed in one byte so
@@ -97,8 +116,8 @@ centrals keep it apart from the default profile's bonds. The name (8 chars
 at most, "Flipper" when the Flipper has none) goes in the scan response as
 manufacturer data, company id `0xFFFF` (reserved for tests) followed by the
 name, and is the GAP device name a central reads after connecting
-(`src/ble_wire.h` has the byte budget). Leaving the app, or switching back
-to USB, restores the default profile with `bt_profile_restore_default`.
+(`src/ble_wire.h` has the byte budget). Leaving the app, or switching to
+USB alone, restores the default profile with `bt_profile_restore_default`.
 
 While FliBuddy holds the Bluetooth profile, the official Flipper mobile
 app cannot connect to the Flipper; it can again once you leave the app.
@@ -168,15 +187,18 @@ log tells.
 
 ### Reading the Flipper log
 
-With Bluetooth chosen the USB port stays with the CLI, so the log can be
+With Connection = Bluetooth the USB port stays with the CLI, so the log can be
 read while the app runs. Open a CLI session (`ufbt cli` from `flipper/`,
 or any serial terminal on the Flipper's USB port) and run `log debug`
 (`log ?` lists the levels; Ctrl+C stops, and the previous level comes
-back). Then start the app and choose Bluetooth in Settings. The lines to look for:
+back). The app must start with Connection = Bluetooth: with Auto (the
+default) or USB it takes the port as it starts and the CLI session ends,
+so choose Bluetooth once, leave the app, open the CLI session and start
+the app again. The lines to look for:
 `BleGap` (advertising, connections; `set_discoverable failed` means
 nothing is advertised), `FliBuddyBle` (the profile and the service) and
-`FliBuddy` (the app). With the USB transport the app holds the port, so
-there is no CLI to read the log from.
+`FliBuddy` (the app). With USB or Auto the app holds the port, so there
+is no CLI to read the log from.
 
 ## Scanning
 

@@ -140,23 +140,43 @@ static void check_chips(const char* left, const char* center, const char* right)
 
 /* ---- Waiting, Ready ---- */
 
+static void send_version(uint8_t version, TransportKind via) {
+    AppEvent e = {.type = AppEventOtherVersion, .via = via, .version = version};
+    app_reduce(&app, &e);
+}
+
+static void send_via(AppEventType type, TransportKind via) {
+    AppEvent e = {.type = type, .via = via};
+    app_reduce(&app, &e);
+}
+
+static void send_ble(AppBleStatus status) {
+    AppEvent e = {.type = AppEventBleStatus, .ble = status};
+    app_reduce(&app, &e);
+}
+
+/* Both transport lines always show, as in the design; the one not in use
+ * says it is off. */
 static void test_waiting_over_usb(void) {
     setup_no_host();
+    app.connection = AppConnectionUsb;
     build();
     CHECK(frame.screen == AppScreenWaiting);
     CHECK_STR_EQ(frame.title, "FliBuddy");
     CHECK_STR_EQ(frame.note, "v0.1.0");
     CHECK(frame.icon == UiIconUsb);
-    CHECK(frame.line_icon == UiIconUsb);
+    CHECK(frame.line_icon[0] == UiIconUsb);
     CHECK_STR_EQ(frame.line[0], "USB: no app");
-    CHECK_STR_EQ(frame.line[1], "Waiting for app");
+    CHECK(frame.line_icon[1] == UiIconBt);
+    CHECK_STR_EQ(frame.line[1], "Bluetooth off");
+    CHECK_STR_EQ(frame.line[2], "Waiting for app");
     check_chips("", "", "Settings");
     env.anim = 3;
     build();
-    CHECK_STR_EQ(frame.line[1], "Waiting for app...");
+    CHECK_STR_EQ(frame.line[2], "Waiting for app...");
     env.anim = 5;
     build();
-    CHECK_STR_EQ(frame.line[1], "Waiting for app.");
+    CHECK_STR_EQ(frame.line[2], "Waiting for app.");
 
     send(AppEventTransportFailed);
     build();
@@ -165,60 +185,86 @@ static void test_waiting_over_usb(void) {
 
 static void test_waiting_names_the_protocol_of_another_host_app(void) {
     setup_no_host();
-    AppEvent e = {.type = AppEventOtherVersion, .version = 3};
-    app_reduce(&app, &e);
+    send_version(3, TransportKindUsb);
     build();
     CHECK_STR_EQ(frame.line[0], "App protocol 3");
-    CHECK_STR_EQ(frame.line[1], "Waiting for app");
-    CHECK(frame.line_icon == UiIconUsb);
+    CHECK(frame.line_icon[0] == UiIconUsb);
+    CHECK_STR_EQ(frame.line[1], "Bluetooth off");
+    CHECK_STR_EQ(frame.line[2], "Waiting for app");
     CHECK(fits(frame.line[0], BESIDE_ICON_W));
 
-    e.version = 12;
-    app_reduce(&app, &e);
+    send_version(12, TransportKindBluetooth);
+    send_ble(AppBleConnected);
     build();
-    CHECK_STR_EQ(frame.line[0], "App protocol 12");
-    CHECK(fits(frame.line[0], BESIDE_ICON_W));
+    CHECK_STR_EQ(frame.line[0], "App protocol 3");
+    CHECK_STR_EQ(frame.line[1], "App protocol 12");
+    CHECK(fits(frame.line[1], BESIDE_ICON_W));
 
-    app.transport = TransportKindBluetooth;
+    send_version(0, TransportKindUsb);
     build();
-    CHECK_STR_EQ(frame.line[0], "App protocol 12");
-
-    e.version = 0;
-    app_reduce(&app, &e);
-    build();
-    CHECK_STR_EQ(frame.line[0], "Bluetooth off");
+    CHECK_STR_EQ(frame.line[0], "USB: no app");
+    CHECK_STR_EQ(frame.line[1], "App protocol 12");
 }
 
 static void test_waiting_over_bluetooth(void) {
     setup_no_host();
-    app.transport = TransportKindBluetooth;
+    app.connection = AppConnectionBluetooth;
     build();
-    CHECK_STR_EQ(frame.line[0], "Bluetooth off");
+    CHECK_STR_EQ(frame.line[0], "USB off");
+    CHECK(frame.line_icon[0] == UiIconUsb);
+    CHECK_STR_EQ(frame.line[1], "Bluetooth off");
     CHECK(frame.icon == UiIconBt);
-    CHECK(frame.line_icon == UiIconBt);
+    CHECK(frame.line_icon[1] == UiIconBt);
 
-    AppEvent e = {.type = AppEventBleStatus, .ble = AppBleAdvertising};
-    app_reduce(&app, &e);
+    send_ble(AppBleAdvertising);
     build();
-    CHECK_STR_EQ(frame.line[0], "Visible as Workshop");
+    CHECK_STR_EQ(frame.line[1], "Visible as Workshop");
     CHECK(frame.icon == UiIconBt);
-    CHECK(frame.line_icon == UiIconBt);
+    CHECK(frame.line_icon[1] == UiIconBt);
     env.anim = 1; /* advertising without a host: the icon blinks */
     build();
     CHECK(frame.icon == UiIconNone);
-    CHECK(frame.line_icon == UiIconNone);
+    CHECK(frame.line_icon[1] == UiIconNone);
+    CHECK(frame.line_icon[0] == UiIconUsb);
 
-    e.ble = AppBleConnected;
-    app_reduce(&app, &e);
+    send_ble(AppBleConnected);
     build();
-    CHECK_STR_EQ(frame.line[0], "Bluetooth: no app");
+    CHECK_STR_EQ(frame.line[1], "Bluetooth: no app");
     CHECK(frame.icon == UiIconBt);
 
-    e.ble = AppBleAdvertising;
-    app_reduce(&app, &e);
-    send(AppEventTransportFailed);
+    send_ble(AppBleAdvertising);
+    send_via(AppEventTransportFailed, TransportKindBluetooth);
     build();
-    CHECK_STR_EQ(frame.line[0], "Bluetooth off");
+    CHECK_STR_EQ(frame.line[1], "Bluetooth off");
+    CHECK(frame.line_icon[1] == UiIconBt); /* a failed one does not blink */
+}
+
+static void test_waiting_in_auto_shows_both_transports(void) {
+    setup_no_host();
+    CHECK(app.connection == AppConnectionAuto);
+    send_ble(AppBleAdvertising);
+    build();
+    CHECK_STR_EQ(frame.line[0], "USB: no app");
+    CHECK_STR_EQ(frame.line[1], "Visible as Workshop");
+    CHECK(frame.icon == UiIconBt);
+    env.anim = 1;
+    build();
+    CHECK(frame.icon == UiIconNone);
+    CHECK(frame.line_icon[0] == UiIconUsb);
+    CHECK(frame.line_icon[1] == UiIconNone);
+
+    send_via(AppEventTransportFailed, TransportKindUsb);
+    build();
+    CHECK_STR_EQ(frame.line[0], "USB unavailable");
+    CHECK_STR_EQ(frame.line[1], "Visible as Workshop");
+
+    /* without Bluetooth the header shows USB */
+    setup_no_host();
+    send_via(AppEventTransportFailed, TransportKindBluetooth);
+    build();
+    CHECK(frame.icon == UiIconUsb);
+    CHECK_STR_EQ(frame.line[0], "USB: no app");
+    CHECK_STR_EQ(frame.line[1], "Bluetooth off");
 }
 
 static void test_ready(void) {
@@ -233,9 +279,10 @@ static void test_ready(void) {
     check_chips("", "", "Settings");
     env.anim = 1;
     build();
-    CHECK(frame.icon == UiIconUsb); /* only Bluetooth blinks */
+    CHECK(frame.icon == UiIconUsb); /* the host's transport; only Bluetooth blinks */
 
-    app.transport = TransportKindBluetooth;
+    send(AppEventHostLost);
+    send_via(AppEventHostConnected, TransportKindBluetooth);
     app.ble = AppBleAdvertising; /* still advertising: a host is connected */
     build();
     CHECK(frame.icon == UiIconBt);
@@ -897,7 +944,7 @@ static void test_settings(void) {
     CHECK_STR_EQ(frame.title, "Settings");
     CHECK_EQ_INT(frame.count, AppSettingCount);
     CHECK_STR_EQ(frame.item[0], "Connection");
-    CHECK_STR_EQ(frame.value[0], "USB");
+    CHECK_STR_EQ(frame.value[0], "Auto");
     CHECK_STR_EQ(frame.item[1], "Auto-save new");
     CHECK_STR_EQ(frame.value[1], "Off");
     CHECK_STR_EQ(frame.item[2], "After scan");
@@ -914,6 +961,9 @@ static void test_settings(void) {
     CHECK(!frame.fixed[5]);
     CHECK(frame.fixed[6]);
 
+    press(AppKeyRight); /* USB */
+    build();
+    CHECK_STR_EQ(frame.value[0], "USB");
     press(AppKeyRight); /* Bluetooth */
     press(AppKeyDown);
     press(AppKeyRight);
@@ -954,8 +1004,10 @@ static void test_about(void) {
     CHECK_STR_EQ(frame.line[2], "Protocol 2 - fw 1.5.1");
     CHECK_STR_EQ(frame.line[3], "USB app: FliBuddy Mac");
 
-    app.transport = TransportKindBluetooth;
+    send(AppEventHostLost);
+    send_via(AppEventHostConnected, TransportKindBluetooth);
     build();
+    CHECK(frame.screen == AppScreenAbout);
     CHECK_STR_EQ(frame.line[3], "BLE app: FliBuddy Mac");
 
     /* a long app is cut at its end: the transport stays in view */
@@ -986,6 +1038,7 @@ int main(void) {
     RUN_TEST(test_waiting_over_usb);
     RUN_TEST(test_waiting_over_bluetooth);
     RUN_TEST(test_waiting_names_the_protocol_of_another_host_app);
+    RUN_TEST(test_waiting_in_auto_shows_both_transports);
     RUN_TEST(test_unsupported_tag_screen_does_not_promise_a_retry);
     RUN_TEST(test_ready);
     RUN_TEST(test_ready_names_the_last_outcome);

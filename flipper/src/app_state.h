@@ -19,9 +19,11 @@
  *
  * Effects: on AppEffectSendScan the caller sends app_encode_scan(), on
  * AppEffectSendIntent app_encode_intent(). On AppEffectSaveSettings it
- * stores s->settings; on AppEffectSwitchTransport it stores them too and
- * restarts the transport as s->transport (the host is lost through
- * host_link as the old port closes). AppEffectExit closes the app. When the
+ * stores s->settings; on AppEffectSwitchTransport it stores them too,
+ * closes the transports s->connection does not use and opens those it
+ * uses that are not running (a failed one included); a host on a closed
+ * transport is lost through link_select as its port closes, a host on one
+ * that keeps running stays. AppEffectExit closes the app. When the
  * host cannot have the scan, or surely did not get the intent, the caller
  * sends AppEventSendFailed: a scan then shows the local facts
  * (Result{NoHost}) and an intent an error. An intent the host may have got
@@ -62,9 +64,11 @@
  * lookup finds the spool (not one created on the scan, not a fresh lookup
  * replacing a result); Back from it shows the result.
  *
- * The caller sets s->settings and s->transport from the stored settings
- * after app_state_init(). The BLE status is only recorded for the screens;
- * it never changes the screen or `connected`.
+ * The caller sets s->settings and s->connection from the stored settings
+ * after app_state_init(). Events about a transport (a host connected over
+ * it, it failed to open, a host app of another protocol said hello there)
+ * name it in `via`. The BLE status is only recorded for the screens; it
+ * never changes the screen or `connected`.
  */
 #pragma once
 
@@ -195,13 +199,14 @@ typedef enum {
     AppEventKey, /* .key; a held ▲▼ repeats as more presses */
     AppEventTick,
     AppEventBleStatus, /* .ble */
-    AppEventTransportFailed, /* the transport in use did not open */
+    AppEventTransportFailed, /* the transport `via` did not open */
     AppEventOtherVersion, /* .version: a host hello of another protocol version, 0 clears */
 } AppEventType;
 
 typedef struct {
     AppEventType type;
     uint32_t now_ms; /* the caller's millisecond clock; may wrap */
+    TransportKind via; /* HostConnected, TransportFailed, OtherVersion */
     union {
         const TagDump* tag;
         const ProtoLookup* lookup;
@@ -217,7 +222,7 @@ typedef enum {
     AppEffectSendScan,
     AppEffectSendIntent,
     AppEffectSaveSettings,
-    AppEffectSwitchTransport, /* to s->transport, saving the settings */
+    AppEffectSwitchTransport, /* run what s->connection uses, saving the settings */
     AppEffectExit,
 } AppEffect;
 
@@ -245,10 +250,13 @@ typedef struct {
     AppCue cue; /* of the last app_reduce() call */
     bool forget_tag; /* the tag read last may still be on the Flipper and is to be read
                       * again: the caller makes the reader forget it, then clears this */
-    uint8_t other_version; /* Waiting: the protocol of a host app that said hello, 0 none */
+    /* Waiting: per transport, the protocol of a host app that said hello
+     * there, 0 none */
+    uint8_t other_version[TRANSPORT_KINDS];
     bool connected;
-    TransportKind transport; /* in use */
-    bool transport_failed; /* it did not open; leaving Settings retries it */
+    TransportKind via; /* the connected host's transport */
+    AppConnection connection; /* in use */
+    bool transport_failed[TRANSPORT_KINDS]; /* did not open; leaving Settings retries it */
     AppBleStatus ble;
     AppSettings settings;
     AppSettings settings_entered; /* as Settings opened */
@@ -271,7 +279,8 @@ typedef struct {
     Intent held; /* the last intent built: the one sent, failed or held by a toast */
 } AppState;
 
-/* Waiting, no host, USB with BLE off, default settings, gross mode.
+/* Waiting, no host, the default settings and their connection (Auto) with
+ * BLE off, gross mode.
  * `first_scan` and `first_intent` seed the id counters (see IdSeq). */
 void app_state_init(AppState* s, IntentStore* intents, uint32_t first_scan, uint32_t first_intent);
 

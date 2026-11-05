@@ -145,35 +145,62 @@ static void result_title(const AppState* s, char* out, size_t cap) {
     }
 }
 
-static UiIcon transport_icon(const AppState* s, const UiEnv* env) {
-    if(s->transport == TransportKindUsb) return UiIconUsb;
-    bool blinking = s->ble == AppBleAdvertising && !s->connected && !s->transport_failed;
+static bool runs(const AppState* s, TransportKind kind) {
+    return app_connection_uses(s->connection, kind) && !s->transport_failed[kind];
+}
+
+/* Bluetooth blinks while it advertises without a host. */
+static UiIcon bt_icon(const AppState* s, const UiEnv* env) {
+    bool blinking = s->ble == AppBleAdvertising && !s->connected &&
+                    runs(s, TransportKindBluetooth);
     return blinking && (env->anim & 1) ? UiIconNone : UiIconBt;
 }
 
+/* The connected host's transport; without one Bluetooth when it runs. */
+static UiIcon transport_icon(const AppState* s, const UiEnv* env) {
+    if(s->connected) return s->via == TransportKindBluetooth ? UiIconBt : UiIconUsb;
+    if(s->connection == AppConnectionUsb) return UiIconUsb;
+    if(s->connection == AppConnectionAuto && !runs(s, TransportKindBluetooth)) return UiIconUsb;
+    return bt_icon(s, env);
+}
+
 /* ---- screens ---- */
+
+/* "App protocol 12": a host app of another protocol said hello there. */
+static bool put_other_version(Text* t, const AppState* s, TransportKind kind) {
+    if(s->other_version[kind] == 0) return false;
+    put(t, "App protocol ");
+    put_uint(t, s->other_version[kind]);
+    return true;
+}
 
 static void build_waiting(UiFrame* f, const AppState* s, const UiEnv* env) {
     SET(f->title, "FliBuddy");
     Text t = TEXT(f->note);
     put(&t, "v");
     put(&t, env->version);
-    f->line_icon = f->icon;
+    f->line_icon[0] = UiIconUsb;
     t = TEXT(f->line[0]);
-    if(s->other_version != 0) {
-        put(&t, "App protocol ");
-        put_uint(&t, s->other_version);
-    } else if(s->transport == TransportKindUsb) {
-        put(&t, s->transport_failed ? "USB unavailable" : "USB: no app");
-    } else if(s->transport_failed || s->ble == AppBleOff) {
-        put(&t, "Bluetooth off");
-    } else if(s->ble == AppBleAdvertising) {
-        put(&t, "Visible as ");
-        put(&t, env->device_name);
-    } else {
-        put(&t, "Bluetooth: no app");
+    if(!app_connection_uses(s->connection, TransportKindUsb)) {
+        put(&t, "USB off");
+    } else if(s->transport_failed[TransportKindUsb]) {
+        put(&t, "USB unavailable");
+    } else if(!put_other_version(&t, s, TransportKindUsb)) {
+        put(&t, "USB: no app");
     }
+    f->line_icon[1] = bt_icon(s, env);
     t = TEXT(f->line[1]);
+    if(!runs(s, TransportKindBluetooth) || s->ble == AppBleOff) {
+        put(&t, "Bluetooth off");
+    } else if(!put_other_version(&t, s, TransportKindBluetooth)) {
+        if(s->ble == AppBleAdvertising) {
+            put(&t, "Visible as ");
+            put(&t, env->device_name);
+        } else {
+            put(&t, "Bluetooth: no app");
+        }
+    }
+    t = TEXT(f->line[2]);
     put(&t, "Waiting for app");
     for(uint32_t i = 0; i < env->anim % 4; i++)
         put(&t, ".");
@@ -677,8 +704,17 @@ static void build_settings(UiFrame* f, const AppState* s, const UiEnv* env) {
     f->count = AppSettingCount;
     for(uint8_t i = 0; i < AppSettingCount; i++)
         SET(f->item[i], labels[i]);
-    SET(f->value[AppSettingConnection],
-        app_settings_transport(st) == TransportKindBluetooth ? "Bluetooth" : "USB");
+    switch(app_settings_connection(st)) {
+    case AppConnectionUsb:
+        SET(f->value[AppSettingConnection], "USB");
+        break;
+    case AppConnectionBluetooth:
+        SET(f->value[AppSettingConnection], "Bluetooth");
+        break;
+    case AppConnectionAuto:
+        SET(f->value[AppSettingConnection], "Auto");
+        break;
+    }
     SET(f->value[AppSettingAutosave], on_off(app_settings_autosave(st)));
     SET(f->value[AppSettingAfterScan],
         app_settings_after_scan(st) == AppAfterScanWeigh ? "Weigh" : "Show");
@@ -705,7 +741,7 @@ static void build_about(UiFrame* f, const AppState* s, const UiEnv* env) {
     t = TEXT(f->line[3]);
     if(s->connected) {
         /* the transport first: a long app name is cut, not the transport */
-        put(&t, s->transport == TransportKindBluetooth ? "BLE app: " : "USB app: ");
+        put(&t, s->via == TransportKindBluetooth ? "BLE app: " : "USB app: ");
         put(&t, env->host_app[0] ? env->host_app : "connected");
     } else {
         put(&t, "App: not connected");

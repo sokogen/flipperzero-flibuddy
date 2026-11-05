@@ -183,10 +183,12 @@ static void draw_waiting(Canvas* c, const UiFrame* f) {
     canvas_set_font(c, FontSecondary);
     canvas_draw_str_aligned(c, 126, 2, AlignRight, AlignTop, f->note);
     dotted_rule(c, RULE_Y);
-    if(f->line_icon == UiIconUsb) bitmap(c, 4, 17, &ui_icon_usb);
-    if(f->line_icon == UiIconBt) bitmap(c, 6, 15, &ui_icon_bt);
+    /* USB, then Bluetooth, as in the design */
+    if(f->line_icon[0] == UiIconUsb) bitmap(c, 4, 17, &ui_icon_usb);
     text_at(c, 18, 15, f->line[0]);
-    text_center(c, 33, f->line[1]);
+    if(f->line_icon[1] == UiIconBt) bitmap(c, 6, 25, &ui_icon_bt);
+    text_at(c, 18, 26, f->line[1]);
+    text_center(c, 39, f->line[2]);
     chips(c, f);
 }
 

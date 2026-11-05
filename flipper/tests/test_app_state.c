@@ -182,7 +182,7 @@ static void test_init_waits_for_a_host(void) {
     app_state_init(&app, &store.base, 1, 1);
     CHECK(app.screen == AppScreenWaiting);
     CHECK(!app.connected);
-    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.connection == AppConnectionAuto);
     CHECK(app.ble == AppBleOff);
     CHECK(app.mode == WeightModeGross);
     CHECK(!app_settings_autosave(&app.settings));
@@ -315,26 +315,49 @@ static void test_forget_the_tag_when_the_result_is_left_unanswered(void) {
     CHECK(!app.forget_tag);
 }
 
-static void test_other_host_version_is_remembered_until_a_host_connects(void) {
+static AppEffect send_via(AppEventType type, TransportKind via) {
+    AppEvent e = {.type = type, .via = via};
+    return app_reduce(&app, &e);
+}
+
+static AppEffect send_version(uint8_t version, TransportKind via) {
+    AppEvent e = {.type = AppEventOtherVersion, .via = via, .version = version};
+    return app_reduce(&app, &e);
+}
+
+static void test_other_host_version_is_remembered_per_transport_until_a_host_connects(void) {
     setup_no_host();
-    CHECK_EQ_INT(app.other_version, 0);
-    AppEvent e = {.type = AppEventOtherVersion, .version = 3};
-    CHECK(app_reduce(&app, &e) == AppEffectNone);
-    CHECK_EQ_INT(app.other_version, 3);
+    CHECK_EQ_INT(app.other_version[TransportKindUsb], 0);
+    CHECK_EQ_INT(app.other_version[TransportKindBluetooth], 0);
+    CHECK(send_version(3, TransportKindBluetooth) == AppEffectNone);
+    CHECK_EQ_INT(app.other_version[TransportKindBluetooth], 3);
+    CHECK_EQ_INT(app.other_version[TransportKindUsb], 0);
     CHECK(app.screen == AppScreenWaiting);
     CHECK(app.cue == AppCueNone);
+    send_version(4, TransportKindUsb);
     send(AppEventHostConnected);
-    CHECK_EQ_INT(app.other_version, 0);
+    CHECK_EQ_INT(app.other_version[TransportKindUsb], 0);
+    CHECK_EQ_INT(app.other_version[TransportKindBluetooth], 0);
     /* a connected host's stray hello says nothing */
-    app_reduce(&app, &e);
-    CHECK_EQ_INT(app.other_version, 0);
-    /* the port closing clears it (version 0) */
+    send_version(3, TransportKindBluetooth);
+    CHECK_EQ_INT(app.other_version[TransportKindBluetooth], 0);
+    /* the port closing clears it (version 0), on its transport only */
     send(AppEventHostLost);
-    app_reduce(&app, &e);
-    CHECK_EQ_INT(app.other_version, 3);
-    e.version = 0;
-    app_reduce(&app, &e);
-    CHECK_EQ_INT(app.other_version, 0);
+    send_version(3, TransportKindBluetooth);
+    send_version(5, TransportKindUsb);
+    send_version(0, TransportKindUsb);
+    CHECK_EQ_INT(app.other_version[TransportKindUsb], 0);
+    CHECK_EQ_INT(app.other_version[TransportKindBluetooth], 3);
+}
+
+static void test_a_connected_host_names_its_transport(void) {
+    setup_no_host();
+    send_via(AppEventHostConnected, TransportKindBluetooth);
+    CHECK(app.connected);
+    CHECK(app.via == TransportKindBluetooth);
+    send(AppEventHostLost);
+    send_via(AppEventHostConnected, TransportKindUsb);
+    CHECK(app.via == TransportKindUsb);
 }
 
 /* ▶ on a Bambu tag not in Bambuddy links it on the host; on a known spool
@@ -1562,11 +1585,20 @@ static void test_settings_rows_change_in_place(void) {
     press(AppKeyRight);
     CHECK(app.screen == AppScreenSettings);
     CHECK_EQ_INT(app.sel, AppSettingConnection);
+    CHECK(app_settings_connection(&app.settings) == AppConnectionAuto);
     press(AppKeyRight);
-    CHECK(app_settings_transport(&app.settings) == TransportKindBluetooth);
-    CHECK(app.transport == TransportKindUsb); /* not yet in use */
+    CHECK(app_settings_connection(&app.settings) == AppConnectionUsb);
+    CHECK(app.connection == AppConnectionAuto); /* not yet in use */
+    press(AppKeyRight);
+    CHECK(app_settings_connection(&app.settings) == AppConnectionBluetooth);
+    press(AppKeyRight); /* wraps */
+    CHECK(app_settings_connection(&app.settings) == AppConnectionAuto);
     press(AppKeyLeft);
-    CHECK(app_settings_transport(&app.settings) == TransportKindUsb);
+    CHECK(app_settings_connection(&app.settings) == AppConnectionBluetooth);
+    press(AppKeyLeft);
+    CHECK(app_settings_connection(&app.settings) == AppConnectionUsb);
+    press(AppKeyLeft);
+    CHECK(app_settings_connection(&app.settings) == AppConnectionAuto);
     press(AppKeyDown);
     CHECK_EQ_INT(app.sel, AppSettingAutosave);
     press(AppKeyRight);
@@ -1614,7 +1646,7 @@ static void test_settings_rows_change_in_place(void) {
     CHECK(app.screen == AppScreenSettings);
     CHECK(press(AppKeyBack) == AppEffectSaveSettings);
     CHECK(app.screen == AppScreenReady);
-    CHECK(app.transport == TransportKindUsb);
+    CHECK(app.connection == AppConnectionAuto);
 }
 
 static void test_settings_back_without_changes_saves_nothing(void) {
@@ -1660,46 +1692,66 @@ static void test_settings_returns_where_the_host_says(void) {
 }
 
 static void test_changing_the_connection_switches_the_transport(void) {
-    setup();
-    app.ble = AppBleOff;
+    setup(); /* Auto */
+    send_ble(AppBleAdvertising);
+    press(AppKeyRight);
+    press(AppKeyRight); /* USB */
+    CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
+    CHECK(app.connection == AppConnectionUsb);
+    CHECK(app.screen == AppScreenReady);
+    CHECK(app.ble == AppBleOff); /* Bluetooth stops */
     press(AppKeyRight);
     press(AppKeyRight); /* Bluetooth */
     CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
-    CHECK(app.transport == TransportKindBluetooth);
-    CHECK(app.screen == AppScreenReady);
+    CHECK(app.connection == AppConnectionBluetooth);
     send_ble(AppBleConnected);
     press(AppKeyRight);
-    press(AppKeyLeft); /* USB */
+    press(AppKeyRight); /* Auto */
     CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
-    CHECK(app.transport == TransportKindUsb);
-    CHECK(app.ble == AppBleOff);
+    CHECK(app.connection == AppConnectionAuto);
+    CHECK(app.ble == AppBleConnected); /* Bluetooth keeps running */
 }
 
 static void test_leaving_settings_retries_a_failed_transport(void) {
-    setup();
-    app.transport = TransportKindBluetooth;
-    app_settings_set_transport(&app.settings, TransportKindBluetooth);
-    CHECK(send(AppEventTransportFailed) == AppEffectNone);
-    CHECK(app.transport_failed);
+    setup(); /* Auto, the host on USB */
+    CHECK(send_via(AppEventTransportFailed, TransportKindBluetooth) == AppEffectNone);
+    CHECK(app.transport_failed[TransportKindBluetooth]);
+    CHECK(!app.transport_failed[TransportKindUsb]);
     CHECK(app.screen == AppScreenReady);
     press(AppKeyRight);
     CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
-    CHECK(app.transport == TransportKindBluetooth);
-    CHECK(!app.transport_failed);
+    CHECK(app.connection == AppConnectionAuto);
+    CHECK(!app.transport_failed[TransportKindBluetooth]);
+    CHECK(app.connected); /* only what failed is opened again */
     /* it opened this time: leaving again changes nothing */
     press(AppKeyRight);
     CHECK(press(AppKeyBack) == AppEffectNone);
+
+    /* a failed transport the new connection does not use is forgotten */
+    send_via(AppEventTransportFailed, TransportKindBluetooth);
+    press(AppKeyRight);
+    press(AppKeyRight); /* USB */
+    CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
+    CHECK(!app.transport_failed[TransportKindBluetooth]);
+    press(AppKeyRight);
+    CHECK(press(AppKeyBack) == AppEffectNone);
+
+    /* USB alone failed: retried */
+    send_via(AppEventTransportFailed, TransportKindUsb);
+    press(AppKeyRight);
+    CHECK(press(AppKeyBack) == AppEffectSwitchTransport);
+    CHECK(!app.transport_failed[TransportKindUsb]);
 }
 
 static void test_transport_failure_and_ble_status_on_every_screen(void) {
     setup();
     scan_mfc();
     CHECK(send(AppEventTransportFailed) == AppEffectNone);
-    CHECK(app.transport_failed);
+    CHECK(app.transport_failed[TransportKindUsb]);
     CHECK(app.screen == AppScreenLookingUp);
 
     setup();
-    app.transport = TransportKindBluetooth;
+    app.connection = AppConnectionBluetooth;
     CHECK(send_ble(AppBleAdvertising) == AppEffectNone);
     CHECK(app.ble == AppBleAdvertising);
     CHECK(app.screen == AppScreenReady);
@@ -1730,7 +1782,8 @@ int main(void) {
     RUN_TEST(test_read_failed_returns_to_ready_by_itself);
     RUN_TEST(test_unsupported_tag_is_its_own_quiet_outcome);
     RUN_TEST(test_forget_the_tag_when_the_result_is_left_unanswered);
-    RUN_TEST(test_other_host_version_is_remembered_until_a_host_connects);
+    RUN_TEST(test_other_host_version_is_remembered_per_transport_until_a_host_connects);
+    RUN_TEST(test_a_connected_host_names_its_transport);
     RUN_TEST(test_unknown_right_links_and_known_right_marks_new);
     RUN_TEST(test_read_failed_and_back_while_reading);
     RUN_TEST(test_looking_up_back_and_stale_lookups);

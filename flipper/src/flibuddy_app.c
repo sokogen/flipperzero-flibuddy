@@ -27,13 +27,23 @@ static const char* firmware_version(void) {
 }
 
 /* TransportNotSent also when the line did not encode. */
-static TransportSendResult send_text(FliBuddyApp* app, size_t len) {
-    return len > 0 ? transport_send_line(app->transport, app->tx_buf, len) : TransportNotSent;
+static TransportSendResult send_on(Transport* transport, const char* buf, size_t len) {
+    return len > 0 ? transport_send_line(transport, buf, len) : TransportNotSent;
 }
 
-static void send_hello(FliBuddyApp* app) {
-    send_text(
-        app, proto_encode_hello(FLIBUDDY_HELLO_APP, firmware_version(), app->tx_buf, PROTO_LINE_MAX));
+/* Scans and intents go to the host that said hello first (link_select). */
+static TransportSendResult send_text(FliBuddyApp* app, size_t len) {
+    uint8_t active = link_select_active(&app->links);
+    Transport* transport = active < TRANSPORT_KINDS ? app->slot[active].transport :
+                                                      transport_none();
+    return send_on(transport, app->tx_buf, len);
+}
+
+static void send_hello(FliBuddyApp* app, FliBuddySlot* slot) {
+    send_on(
+        slot->transport,
+        app->tx_buf,
+        proto_encode_hello(FLIBUDDY_HELLO_APP, firmware_version(), app->tx_buf, PROTO_LINE_MAX));
 }
 
 /* ---- view ---- */
@@ -122,35 +132,39 @@ static void sync_reader(FliBuddyApp* app) {
 
 /* ---- transport ---- */
 
-static void apply_link(FliBuddyApp* app, HostLinkOutput out);
+static void apply_link(FliBuddyApp* app, LinkOutput out);
 static void on_rx_line(const char* line, size_t len, void* ctx);
 
-static void free_transport(FliBuddyApp* app) {
-    if(app->transport != transport_none()) {
-        if(app->transport_kind == TransportKindUsb) {
-            transport_usb_free(app->transport);
-        } else {
-            transport_ble_free(app->transport);
-        }
-    }
-    app->transport = transport_none();
+static const char* kind_name(TransportKind kind) {
+    return kind == TransportKindUsb ? "USB" : "Bluetooth";
 }
 
-/* A backend that does not open (Bluetooth off or unavailable) gives way to
- * the null transport: no host connects, and with Bluetooth the USB port
- * stays with the CLI. Leaving Settings retries it. This also runs before
- * the view is shown, so the state is changed directly; the caller redraws. */
-static void start_transport(FliBuddyApp* app) {
-    app->transport_kind = app->state.transport;
-    app->transport = app->transport_kind == TransportKindUsb ? transport_usb_alloc() :
-                                                               transport_ble_alloc();
-    transport_set_rx_callback(app->transport, on_rx_line, app);
-    if(!transport_open(app->transport)) {
-        FURI_LOG_E(
-            "FliBuddy", "%s unavailable",
-            app->transport_kind == TransportKindUsb ? "USB" : "Bluetooth");
-        free_transport(app);
-        app_reduce(&app->state, &(AppEvent){.type = AppEventTransportFailed, .now_ms = now_ms()});
+static void free_transport(FliBuddySlot* slot) {
+    if(slot->transport != transport_none()) {
+        if(slot->kind == TransportKindUsb) {
+            transport_usb_free(slot->transport);
+        } else {
+            transport_ble_free(slot->transport);
+        }
+    }
+    slot->transport = transport_none();
+}
+
+/* A backend that does not open (Bluetooth off or unavailable) stays
+ * transport_none(): no host connects over it, and with Bluetooth alone the
+ * USB port stays with the CLI. Leaving Settings retries it. This also runs
+ * before the view is shown, so the state is changed directly; the caller
+ * redraws. */
+static void start_transport(FliBuddyApp* app, FliBuddySlot* slot) {
+    slot->transport = slot->kind == TransportKindUsb ? transport_usb_alloc() :
+                                                       transport_ble_alloc();
+    transport_set_rx_callback(slot->transport, on_rx_line, slot);
+    if(!transport_open(slot->transport)) {
+        FURI_LOG_E("FliBuddy", "%s unavailable", kind_name(slot->kind));
+        free_transport(slot);
+        app_reduce(
+            &app->state,
+            &(AppEvent){.type = AppEventTransportFailed, .via = slot->kind, .now_ms = now_ms()});
     }
 }
 
@@ -161,38 +175,55 @@ static void save_settings(FliBuddyApp* app) {
 }
 
 /* The port is closed: a hello the transport worker queued belongs to the
- * session that ended and must not connect a host over the next one, and a
- * protocol version noted from it is stale. */
-static void port_closed(FliBuddyApp* app) {
-    furi_message_queue_reset(app->rx_queue);
-    app->port_open = false;
-    apply_link(app, host_link_port_closed(&app->link));
-    if(app->state.other_version != 0) {
-        flibuddy_reduce(app, &(AppEvent){.type = AppEventOtherVersion, .version = 0});
+ * session that ended and must not connect a host over the next one (the
+ * session bump drops it), and a protocol version noted from it is stale. */
+static void port_closed(FliBuddyApp* app, FliBuddySlot* slot) {
+    slot->session++;
+    slot->port_open = false;
+    apply_link(app, link_select_port_closed(&app->links, slot->kind, now_ms()));
+    if(app->state.other_version[slot->kind] != 0) {
+        flibuddy_reduce(
+            app, &(AppEvent){.type = AppEventOtherVersion, .via = slot->kind, .version = 0});
     }
 }
 
-/* Follows the transport's port: opened sends our hello, closed loses the
- * host. A host hello is fed only after this, since the host speaks as soon
- * as it opens the port, ahead of the next tick. */
-static void sync_port(FliBuddyApp* app) {
-    bool open = transport_is_connected(app->transport);
-    if(open == app->port_open) return;
+/* Follows the transport's port: opened greets the host (unless another
+ * host is up), closed loses it if it was the host. A host hello is fed
+ * only after this, since the host speaks as soon as it opens the port,
+ * ahead of the next tick. */
+static void sync_port(FliBuddyApp* app, FliBuddySlot* slot) {
+    bool open = transport_is_connected(slot->transport);
+    if(open == slot->port_open) return;
     if(open) {
-        app->port_open = true;
-        apply_link(app, host_link_port_opened(&app->link, now_ms()));
+        slot->port_open = true;
+        apply_link(app, link_select_port_opened(&app->links, slot->kind, now_ms()));
     } else {
-        port_closed(app);
+        port_closed(app, slot);
     }
 }
 
-/* Closes the old transport (the host it carried is lost), saves the
- * settings and opens the new one. */
-static void switch_transport(FliBuddyApp* app) {
-    free_transport(app);
-    port_closed(app);
+/* Runs the transports the connection uses: closes the others (a host they
+ * carried is lost), saves the settings and opens what is missing, a
+ * transport that failed before included. A transport that keeps running
+ * keeps its host. */
+static void switch_transports(FliBuddyApp* app) {
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++) {
+        FliBuddySlot* slot = &app->slot[k];
+        if(slot->transport == transport_none() ||
+           app_connection_uses(app->state.connection, slot->kind)) {
+            continue;
+        }
+        free_transport(slot);
+        port_closed(app, slot);
+    }
     save_settings(app);
-    start_transport(app);
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++) {
+        FliBuddySlot* slot = &app->slot[k];
+        if(slot->transport == transport_none() &&
+           app_connection_uses(app->state.connection, slot->kind)) {
+            start_transport(app, slot);
+        }
+    }
 }
 
 /* ---- the reducer ---- */
@@ -236,7 +267,7 @@ void flibuddy_reduce(FliBuddyApp* app, const AppEvent* event) {
         save_settings(app);
         break;
     case AppEffectSwitchTransport:
-        switch_transport(app);
+        switch_transports(app);
         break;
     case AppEffectExit:
         view_dispatcher_stop(app->view_dispatcher);
@@ -258,17 +289,24 @@ void flibuddy_reduce_type(FliBuddyApp* app, AppEventType type) {
     flibuddy_reduce(app, &(AppEvent){.type = type});
 }
 
-static void apply_link(FliBuddyApp* app, HostLinkOutput out) {
-    if(out.send_hello) send_hello(app);
-    if(out.host_connected) flibuddy_reduce_type(app, AppEventHostConnected);
+/* A lost host first: losing it may greet a host waiting on the other port. */
+static void apply_link(FliBuddyApp* app, LinkOutput out) {
     if(out.host_lost) flibuddy_reduce_type(app, AppEventHostLost);
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++)
+        if(out.send_hello & (1u << k)) send_hello(app, &app->slot[k]);
+    if(out.host_connected) {
+        flibuddy_reduce(
+            app,
+            &(AppEvent){
+                .type = AppEventHostConnected,
+                .via = (TransportKind)link_select_active(&app->links)});
+    }
 }
 
 static AppBleStatus ble_status(FliBuddyApp* app) {
-    if(app->transport_kind != TransportKindBluetooth || app->transport == transport_none()) {
-        return AppBleOff;
-    }
-    switch(transport_ble_status(app->transport)) {
+    Transport* ble = app->slot[TransportKindBluetooth].transport;
+    if(ble == transport_none()) return AppBleOff;
+    switch(transport_ble_status(ble)) {
     case TransportBleAdvertising:
         return AppBleAdvertising;
     case TransportBleConnected:
@@ -279,42 +317,56 @@ static AppBleStatus ble_status(FliBuddyApp* app) {
     return AppBleOff;
 }
 
-static void handle_message(FliBuddyApp* app, const ProtoMessage* msg) {
+static void handle_message(FliBuddyApp* app, FliBuddySlot* slot, const ProtoMessage* msg) {
     switch(msg->type) {
-    case ProtoMsgHello:
-        sync_port(app);
-        /* a stale hello (the port closed) is ignored and names no app */
-        if(app->link.state != HostLinkStateClosed) {
-            strlcpy(app->host_app, msg->hello.app, sizeof(app->host_app));
-        }
-        apply_link(app, host_link_host_hello(&app->link, now_ms()));
+    case ProtoMsgHello: {
+        sync_port(app, slot);
+        LinkOutput out = link_select_host_hello(&app->links, slot->kind, now_ms());
+        /* a stale hello (its port closed) or another host's while one is
+         * up is ignored and names no app */
+        if(out.accepted) strlcpy(app->host_app, msg->hello.app, sizeof(app->host_app));
+        apply_link(app, out);
         break;
+    }
     case ProtoMsgOtherVersion:
-        sync_port(app);
-        if(app->link.state != HostLinkStateClosed) {
+        sync_port(app, slot);
+        if(link_select_listening(&app->links, slot->kind)) {
             flibuddy_reduce(
-                app, &(AppEvent){.type = AppEventOtherVersion, .version = msg->other_version});
+                app,
+                &(AppEvent){
+                    .type = AppEventOtherVersion,
+                    .via = slot->kind,
+                    .version = msg->other_version});
         }
         break;
     case ProtoMsgLookup:
-        flibuddy_reduce(app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
-        break;
     case ProtoMsgResult:
-        flibuddy_reduce(app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
+        /* only the host's answers count; another app on the other port
+         * was never greeted and has no scan to answer */
+        if(link_select_active(&app->links) != slot->kind) break;
+        if(msg->type == ProtoMsgLookup) {
+            flibuddy_reduce(
+                app, &(AppEvent){.type = AppEventLookupReceived, .lookup = &msg->lookup});
+        } else {
+            flibuddy_reduce(
+                app, &(AppEvent){.type = AppEventResultReceived, .result = &msg->result});
+        }
         break;
     case ProtoMsgNone:
         break;
     }
 }
 
-/* Transport worker thread: decode here, hand over to the GUI thread. */
+/* A transport's worker thread: decode here, hand over to the GUI thread. */
 static void on_rx_line(const char* line, size_t len, void* ctx) {
-    FliBuddyApp* app = ctx;
+    FliBuddySlot* slot = ctx;
     UNUSED(len);
-    ProtoDecodeStatus status = proto_decode_line(line, &app->rx_decoded);
+    ProtoDecodeStatus status = proto_decode_line(line, &slot->rx.msg);
     if(status != ProtoDecodeOk && status != ProtoDecodeOtherVersion) return;
-    if(furi_message_queue_put(app->rx_queue, &app->rx_decoded, 0) == FuriStatusOk) {
-        view_dispatcher_send_custom_event(app->view_dispatcher, FliBuddyEventRx);
+    slot->rx.via = slot->kind;
+    slot->rx.session = slot->session;
+    if(furi_message_queue_put(slot->app->rx_queue, &slot->rx, 0) == FuriStatusOk) {
+        view_dispatcher_send_custom_event(slot->app->view_dispatcher, FliBuddyEventRx);
     }
 }
 
@@ -331,7 +383,10 @@ static bool on_custom_event(void* ctx, uint32_t event) {
     switch(event) {
     case FliBuddyEventRx:
         while(furi_message_queue_get(app->rx_queue, &app->rx_msg, 0) == FuriStatusOk) {
-            handle_message(app, &app->rx_msg);
+            FliBuddySlot* slot = &app->slot[app->rx_msg.via];
+            /* queued before its port closed: that session is over */
+            if(app->rx_msg.session != slot->session) continue;
+            handle_message(app, slot, &app->rx_msg.msg);
         }
         return true;
     case FliBuddyEventTagDetected:
@@ -365,8 +420,9 @@ static bool on_navigation(void* ctx) {
 
 static void on_tick(void* ctx) {
     FliBuddyApp* app = ctx;
-    sync_port(app);
-    apply_link(app, host_link_tick(&app->link, now_ms()));
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++)
+        sync_port(app, &app->slot[k]);
+    apply_link(app, link_select_tick(&app->links, now_ms()));
     AppBleStatus ble = ble_status(app);
     if(ble != app->state.ble) {
         flibuddy_reduce(app, &(AppEvent){.type = AppEventBleStatus, .ble = ble});
@@ -385,13 +441,18 @@ static FliBuddyApp* flibuddy_app_alloc(void) {
     single_slot_intent_store_init(&app->intents);
     app_state_init(&app->state, &app->intents.base, seed, seed);
     app_settings_load(&app->state.settings, &app_settings_file);
-    app->state.transport = app_settings_transport(&app->state.settings);
-    host_link_init(&app->link);
+    app->state.connection = app_settings_connection(&app->state.settings);
+    link_select_init(&app->links);
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++) {
+        app->slot[k].app = app;
+        app->slot[k].kind = (TransportKind)k;
+        app->slot[k].transport = transport_none();
+    }
 
     app->tx_buf = malloc(PROTO_LINE_MAX);
     app->read_dump = malloc(sizeof(TagDump));
     app->reader = tag_reader_alloc();
-    app->rx_queue = furi_message_queue_alloc(RX_QUEUE_LEN, sizeof(ProtoMessage));
+    app->rx_queue = furi_message_queue_alloc(RX_QUEUE_LEN, sizeof(FliBuddyRx));
 
     app->gui = furi_record_open(RECORD_GUI);
     app->notifications = furi_record_open(RECORD_NOTIFICATION);
@@ -410,14 +471,18 @@ static FliBuddyApp* flibuddy_app_alloc(void) {
     view_dispatcher_add_view(app->view_dispatcher, FliBuddyViewMain, app->view);
     view_dispatcher_attach_to_gui(app->view_dispatcher, app->gui, ViewDispatcherTypeFullscreen);
 
-    start_transport(app);
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++)
+        if(app_connection_uses(app->state.connection, (TransportKind)k)) {
+            start_transport(app, &app->slot[k]);
+        }
     return app;
 }
 
 static void flibuddy_app_free(FliBuddyApp* app) {
     /* the workers stop first, so nothing posts events into freed objects */
     tag_reader_free(app->reader);
-    free_transport(app);
+    for(unsigned k = 0; k < TRANSPORT_KINDS; k++)
+        free_transport(&app->slot[k]);
 
     view_dispatcher_remove_view(app->view_dispatcher, FliBuddyViewMain);
     view_free(app->view);

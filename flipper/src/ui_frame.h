@@ -11,7 +11,8 @@
  * Which fields a screen uses:
  *
  *   all         screen, anim, icon (the header's transport icon), title
- *   Waiting     note (version), line_icon + line[0] (transport), line[1]
+ *   Waiting     note (version), line_icon[0] + line[0] (USB),
+ *               line_icon[1] + line[1] (Bluetooth), line[2]
  *   Ready       bar (last outcome, "" none), line[0..2], right
  *   Reading     line[0]
  *   LookingUp   line[0] (material from the tag, "" when unknown), line[1]
@@ -74,7 +75,7 @@ typedef struct {
     AppToast toast;
     uint8_t anim;
     UiIcon icon;
-    UiIcon line_icon;
+    UiIcon line_icon[2];
     char title[UI_TEXT_MAX];
     char note[UI_ITEM_MAX];
     char line[UI_LINES][UI_TEXT_MAX];

@@ -14,12 +14,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* The backends the app can run; the value is stored in the settings file
- * (app_settings.h), so the numbers never change. */
+/* The backends the app can run; settings files of versions 1 and 2 stored
+ * the value (app_settings.h), so the numbers never change. */
 typedef enum {
     TransportKindUsb = 0,
     TransportKindBluetooth = 1,
 } TransportKind;
+
+#define TRANSPORT_KINDS 2 /* also an index: one slot per kind */
 
 typedef enum {
     TransportSent,

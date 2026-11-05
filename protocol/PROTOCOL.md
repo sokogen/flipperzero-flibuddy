@@ -70,7 +70,11 @@ may ignore them.
    status line shows `no host` and a scan stays local. A host `hello` that
    arrives later still connects. The Flipper answers a host `hello` with its
    own unless it is the reply to the Flipper's pending one. Closing the port
-   loses the host.
+   loses the host. A Flipper on USB and Bluetooth at once (Connection =
+   Auto) has one host: the first to say `hello` on either. It neither
+   answers nor greets a host on the other transport while that host is
+   connected, ignores what it sends, and greets it with a `hello` when the
+   first host goes.
 3. Flipper → host: `scan` after each tag read.
 4. Host → Flipper: `lookup` answering that `scan_id`. With `autosave` on,
    an unknown tag that carries a material is created first and answered as

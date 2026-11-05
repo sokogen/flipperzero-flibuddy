@@ -1,5 +1,5 @@
-/* The app's persisted settings: the transport, Auto-save new, After scan,
- * Weigh as, Feedback and Sound.
+/* The app's persisted settings: the connection (USB, Bluetooth or both),
+ * Auto-save new, After scan, Weigh as, Feedback and Sound.
  *
  * The file is a saved_struct (magic APP_SETTINGS_MAGIC, version
  * APP_SETTINGS_VERSION) at APP_SETTINGS_PATH. The file access sits behind
@@ -7,7 +7,7 @@
  * app_settings_file.c is the SDK backend. An older file keeps what it has
  * and takes the defaults for the rest: version 2 lacks After scan and
  * Weigh as, version 1 holds only the transport. A missing or unreadable
- * file, another version or any out-of-range field loads the defaults (USB,
+ * file, another version or any out-of-range field loads the defaults (Auto,
  * Auto-save off, After scan Show, Weigh as Gross, Vibro+LED, Sound off).
  */
 #pragma once
@@ -24,7 +24,14 @@
 #define APP_SETTINGS_MAGIC   0x5B
 #define APP_SETTINGS_VERSION 3
 
-/* Stored in the settings file, so the numbers never change. */
+/* Stored in the settings file, so the numbers never change. USB and
+ * Bluetooth are the TransportKind numbers older files stored. */
+typedef enum {
+    AppConnectionUsb = 0,
+    AppConnectionBluetooth = 1,
+    AppConnectionAuto = 2, /* both at once; the first host to say hello wins */
+} AppConnection;
+
 typedef enum {
     AppFeedbackVibroLed = 0,
     AppFeedbackLed = 1,
@@ -45,7 +52,7 @@ typedef enum {
 
 typedef struct {
     uint8_t version; /* APP_SETTINGS_VERSION */
-    uint8_t transport; /* TransportKind */
+    uint8_t connection; /* AppConnection */
     uint8_t autosave; /* 0 or 1 */
     uint8_t feedback; /* AppFeedback */
     uint8_t sound; /* 0 or 1 */
@@ -56,7 +63,7 @@ typedef struct {
 /* The older files, read only to migrate them. */
 typedef struct {
     uint8_t version; /* 2 */
-    uint8_t transport;
+    uint8_t transport; /* TransportKind */
     uint8_t autosave;
     uint8_t feedback;
     uint8_t sound;
@@ -85,10 +92,13 @@ void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage)
 
 bool app_settings_save(const AppSettings* settings, const AppSettingsStorage* storage);
 
-TransportKind app_settings_transport(const AppSettings* settings);
+AppConnection app_settings_connection(const AppSettings* settings);
 
-/* Unknown kinds are ignored. */
-void app_settings_set_transport(AppSettings* settings, TransportKind kind);
+/* Unknown values are ignored. */
+void app_settings_set_connection(AppSettings* settings, AppConnection connection);
+
+/* Whether the connection runs this transport. */
+bool app_connection_uses(AppConnection connection, TransportKind kind);
 
 bool app_settings_autosave(const AppSettings* settings);
 

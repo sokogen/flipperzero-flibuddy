@@ -1,14 +1,19 @@
-/* The FliBuddy FAP: one custom view and the glue between the transport, the
- * NFC reader, the hello handshake (host_link.h), the screen reducer
+/* The FliBuddy FAP: one custom view and the glue between the transports,
+ * the NFC reader, the hello handshake (link_select.h), the screen reducer
  * (app_state.h) and the screens (ui_frame.h, ui_draw.h).
+ *
+ * The app runs the transports its Connection setting uses: USB, Bluetooth
+ * or both (Auto). Each has a slot; link_select picks the slot whose host
+ * said hello first, and only that host's lookups and results count and
+ * only it gets scans and intents.
  *
  * Every state change goes through flibuddy_reduce(), which performs the
  * reducer's effect (send a scan or an intent, save the settings, switch the
  * transport, exit), plays its feedback cue, runs the NFC reader on the
  * screens that read (app_reader_wanted) and rebuilds the view's frame.
  *
- * Threads: the GUI thread owns everything below except rx_decoded, which
- * the transport worker fills and hands over through rx_queue, read_dump,
+ * Threads: the GUI thread owns everything below except a slot's rx, which
+ * that transport's worker fills and hands over through rx_queue, read_dump,
  * which the NFC worker fills before it posts FliBuddyEventTagRead,
  * FliBuddyEventReadFailed or FliBuddyEventTagUnsupported and then ends, and the view's frame, which the
  * GUI service draws under the view model's lock. Every source file that
@@ -24,8 +29,8 @@
 #include <notification/notification.h>
 
 #include "app_state.h"
-#include "host_link.h"
 #include "intents.h"
+#include "link_select.h"
 #include "nfc_read.h"
 #include "proto_decode.h"
 #include "transport.h"
@@ -45,29 +50,49 @@ typedef enum {
     FliBuddyEventTagUnsupported, /* NFC worker */
 } FliBuddyEvent;
 
+typedef struct FliBuddyApp FliBuddyApp;
+
+/* A message as a transport worker hands it to the GUI thread. */
 typedef struct {
+    TransportKind via;
+    uint32_t session; /* the slot's session it arrived in */
+    ProtoMessage msg;
+} FliBuddyRx;
+
+/* One transport: its own decode buffer (its worker's), and a session
+ * counter bumped when its port closes, so lines it queued before are
+ * dropped without touching another transport's. */
+typedef struct {
+    FliBuddyApp* app;
+    TransportKind kind;
+    Transport* transport; /* transport_none() when not running */
+    bool port_open;
+    volatile uint32_t session;
+    FliBuddyRx rx; /* this transport's worker only */
+} FliBuddySlot;
+
+_Static_assert(LINK_SLOTS == TRANSPORT_KINDS, "one link per transport");
+
+struct FliBuddyApp {
     Gui* gui;
     ViewDispatcher* view_dispatcher;
     View* view; /* model: UiFrame */
     NotificationApp* notifications;
 
-    Transport* transport;
-    TransportKind transport_kind; /* the backend of `transport` */
-    FuriMessageQueue* rx_queue; /* ProtoMessage */
-    ProtoMessage rx_decoded; /* transport worker only */
-    ProtoMessage rx_msg; /* GUI thread */
+    FliBuddySlot slot[TRANSPORT_KINDS]; /* indexed by TransportKind */
+    FuriMessageQueue* rx_queue; /* FliBuddyRx */
+    FliBuddyRx rx_msg; /* GUI thread */
     char* tx_buf; /* PROTO_LINE_MAX */
 
     TagReader* reader;
     TagDump* read_dump;
 
-    HostLink link;
-    bool port_open;
-    char host_app[PROTO_HELLO_FIELD_MAX + 1]; /* from the host's hello */
+    LinkSelect links;
+    char host_app[PROTO_HELLO_FIELD_MAX + 1]; /* from the active host's hello */
     uint32_t anim; /* ticks, for the animations */
     AppState state;
     SingleSlotIntentStore intents;
-} FliBuddyApp;
+};
 
 /* Stamps the event with the clock, applies it to the state, performs its
  * effect and feedback, syncs the reader and redraws. */

@@ -1,7 +1,13 @@
 #include "app_settings.h"
 
+/* Versions 1 and 2 stored a TransportKind. */
 static bool known_transport(unsigned kind) {
     return kind == TransportKindUsb || kind == TransportKindBluetooth;
+}
+
+static bool known_connection(unsigned connection) {
+    return connection == AppConnectionUsb || connection == AppConnectionBluetooth ||
+           connection == AppConnectionAuto;
 }
 
 static bool known_feedback(unsigned feedback) {
@@ -15,14 +21,14 @@ static bool valid_v2(const AppSettingsV2* s) {
 }
 
 static bool valid(const AppSettings* s) {
-    return s->version == APP_SETTINGS_VERSION && known_transport(s->transport) &&
+    return s->version == APP_SETTINGS_VERSION && known_connection(s->connection) &&
            s->autosave <= 1 && known_feedback(s->feedback) && s->sound <= 1 &&
            s->after_scan <= AppAfterScanWeigh && s->weigh_as <= AppWeighAsNet;
 }
 
 void app_settings_defaults(AppSettings* settings) {
     settings->version = APP_SETTINGS_VERSION;
-    settings->transport = TransportKindUsb;
+    settings->connection = AppConnectionAuto;
     settings->autosave = 0;
     settings->feedback = AppFeedbackVibroLed;
     settings->sound = 0;
@@ -39,7 +45,7 @@ void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage)
         *settings = stored;
     } else if(storage->load(storage->ctx, 2, &v2, sizeof(v2)) && valid_v2(&v2)) {
         app_settings_defaults(settings);
-        settings->transport = v2.transport;
+        settings->connection = v2.transport; /* the same numbers */
         settings->autosave = v2.autosave;
         settings->feedback = v2.feedback;
         settings->sound = v2.sound;
@@ -47,7 +53,7 @@ void app_settings_load(AppSettings* settings, const AppSettingsStorage* storage)
         storage->load(storage->ctx, 1, &v1, sizeof(v1)) && v1.version == 1 &&
         known_transport(v1.transport)) {
         app_settings_defaults(settings);
-        settings->transport = v1.transport;
+        settings->connection = v1.transport;
     } else {
         app_settings_defaults(settings);
     }
@@ -57,12 +63,24 @@ bool app_settings_save(const AppSettings* settings, const AppSettingsStorage* st
     return storage->save(storage->ctx, settings, sizeof(*settings));
 }
 
-TransportKind app_settings_transport(const AppSettings* settings) {
-    return (TransportKind)settings->transport;
+AppConnection app_settings_connection(const AppSettings* settings) {
+    return (AppConnection)settings->connection;
 }
 
-void app_settings_set_transport(AppSettings* settings, TransportKind kind) {
-    if(known_transport(kind)) settings->transport = (uint8_t)kind;
+void app_settings_set_connection(AppSettings* settings, AppConnection connection) {
+    if(known_connection(connection)) settings->connection = (uint8_t)connection;
+}
+
+bool app_connection_uses(AppConnection connection, TransportKind kind) {
+    switch(connection) {
+    case AppConnectionUsb:
+        return kind == TransportKindUsb;
+    case AppConnectionBluetooth:
+        return kind == TransportKindBluetooth;
+    case AppConnectionAuto:
+        return kind == TransportKindUsb || kind == TransportKindBluetooth;
+    }
+    return false;
 }
 
 bool app_settings_autosave(const AppSettings* settings) {
