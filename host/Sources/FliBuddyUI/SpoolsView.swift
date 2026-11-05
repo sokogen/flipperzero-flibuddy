@@ -2,15 +2,18 @@ import FliBuddyCore
 import SwiftUI
 
 #if os(iOS)
-/// The Spools tab (ios spec, "Spools"): Bambuddy's inventory, read-only. The
-/// list with search, the scope and the sort and material menu; a picked spool
-/// opens in an inspector beside the iPad sidebar, in a sheet otherwise. It
+/// The Spools tab (ios spec, "Spools"): Bambuddy's inventory, read-only.
+/// Search, the scope and the sort and material menu over the spools: a list
+/// on the iPhone (cards layout), tiles on the iPad like the feed's. A picked
+/// spool opens in an inspector beside the iPad sidebar, in a sheet otherwise. It
 /// loads each time it comes on screen, on pull to refresh, and after the
 /// feed's writes (`SpoolsViewModel.observe()`, started by the app).
 public struct SpoolsView: View {
     @Bindable var model: SpoolsViewModel
     let openSettings: () -> Void
     @Environment(\.feedLayout) private var layout
+    /// The tile grid's width, which sets its columns.
+    @ViewState private var gridWidth: CGFloat = 0
 
     public init(model: SpoolsViewModel, openSettings: @escaping () -> Void) {
         self.model = model
@@ -61,34 +64,88 @@ public struct SpoolsView: View {
         case .unavailable(let state):
             SpoolsUnavailableView(state: state, perform: perform)
         case .list:
-            list
+            if layout.showsTiles { tiles } else { list }
         }
     }
 
+    private var scopePicker: some View {
+        Picker("Scope", selection: $model.scope) {
+            ForEach(SpoolsViewModel.Scope.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    /// `Couldn't refresh · showing 10:42` with its Retry.
+    private func staleLine(_ notice: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+            Text(notice)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Button(SpoolsViewModel.Action.retry.title) { perform(.retry) }
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+        }
+    }
+
+    /// The iPad (top tabs and sidebar): the scope over a grid of tiles, at
+    /// least 300 wide, at most three to a row, as the feed's; the selected
+    /// tile carries the feed's tint outline beside the inspector.
+    private var tiles: some View {
+        let column = GridItem(.flexible(), spacing: FeedLayout.tileSpacing, alignment: .top)
+        let columns = Array(repeating: column, count: FeedLayout.tileColumns(width: gridWidth))
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                scopePicker
+                    .frame(maxWidth: FeedLayout.scopeMaximumWidth)
+                if let notice = model.staleNotice { staleLine(notice) }
+                if let empty = model.emptyResult {
+                    SpoolsUnavailableView(state: empty, perform: perform)
+                        .padding(.top, 40)
+                } else {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: FeedLayout.tileSpacing) {
+                        ForEach(model.rows) { row in
+                            Button {
+                                model.selection = row.id
+                            } label: {
+                                SpoolTileView(
+                                    row: row,
+                                    isSelected: layout.opensSpoolInInspector && model.selection == row.id
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
+                    if let footer = model.footer {
+                        Text(footer)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                    }
+                }
+            }
+            .padding(.horizontal, FeedLayout.tileMargin)
+            .padding(.vertical, 12)
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .refreshable { await model.refresh() }
+    }
+
+    /// The iPhone and a compact window: one inset-grouped list of rows.
     private var list: some View {
         List {
             Section {
-                Picker("Scope", selection: $model.scope) {
-                    ForEach(SpoolsViewModel.Scope.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+                scopePicker
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 if let notice = model.staleNotice {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .accessibilityHidden(true)
-                        Text(notice)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 8)
-                        Button(SpoolsViewModel.Action.retry.title) { perform(.retry) }
-                            .font(.footnote.weight(.semibold))
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.small)
-                    }
+                    staleLine(notice)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 4))
                 }
@@ -104,13 +161,9 @@ public struct SpoolsView: View {
                         Button {
                             model.selection = row.id
                         } label: {
-                            SpoolRowView(row: row, showsChevron: !layout.opensSpoolInInspector)
+                            SpoolRowView(row: row)
                         }
                         .foregroundStyle(.primary)
-                        .listRowBackground(
-                            layout.opensSpoolInInspector && model.selection == row.id
-                                ? Color.accentColor.opacity(0.2) : nil
-                        )
                     }
                 } footer: {
                     if let footer = model.footer { Text(footer) }
@@ -159,46 +212,109 @@ public struct SpoolsView: View {
     }
 }
 
-/// A row: swatch, title, colour and brand, what is left and when it was
-/// updated; `Low`, `Archived` and the tag glyph trailing. VoiceOver reads the
-/// view model's one sentence.
+/// A row (iPhone): swatch; the title with `Low`, `Archived` and the tag
+/// glyph on its line; colour and brand; what is left and when it was updated,
+/// on one line where it fits, else what is left alone; the chevron. VoiceOver
+/// reads the view model's one sentence.
 struct SpoolRowView: View {
     let row: SpoolsViewModel.Row
-    let showsChevron: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             SwatchView(swatch: row.swatch, size: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.title)
-                    .font(.headline)
-                if let subtitle = row.subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Text(row.title)
+                        .font(.headline)
+                    Spacer(minLength: 4)
+                    SpoolMarks(row: row)
                 }
-                Text(row.detail)
-                    .font(.footnote.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                SpoolLines(row: row)
             }
-            Spacer(minLength: 8)
-            if row.isLow { WordBadge(word: SpoolsViewModel.lowWord, tint: .orange) }
-            if row.isArchived { WordBadge(word: SpoolsViewModel.archivedWord, tint: .secondary) }
-            if row.hasTag {
-                Image(systemName: "tag")
-                    .foregroundStyle(.secondary)
-            }
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel)
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// A tile (iPad): swatch, title and colour and brand, `Low` / `Archived` /
+/// tag in the top-trailing corner, what is left under them; the feed tile's
+/// card, and its 2 pt tint outline while selected beside the inspector.
+struct SpoolTileView: View {
+    let row: SpoolsViewModel.Row
+    let isSelected: Bool
+
+    private static let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            SwatchView(swatch: row.swatch, size: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                // The marks share the title's line, so the lines under it keep the width.
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(row.title)
+                        .font(.headline)
+                        .lineLimit(2)
+                    Spacer(minLength: 4)
+                    SpoolMarks(row: row)
+                }
+                SpoolLines(row: row)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: Self.shape)
+        .overlay {
+            if isSelected { Self.shape.strokeBorder(.tint, lineWidth: 2) }
+        }
+        .contentShape(Self.shape)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// `Low`, `Archived` and the tag glyph, words never colour alone.
+struct SpoolMarks: View {
+    let row: SpoolsViewModel.Row
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if row.isLow { WordBadge(word: SpoolsViewModel.lowWord, tint: .orange) }
+            if row.isArchived { WordBadge(word: SpoolsViewModel.archivedWord, tint: .secondary) }
+            if row.hasTag {
+                Image(systemName: "tag")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// Colour and brand, then `410 g left of 1000 · updated 3 d ago` on one line,
+/// or `410 g left of 1000` alone where that does not fit.
+struct SpoolLines: View {
+    let row: SpoolsViewModel.Row
+
+    var body: some View {
+        if let subtitle = row.subtitle {
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        ViewThatFits(in: .horizontal) {
+            Text(row.detail).lineLimit(1)
+            Text(row.left).lineLimit(1)
+        }
+        .font(.footnote.monospacedDigit())
+        .foregroundStyle(.secondary)
     }
 }
 

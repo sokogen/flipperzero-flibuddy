@@ -150,6 +150,8 @@ public final class SpoolsViewModel {
         public let subtitle: String?
         /// `410 g left of 1000 · updated 3 d ago`.
         public let detail: String
+        /// `410 g left of 1000`: `detail` without the update, where it does not fit.
+        public let left: String
         public let isLow: Bool
         public let isArchived: Bool
         public let hasTag: Bool
@@ -236,8 +238,10 @@ public final class SpoolsViewModel {
     private var catalog: [CatalogEntry] = []
     private var catalogUnder: Int?
     private var problem: Problem?
-    /// Counts loads; only the latest one publishes.
+    /// Counts loads; only the latest one publishes (`forgetList` counts too).
     private var loads = 0
+    /// A load was started since the list was last forgotten.
+    private var started = false
     private var seenRevision: Int?
 
     /// `locale` and `timeZone` format the time of the cached list and the
@@ -258,7 +262,7 @@ public final class SpoolsViewModel {
 
     /// Loads once, when nothing was loaded yet (the iPad sidebar's count).
     public func loadIfNeeded() async {
-        guard loadedAt == nil, loads == 0 else { return }
+        guard loadedAt == nil, !started else { return }
         await refresh()
     }
 
@@ -268,6 +272,7 @@ public final class SpoolsViewModel {
     public func refresh() async {
         loads += 1
         let load = loads
+        started = true
         isLoading = true
         let result: Result<SpoolListing, any Error>
         do {
@@ -286,6 +291,11 @@ public final class SpoolsViewModel {
         guard load == loads else { return }
         isLoading = false
         switch result {
+        case .success(let listing) where listing.configuration != current:
+            // Listed under settings that have changed since (another URL or key).
+            dropCache()
+            Log.info(.session, "spools: dropped a list from older settings")
+            return
         case .success(let listing):
             spools = listing.spools
             listedUnder = listing.configuration
@@ -316,7 +326,11 @@ public final class SpoolsViewModel {
     /// Drops the list, its state and the pick at once (`HostModel` loads
     /// again after its check); true when something had been loaded.
     func forgetList() -> Bool {
-        let hadList = loadedAt != nil || loads > 0
+        let hadList = loadedAt != nil || started
+        started = false
+        // A load still under way speaks for the old settings: it must not publish.
+        loads += 1
+        isLoading = false
         dropCache()
         problem = nil
         selection = nil
@@ -516,7 +530,7 @@ public final class SpoolsViewModel {
         ]
         return Row(
             id: spool.id, swatch: spool.rgba.flatMap(Swatch.init(rgba:)), title: title, subtitle: subtitle(spool),
-            detail: detail, isLow: low, isArchived: spool.isArchived, hasTag: hasTag,
+            detail: detail, left: left, isLow: low, isArchived: spool.isArchived, hasTag: hasTag,
             accessibilityLabel: spoken.compactMap { $0 }.joined(separator: ", ") + "."
         )
     }

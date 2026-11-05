@@ -80,6 +80,8 @@ struct FeedLayoutTests {
         #expect(!FeedLayout.tabs.opensSpoolInInspector)
         #expect(!FeedLayout.cards.opensSpoolInInspector)
         #expect(FeedLayout.inspectorWidth == 320)
+        // the Spools scope control never stretches across a wide grid
+        #expect(FeedLayout.scopeMaximumWidth == 300)
     }
 
     /// The tile grid's width: the detail column less the 28 pt side margins.

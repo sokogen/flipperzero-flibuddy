@@ -87,6 +87,9 @@ public enum FeedLayout: Equatable, Sendable {
     /// The Spools inspector's width.
     public static let inspectorWidth: Double = 320
 
+    /// The Spools scope control's widest, over the iPad's tiles.
+    public static let scopeMaximumWidth: Double = 300
+
     /// Tiles to a row in a grid `width` wide (the margins left out): two on
     /// an 11" iPad, three on a 13", in both orientations.
     public static func tileColumns(width: Double) -> Int {

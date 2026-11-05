@@ -173,6 +173,8 @@ struct SpoolsViewModelTests {
         #expect(charcoal.title == "PLA Matte")
         #expect(charcoal.subtitle == "Charcoal \u{00B7} Bambu Lab")
         #expect(charcoal.detail == "410 g left of 1000 \u{00B7} updated 3 d ago")
+        // What a narrow row keeps when the whole line does not fit.
+        #expect(charcoal.left == "410 g left of 1000")
         #expect(charcoal.hasTag)
         #expect(!charcoal.isLow)
         #expect(!charcoal.isArchived)
@@ -384,12 +386,49 @@ struct SpoolsViewModelTests {
         #expect(other.calls.contains(.listAll))
     }
 
+    @Test func aLoadFromOldSettingsFinishingAfterTheChangeIsDropped() async {
+        let gate = ListGate()
+        let old = FakeInventory(spools: inventorySpools())
+        old.onList = { await gate.pass() }
+        let (model, session) = makeModel(old)
+        let loading = Task { await model.refresh() }
+        await gate.untilHeld()
+        let other = FakeInventory(spools: [spool(1, "PLA", left: 500)])
+        await session.reconfigure(settings: testSettings, inventory: other)
+        _ = model.forgetList()
+        #expect(!model.isLoading)
+        await gate.open()
+        await loading.value
+        #expect(model.rows.isEmpty)
+        #expect(model.content == .loading)
+        #expect(model.detail(for: 21) == nil)
+        await model.refresh()
+        #expect(model.rows.map(\.id) == [1])
+    }
+
+    @Test func aListFromOtherSettingsIsDroppedEvenWithoutAForget() async {
+        let gate = ListGate()
+        let old = FakeInventory(spools: inventorySpools())
+        old.onList = { await gate.pass() }
+        let (model, session) = makeModel(old)
+        let loading = Task { await model.refresh() }
+        await gate.untilHeld()
+        await session.reconfigure(settings: testSettings, inventory: FakeInventory(spools: []))
+        await gate.open()
+        await loading.value
+        #expect(model.rows.isEmpty)
+        #expect(model.activeCount == nil)
+        #expect(!model.isLoading)
+    }
+
     @Test func aServerChangeBeforeAnyLoadLoadsNothing() async {
         let inventory = FakeInventory(spools: inventorySpools())
         let (model, _) = makeModel(inventory)
         await model.serverChanged()
         #expect(!inventory.calls.contains(.listAll))
-        #expect(model.content == .loading)
+        #expect(model.content == .loading)        // The sidebar's first load still happens.
+        await model.loadIfNeeded()
+        #expect(inventory.calls.filter { $0 == .listAll }.count == 1)
     }
 
     // MARK: Refresh after a write
@@ -506,6 +545,33 @@ struct SpoolsViewModelTests {
             == URL(string: "https://example.com/inventory?spool=7"))
         #expect(SpoolsViewModel.bambuddyURL(base: "", spoolId: 7) == nil)
         #expect(SpoolsViewModel.bambuddyURL(base: "bambuddy.local", spoolId: 7) == nil)
+    }
+}
+
+/// Holds `listSpools` until the test opens it.
+private actor ListGate {
+    private var isOpen = false
+    private var held: [CheckedContinuation<Void, Never>] = []
+    private var watchers: [CheckedContinuation<Void, Never>] = []
+
+    func pass() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { continuation in
+            held.append(continuation)
+            for watcher in watchers { watcher.resume() }
+            watchers.removeAll()
+        }
+    }
+
+    func untilHeld() async {
+        guard held.isEmpty else { return }
+        await withCheckedContinuation { watchers.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        for continuation in held { continuation.resume() }
+        held.removeAll()
     }
 }
 
