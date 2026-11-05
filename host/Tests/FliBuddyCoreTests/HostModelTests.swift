@@ -310,4 +310,38 @@ struct HostModelTests {
         #endif
         #expect(throws: Never.self) { try hello.validate() }
     }
+
+    // MARK: Spools
+
+    @Test func anotherBambuddyReloadsTheSpoolsAndTheSidebarCountsThem() async throws {
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        try store.save(testSettings)
+        let first = FakeInventory(spools: [knownSpool()])
+        let second = FakeInventory(spools: [])
+        let model = HostModel(
+            store: store,
+            makeInventory: { $0.baseURL == testSettings.baseURL ? first : second },
+            makeTransport: { _ in FakeTransport() }, discoverPorts: { [] }
+        )
+        #expect(model.sidebar.spoolCount == nil)
+        await model.spools.refresh()
+        #expect(model.sidebar.spoolCount == 1)
+        var other = testSettings
+        other.baseURL = "http://other.test:8000"
+        try await model.apply(other)
+        #expect(second.calls.contains(.listAll))
+        #expect(model.sidebar.spoolCount == 0)
+        #expect(model.spools.detail(for: 42) == nil)
+    }
+
+    @Test func otherSettingsKeepTheSpools() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let model = try makeModel(InMemoryKeyValueStore(), inventory: inventory)
+        await model.spools.refresh()
+        var settings = testSettings
+        settings.coreWeight = 200
+        try await model.apply(settings)
+        #expect(inventory.calls.filter { $0 == .listAll }.count == 1)
+        #expect(model.sidebar.spoolCount == 1)
+    }
 }

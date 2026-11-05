@@ -14,7 +14,10 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         case archive(spoolId: Int)
         case restore(spoolId: Int)
         case spoolman
+        /// `listSpools()`, active spools only.
         case list
+        /// `listSpools(includeArchived: true)`.
+        case listAll
         case catalog
     }
 
@@ -81,7 +84,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         calls.filter {
             switch $0 {
             case .update, .create, .link, .delete, .setUsed, .archive, .restore: true
-            case .find, .spoolman, .list, .catalog: false
+            case .find, .spoolman, .list, .listAll, .catalog: false
             }
         }
     }
@@ -211,11 +214,11 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         return spoolman
     }
 
-    func listSpools() async throws -> [Spool] {
-        record(.list)
+    func listSpools(includeArchived: Bool) async throws -> [Spool] {
+        record(includeArchived ? .listAll : .list)
         await onList?()
         if let listError { throw listError }
-        return spools.filter { !$0.isArchived }
+        return includeArchived ? spools : spools.filter { !$0.isArchived }
     }
 
     func catalog() async throws -> [CatalogEntry] {

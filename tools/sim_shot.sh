@@ -4,14 +4,15 @@
 # host/Sources/FliBuddyCore/Demo) on an iOS, iPadOS or watchOS simulator.
 #
 #   tools/sim_shot.sh [-a light|dark] [-s <content size>] [-w <seconds>]
-#                     <device name or UDID> <output.png>
+#                     <device name or UDID> <output.png> [<launch argument>...]
 #
 # Boots the simulator if needed; on an iPhone or iPad sets the appearance
 # (default light), the Dynamic Type size (default large; e.g. extra-large,
 # accessibility-medium) and the status bar to 9:41 (watchOS simulators
 # support none of these); installs the app `make apple-build` put in
 # host/Apple/.build, launches it with the demo argument, waits (default 4 s)
-# and saves a PNG.
+# and saves a PNG. Launch arguments after the output go to the app, e.g.
+# `-FliBuddyDemoPane spools` to open the demo on the Spools tab.
 #
 # simctl cannot rotate a device: the screenshot is in the orientation the
 # simulator boots in (portrait), or the one last set in the Simulator app.
@@ -34,9 +35,10 @@ while getopts a:s:w:h opt; do
     esac
 done
 shift $((OPTIND - 1))
-[ $# -eq 2 ] || usage
+[ $# -ge 2 ] || usage
 device=$1
 output=$2
+shift 2
 
 case $appearance in light | dark) ;; *) echo "appearance: light or dark" >&2; exit 2 ;; esac
 
@@ -95,7 +97,7 @@ if [ "$watch" = 0 ]; then
 fi
 
 xcrun simctl install "$udid" "$app"
-xcrun simctl launch --terminate-running-process "$udid" "$bundle" -FliBuddyDemo YES >/dev/null
+xcrun simctl launch --terminate-running-process "$udid" "$bundle" -FliBuddyDemo YES "$@" >/dev/null
 sleep "$wait_seconds"
 
 mkdir -p "$(dirname "$output")"

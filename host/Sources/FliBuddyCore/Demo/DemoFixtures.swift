@@ -17,6 +17,18 @@ public enum DemoFixtures {
         return ["yes", "1", "true"].contains(arguments[index + 1].lowercased())
     }
 
+    /// Opens the demo on a pane for a screenshot (`tools/sim_shot.sh`), e.g.
+    /// `-FliBuddyDemoPane spools`.
+    public static let paneArgument = "-FliBuddyDemoPane"
+
+    /// The pane `-FliBuddyDemoPane` names, in the demo only; the app maps the
+    /// name to its pane and ignores one it does not know.
+    public static func requestedPane(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
+        guard isRequested(arguments), let index = arguments.firstIndex(of: paneArgument),
+              index + 1 < arguments.count else { return nil }
+        return arguments[index + 1]
+    }
+
     /// The demo's host: the fixtures' settings, Bambuddy and Flipper; the
     /// feed fills once `start()` connects the Flipper.
     @MainActor
@@ -160,53 +172,65 @@ public enum DemoFixtures {
 
     // MARK: - Bambuddy
 
+    /// `updated_at` this long before 09:41.
+    private static func updated(_ minutes: Int) -> String {
+        BambuddyDate.string(from: clockTime.addingTimeInterval(TimeInterval(-minutes * 60)))
+    }
+
+    private static let day = 24 * 60
+
     /// A spool for a demo Bambu tag, as an AMS or the Flipper adds it.
-    private static func spool(_ id: Int, _ tag: BambuSpec, left: Int, lastScale: Int? = nil) -> Spool {
+    private static func spool(_ id: Int, _ tag: BambuSpec, left: Int, lastScale: Int? = nil, updated: String) -> Spool {
         let parsed = tag.parsed
         return Spool(
             id: id, material: tag.material, subtype: parsed.bambuddySubtype, colorName: parsed.bambuColor?.name,
             rgba: tag.rgba, brand: NewSpool.bambuBrand, labelWeight: tag.labelWeight, coreWeight: 242,
             coreWeightCatalogId: 1, weightUsed: Double(tag.labelWeight - left), lastScaleWeight: lastScale,
             tagUid: parsed.bambuddyTagUid, trayUuid: parsed.trayUuid, tagType: ParsedTag.Kind.bambu.bambuddyTagType,
-            materialNumber: parsed.bambuColor?.code
+            materialNumber: parsed.bambuColor?.code, updatedAt: updated
         )
     }
 
     /// Twelve spools: `INV` of the design, the tags of `seed()` and a few
-    /// untagged ones for Link to existing.
+    /// untagged ones for Link to existing, each last updated a while before
+    /// 09:41 (the design's `upd`).
     public static let spools: [Spool] = [
-        spool(8, jadeWhite, left: 860),
-        spool(12, pumpkinOrange, left: 120, lastScale: 362),
-        spool(14, petgBlack, left: 742),
-        spool(21, charcoal, left: 410),
+        spool(8, jadeWhite, left: 860, updated: updated(6 * day + 50)),
+        spool(12, pumpkinOrange, left: 120, lastScale: 362, updated: updated(day + 200)),
+        spool(14, petgBlack, left: 742, lastScale: 984, updated: updated(2 * day + 30)),
+        spool(21, charcoal, left: 410, lastScale: 652, updated: updated(3 * day + 10)),
         Spool(
             id: 27, material: "PETG", colorName: "Transparent Blue", rgba: "2F6DB5FF", brand: "Sunlu",
-            labelWeight: 1000, coreWeight: 165, weightUsed: 120, note: "drawer 3"
+            labelWeight: 1000, coreWeight: 165, coreWeightCatalogId: 5, weightUsed: 120, note: "drawer 3",
+            updatedAt: updated(21 * day)
         ),
         Spool(
             id: 30, material: "PLA", subtype: "Silk", colorName: "Copper", rgba: "B87333FF", brand: "eSun",
-            labelWeight: 1000, coreWeight: 172, weightUsed: 345, note: "opened in September"
+            labelWeight: 1000, coreWeight: 172, weightUsed: 345, lastScaleWeight: 827, note: "opened in September",
+            updatedAt: updated(12 * day + 5)
         ),
         Spool(
             id: 31, material: "TPU", subtype: "95A", colorName: "Red", rgba: "D62D20FF", brand: "Overture",
-            labelWeight: 500, coreWeight: 150, weightUsed: 80
+            labelWeight: 500, coreWeight: 150, weightUsed: 80, updatedAt: updated(35 * day)
         ),
         Spool(
             id: 33, material: "ASA", colorName: "White", rgba: "F4F4F4FF", brand: "Polymaker",
-            labelWeight: 1000, coreWeight: 140, weightUsed: 10, note: "enclosure parts"
+            labelWeight: 1000, coreWeight: 140, coreWeightCatalogId: 4, weightUsed: 10, lastScaleWeight: 1130,
+            note: "enclosure parts", updatedAt: updated(60 * day)
         ),
-        spool(35, bambuGreen, left: 590),
+        spool(35, bambuGreen, left: 590, updated: updated(4 * 60)),
         Spool(
             id: 36, material: "PLA", subtype: "Basic", colorName: "Black", rgba: "000000FF", brand: NewSpool.bambuBrand,
-            labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 770
+            labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 770, updatedAt: updated(9 * day)
         ),
         Spool(
             id: 38, material: "PLA", subtype: "Matte", colorName: "Ivory White", rgba: "FFFFFFFF",
-            brand: NewSpool.bambuBrand, labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 0
+            brand: NewSpool.bambuBrand, labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 0,
+            updatedAt: updated(45)
         ),
         Spool(
             id: 40, material: "ABS", colorName: "Black", rgba: "000000FF", brand: NewSpool.bambuBrand,
-            labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 320
+            labelWeight: 1000, coreWeight: 242, coreWeightCatalogId: 1, weightUsed: 320, updatedAt: updated(16 * day)
         ),
     ]
 
@@ -284,8 +308,8 @@ public enum DemoFixtures {
             // In-memory stores do not fail.
             Log.error(.settings, "demo: settings not saved: \(Session.describe(error))")
         }
-        let inventory = DemoInventory()
         let clock = DemoClock()
+        let inventory = DemoInventory(now: clock.now)
         let player = DemoPlayer(clock: clock)
         let makeInventory: @Sendable (Settings) throws -> any SpoolInventory = { _ in inventory }
         let host = HostModel(

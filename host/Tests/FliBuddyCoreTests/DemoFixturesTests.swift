@@ -16,6 +16,14 @@ struct DemoFixturesTests {
         #expect(!DemoFixtures.isRequested(["FliBuddy", "YES", "-FliBuddyDemo"]))
     }
 
+    @Test func theDemoCanOpenOnAPane() {
+        #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemo", "YES", "-FliBuddyDemoPane", "spools"]) == "spools")
+        #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemo", "YES"]) == nil)
+        #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemo", "YES", "-FliBuddyDemoPane"]) == nil)
+        // Only in the demo.
+        #expect(DemoFixtures.requestedPane(["FliBuddy", "-FliBuddyDemoPane", "spools"]) == nil)
+    }
+
     // MARK: - Tags
 
     @Test func aDemoBambuTagParsesBackToWhatItWasBuiltFrom() throws {
@@ -75,12 +83,38 @@ struct DemoFixturesTests {
         #expect(green.suggestedGross == 832)
     }
 
+    @Test func theDemoSpoolsWereUpdatedBeforeNineFortyOne() throws {
+        for spool in DemoFixtures.spools {
+            let updated = try #require(spool.updatedDate, "spool \(spool.id)")
+            #expect(updated <= DemoFixtures.clockTime)
+        }
+        #expect(Set(DemoFixtures.spools.compactMap(\.updatedAt)).count == DemoFixtures.spools.count)
+    }
+
+    @Test func archivedSpoolsAreListedWhenAskedFor() async throws {
+        let (_, inventory, _) = await playedSession()
+        let active = try await inventory.listSpools()
+        let all = try await inventory.listSpools(includeArchived: true)
+        // The dozen and PLA Silk+, added on scan; Charcoal was marked empty.
+        #expect(all.count == 13)
+        #expect(active.count == 12)
+        #expect(all.filter(\.isArchived).map(\.id) == [21])
+    }
+
+    @Test func aWriteStampsTheDemoClock() async throws {
+        let (_, inventory, clock) = await playedSession()
+        // The script weighed Pumpkin Orange at 09:30 and marked Charcoal empty at 09:20.
+        let pumpkin = try #require(inventory.spools.first { $0.id == 12 })
+        #expect(pumpkin.updatedDate == DemoFixtures.clockTime.addingTimeInterval(-11 * 60))
+        _ = clock
+    }
+
     // MARK: - The feed
 
     /// The session after the demo script, rows newest last.
     private func playedSession() async -> (Session, DemoInventory, DemoClock) {
-        let inventory = DemoInventory()
         let clock = DemoClock()
+        let inventory = DemoInventory(now: clock.now)
         let session = Session(settings: DemoFixtures.settings, inventory: inventory, now: clock.now)
         await DemoFixtures.play(on: session, clock: clock)
         return (session, inventory, clock)

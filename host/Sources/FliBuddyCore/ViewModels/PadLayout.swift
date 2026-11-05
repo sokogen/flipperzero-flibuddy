@@ -80,6 +80,13 @@ public enum FeedLayout: Equatable, Sendable {
     /// the iPhone.
     public var centresClearConfirmation: Bool { self != .cards }
 
+    /// A spool picked on Spools opens in an inspector beside the sidebar
+    /// (`inspectorWidth` wide), in a sheet in portrait and at a compact width.
+    public var opensSpoolInInspector: Bool { self == .sidebar }
+
+    /// The Spools inspector's width.
+    public static let inspectorWidth: Double = 320
+
     /// Tiles to a row in a grid `width` wide (the margins left out): two on
     /// an 11" iPad, three on a 13", in both orientations.
     public static func tileColumns(width: Double) -> Int {
@@ -89,8 +96,8 @@ public enum FeedLayout: Equatable, Sendable {
 }
 
 /// The iPad sidebar (ipados spec, "Landscape structure"): the Flipper and
-/// Bambuddy rows under Connections, Feed with its row count, Settings, and
-/// Clear feed at the bottom.
+/// Bambuddy rows under Connections, Feed with its row count, Spools with the
+/// number of active spools, Settings, and Clear feed at the bottom.
 public struct Sidebar: Equatable, Sendable {
     /// A connection row: the side's name over a sub line, its symbol and
     /// tint, and the action chip the state offers.
@@ -118,15 +125,21 @@ public struct Sidebar: Equatable, Sendable {
     public let bambuddy: StatusRow
     /// Feed's badge: the number of rows.
     public let feedCount: Int
+    /// Spools' badge: the active spools of the last list; none before one loaded.
+    public let spoolCount: Int?
     /// Clear feed is disabled while the feed is empty.
     public let canClear: Bool
 
     /// `flipperName`: the chosen Flipper's name (`Settings.peripheralName`);
     /// `serverURL`: Bambuddy's URL as typed in the settings.
-    public init(flipper: StatusItem, bambuddy: StatusItem, flipperName: String?, serverURL: String, feedCount: Int) {
+    public init(
+        flipper: StatusItem, bambuddy: StatusItem, flipperName: String?, serverURL: String, feedCount: Int,
+        spoolCount: Int? = nil
+    ) {
         self.flipper = Self.flipperRow(flipper, name: flipperName)
         self.bambuddy = Self.bambuddyRow(bambuddy, serverURL: serverURL)
         self.feedCount = feedCount
+        self.spoolCount = spoolCount
         canClear = feedCount > 0
     }
 

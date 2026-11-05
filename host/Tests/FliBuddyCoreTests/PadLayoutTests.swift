@@ -75,6 +75,11 @@ struct FeedLayoutTests {
         #expect(FeedLayout.sidebar.centresClearConfirmation)
         #expect(FeedLayout.tabs.centresClearConfirmation)
         #expect(!FeedLayout.cards.centresClearConfirmation)
+        // a spool opens in the inspector beside the sidebar, in a sheet otherwise
+        #expect(FeedLayout.sidebar.opensSpoolInInspector)
+        #expect(!FeedLayout.tabs.opensSpoolInInspector)
+        #expect(!FeedLayout.cards.opensSpoolInInspector)
+        #expect(FeedLayout.inspectorWidth == 320)
     }
 
     /// The tile grid's width: the detail column less the 28 pt side margins.
@@ -233,6 +238,15 @@ struct SidebarTests {
         #expect(Sidebar.clearHint == "\u{2318}\u{232B}")
     }
 
+    @Test func spoolsCountsTheActiveSpoolsOnceLoaded() {
+        #expect(sidebar().spoolCount == nil)
+        let loaded = Sidebar(
+            flipper: flipper(.connected(Self.fap)), bambuddy: BambuddyState.ready.statusItem(), flipperName: nil,
+            serverURL: "", feedCount: 0, spoolCount: 7
+        )
+        #expect(loaded.spoolCount == 7)
+    }
+
     @Test func theHostBuildsItFromItsState() throws {
         let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
         var settings = testSettings
@@ -242,7 +256,7 @@ struct SidebarTests {
         #expect(
             host.sidebar == Sidebar(
                 flipper: host.link.statusItem, bambuddy: host.feed.bambuddyStatus, flipperName: "Workshop",
-                serverURL: settings.baseURL, feedCount: 0
+                serverURL: settings.baseURL, feedCount: 0, spoolCount: nil
             )
         )
         #expect(host.sidebar.flipper.action == .connect)

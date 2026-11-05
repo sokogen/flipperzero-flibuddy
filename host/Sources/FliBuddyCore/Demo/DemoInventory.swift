@@ -3,15 +3,20 @@ import Foundation
 /// The demo's Bambuddy: an in-memory inventory in internal mode, seeded with
 /// `DemoFixtures.spools`, that takes every write (save weight, New, Link,
 /// mark, delete) without a network. Tags match as `by-tag` does: the tray
-/// UUID first, then the UID; archived spools are found too.
+/// UUID first, then the UID; archived spools are found too. Each write
+/// stamps `updated_at` from `now` (the demo's still clock), as Bambuddy does.
 public final class DemoInventory: SpoolInventory, @unchecked Sendable {
     private let lock = NSLock()
     private var stored: [Spool]
     private var nextId = 100
+    private let now: @Sendable () -> Date
 
-    public init(spools: [Spool] = DemoFixtures.spools) {
+    public init(spools: [Spool] = DemoFixtures.spools, now: @escaping @Sendable () -> Date = { Date() }) {
         stored = spools
+        self.now = now
     }
+
+    private var stamp: String { BambuddyDate.string(from: now()) }
 
     /// Every spool, archived ones included.
     public var spools: [Spool] { lock.withLock { stored } }
@@ -39,7 +44,8 @@ public final class DemoInventory: SpoolInventory, @unchecked Sendable {
                 rgba: spool.rgba, brand: spool.brand, labelWeight: spool.labelWeight,
                 coreWeight: spool.coreWeight, coreWeightCatalogId: spool.coreWeightCatalogId,
                 weightUsed: Double(spool.weightUsed), tagUid: spool.tagUid, trayUuid: spool.trayUuid,
-                tagType: spool.tagType, materialNumber: spool.materialNumber, dataOrigin: spool.dataOrigin
+                tagType: spool.tagType, materialNumber: spool.materialNumber, dataOrigin: spool.dataOrigin,
+                updatedAt: stamp
             )
             nextId += 1
             stored.append(created)
@@ -61,6 +67,7 @@ public final class DemoInventory: SpoolInventory, @unchecked Sendable {
             stored[index].tagUid = link.tagUid
             stored[index].trayUuid = link.trayUuid
             stored[index].tagType = link.tagType
+            stored[index].updatedAt = stamp
             return stored[index]
         }
     }
@@ -89,9 +96,9 @@ public final class DemoInventory: SpoolInventory, @unchecked Sendable {
 
     public func spoolmanEnabled() async throws -> Bool { false }
 
-    /// Active spools, as the Link picker lists them.
-    public func listSpools() async throws -> [Spool] {
-        spools.filter { !$0.isArchived }
+    /// Active spools (the Link picker), archived ones too when asked (Spools).
+    public func listSpools(includeArchived: Bool) async throws -> [Spool] {
+        includeArchived ? spools : spools.filter { !$0.isArchived }
     }
 
     public func catalog() async throws -> [CatalogEntry] { DemoFixtures.catalog }
@@ -102,6 +109,7 @@ public final class DemoInventory: SpoolInventory, @unchecked Sendable {
         try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == id }) else { throw BambuddyError.spoolNotFound(id) }
             edit(&stored[index])
+            stored[index].updatedAt = stamp
             return stored[index]
         }
     }

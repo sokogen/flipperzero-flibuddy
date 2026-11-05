@@ -13,6 +13,8 @@ public final class HostModel {
 
     public let session: Session
     public let feed: FeedViewModel
+    /// The Spools tab (iPhone and iPad).
+    public let spools: SpoolsViewModel
     public let link: FlipperLink
     public private(set) var settings: Settings
     /// Runs after `apply` saved new settings (the iPhone sends them to the watch).
@@ -45,6 +47,7 @@ public final class HostModel {
         self.discoverPorts = discoverPorts
         session = Session(settings: settings, inventory: try? makeInventory(settings), now: now)
         feed = FeedViewModel(session: session, settings: settings)
+        spools = SpoolsViewModel(session: session, feed: feed, settings: settings, now: now)
         link = FlipperLink(
             session: session, hello: Self.hostHello, makeTransport: makeTransport, discoverPorts: discoverPorts,
             scanPeripherals: scanPeripherals, bluetoothPower: bluetoothPower
@@ -89,7 +92,7 @@ public final class HostModel {
     public var sidebar: Sidebar {
         Sidebar(
             flipper: link.statusItem, bambuddy: feed.bambuddyStatus, flipperName: settings.peripheralName,
-            serverURL: settings.baseURL, feedCount: feed.items.count
+            serverURL: settings.baseURL, feedCount: feed.items.count, spoolCount: spools.activeCount
         )
     }
 
@@ -122,8 +125,13 @@ public final class HostModel {
         settings = new
         onSettingsSaved?(new)
         feed.settings = new
+        spools.settings = new
+        // The Spools list belongs to the old Bambuddy: gone at once, loaded
+        // again after the check below.
+        var reloadSpools = false
         if serverChanged {
             await session.reconfigure(settings: new, inventory: try? makeInventory(new))
+            reloadSpools = spools.forgetList()
         } else {
             // Reconfiguring would forget the spools created on scan (Link
             // could no longer delete them) and reload the colour map.
@@ -132,6 +140,7 @@ public final class HostModel {
         Log.info(.settings, "apply: server=\(serverChanged ? "changed" : "same")")
         if choiceChanged, link.isActive { link.connect(new.transportChoice) }
         await session.checkBambuddy()
+        if reloadSpools { await spools.refresh() }
     }
 
     /// Whether `new` may name another Bambuddy or another key than `old`.
@@ -158,8 +167,11 @@ public final class HostModel {
         settings = new
         onSettingsSaved?(new)
         feed.settings = new
+        spools.settings = new
         await session.reconfigure(settings: new, inventory: try? makeInventory(new))
+        let reloadSpools = spools.forgetList()
         await session.checkBambuddy()
+        if reloadSpools { await spools.refresh() }
     }
 
     /// Remembers `peripheral` as the Bluetooth Flipper, keeping every other

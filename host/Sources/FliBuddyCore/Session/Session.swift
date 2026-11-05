@@ -90,8 +90,9 @@ extension SessionError: LocalizedError {
     }
 }
 
-/// Bambuddy's spools for the Link picker and the settings they were listed
-/// under: Link refuses a spool picked from a list of older settings.
+/// Bambuddy's spools for the Link picker and the Spools tab, and the
+/// settings they were listed under: Link refuses a spool picked from a list
+/// of older settings, and the Spools tab never shows one.
 public struct SpoolListing: Equatable, Sendable {
     public var spools: [Spool]
     let configuration: Int
@@ -105,14 +106,20 @@ public struct SessionSnapshot: Equatable, Sendable {
     public var bambuddy: BambuddyState
     public var colorNamesProblem: String?
     public var isCheckingBambuddy: Bool
+    /// Counts the writes to Bambuddy that went through (save, New, Link, Mark,
+    /// Delete, create on scan, from the host or the Flipper); the Spools tab
+    /// loads again when it moves.
+    public var inventoryRevision: Int
 
     public init(
-        rows: [FeedRow], bambuddy: BambuddyState, colorNamesProblem: String? = nil, isCheckingBambuddy: Bool = false
+        rows: [FeedRow], bambuddy: BambuddyState, colorNamesProblem: String? = nil, isCheckingBambuddy: Bool = false,
+        inventoryRevision: Int = 0
     ) {
         self.rows = rows
         self.bambuddy = bambuddy
         self.colorNamesProblem = colorNamesProblem
         self.isCheckingBambuddy = isCheckingBambuddy
+        self.inventoryRevision = inventoryRevision
     }
 }
 
@@ -140,6 +147,8 @@ public actor Session {
     private var inventory: (any SpoolInventory)?
     /// Bumped by `reconfigure`; a check of older settings does not count.
     private var configuration = 0
+    /// See `SessionSnapshot.inventoryRevision`.
+    private var inventoryRevision = 0
     /// Rows whose spool came from older settings, perhaps another Bambuddy:
     /// shown as they are, looked up again by tag before the next write.
     private var staleSpools: Set<FeedRow.ID> = []
@@ -220,7 +229,8 @@ public actor Session {
 
     public var snapshot: SessionSnapshot {
         SessionSnapshot(
-            rows: rows, bambuddy: bambuddy, colorNamesProblem: colorNamesProblem, isCheckingBambuddy: checking != nil
+            rows: rows, bambuddy: bambuddy, colorNamesProblem: colorNamesProblem, isCheckingBambuddy: checking != nil,
+            inventoryRevision: inventoryRevision
         )
     }
 
@@ -476,6 +486,7 @@ public actor Session {
         let scanId = scanId(of: id)
         do {
             let created = try await handler.inventory.createSpool(newSpool)
+            noteWrite()
             updateRow(id) { IntentHandler.markCreated(&$0, created, by: .host) }
             settleSpool(id, startedUnder: started)
             Log.info(.session, "create on scan: id=\(scanId) spool=\(created.id)")
@@ -587,6 +598,7 @@ public actor Session {
 
     /// `started`: the configuration a Bambuddy call ran under; `nil` when none was made.
     private func finish(_ intent: Intent, _ outcome: IntentHandler.Outcome, startedUnder started: Int? = nil) -> IntentResult {
+        if started != nil, outcome.result.ok { noteWrite() }
         replaceRow(outcome.row)
         if let started { settleSpool(outcome.row.id, startedUnder: started) }
         remember(intent, outcome.result)
@@ -709,14 +721,26 @@ public actor Session {
         }
     }
 
-    /// Every spool in Bambuddy, for the host's link picker.
-    public func listSpools() async throws -> SpoolListing {
+    /// Bambuddy's active spools (the host's link picker), archived ones too
+    /// when `includeArchived` (the Spools tab).
+    public func listSpools(includeArchived: Bool = false) async throws -> SpoolListing {
         guard let inventory = await ensureReady() else {
             throw SessionError.notReady(bambuddy.message ?? "Bambuddy not ready")
         }
         let started = configuration
-        return SpoolListing(spools: try await inventory.listSpools(), configuration: started)
+        return SpoolListing(spools: try await inventory.listSpools(includeArchived: includeArchived), configuration: started)
     }
+
+    /// Bambuddy's empty-spool catalog, for the Spools tab's detail.
+    public func catalog() async throws -> [CatalogEntry] {
+        guard let inventory = await ensureReady() else {
+            throw SessionError.notReady(bambuddy.message ?? "Bambuddy not ready")
+        }
+        return try await inventory.catalog()
+    }
+
+    /// The settings a `SpoolListing` must have been listed under to be current.
+    var currentConfiguration: Int { configuration }
 
     /// A host action that ends with the row carrying a spool.
     @discardableResult
@@ -754,6 +778,7 @@ public actor Session {
         do {
             let updated = try await action(IntentHandler(inventory: guarded, settings: settings), forWrite(row))
             if outlived(guarded, startedUnder: started) { throw SessionError.settingsChanged }
+            if guarded.writeBegan { noteWrite() }
             replaceRow(updated)
             settleSpool(id, startedUnder: started)
             return rows.first { $0.id == id } ?? updated
@@ -800,6 +825,11 @@ public actor Session {
 
     private func isCurrent(_ started: Int) -> Bool {
         started == configuration
+    }
+
+    /// A write went through to Bambuddy; the next published snapshot says so.
+    private func noteWrite() {
+        inventoryRevision += 1
     }
 
     private func updateRow(_ id: FeedRow.ID, _ change: (inout FeedRow) -> Void) {

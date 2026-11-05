@@ -11,6 +11,10 @@ enum AppHost {
     /// (`DemoFixtures`), no Bluetooth, network, Keychain or watch sync.
     static let isDemo = DemoFixtures.isRequested()
 
+    /// The pane the app opens on: the feed, or in the demo the one
+    /// `-FliBuddyDemoPane` names (`tools/sim_shot.sh`).
+    static let initialPane = DemoFixtures.requestedPane().flatMap(AppPane.init(rawValue:)) ?? .feed
+
     static let model: HostModel = {
         // Before the host model: loading the settings already logs.
         Log.bootstrap(appName: "FliBuddy", level: .info)
@@ -57,7 +61,7 @@ struct FliBuddyiOSApp: App {
     /// Sends the settings to the Apple Watch after each applied change (not on iPad).
     @ViewState private var watchSync: WatchSettingsSender?
     /// The pane and the Clear confirmation, shared with the menu commands.
-    @ViewState private var navigation = AppNavigation()
+    @ViewState private var navigation = AppNavigation(pane: AppHost.initialPane)
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -74,6 +78,8 @@ struct FliBuddyiOSApp: App {
                     host.start()
                     await host.feed.observe()
                 }
+                // The Spools tab loads again after each write the feed makes.
+                .task { await host.spools.observe() }
         }
         // The protected data may have become available while no scene was
         // active; read the key again whenever the app comes to the front.
@@ -86,7 +92,8 @@ struct FliBuddyiOSApp: App {
 
 /// The iPad's sidebar in a landscape window, its top tabs in a portrait one
 /// (tiles in both), and the iPhone's tabs and cards at a compact width (an
-/// iPhone, a narrow multitasking window); see `FeedLayout`.
+/// iPhone, a narrow multitasking window); see `FeedLayout`. Feed, Spools and
+/// Settings in each.
 struct RootView: View {
     let host: HostModel
     @Bindable var navigation: AppNavigation
@@ -115,6 +122,7 @@ struct RootView: View {
                 } detail: {
                     switch navigation.pane {
                     case .feed: feed
+                    case .spools: spools
                     case .settings: settings
                     }
                 }
@@ -122,6 +130,7 @@ struct RootView: View {
                 // iPadOS draws the tab bar at the top, iOS at the bottom.
                 TabView(selection: $navigation.pane) {
                     Tab("Feed", systemImage: "list.bullet", value: AppPane.feed) { feed }
+                    Tab(SpoolsViewModel.title, systemImage: "shippingbox", value: AppPane.spools) { spools }
                     Tab("Settings", systemImage: "gearshape", value: AppPane.settings) { settings }
                 }
             }
@@ -147,6 +156,13 @@ struct RootView: View {
         NavigationStack {
             FeedView(host: host, openSettings: { navigation.pane = .settings }, confirmingClear: $navigation.confirmingClear)
                 .navigationTitle("Feed")
+        }
+    }
+
+    /// Bambuddy's inventory, read-only.
+    private var spools: some View {
+        NavigationStack {
+            SpoolsView(model: host.spools, openSettings: { navigation.pane = .settings })
         }
     }
 

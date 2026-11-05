@@ -69,8 +69,8 @@ final class ConfiguredInventory: SpoolInventory, @unchecked Sendable {
         try await base.spoolmanEnabled()
     }
 
-    func listSpools() async throws -> [Spool] {
-        try await base.listSpools()
+    func listSpools(includeArchived: Bool) async throws -> [Spool] {
+        try await base.listSpools(includeArchived: includeArchived)
     }
 
     func catalog() async throws -> [CatalogEntry] {

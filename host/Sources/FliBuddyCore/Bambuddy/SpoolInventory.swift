@@ -12,9 +12,17 @@ public protocol SpoolInventory: Sendable {
     func archiveSpool(id: Int) async throws
     func restoreSpool(id: Int) async throws
     func spoolmanEnabled() async throws -> Bool
-    func listSpools() async throws -> [Spool]
+    /// Bambuddy's spools; archived ones only when `includeArchived`.
+    func listSpools(includeArchived: Bool) async throws -> [Spool]
     func catalog() async throws -> [CatalogEntry]
     func colorMap() async throws -> ColorMap
+}
+
+extension SpoolInventory {
+    /// Active (not archived) spools, as the Link picker lists them.
+    public func listSpools() async throws -> [Spool] {
+        try await listSpools(includeArchived: false)
+    }
 }
 
 extension BambuddyClient: SpoolInventory {}

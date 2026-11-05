@@ -254,8 +254,8 @@ Apple/project.yml                XcodeGen spec: FliBuddyiOS (iPhone, iPad)
                                  with the FliBuddyWatch companion embedded
 Apple/iOS/App.swift              NavigationSplitView with the sidebar in
                                  a landscape iPad window, else TabView;
-                                 tiles on the iPad, cards at a compact
-                                 width (FeedLayout)
+                                 Feed, Spools and Settings; tiles on the
+                                 iPad, cards at a compact width (FeedLayout)
 Apple/Watch/App.swift            the watch app over the Watch/ views
 Apple/Base.xcconfig              tracked; includes Signing.xcconfig if present
 Apple/Signing.example.xcconfig   copy to Signing.xcconfig (git-ignored) and
@@ -290,6 +290,33 @@ action chip. A landscape iPad shows both states in the sidebar. A save plays
 the success haptic and a failed host action the error one, on the iPhone and
 on the watch. The iPhone and iPad get the Mac's shortcuts above as menu
 commands (`FeedCommands`).
+
+### Spools on iPhone and iPad
+
+The Spools tab (`SpoolsViewModel`, `FliBuddyUI/SpoolsView.swift`; ios spec,
+"Spools") lists Bambuddy's inventory, read-only. One request per load,
+`GET /inventory/spools?include_archived=true` through
+`Session.listSpools(includeArchived:)`, so it goes through the startup check
+like the feed and shows the same refusals (no server, Spoolman mode, a key
+that cannot read the inventory or that Bambuddy rejects); the catalog names
+the empty spool in the detail, loaded once per settings. Scope (Active,
+Archived, All), search (`LinkPickerModel.filter`), material and sort work
+on the device. `updated_at` comes without a zone and means UTC
+(`BambuddyDate`); a row reads "updated 3 d ago" from the model's clock.
+
+The tab loads each time it comes on screen and on pull to refresh; the iPad
+sidebar loads it once for its count. `SpoolsViewModel.observe()` (started
+by the app next to the feed's) loads again whenever
+`SessionSnapshot.inventoryRevision` moves: the session counts every write
+that went through to Bambuddy (a save, New, Link, Mark, Delete, a create on
+scan), not lookups. The last good list stays when Bambuddy does not answer
+("Couldn't refresh · showing 10:42"); a list from another URL or key is
+never shown (`HostModel.apply` calls `serverChanged()`), and the other
+failures replace it with their state. A spool opens in an inspector beside
+the iPad sidebar (`FeedLayout.opensSpoolInInspector`, 320 pt) and in a
+sheet otherwise; **Open in Bambuddy** opens `<URL>/inventory?spool=<id>`,
+Bambuddy's inventory page with the spool's form. Loads log `spools: loaded
+n=… archived=…` or `spools: load failed: …` in the `session` category.
 
 ### Settings on iPhone and iPad
 
@@ -362,8 +389,11 @@ waiting for a weight (590 g of 1000, 832 g gross suggested), a blank NTAG,
 PLA Pure not in Bambuddy, Pumpkin Orange saved by the Flipper, PLA Silk+
 added on scan, PETG HF the Flipper asks to link, and PLA Matte marked empty
 and archived, the last scan at 09:41. Save, New and Link to existing work
-on the in-memory inventory; Scan for Flipper finds Atgizo. The argument is
-not reachable from the UI and nothing user-facing mentions it.
+on the in-memory inventory, which stamps `updated_at` with the demo clock,
+so the Spools tab follows them; Scan for Flipper finds Atgizo.
+`-FliBuddyDemoPane spools` (or `settings`) opens the demo on that pane. The
+arguments are not reachable from the UI and nothing user-facing mentions
+them.
 
 `tools/sim_shot.sh` takes a screenshot of the demo in a simulator, after
 `make apple-project apple-build`:
@@ -372,14 +402,15 @@ not reachable from the UI and nothing user-facing mentions it.
 tools/sim_shot.sh "iPhone 18 Pro Max" /tmp/iphone.png
 tools/sim_shot.sh -a dark -s extra-large "iPad Pro 13-inch (M5)" /tmp/ipad.png
 tools/sim_shot.sh "Apple Watch Series 12 (46mm)" /tmp/watch.png
+tools/sim_shot.sh "iPhone 18 Pro Max" /tmp/spools.png -FliBuddyDemoPane spools
 ```
 
 It takes a device name or UDID, boots it if needed, sets the appearance
 (`-a light|dark`), the Dynamic Type size (`-s`, a `simctl ui content_size`
 category, default `large`) and the 9:41 status bar on iPhone and iPad
 (watch simulators support none of these), installs the app from
-`Apple/.build`, launches it with the demo argument, waits (`-w`, default
-4 s) and saves a PNG. `simctl` cannot rotate a device, so an iPad stays in
+`Apple/.build`, launches it with the demo argument and any arguments after
+the output path, waits (`-w`, default 4 s) and saves a PNG. `simctl` cannot rotate a device, so an iPad stays in
 portrait unless it was turned in the Simulator app.
 
 ### `@ViewState` instead of `@State`

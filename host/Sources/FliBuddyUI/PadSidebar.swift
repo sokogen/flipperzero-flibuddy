@@ -5,8 +5,8 @@ import SwiftUI
 #if os(iOS)
 /// The iPhone/iPad app's panes: the sidebar's selection on the iPad, the tabs
 /// on the iPhone.
-public enum AppPane: Hashable, Sendable {
-    case feed, settings
+public enum AppPane: String, Hashable, Sendable {
+    case feed, spools, settings
 }
 
 /// What the app's menu commands change: the pane on show and the Clear
@@ -14,10 +14,12 @@ public enum AppPane: Hashable, Sendable {
 @MainActor
 @Observable
 public final class AppNavigation {
-    public var pane: AppPane = .feed
+    public var pane: AppPane
     public var confirmingClear = false
 
-    public init() {}
+    public init(pane: AppPane = .feed) {
+        self.pane = pane
+    }
 
     /// Shows the feed and asks before clearing it.
     public func requestClear() {
@@ -74,8 +76,8 @@ public struct FeedCommands: Commands {
 }
 
 /// The iPad sidebar: Connections with the Flipper and Bambuddy rows and
-/// their action chips, Feed with its row count, Settings, and Clear feed at
-/// the bottom.
+/// their action chips, Feed with its row count, Spools with the number of
+/// active spools, Settings, and Clear feed at the bottom.
 public struct PadSidebar: View {
     let host: HostModel
     @Bindable var navigation: AppNavigation
@@ -101,6 +103,9 @@ public struct PadSidebar: View {
                 Label("Feed", systemImage: "list.bullet")
                     .badge(sidebar.feedCount)
                     .tag(AppPane.feed)
+                Label(SpoolsViewModel.title, systemImage: "shippingbox")
+                    .badge(sidebar.spoolCount ?? 0)
+                    .tag(AppPane.spools)
                 HStack {
                     Label("Settings", systemImage: "gearshape")
                     Spacer()
@@ -114,6 +119,9 @@ public struct PadSidebar: View {
         }
         .listStyle(.sidebar)
         .navigationTitle("FliBuddy")
+        // The Spools badge wants a count before the pane was opened. Not
+        // `.task`: a cancelled load would read as Bambuddy unreachable.
+        .onAppear { Task { await host.spools.loadIfNeeded() } }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             Button(role: .destructive) {
                 navigation.requestClear()

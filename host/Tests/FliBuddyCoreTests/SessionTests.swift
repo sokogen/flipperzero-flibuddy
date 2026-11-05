@@ -1839,4 +1839,42 @@ struct SessionLogTests {
         ])
         #expect(created.map(\.level) == [.info, .error])
     }
+
+    // MARK: Inventory revision (the Spools tab refreshes on it)
+
+    @Test func eachWriteToBambuddyCountsAndALookupDoesNot() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = Session(settings: testSettings, inventory: inventory)
+        #expect(await session.snapshot.inventoryRevision == 0)
+        let lookup = await session.handleScan(try fixtureScan())
+        #expect(lookup.status == .found)
+        #expect(await session.snapshot.inventoryRevision == 0)
+        let row = try #require(await session.rows.first)
+        try await session.saveWeight(row: row.id, grams: 400, mode: .net)
+        #expect(await session.snapshot.inventoryRevision == 1)
+        _ = await session.handleIntent(try fixtureIntent("intent_weigh"))
+        #expect(await session.snapshot.inventoryRevision == 2)
+    }
+
+    @Test func aCreateOnScanCounts() async throws {
+        let session = Session(settings: testSettings, inventory: FakeInventory())
+        _ = await session.handleScan(try autosaveScan())
+        #expect(await session.snapshot.inventoryRevision == 1)
+    }
+
+    @Test func spoolsWithArchivedOnesComeFromOneRequest() async throws {
+        var archived = knownSpool()
+        archived.archivedAt = "2026-10-26T12:00:00"
+        let inventory = FakeInventory(spools: [archived])
+        let session = Session(settings: testSettings, inventory: inventory)
+        #expect(try await session.listSpools().spools.isEmpty)
+        #expect(try await session.listSpools(includeArchived: true).spools.map(\.id) == [42])
+        #expect(inventory.calls.filter { $0 == .list || $0 == .listAll } == [.list, .listAll])
+    }
+
+    @Test func theCatalogComesFromTheReadyBambuddy() async throws {
+        let inventory = FakeInventory()
+        let session = Session(settings: testSettings, inventory: inventory)
+        #expect(try await session.catalog() == inventory.catalogEntries)
+    }
 }

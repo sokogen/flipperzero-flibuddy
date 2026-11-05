@@ -72,7 +72,8 @@ struct BambuddyClientTests {
             id: 42, material: "PLA", subtype: "PLA Basic", colorName: "Jade White", rgba: "FFFFFFFF",
             brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
             weightUsed: 516, lastScaleWeight: 734, tagUid: "04A1B2C3", trayUuid: trayA,
-            tagType: "bambulab", materialNumber: "10100", dataOrigin: "flipper", note: nil
+            tagType: "bambulab", materialNumber: "10100", dataOrigin: "flipper", note: nil,
+            updatedAt: "2026-10-25T12:00:00"
         ))
         #expect(spool.remaining == 484)
     }
@@ -338,6 +339,22 @@ struct BambuddyClientTests {
         #expect(spools.map(\.material) == ["PLA", "PETG"])
         #expect(server.requests.first?.path == "/api/v1/inventory/spools")
         #expect(server.requests.first?.method == "GET")
+    }
+
+    @Test func listSpoolsAsksForArchivedSpoolsWhenTold() async throws {
+        let server = StubServer { _ in .json(200, "[\(spoolJSON(id: 1))]") }
+        let client = try server.client()
+        _ = try await client.listSpools(includeArchived: true)
+        _ = try await client.listSpools()
+        #expect(server.requests.map(\.query) == [["include_archived": "true"], [:]])
+        #expect(server.requests.allSatisfy { $0.path == "/api/v1/inventory/spools" })
+    }
+
+    @Test func spoolsCarryWhenBambuddyLastUpdatedThem() async throws {
+        let server = StubServer { _ in .json(200, "[\(spoolJSON(id: 1))]") }
+        let spool = try #require(try await server.client().listSpools(includeArchived: true).first)
+        #expect(spool.updatedAt == "2026-10-25T12:00:00")
+        #expect(spool.updatedDate == Date(timeIntervalSince1970: 1_792_929_600))
     }
 
     @Test func spoolByIdReadsOneSpool() async throws {

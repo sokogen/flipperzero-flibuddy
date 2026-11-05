@@ -67,9 +67,13 @@ public struct BambuddyClient: Sendable {
         return try decode(Spool.self, data)
     }
 
-    /// Active (not archived) spools.
-    public func listSpools() async throws -> [Spool] {
-        try await get("/inventory/spools", permission: "inventory:read")
+    /// Bambuddy's spools: active ones, and archived ones too when
+    /// `includeArchived` (`include_archived=true`, the Spools tab).
+    public func listSpools(includeArchived: Bool) async throws -> [Spool] {
+        let query = includeArchived ? [URLQueryItem(name: "include_archived", value: "true")] : []
+        let (data, status) = try await send("GET", "/inventory/spools", query: query)
+        try check(status, data, permission: "inventory:read")
+        return try decode([Spool].self, data)
     }
 
     /// Empty-spool catalog.

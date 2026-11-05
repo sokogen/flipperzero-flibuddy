@@ -31,13 +31,17 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
     /// An explicit archive flag, set by the host after archiving or restoring
     /// and taken from Bambuddy should it send one; wins over `archivedAt`.
     public var archived: Bool?
+    /// When Bambuddy last changed the spool, as it sends it (naive UTC, see
+    /// `BambuddyDate`); the Spools tab's "updated … ago".
+    public var updatedAt: String?
 
     public init(
         id: Int, material: String, subtype: String? = nil, colorName: String? = nil,
         rgba: String? = nil, brand: String? = nil, labelWeight: Int, coreWeight: Int,
         coreWeightCatalogId: Int? = nil, weightUsed: Double, lastScaleWeight: Int? = nil,
         tagUid: String? = nil, trayUuid: String? = nil, tagType: String? = nil, materialNumber: String? = nil,
-        dataOrigin: String? = nil, note: String? = nil, archivedAt: String? = nil, archived: Bool? = nil
+        dataOrigin: String? = nil, note: String? = nil, archivedAt: String? = nil, archived: Bool? = nil,
+        updatedAt: String? = nil
     ) {
         self.id = id
         self.material = material
@@ -58,10 +62,14 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         self.note = note
         self.archivedAt = archivedAt
         self.archived = archived
+        self.updatedAt = updatedAt
     }
 
     /// Whether the spool is in Bambuddy's archive.
     public var isArchived: Bool { archived ?? (archivedAt != nil) }
+
+    /// `updatedAt` as a date; `nil` when absent or unreadable.
+    public var updatedDate: Date? { updatedAt.flatMap(BambuddyDate.parse) }
 
     /// Grams of filament left, never negative.
     public var remaining: Int { WeightMath.remaining(label: labelWeight, used: weightUsed) }

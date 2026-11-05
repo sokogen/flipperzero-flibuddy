@@ -501,7 +501,7 @@ title in the bar):
 
 - swatch 64 pt, the title (`.title2.bold`), `Charcoal · Bambu Lab`;
 - a linear `Gauge` of what is left of the label weight: `410 g left of
-  1000 g` over the bar, `41 %` trailing, `Low` in orange when low; the bar
+  1000 g` over the bar, `41%` trailing, `Low` in orange when low; the bar
   `.tint`, orange when low;
 - **Today** (only when the feed has a row for the spool): the row's status
   symbol and phrase, e.g. `Saved 15 g left · by Flipper`;
@@ -704,6 +704,21 @@ Settings, QR, sheets and Clear
 - Clear keeps ⌘⌫ on a hardware keyboard, now a menu command of the app
   (`FeedCommands`, shared with the iPad) rather than the toolbar button's
   shortcut; ⌘S and ⌘↑ / ⌘↓ are menu commands too.
+
+Spools (Task 12, 2026-11-05)
+- "Updated … ago" is the app's own short formatter (`SpoolsViewModel.ago`):
+  `RelativeDateTimeFormatter` writes `3d ago` and follows the device
+  language inside an English row. Times and dates (`showing 10:42`,
+  `Archived on`) follow the device's region.
+- The Spoolman state reuses the feed's shipped sentence word for word
+  (`Switch Bambuddy's inventory back from Spoolman in its settings, then
+  retry.`), so both screens say the same.
+- The stale line's Retry and the states' Retry check Bambuddy again before
+  loading, which also lifts a Spoolman refusal once Bambuddy is fixed.
+- The detail's Done is the `xmark` toolbar button; the inspector carries
+  the same one. The selected row stays highlighted beside the inspector.
+- The demo (`-FliBuddyDemo YES`) fills the tab from its in-memory
+  inventory; `-FliBuddyDemoPane spools` opens on it for screenshots.
 
 ## Open questions for the owner
 

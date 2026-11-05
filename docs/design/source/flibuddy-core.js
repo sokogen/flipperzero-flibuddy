@@ -297,7 +297,7 @@ export function spoolDetailVM(s, rows = []) {
   ].filter(f => f[1]).map(([k, v, mono]) => ({k, v, mono: !!mono}));
   return {
     ...spoolRowVM(s), colorName: s.colorName || '', brand: s.brand || '', sub: [s.colorName, s.brand].filter(Boolean).join(' · '),
-    gauge: s.remaining + ' g left of ' + s.label + ' g', pct: pct + ' %', pctW: Math.min(100, pct) + '%', gaugeColor: isLow(s) ? 'var(--fb-orange)' : 'var(--fb-blue)',
+    gauge: s.remaining + ' g left of ' + s.label + ' g', pct: pct + '%', pctW: Math.min(100, pct) + '%', gaugeColor: isLow(s) ? 'var(--fb-orange)' : 'var(--fb-blue)',
     facts, today: today ? today.statusText : '', todayIcon: today ? today.icon : '', todayColor: today ? today.iconColor : '', hasToday: !!today,
     url: 'bambuddy.local:8000/inventory?spool=' + s.id,
   };
