@@ -77,7 +77,7 @@ Keys: OK / ◀ / ▶ / ▲▼ / Back.
    known: Weigh, Reset to full, Mark as empty, Relink in app, Tag details,
    Delete spool. Unknown Bambu: Save as new, Save with weight, Link in
    app, Tag details. No material: Create in app, Link in app, Tag details. Blank:
-   Link in app, Tag details. No host: Tag details.
+   Link in app, Tag details. No app: Tag details.
 10. **Tag details**: Type, UID with colons, Data (`15/16 sectors` or
     `135 pages`), then what is known: Code (`11803`), Fila (filament id
     `GFA01`), RGBA, Label (`1000 g`), Diam (`1.75 mm`), Nozzle (`190-230 C`).

@@ -288,7 +288,11 @@ public actor Session {
             setBambuddy(Settings.isRefusedHTTP(settings.baseURL, requireHTTPS: requiresHTTPS) ? .needsHTTPS : .notConfigured)
             return bambuddy
         }
-        let state = await Self.check(inventory)
+        guard let state = await Self.check(inventory) else {
+            // Cancelled: the last state still stands.
+            Log.debug(.session, "bambuddy: check cancelled")
+            return bambuddy
+        }
         guard checking == configuration else { return await runCheck() }
         setBambuddy(state)
         if state.isReady, colorNames == nil {
@@ -298,10 +302,13 @@ public actor Session {
         return state
     }
 
-    /// The startup check alone, without the colour map (the settings' "Test connection").
-    static func check(_ inventory: any SpoolInventory) async -> BambuddyState {
+    /// The startup check alone, without the colour map; `nil` when it was
+    /// cancelled.
+    static func check(_ inventory: any SpoolInventory) async -> BambuddyState? {
         do {
             return try await state(spoolmanEnabled: inventory.spoolmanEnabled())
+        } catch is CancellationError {
+            return nil
         } catch {
             return state(after: error)
         }
@@ -939,6 +946,8 @@ public actor Session {
     }
 
     static func describe(_ error: any Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+        // A cancelled request (a refresh let go, a link gone) is no failure to explain.
+        if error is CancellationError { return "cancelled" }
+        return (error as? LocalizedError)?.errorDescription ?? String(describing: error)
     }
 }

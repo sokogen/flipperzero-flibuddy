@@ -35,10 +35,12 @@ public final class HostModel {
 
     /// `scanPeripherals` and `bluetoothPower` stand in for CoreBluetooth, `now`
     /// for the clock of the feed's scan times (the demo mode, tests).
-    /// `linkWaitsForChosenFlipper` (the Bluetooth-only iPhone, iPad and
-    /// Watch): without a remembered Flipper the link does not start until
-    /// one is chosen, as creating the Bluetooth central asks for permission
-    /// and that belongs to Scan for Flipper.
+    /// `linkWaitsForChosenFlipper` (default on Bluetooth-only platforms; the
+    /// iPhone and iPad keep it, the watch passes false and connects to the
+    /// first Flipper found): without a remembered Flipper the link does not
+    /// start until one is chosen, as creating the Bluetooth central asks for
+    /// permission and that belongs to Scan for Flipper. Forgetting the
+    /// Flipper stops it again.
     public init(
         store: SettingsStore = SettingsStore(),
         makeInventory: @escaping @Sendable (Settings) throws -> any SpoolInventory = { try $0.makeClient() },
@@ -94,12 +96,14 @@ public final class HostModel {
     }
 
     /// Whether the iOS app delegate starts the link at launch, before any
-    /// view appears (a relaunch in the background may never show one):
-    /// iOS relaunched the app for a Bluetooth event, or a Bluetooth Flipper
-    /// is remembered. A fresh install leaves it to the views, as creating the
-    /// central asks for Bluetooth permission.
+    /// view appears (a relaunch in the background may never show one): a
+    /// Bluetooth Flipper is remembered, whether or not iOS relaunched the app
+    /// for it. Without one the link waits for a Flipper to be chosen, so a
+    /// relaunch for Bluetooth would create the central for nothing; a fresh
+    /// install leaves it to Scan for Flipper, as creating the central asks
+    /// for Bluetooth permission.
     public static func startsAtLaunch(relaunchedForBluetooth: Bool, settings: Settings) -> Bool {
-        relaunchedForBluetooth || (settings.transport == .bluetooth && settings.peripheralId != nil)
+        settings.transport == .bluetooth && settings.peripheralId != nil
     }
 
     /// Runs the startup check again (the status bar's Check and Retry, and
@@ -172,6 +176,11 @@ public final class HostModel {
             // The first Flipper chosen: the link that waited starts.
             Log.info(.link, "start: a Flipper was chosen")
             link.connect(new.transportChoice)
+        } else if link.isActive, !startsLink(new) {
+            // Forget This Flipper where the link waits for a chosen one: it
+            // must not reconnect to the first Flipper found.
+            Log.info(.link, "stop: no Flipper chosen")
+            link.disconnect()
         } else if choiceChanged, link.isActive {
             link.connect(new.transportChoice)
         }

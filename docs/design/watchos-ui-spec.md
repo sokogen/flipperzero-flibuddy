@@ -85,7 +85,7 @@ problem, else `antenna.radiowaves.left.and.right` in green labelled
 | State | Symbol | Tint | Label |
 |---|---|---|---|
 | No Flipper | spinner | gray `#8E8E93` | `No Flipper · searching` |
-| Flipper not connected (no Flipper chosen) | `antenna.radiowaves.left.and.right` | orange `#FF9F0A` | `Flipper not connected` |
+| Flipper not connected (link not started; the watch starts it at launch, so only before that) | `antenna.radiowaves.left.and.right` | orange `#FF9F0A` | `Flipper not connected` |
 | Connected, no hello | `app.dashed` | orange | `Open FliBuddy on the Flipper` |
 | Other version | `exclamationmark.triangle` | orange | `Flipper speaks protocol 1, app speaks 2` |
 | Bambuddy not set up | `server.rack` | orange | `Bambuddy not set up` |
@@ -113,12 +113,13 @@ height 52, padding 9 × 12, 5 apart), a grid of swatch 16 · text · glyph 22:
 | Status glyph | 19 pt, centred in its 22 pt column: `scalemass` blue `#0A84FF` (Enter weight), `checkmark.circle.fill` green (Saved, Timeout), `plus.circle.fill` green (Added to Bambuddy), `questionmark.circle` gray (Not in Bambuddy, with or without material), `exclamationmark.triangle.fill` red (Error), `dot.radiowaves.left.and.right` blue (Flipper asks); a 14 pt spinner for Looking up, Saving, Creating and Updating. The marked and deleted states use their iPhone symbols. Accessibility label: the status phrase. |
 
 Empty feed: only a centred line, 14 `.secondary`: `Set up FliBuddy on
-your iPhone first.` without settings; `Choose your Flipper in Settings.`
-before a Flipper is chosen (the link waits for one, as on the iPhone);
-`No Flipper found. It may be connected to another device.` after 30 s of
+your iPhone first.` without settings; `No Flipper found. It may be
+connected to another device.` after 30 s of
 searching (a Flipper serving another central stops advertising, so the
 watch cannot tell it from one out of range); else `Hold a spool’s tag to
-the Flipper running FliBuddy.`
+the Flipper running FliBuddy.` Unlike the iPhone, the watch connects to
+the first Flipper found without one being chosen (owner ruling); Scan for
+Flipper in its Settings remembers one.
 
 **Auto-open (core `onFocus`):** when a row starts waiting for a weight
 (scan or rescan of a known spool, a reopen) and the feed list is the

@@ -364,7 +364,7 @@ trailing, `.tint` when a material is chosen, disabled otherwise), title
 
 - Section "Required": Material, menu `Choose` / PLA, PETG, ABS, ASA, TPU,
   PA, PC, PVA.
-- Section "Optional": Subtype (placeholder `Basic, Matte, HF…`), Colour
+- Section "Optional": Subtype (placeholder `Basic, Matte, HF…`), Color
   (`ColorPicker`, the swatch RGBA), Color name (placeholder `Lilac`),
   Brand (placeholder `Elegoo`), Label weight (digits, default 1000, `g`).
 - Footer: `FliBuddy adds the spool to Bambuddy at its label weight.`
@@ -484,8 +484,8 @@ each material in the inventory. A footnote under the card counts the active
 spools: `7 active spools. Pull down to refresh.`
 
 Sort orders: Recently updated, newest `updated_at` first (spools without
-one last); Least left, fewest grams first; Material, by title then colour;
-Colour, by colour name (spools without one last) then title. Ties fall back
+one last); Least left, fewest grams first; Material, by title then color;
+Color, by color name (spools without one last) then title. Ties fall back
 to the spool id, so the order never jumps between loads.
 
 **Row** (a button; tap opens the detail):

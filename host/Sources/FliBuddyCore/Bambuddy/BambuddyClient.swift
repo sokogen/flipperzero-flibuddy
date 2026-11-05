@@ -20,7 +20,7 @@ public struct BambuddyClient: Sendable {
     public init(baseURL: URL, apiKey: String, session: URLSession? = nil) throws {
         guard let scheme = baseURL.scheme?.lowercased(), ["http", "https"].contains(scheme),
               let host = baseURL.host, !host.isEmpty
-        else { throw BambuddyError.invalidBaseURL(baseURL.absoluteString) }
+        else { throw BambuddyError.invalidBaseURL(Settings.withoutCredentials(baseURL.absoluteString)) }
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.session = session ?? Self.sharedSession

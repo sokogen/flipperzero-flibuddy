@@ -26,8 +26,7 @@ public struct WatchRootView: View {
                 feed: feed, glyph: host.watchGlyph,
                 emptyText: { now in
                     WatchSettingsTexts.emptyFeed(
-                        host.feedEmptyState, linkActive: host.link.isActive,
-                        searchingSince: host.link.searchingSince, now: now
+                        host.feedEmptyState, searchingSince: host.link.searchingSince, now: now
                     )
                 }
             ) { navigation.open($0) } onSettings: {
@@ -67,7 +66,7 @@ struct WatchFeedView: View {
     let feed: FeedViewModel
     let glyph: StatusItem
     /// The empty feed's line at a time (`WatchSettingsTexts.emptyFeed`):
-    /// settings, a Flipper to choose, a long search, or hold a tag.
+    /// settings, a long search, or hold a tag.
     let emptyText: (Date) -> String
     let onOpen: (FeedRow.ID) -> Void
     let onSettings: () -> Void

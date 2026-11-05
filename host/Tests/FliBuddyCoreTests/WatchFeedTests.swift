@@ -359,35 +359,28 @@ struct WatchEmptyFeedTests {
     @Test func withoutSettingsTheWatchSendsToTheIPhone() {
         for state in [FeedEmptyState.noServer, .needsHTTPS] {
             #expect(
-                WatchSettingsTexts.emptyFeed(state, linkActive: false, searchingSince: nil, now: now)
+                WatchSettingsTexts.emptyFeed(state, searchingSince: nil, now: now)
                     == "Set up FliBuddy on your iPhone first."
             )
         }
-    }
-
-    @Test func withoutAChosenFlipperTheWatchSendsToSettings() {
-        #expect(
-            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: false, searchingSince: nil, now: now)
-                == "Choose your Flipper in Settings."
-        )
     }
 
     @Test func aLongSearchHintsAtAnotherDevice() {
         let shortly = now.addingTimeInterval(-WatchSettingsTexts.longSearch + 1)
         let long = now.addingTimeInterval(-WatchSettingsTexts.longSearch)
         #expect(
-            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: true, searchingSince: shortly, now: now)
+            WatchSettingsTexts.emptyFeed(.noFlipper, searchingSince: shortly, now: now)
                 == "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
         )
         #expect(
-            WatchSettingsTexts.emptyFeed(.noFlipper, linkActive: true, searchingSince: long, now: now)
+            WatchSettingsTexts.emptyFeed(.noFlipper, searchingSince: long, now: now)
                 == "No Flipper found. It may be connected to another device."
         )
     }
 
     @Test func aConnectedFlipperAsksForATag() {
         #expect(
-            WatchSettingsTexts.emptyFeed(.noScans, linkActive: true, searchingSince: nil, now: now)
+            WatchSettingsTexts.emptyFeed(.noScans, searchingSince: nil, now: now)
                 == "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
         )
     }

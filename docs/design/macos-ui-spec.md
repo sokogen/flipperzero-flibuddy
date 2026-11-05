@@ -434,11 +434,12 @@ Status bar
   a check runs. (Not set up, the rejected key and the other version are in
   the tables above since the Spec page drew them, 2026-11-05.)
 - "Flipper not connected" (Settings) is shown while the link is not
-  started. The Mac starts it at launch, so it shows only before that; on
-  the iPhone, iPad and Watch it is the state until a Flipper is chosen
-  (creating the Bluetooth central asks for permission, which belongs to
-  Scan for Flipper). The host does not probe for advertising Flippers, so
-  the design's "nearby" is not claimed.
+  started. The Mac and the watch start it at launch, so it shows only
+  before that; on the iPhone and iPad it is the state until a Flipper is
+  chosen (creating the Bluetooth central asks for permission, which
+  belongs to Scan for Flipper), and Forget This Flipper stops the link
+  there. The host does not probe for advertising Flippers, so the design's
+  "nearby" is not claimed.
 
 - New and Link to existing… stand in the 360 pt entry column, bordered,
   the prominent one `.borderedProminent`, sized to their titles; the

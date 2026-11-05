@@ -16,10 +16,12 @@ struct FliBuddyWatchApp: App {
         // Before the host model: loading the settings already logs.
         Log.bootstrap(appName: "FliBuddy", level: .info)
         isDemo = DemoFixtures.isRequested()
-        // Bluetooth is the only transport on the watch.
-        _host = ViewState(initialValue: isDemo ? DemoFixtures.makeHost() : HostModel(
+        // Bluetooth is the only transport on the watch. Unlike the iPhone it
+        // connects to the first Flipper found without one being chosen.
+        _host = ViewState(initialValue: isDemo ? DemoFixtures.makeHost(linkWaitsForChosenFlipper: false) : HostModel(
             makeTransport: FlipperLink.defaultTransport,
-            discoverPorts: { [] }
+            discoverPorts: { [] },
+            linkWaitsForChosenFlipper: false
         ))
     }
 

@@ -406,7 +406,7 @@ class Bridge:
         intent_id, action = intent["id"], intent["action"]
         if action in ("create_on_host", "link_on_host"):
             self.log(f"flagged {action} for UID {intent['tag']['uid']}; finish it in Bambuddy")
-            return self._result(intent_id, True, ["Flagged on host"])
+            return self._result(intent_id, True, ["Flagged in app"])
         if self.client is None:
             raise BambuddyError("bridge started without --bambuddy")
 

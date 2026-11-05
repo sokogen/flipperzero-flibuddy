@@ -106,6 +106,14 @@ public struct Settings: Equatable, Sendable {
         return URLComponents(string: trimmed)?.scheme?.lowercased() == "http"
     }
 
+    /// `text` without a `user:password@` before the host, with or without a
+    /// scheme: what logs, errors and the Flipper may show of a URL.
+    public static func withoutCredentials(_ text: String) -> String {
+        text.replacingOccurrences(
+            of: #"^(\s*[A-Za-z][A-Za-z0-9+.-]*://)?[^/?#@\s]+@"#, with: "$1", options: .regularExpression
+        )
+    }
+
     static func trimmed(_ key: String) -> String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /// The API key without surrounding whitespace; what is saved and sent.
@@ -118,7 +126,7 @@ public struct Settings: Equatable, Sendable {
     /// refuses an `http://` address (the default where the platform does).
     public func makeClient(session: URLSession? = nil, requireHTTPS: Bool = Settings.requiresHTTPS) throws -> BambuddyClient {
         let text = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: text) else { throw BambuddyError.invalidBaseURL(text) }
+        guard let url = URL(string: text) else { throw BambuddyError.invalidBaseURL(Self.withoutCredentials(text)) }
         if Self.isRefusedHTTP(text, requireHTTPS: requireHTTPS) { throw SettingsError.httpsRequired }
         let key = trimmedAPIKey
         let client = try BambuddyClient(baseURL: url, apiKey: key, session: session)
@@ -248,7 +256,7 @@ public struct SettingsStore: Sendable {
     static func summary(_ settings: Settings) -> String {
         let empty = settings.trimmedAPIKey.isEmpty
         let key = settings.apiKeyUnknown ? "unknown" : empty ? "absent" : "present"
-        return "url=\(settings.baseURL) key=\(key) catalog=\(settings.catalogEntryId.map(String.init) ?? "none") "
+        return "url=\(Settings.withoutCredentials(settings.baseURL)) key=\(key) catalog=\(settings.catalogEntryId.map(String.init) ?? "none") "
             + "core=\(settings.coreWeight) mode=\(settings.defaultMode.rawValue) transport=\(settings.transport.rawValue)"
     }
 

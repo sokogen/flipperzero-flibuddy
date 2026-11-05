@@ -12,15 +12,13 @@ public enum WatchSettingsTexts {
     public static let holdATag = "Hold a spool\u{2019}s tag to the Flipper running FliBuddy."
 
     /// The watch's empty feed: settings first (they come from the iPhone),
-    /// then a Flipper to choose, then a hint after a long search (a Flipper
-    /// connected to another device stops advertising, so the watch cannot
-    /// tell it apart from one out of range), else hold a tag.
-    public static func emptyFeed(
-        _ state: FeedEmptyState, linkActive: Bool, searchingSince: Date?, now: Date
-    ) -> String {
+    /// then a hint after a long search (a Flipper connected to another
+    /// device stops advertising, so the watch cannot tell it apart from one
+    /// out of range), else hold a tag. The watch's link always runs (it
+    /// connects to the first Flipper found), so there is no Flipper to choose.
+    public static func emptyFeed(_ state: FeedEmptyState, searchingSince: Date?, now: Date) -> String {
         switch state {
         case .noServer, .needsHTTPS: return "Set up FliBuddy on your iPhone first."
-        case .noFlipper where !linkActive: return "Choose your Flipper in Settings."
         case .noFlipper:
             guard let searchingSince, now.timeIntervalSince(searchingSince) >= longSearch else { return holdATag }
             return "No Flipper found. It may be connected to another device."

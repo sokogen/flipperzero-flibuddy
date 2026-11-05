@@ -304,6 +304,17 @@ struct DemoFixturesTests {
         #expect(await eventually { host.link.connectedTransport == .bluetooth })
     }
 
+    @Test func theWatchConnectsTheFirstFlipperFoundWithoutAChoice() async throws {
+        // Owner ruling: the watch passes linkWaitsForChosenFlipper: false.
+        let host = DemoFixtures.makeHost(state: .noFlipper, linkWaitsForChosenFlipper: false)
+        defer { host.link.disconnect() }
+        host.start()
+
+        #expect(host.link.isActive)
+        #expect(host.link.choice == .bluetooth(peripheral: nil))
+        #expect(await eventually { host.link.connectedTransport == .bluetooth })
+    }
+
     @Test func aReconnectDoesNotPlayTheScriptAgain() async throws {
         let demo = DemoFixtures.makeEnvironment()
         let host = demo.host

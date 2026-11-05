@@ -123,7 +123,7 @@ struct IntentHandler {
     static func flag(_ intent: Intent, on row: FeedRow) -> Outcome {
         var row = row
         row.request = intent.action == .createOnHost ? .create : .link
-        return Outcome(result: LookupBuilder.result(id: intent.id, ok: true, lines: ["Flagged on host"]), row: row)
+        return Outcome(result: LookupBuilder.result(id: intent.id, ok: true, lines: ["Flagged in app"]), row: row)
     }
 
     /// Record a scale weight for the row's spool, looking the spool up when

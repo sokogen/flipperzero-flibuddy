@@ -417,6 +417,10 @@ public final class FeedViewModel {
         do {
             try await action(session)
             ok = true
+        } catch is CancellationError {
+            // Let go, not failed: no error line, no error haptic.
+            Log.debug(.session, "host action cancelled")
+            ok = false
         } catch {
             errors[id] = ErrorText(error)
             ok = false

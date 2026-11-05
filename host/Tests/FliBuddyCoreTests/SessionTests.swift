@@ -908,7 +908,7 @@ struct SessionIntentTests {
         let intent = try fixtureIntent(name)
         let result = await session.handleIntent(intent)
 
-        #expect(result == IntentResult(id: intent.id, ok: true, lines: ["Flagged on host"]))
+        #expect(result == IntentResult(id: intent.id, ok: true, lines: ["Flagged in app"]))
         #expect(inventory.calls == callsAfterScan)
         let rows = await session.rows
         #expect(rows.count == 1)

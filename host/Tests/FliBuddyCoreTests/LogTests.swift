@@ -134,6 +134,32 @@ import Testing
         #expect(try String(contentsOf: url, encoding: .utf8) == "2026-10-26T13:04:05.250+0300 INFO app start\n")
     }
 
+    @Test(arguments: [
+        "https://user:pass@bambuddy.example.com", "ftp://user:pass@bambuddy.example.com", "user:pass@bambuddy.example.com",
+    ])
+    @MainActor
+    func aURLWithCredentialsNeverReachesTheLog(url: String) async throws {
+        // The log is shared (Share Log); a URL's user:password is a secret.
+        let store = SettingsStore(defaults: InMemoryKeyValueStore(), secrets: InMemorySecretStore())
+        var settings = Settings(baseURL: url, apiKey: "k")
+        let model = SettingsViewModel(
+            settings: settings, makeInventory: { try $0.makeClient() }, requiresHTTPS: false, apply: { _ in }
+        )
+        let sink = await capturingLog(level: .debug) {
+            try? store.save(settings)
+            _ = store.load()
+            settings.apiKey = "k2"
+            _ = try? settings.makeClient()
+            await model.testConnection()
+            await model.loadCatalog()
+        }
+        #expect(!sink.events.isEmpty)
+        #expect(!sink.events.contains { $0.contains("pass") || $0.contains("user:") })
+        // Nor the text a row or the Flipper shows.
+        if case .failed(let message)? = model.connection { #expect(!message.contains("pass")) }
+        #expect(!(model.catalogError ?? "").contains("pass"))
+    }
+
     @Test func theLogDirectoryIsLeftOutOfBackups() throws {
         // The log is for Share log, not for iCloud or Finder backups.
         let directory = try TemporaryDirectory()

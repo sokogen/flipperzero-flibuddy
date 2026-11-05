@@ -31,6 +31,9 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var spoolmanError: BambuddyError?
     var findError: BambuddyError?
     var updateError: BambuddyError?
+    /// The next calls throw `CancellationError`, as a cancelled request does.
+    var updateCancels = false
+    var spoolmanCancels = false
     var createError: BambuddyError?
     var linkError: BambuddyError?
     var deleteError: BambuddyError?
@@ -109,6 +112,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         let delay = updateDelays[gross] ?? updateDelay
         if delay > .zero { try await Task.sleep(for: delay) }
         onUpdate?()
+        if updateCancels { throw CancellationError() }
         if let updateError { throw updateError }
         return try lock.withLock {
             guard let index = stored.firstIndex(where: { $0.id == spoolId }) else {
@@ -210,6 +214,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         record(.spoolman)
         if spoolmanDelay > .zero { try await Task.sleep(for: spoolmanDelay) }
         await onSpoolman?()
+        if spoolmanCancels { throw CancellationError() }
         if let spoolmanError { throw spoolmanError }
         return spoolman
     }

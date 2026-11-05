@@ -63,8 +63,10 @@ public enum DemoFixtures {
     /// The demo's host: the fixtures' settings, Bambuddy and Flipper; the
     /// feed fills once `start()` connects the Flipper.
     @MainActor
-    public static func makeHost(state: State = requestedState()) -> HostModel {
-        makeEnvironment(state: state).host
+    public static func makeHost(
+        state: State = requestedState(), linkWaitsForChosenFlipper: Bool = TransportKind.available == [.bluetooth]
+    ) -> HostModel {
+        makeEnvironment(state: state, linkWaitsForChosenFlipper: linkWaitsForChosenFlipper).host
     }
 
     // MARK: - Settings

@@ -265,7 +265,7 @@ public final class SettingsViewModel {
     /// and keeps the catalog.
     public func testConnection() async {
         connection = .testing
-        Log.info(.settings, "test connection: url=\(baseURL)")
+        Log.info(.settings, "test connection: url=\(Settings.withoutCredentials(baseURL))")
         let tested = endpointGeneration
         let inventory: any SpoolInventory
         do {
@@ -281,6 +281,8 @@ public final class SettingsViewModel {
         let state: BambuddyState
         do {
             state = try await Session.state(spoolmanEnabled: inventory.spoolmanEnabled())
+        } catch is CancellationError {
+            return testDropped()
         } catch BambuddyError.network(let reason) {
             if tested == endpointGeneration { endTest(.unreachable(reason)) } else { testDropped() }
             return

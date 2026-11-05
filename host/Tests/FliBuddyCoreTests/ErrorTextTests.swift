@@ -59,4 +59,36 @@ struct ErrorTextTests {
         #expect(item.errorHint == "Bambuddy unreachable: no answer within 5 s")
         #expect(item.isError)
     }
+
+    @Test func aCancellationIsNoErrorText() {
+        #expect(Session.describe(CancellationError()) == "cancelled")
+        #expect(ErrorText(CancellationError()).sentence == "Cancelled")
+        #expect(!Session.describe(CancellationError()).contains("CancellationError"))
+    }
+
+    @Test func aCancelledCheckKeepsThePreviousState() async throws {
+        let inventory = FakeInventory()
+        let session = Session(settings: testSettings, inventory: inventory)
+        #expect(await session.checkBambuddy() == .ready)
+
+        inventory.spoolmanCancels = true
+        #expect(await session.checkBambuddy() == .ready)
+        #expect(await session.bambuddy == .ready)
+    }
+
+    @Test func aCancelledHostActionShowsNoError() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = Session(settings: testSettings, inventory: inventory)
+        let model = await FeedViewModel(session: session, settings: testSettings)
+        _ = await session.handleScan(try fixtureScan())
+        await model.apply(await session.snapshot)
+        let id = try #require(await model.items.first?.id)
+        inventory.updateCancels = true
+
+        await model.setWeightText("700", for: id)
+        #expect(!(await model.save(id)))
+
+        #expect(await model.error(for: id) == nil)
+        #expect(await model.haptic == nil)
+    }
 }

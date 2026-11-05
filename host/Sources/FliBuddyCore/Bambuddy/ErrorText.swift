@@ -20,6 +20,7 @@ public struct ErrorText: Equatable, Sendable {
     }
 
     private static func sentence(_ error: any Error) -> String? {
+        if error is CancellationError { return "Cancelled" }
         guard let error = error as? BambuddyError else { return nil }
         return switch error {
         case .invalidBaseURL: "The Bambuddy address isn't valid"

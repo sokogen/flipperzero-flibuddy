@@ -290,15 +290,54 @@ struct HostModelTests {
         #expect(model.settings.baseURL == usbSettings.baseURL)
     }
 
-    @Test func theLinkStartsAtLaunchOnlyForABluetoothRelaunchOrARememberedFlipper() {
+    @Test func theLinkStartsAtLaunchOnlyForARememberedFlipper() {
         var fresh = testSettings
         fresh.transport = .bluetooth
         #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: fresh))
-        #expect(HostModel.startsAtLaunch(relaunchedForBluetooth: true, settings: fresh))
+        // A relaunch for Bluetooth without a remembered Flipper has nothing
+        // to restore: the link would only wait, so no central for nothing.
+        #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: true, settings: fresh))
         #expect(HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: bluetoothSettings))
+        #expect(HostModel.startsAtLaunch(relaunchedForBluetooth: true, settings: bluetoothSettings))
         var usb = bluetoothSettings
         usb.transport = .usb
         #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: usb))
+    }
+
+    @Test func forgettingTheFlipperStopsAWaitingPlatformsLink() async throws {
+        // It would otherwise reconnect to the first Flipper found.
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeBluetoothOnlyModel(settings: bluetoothSettings, opened: opened)
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(await eventually { opened.value.count == 1 })
+
+        var forgotten = bluetoothSettings
+        forgotten.peripheralId = nil
+        forgotten.peripheralName = nil
+        try await model.apply(forgotten)
+
+        #expect(!model.link.isActive)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(opened.value == [.bluetooth(peripheral: Self.flipperA)])
+        // Choosing one again starts it.
+        try await model.useFlipper(DiscoveredPeripheral(id: Self.flipperB, name: "Flipper Brrr2", rssi: -60))
+        #expect(await eventually { opened.value.last == .bluetooth(peripheral: Self.flipperB) })
+    }
+
+    @Test func theMacKeepsTheFirstFoundFlipperAfterForget() async throws {
+        let opened = LockedBox<[TransportChoice]>([])
+        let model = try makeModel(InMemoryKeyValueStore(), settings: bluetoothSettings, opened: opened)
+        model.start()
+        defer { model.link.disconnect() }
+        #expect(await eventually { opened.value.count == 1 })
+
+        var forgotten = bluetoothSettings
+        forgotten.peripheralId = nil
+        try await model.apply(forgotten)
+
+        #expect(model.link.isActive)
+        #expect(await eventually { opened.value.last == .bluetooth(peripheral: nil) })
     }
 
     // MARK: First run
