@@ -89,6 +89,20 @@ struct APIKeyQRPayloadTests {
         }
     }
 
+    @Test(arguments: ["ftp://user:secret@a.lan", "user:secret@a.lan", "ftp://user:se@cret@a.lan"])
+    func anInvalidURLInTheErrorCarriesNoCredentials(url: String) throws {
+        let encoded = try #require(url.addingPercentEncoding(withAllowedCharacters: .alphanumerics))
+        do {
+            _ = try APIKeyQRPayload.parse("bambuddy://config?v=1&url=\(encoded)&key=k")
+            Issue.record("expected an error")
+        } catch let error as APIKeyQRPayload.ParseError {
+            #expect(!"\(error)".contains("secret"))
+            #expect(!(error.errorDescription ?? "").contains("secret"))
+        }
+        // Whoever builds the error, the message shows no secret.
+        #expect(!(APIKeyQRPayload.ParseError.invalidBaseURL(url).errorDescription ?? "").contains("secret"))
+    }
+
     @Test func everyErrorHasAMessage() {
         let errors: [APIKeyQRPayload.ParseError] = [
             .notBambuddyConfig, .unsupportedVersion("2"), .missingField("key"), .invalidEncoding("url"),

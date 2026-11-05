@@ -107,10 +107,12 @@ public struct Settings: Equatable, Sendable {
     }
 
     /// `text` without a `user:password@` before the host, with or without a
-    /// scheme: what logs, errors and the Flipper may show of a URL.
+    /// scheme: what logs, errors and the Flipper may show of a URL. A password
+    /// may hold an unencoded `@`, `/`, `?` or `#`, so everything up to the
+    /// last `@` goes (an `@` in a path costs the host too: better than a leak).
     public static func withoutCredentials(_ text: String) -> String {
         text.replacingOccurrences(
-            of: #"^(\s*[A-Za-z][A-Za-z0-9+.-]*://)?[^/?#@\s]+@"#, with: "$1", options: .regularExpression
+            of: #"^(\s*[A-Za-z][A-Za-z0-9+.-]*://)?\S*@"#, with: "$1", options: .regularExpression
         )
     }
 

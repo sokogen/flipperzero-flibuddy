@@ -24,7 +24,8 @@ public struct APIKeyQRPayload: Equatable, Sendable {
         case missingField(String)
         /// The field's value has a malformed `%` escape.
         case invalidEncoding(String)
-        /// The decoded `url` is not an http(s) URL with a host.
+        /// The decoded `url` is not an http(s) URL with a host; carried
+        /// without any `user:password@`, so it can be logged and shown.
         case invalidBaseURL(String)
     }
 
@@ -66,14 +67,14 @@ public struct APIKeyQRPayload: Equatable, Sendable {
         guard var components = URLComponents(string: url),
               let scheme = components.scheme?.lowercased(), ["http", "https"].contains(scheme),
               let host = components.host, !host.isEmpty
-        else { throw ParseError.invalidBaseURL(url) }
+        else { throw ParseError.invalidBaseURL(Settings.withoutCredentials(url)) }
         components.scheme = scheme
         components.user = nil
         components.password = nil
         components.query = nil
         components.fragment = nil
         while components.path.hasSuffix("/") { components.path.removeLast() }
-        guard let normalised = components.string, URL(string: normalised) != nil else { throw ParseError.invalidBaseURL(url) }
+        guard let normalised = components.string, URL(string: normalised) != nil else { throw ParseError.invalidBaseURL(Settings.withoutCredentials(url)) }
         return normalised
     }
 }
@@ -85,7 +86,7 @@ extension APIKeyQRPayload.ParseError: LocalizedError {
         case .unsupportedVersion(let version): "Unsupported Bambuddy QR code version \(version); update FliBuddy"
         case .missingField(let name): "The QR code has no \(name)"
         case .invalidEncoding(let name): "The QR code's \(name) is garbled"
-        case .invalidBaseURL(let url): "The QR code's URL is not an http(s) address: \(url)"
+        case .invalidBaseURL(let url): "The QR code's URL is not an http(s) address: \(Settings.withoutCredentials(url))"
         }
     }
 }

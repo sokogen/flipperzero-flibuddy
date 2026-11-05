@@ -135,7 +135,19 @@ import Testing
     }
 
     @Test(arguments: [
+        ("https://user:p@ss@bambuddy.example.com", "https://bambuddy.example.com"),
+        ("user:pa/ss@bambuddy.example.com", "bambuddy.example.com"),
+        ("https://user:pa?ss#x@bambuddy.example.com:8000/api", "https://bambuddy.example.com:8000/api"),
+        ("  http://user:pass@bambuddy.example.com", "  http://bambuddy.example.com"),
+        ("https://bambuddy.example.com/api", "https://bambuddy.example.com/api"),
+    ])
+    func credentialsAreStrippedUpToTheLastAt(text: String, expected: String) {
+        #expect(Settings.withoutCredentials(text) == expected)
+    }
+
+    @Test(arguments: [
         "https://user:pass@bambuddy.example.com", "ftp://user:pass@bambuddy.example.com", "user:pass@bambuddy.example.com",
+        "https://user:pa@ss@bambuddy.example.com", "user:pa/ss@bambuddy.example.com",
     ])
     @MainActor
     func aURLWithCredentialsNeverReachesTheLog(url: String) async throws {
