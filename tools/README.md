@@ -28,6 +28,15 @@ icons to `flipper/images/` from the icon table of
 Edit the table and regenerate; do not edit the `.xbm` files.
 `tests/test_flipper_icons.py` fails when a file is stale.
 
+`uv run python -m fixtures.make_app_icons` (or `make icons`) writes the app
+icons from the formulas of `docs/design/source/FliBuddy App Icon.dc.html`:
+the SVGs in `docs/design/icons/`, the 1024 px PNGs of the iOS and Watch asset
+catalogs (`host/Apple/*/Assets.xcassets`) and the Flipper's 10x10 1-bit
+`flipper/icons/flibuddy_10px.png`. It rasterises with `rsvg-convert`
+(`brew install librsvg`); the PNGs are committed, so building the apps does
+not need it. `tests/test_app_icons.py` fails when a file is stale (skipped
+without `rsvg-convert`).
+
 `tests/test_fixtures.py` fails when a committed synthetic fixture differs
 from what its generator produces.
 

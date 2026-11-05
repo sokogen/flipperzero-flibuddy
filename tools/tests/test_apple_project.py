@@ -190,3 +190,11 @@ def test_the_apps_are_named_flibuddy():
 def test_root_makefile_builds_the_flibuddy_project():
     for command in apple_build_recipe():
         assert "-project FliBuddy.xcodeproj" in command
+
+
+def test_both_apps_use_the_app_icon_and_accent_color_of_their_catalogs():
+    for settings in (ios_settings(), watch_settings()):
+        assert settings["ASSETCATALOG_COMPILER_APPICON_NAME"] == "AppIcon"
+        assert settings["ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME"] == "AccentColor"
+    assert (APPLE / "iOS/Assets.xcassets/AppIcon.appiconset").is_dir()
+    assert (APPLE / "Watch/Assets.xcassets/AppIcon.appiconset").is_dir()

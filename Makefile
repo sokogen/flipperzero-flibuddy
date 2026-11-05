@@ -5,7 +5,7 @@
 .PHONY: test test-flipper test-host test-tools
 .PHONY: lint lint-flipper lint-host lint-tools
 .PHONY: coverage coverage-host coverage-tools
-.PHONY: apple-project apple-build
+.PHONY: apple-project apple-build icons
 .DEFAULT_GOAL := test
 
 test: test-flipper test-host test-tools
@@ -55,3 +55,8 @@ apple-build:
 	cd host/Apple && xcodebuild -project FliBuddy.xcodeproj -scheme FliBuddyWatch \
 		-destination 'generic/platform=watchOS Simulator' -derivedDataPath .build \
 		CODE_SIGNING_ALLOWED=NO build
+
+# Regenerates the app icons (SVGs, asset catalog PNGs, the Flipper icon);
+# needs rsvg-convert (brew install librsvg). The PNGs are committed.
+icons:
+	cd tools && uv run python -m fixtures.make_app_icons
