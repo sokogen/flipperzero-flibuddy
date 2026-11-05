@@ -434,7 +434,9 @@ text file:
 - macOS: `~/Library/Logs/FliBuddy/flibuddy.log` (Help ▸ **Show Log File**
   reveals it in Finder)
 - iOS, iPadOS and watchOS: `Logs/flibuddy.log` in the app's Application
-  Support directory (download the container from Xcode's Devices window)
+  Support directory (download the container from Xcode's Devices window);
+  on the iPhone and iPad Settings ▸ **Share Log** sends the current file.
+  The `Logs` directory is excluded from backups.
 
 The file has one event per line, `2026-10-26T13:04:05.123+0300 INFO link
 state: waitingForHello -> connected`, and rotates at 5 MB to `flibuddy.log.1`,

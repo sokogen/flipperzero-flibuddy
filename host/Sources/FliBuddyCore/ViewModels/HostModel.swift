@@ -6,9 +6,10 @@ import Observation
 @MainActor
 @Observable
 public final class HostModel {
-    /// Our side of the handshake, e.g. `flibuddy-mac/0.1.0` on `macOS 26.0`.
+    /// Our side of the handshake, e.g. `flibuddy-ios/1.0.0` on `iOS 26.1`:
+    /// the platform's app and the bundle's version.
     public static var hostHello: Hello {
-        Hello(app: "\(FliBuddyCore.appName)/\(FliBuddyCore.version)", os: PlatformInfo.current)
+        Hello(app: FliBuddyCore.app(PlatformInfo.currentFamily, info: Bundle.main.infoDictionary), os: PlatformInfo.current)
     }
 
     public let session: Session

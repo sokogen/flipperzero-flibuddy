@@ -153,6 +153,15 @@ public struct SettingsForm: View {
                     Text("Forget This Flipper").frame(maxWidth: .infinity)
                 }
                 .disabled(!model.canForget)
+            }
+            // The privacy policy and support pages, and the log for a bug
+            // report (it holds no API key, QR or sync payload).
+            Section {
+                Link("Privacy Policy", destination: AppLinks.privacyPolicy)
+                Link("Support", destination: AppLinks.support)
+                if let log = Log.fileURL {
+                    ShareLink("Share Log", item: log)
+                }
             } footer: {
                 Text(SettingsViewModel.appVersionFooter)
                     .frame(maxWidth: .infinity)

@@ -410,6 +410,7 @@ Form {
     Button("Scan for Flipper")
   } footer: "Bluetooth only on iPhone. The Flipper must be running FliBuddy."
   Section { Button("Forget This Flipper", role: .destructive) }      // centred
+  Section { Link("Privacy Policy"); Link("Support"); ShareLink("Share Log") }
     footer: "FliBuddy 1.0 (42)"                                        // centred, from the bundle
 }
 ```

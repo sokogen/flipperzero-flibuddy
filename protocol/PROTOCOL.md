@@ -97,7 +97,7 @@ returns to Ready, and losing the host shows the scan's local facts.
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `app` | string, 1–40 | yes | Sender app and version: `flibuddy-fap/0.1.0` (Flipper), `flibuddy-mac/0.1.0` (Mac host), `flibuddy-bridge/0.1.0` (Python dev bridge). |
+| `app` | string, 1–40 | yes | Sender app and version: `flibuddy-fap/0.1.0` (Flipper), `flibuddy-ios/1.0.0` (iPhone and iPad host), `flibuddy-watch/1.0.0` (Apple Watch host), `flibuddy-mac/0.1.0` (Mac host), `flibuddy-bridge/0.1.0` (Python dev bridge). A host sends its bundle's `CFBundleShortVersionString` (`dev` without one), cut to 40 characters. |
 | `fw` | string, 1–40 | Flipper | Flipper firmware version, e.g. `1.5.1`. |
 | `os` | string, 1–40 | host | Host OS, e.g. `macOS 26.0`. |
 

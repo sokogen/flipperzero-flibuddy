@@ -1221,6 +1221,11 @@ struct SettingsApplyOnChangeTests {
         #expect(SettingsViewModel.flipperFooter(isPad: true) == "The Flipper must be running FliBuddy.")
     }
 
+    @Test func thePrivacyPolicyAndSupportLinksPointAtThePages() {
+        #expect(AppLinks.privacyPolicy.absoluteString == "https://sokogen.github.io/flipperzero-flibuddy/privacy/")
+        #expect(AppLinks.support.absoluteString == "https://sokogen.github.io/flipperzero-flibuddy/support/")
+    }
+
     @Test func theVersionFooterNamesTheVersionAndTheBuild() {
         let full: [String: Any] = ["CFBundleShortVersionString": "1.0", "CFBundleVersion": "42"]
         #expect(SettingsViewModel.versionFooter(info: full) == "FliBuddy 1.0 (42)")

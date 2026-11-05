@@ -134,6 +134,18 @@ import Testing
         #expect(try String(contentsOf: url, encoding: .utf8) == "2026-10-26T13:04:05.250+0300 INFO app start\n")
     }
 
+    @Test func theLogDirectoryIsLeftOutOfBackups() throws {
+        // The log is for Share log, not for iCloud or Finder backups.
+        let directory = try TemporaryDirectory()
+        let url = directory.url.appendingPathComponent("Logs/flibuddy.log")
+        let sink = FileSink(url: url, timeZone: Self.moscow)
+
+        sink.write(line: LogLine(date: Self.date, level: .info, category: .app, message: "start"))
+
+        let values = try url.deletingLastPathComponent().resourceValues(forKeys: [.isExcludedFromBackupKey])
+        #expect(values.isExcludedFromBackup == true)
+    }
+
     @Test func theFileSinkRotatesAtTheSizeLimitAndKeepsTheConfiguredNumberOfOldFiles() throws {
         let directory = try TemporaryDirectory()
         let url = directory.url.appendingPathComponent("flibuddy.log")

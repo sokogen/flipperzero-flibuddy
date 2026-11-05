@@ -332,6 +332,7 @@ public final class FileSink: LogSink, @unchecked Sendable {
         if !fileManager.fileExists(atPath: url.path), !fileManager.createFile(atPath: url.path, contents: nil) {
             throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
         }
+        Self.excludeFromBackup(url.deletingLastPathComponent())
         let file = try FileHandle(forWritingTo: url)
         size = Int(try file.seekToEnd())
         handle = file
@@ -352,6 +353,15 @@ public final class FileSink: LogSink, @unchecked Sendable {
             try fileManager.moveItem(at: old(n), to: old(n + 1))
         }
         try fileManager.moveItem(at: url, to: old(1))
+    }
+
+    /// The log is for Share log, not for device or iCloud backups; a
+    /// failure only costs backup space, so it is not reported.
+    private static func excludeFromBackup(_ directory: URL) {
+        var directory = directory
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
     }
 
     private func old(_ n: Int) -> URL {

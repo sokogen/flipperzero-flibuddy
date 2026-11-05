@@ -471,12 +471,28 @@ struct HostModelTests {
 
     @Test func theHostHelloNamesTheApp() {
         let hello = HostModel.hostHello
-        #expect(hello.app == "flibuddy-mac/0.1.0")
+        #expect(hello.app.hasPrefix("flibuddy-mac/"))
+        #expect(hello.app.split(separator: "/").count == 2)
         #expect(hello.os == PlatformInfo.current)
         #if os(macOS)
         #expect(hello.os?.hasPrefix("macOS ") == true)
         #endif
         #expect(throws: Never.self) { try hello.validate() }
+    }
+
+    @Test func theHelloNamesThePlatformsAppAndTheBundleVersion() throws {
+        let info: [String: Any] = ["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "214"]
+        #expect(FliBuddyCore.app(.iOS, info: info) == "flibuddy-ios/1.0.0")
+        #expect(FliBuddyCore.app(.iPadOS, info: info) == "flibuddy-ios/1.0.0")
+        #expect(FliBuddyCore.app(.watchOS, info: info) == "flibuddy-watch/1.0.0")
+        #expect(FliBuddyCore.app(.macOS, info: info) == "flibuddy-mac/1.0.0")
+        // Without a bundle version (swift test, a bare binary).
+        #expect(FliBuddyCore.app(.iOS, info: nil) == "flibuddy-ios/dev")
+        #expect(FliBuddyCore.app(.iOS, info: ["CFBundleShortVersionString": "  "]) == "flibuddy-ios/dev")
+        // The protocol caps `app` at 40 characters.
+        let long = FliBuddyCore.app(.watchOS, info: ["CFBundleShortVersionString": String(repeating: "9", count: 60)])
+        #expect(long.count == 40)
+        #expect(throws: Never.self) { try Hello(app: long, os: "watchOS 26.0").validate() }
     }
 
     // MARK: Spools

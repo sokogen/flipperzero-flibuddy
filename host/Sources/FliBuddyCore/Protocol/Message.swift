@@ -107,6 +107,9 @@ public struct Hello: Codable, Equatable, Sendable {
     public var fw: String?
     public var os: String?
 
+    /// `app`, `fw` and `os` are 1–40 characters.
+    public static let maxField = 40
+
     public init(app: String, fw: String? = nil, os: String? = nil) {
         self.app = app
         self.fw = fw
@@ -114,9 +117,9 @@ public struct Hello: Codable, Equatable, Sendable {
     }
 
     public func validate() throws {
-        try Field.checkText(app, "app", max: 40)
-        try fw.map { try Field.checkText($0, "fw", max: 40) }
-        try os.map { try Field.checkText($0, "os", max: 40) }
+        try Field.checkText(app, "app", max: Self.maxField)
+        try fw.map { try Field.checkText($0, "fw", max: Self.maxField) }
+        try os.map { try Field.checkText($0, "os", max: Self.maxField) }
         guard (fw == nil) != (os == nil) else { throw ProtocolError.invalid("hello needs exactly one of fw / os") }
     }
 
