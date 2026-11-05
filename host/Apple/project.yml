@@ -16,7 +16,8 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "1.0.0"
+    # `make apple-archive` overrides the build number with the commit count.
     CURRENT_PROJECT_VERSION: "1"
 packages:
   FliBuddy:
@@ -55,6 +56,8 @@ targets:
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: FliBuddy connects to the Flipper Zero over Bluetooth to read spool tags.
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: FliBuddy talks to your Bambuddy server on the local network.
         INFOPLIST_KEY_NSCameraUsageDescription: FliBuddy scans the API-key QR code shown by Bambuddy.
+        # HTTPS and the Keychain are exempt from export compliance.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         # Portrait only on the iPhone for 1.0: landscape was never designed.
@@ -84,6 +87,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: FliBuddy
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.sokolachko.flibuddy
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         # Bluetooth only while the app is open, so no WKBackgroundModes.
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: FliBuddy connects to the Flipper Zero over Bluetooth to read spool tags.
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown
