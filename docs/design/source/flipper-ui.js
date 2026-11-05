@@ -166,7 +166,7 @@ function list(g, items, sel, top, y0 = 12, rows = 4, iconsFn) {
     g.box(125, y, 3, h);
   }
 }
-const uidShort = u => u.slice(0, 4) + '…' + u.slice(-4);
+const uidShort = u => u.slice(0, 4) + '...' + u.slice(-4);
 const center = (g, y, s, o = {}) => g.text(0, y, s, {...o, align: 'center'});
 
 export const SETTINGS = [
@@ -261,28 +261,28 @@ export function frame(s, t = 1, now = 0) {
       g.big(x0, 15, str, true); g.text(81, 20, 'g', {bold: 1, size: 2});
       if (w.cur > 0) g.box(x0 + (w.cur - 1) * 13, 31, 10, 2); 
       if (net < 0) { const l = 'Below core weight', ww = g.measure(l) + 6, xx = Math.round((W - ww) / 2); g.rbox(xx, 36, ww, 9, 2); g.text(xx + 3, 38, l, {c: 0}); }
-      else center(g, 38, w.mode === 'gross' ? `Net ${net} g · core ${CORE}` : `Saves ${net} g left`);
+      else center(g, 38, w.mode === 'gross' ? `Net ${net} g - core ${CORE}` : `Saves ${net} g left`);
       g.bmp(1, 56, I.aL); g.bmp(5, 56, I.aR); g.text(10, 56, 'Move');
       bC(g, 'Save');
       g.bmp(101, 56, I.aU); g.bmp(101, 59, I.aD); g.text(107, 56, 'Set');
     },
     saving() {
       header(g, s, t, s.saving || 'Saving');
-      center(g, 20, s.saving === 'Deleting' ? tag.material : `${tag.material}${s.pendingNet != null && s.saving === 'Saving' ? ' · ' + s.pendingNet + ' g' : ''}`);
+      center(g, 20, s.saving === 'Deleting' ? tag.material : `${tag.material}${s.pendingNet != null && s.saving === 'Saving' ? ' - ' + s.pendingNet + ' g' : ''}`);
       g.rframe(14, 30, 100, 8, 2); const p = (t % 8); g.box(16 + p * 11, 32, 18, 4);
       center(g, 44, 'Waiting for Bambuddy');
     },
     saved() {
       for (let k = 0; k < 3; k++) { g.line(50, 18 + k, 58, 26 + k); g.line(58, 26 + k, 76, 8 + k); }
       center(g, 33, 'Saved', {bold: 1, size: 2});
-      center(g, 48, `${tag.material} · ${tag.remaining} g left`);
+      center(g, 48, `${tag.material} - ${tag.remaining} g left`);
     },
     toast() {
       const T = {
-        new: ['Marked as new', `${tag.label} g left · full`, 'Undo', 'Weigh'],
-        empty: ['Marked as empty', '0 g left · archived', 'Undo', null],
+        new: ['Marked as new', `${tag.label} g left - full`, 'Undo', 'Weigh'],
+        empty: ['Marked as empty', '0 g left - archived', 'Undo', null],
         deleted: ['Deleted', 'Tag is free to reuse', null, null],
-        created: ['Added to Bambuddy', `Spool #${tag.id} · ${tag.label} g`, null, 'Weigh', 'Next'],
+        created: ['Added to Bambuddy', `Spool #${tag.id} - ${tag.label} g`, null, 'Weigh', 'Next'],
       }[s.toast];
       g.bmp(3, 2, I.check); g.text(13, 2, T[0], {bold: 1}); g.dots(0, 10, W);
       g.text(2, 16, `${tag.material} ${tag.color || ''}`); g.text(2, 25, T[1]);
@@ -309,8 +309,8 @@ export function frame(s, t = 1, now = 0) {
       g.bmp(6, 6, I.app, 1, 2);
       g.text(32, 9, 'FliBuddy', {bold: 1}); g.text(32, 18, 'for Bambuddy');
       g.dots(0, 29, W);
-      g.text(2, 33, 'Version 1.0.0 build 42'); g.text(2, 42, 'Protocol 3 · fw 1.3.4');
-      g.text(2, 51, s.conn === 'none' ? 'Host: not connected' : 'Host: MacBook · ' + (s.conn === 'ble' ? 'BLE' : 'USB'));
+      g.text(2, 33, 'Version 1.0.0 build 42'); g.text(2, 42, 'Protocol 3 - fw 1.3.4');
+      g.text(2, 51, s.conn === 'none' ? 'Host: not connected' : 'Host: MacBook - ' + (s.conn === 'ble' ? 'BLE' : 'USB'));
     },
     recent() {
       header(g, s, t, 'Recent');
