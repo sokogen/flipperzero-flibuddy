@@ -20,7 +20,8 @@ public struct ErrorText: Equatable, Sendable {
     }
 
     private static func sentence(_ error: any Error) -> String? {
-        if error is CancellationError { return "Cancelled" }
+        // A lookup let go (the link went): actions put the row back instead.
+        if error is CancellationError { return "Stopped before Bambuddy answered" }
         guard let error = error as? BambuddyError else { return nil }
         return switch error {
         case .invalidBaseURL: "The Bambuddy address isn't valid"

@@ -62,7 +62,7 @@ struct ErrorTextTests {
 
     @Test func aCancellationIsNoErrorText() {
         #expect(Session.describe(CancellationError()) == "cancelled")
-        #expect(ErrorText(CancellationError()).sentence == "Cancelled")
+        #expect(ErrorText(CancellationError()).sentence == "Stopped before Bambuddy answered")
         #expect(!Session.describe(CancellationError()).contains("CancellationError"))
     }
 
@@ -90,5 +90,36 @@ struct ErrorTextTests {
 
         #expect(await model.error(for: id) == nil)
         #expect(await model.haptic == nil)
+        // The row is back where it was, not "Error: Cancelled".
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .awaitingWeight)
+        #expect(row.failure == nil)
+        #expect(FeedItem(row).statusText == "Enter weight")
+    }
+
+    @Test func aCancelledFlipperWeighLeavesTheRowAsItWas() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        let session = Session(settings: testSettings, inventory: inventory)
+        _ = await session.handleScan(try fixtureScan())
+        inventory.updateCancels = true
+
+        let result = await session.handleIntent(try weighIntent(grams: 734, mode: .gross))
+
+        #expect(!result.ok)
+        let row = try #require(await session.rows.first)
+        #expect(row.status == .awaitingWeight)
+        #expect(!FeedItem(row).isError)
+    }
+
+    @Test func aCancelledLookupSaysSoInAPlainSentence() async throws {
+        let inventory = FakeInventory(spools: [knownSpool()])
+        inventory.findCancels = true
+        let session = Session(settings: testSettings, inventory: inventory)
+
+        _ = await session.handleScan(try fixtureScan())
+
+        let row = try #require(await session.rows.first)
+        #expect(FeedItem(row).statusText == "Error: Stopped before Bambuddy answered")
+        #expect(!FeedItem(row).statusText.contains("Cancelled"))
     }
 }

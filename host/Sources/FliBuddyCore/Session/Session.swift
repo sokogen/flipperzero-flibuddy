@@ -631,6 +631,12 @@ public actor Session {
             // the Flipper waits for the result: perform the intent on the new settings
             if outlived(guarded, startedUnder: started) { return await perform(intent, arrived: arrived) }
             let message = Self.describe(error)
+            if error is CancellationError {
+                // Let go (the link went), not failed: the row is as it was.
+                restore(row)
+                Log.debug(.session, "intent cancelled: id=\(intent.id)")
+                return LookupBuilder.result(id: intent.id, ok: false, lines: [failed], error: message)
+            }
             updateRow(id) {
                 $0.status = .error(message)
                 $0.failure = ErrorText(error)
@@ -830,6 +836,13 @@ public actor Session {
             return rows.first { $0.id == id } ?? updated
         } catch {
             let error = outlived(guarded, startedUnder: started) ? SessionError.settingsChanged : error
+            if error is CancellationError {
+                // Let go (the link went, a view gave up), not failed: the row
+                // is as it was, not "Error: Cancelled".
+                restore(row)
+                Log.debug(.session, "host action cancelled: id=\(row.scanId)")
+                throw error
+            }
             let message = Self.describe(error)
             updateRow(id) {
                 $0.status = .error(message)
@@ -925,6 +938,15 @@ public actor Session {
         case .refused, .unreachable, .untrustedCertificate: Log.error(.session, line)
         }
         publish()
+    }
+
+    /// Puts the row's status and failure back to `before`, what they were
+    /// when an action that was let go began.
+    private func restore(_ before: FeedRow) {
+        updateRow(before.id) {
+            $0.status = before.status
+            $0.failure = before.failure
+        }
     }
 
     /// The row's scan id for the log; `unknown` once the row is gone.

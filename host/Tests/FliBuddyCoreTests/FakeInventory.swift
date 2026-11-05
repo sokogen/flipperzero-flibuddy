@@ -33,6 +33,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     var updateError: BambuddyError?
     /// The next calls throw `CancellationError`, as a cancelled request does.
     var updateCancels = false
+    var findCancels = false
     var spoolmanCancels = false
     var createError: BambuddyError?
     var linkError: BambuddyError?
@@ -100,6 +101,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     func findSpool(trayUuid: String?, uid: String) async throws -> Spool? {
         record(.find(tray: trayUuid, uid: uid))
         await onFind?()
+        if findCancels { throw CancellationError() }
         if let findError { throw findError }
         return lock.withLock {
             if let trayUuid, let spool = stored.first(where: { $0.trayUuid == trayUuid }) { return spool }
