@@ -38,7 +38,8 @@ private struct SaveButtonModifier: ViewModifier {
 
 #if os(macOS)
 /// The tint at 14 % (24 % in dark mode) with tinted text, 28 pt high: a
-/// capsule on macOS 26, 6 pt corners on earlier systems (macOS page).
+/// 14 pt corner on macOS 26, 6 pt on earlier systems (macOS page). The
+/// sides are 12, not the page's 16, so the entry stays in its 360 pt column.
 private struct MacTintedButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         MacTintedButton(configuration: configuration)
@@ -53,7 +54,7 @@ private struct MacTintedButton: View {
     var body: some View {
         configuration.label
             .foregroundStyle(.tint)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
             .frame(minHeight: 28)
             .background(.tint.opacity(colorScheme == .dark ? 0.24 : 0.14), in: shape)
             .contentShape(shape)

@@ -450,9 +450,10 @@ Status bar
 - A deleted row offers New (or New… without material) and Link, no
   weight.
 - Save is a custom tinted button style on the Mac (`SaveButtonStyle`): a
-  bordered Mac button does not take the tint. 28 high with 16 pt sides,
-  a 14 pt corner on macOS 26 and 6 pt before, as the macOS page draws for
-  each; dimmed to 45 % when disabled. By eye: the focus ring when Tab
+  bordered Mac button does not take the tint. 28 high and at least 64
+  wide, a 14 pt corner on macOS 26 and 6 pt before, as the macOS page
+  draws for each; 12 pt sides rather than the page's 16, so field, mode
+  and Save stay in the 360 pt entry column; dimmed to 45 % when disabled. By eye: the focus ring when Tab
   reaches Save with keyboard navigation on.
 - After New, Link, or a Save that created the spool, the host sends the
   Flipper a fresh `lookup` for the row's scan (PROTOCOL.md, Session), so a

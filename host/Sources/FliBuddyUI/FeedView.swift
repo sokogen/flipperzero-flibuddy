@@ -595,7 +595,8 @@ struct WeightEntry: View {
                 Button {
                     Task { await feed.save(id) }
                 } label: {
-                    Text(feed.saveTitle(for: id)).font(.headline).frame(minWidth: 64)
+                    // With the button's sides, at least 64 wide (macOS page).
+                    Text(feed.saveTitle(for: id)).font(.headline).frame(minWidth: 40)
                 }
                 .saveButtonStyle()
                 .disabled(!feed.canSave(id))
