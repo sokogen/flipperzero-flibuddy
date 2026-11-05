@@ -1,4 +1,63 @@
-# flipper-flibuddy
+# FliBuddy
+
+<img src="site/icon.png" alt="FliBuddy app icon" width="96" align="right">
+
+FliBuddy is a spool reader for 3D printing filament on a **Flipper Zero**.
+Hold the NFC tag of a Bambu Lab spool (or an NTAG tag) to the back of the
+Flipper and it shows the material, the colour by Bambu's name and code, the
+diameter, the label weight and the temperatures, with no phone and no
+network.
+
+With the FliBuddy app for **iPhone and iPad** and its **Apple Watch**
+companion, the Flipper also keeps your own
+[Bambuddy](https://github.com/maziggy/bambuddy) filament inventory up to
+date: look a spool up, add new spools, record weighings from an ordinary
+kitchen scale, link a tag to a spool and browse the inventory. A Mac app
+exists for development and is not distributed.
+
+Project page, privacy policy and support:
+<https://sokogen.github.io/flipperzero-flibuddy/>
+
+## What you need
+
+- A Flipper Zero on firmware release **1.5.1** or later (official release
+  channel).
+- For the phone apps: iOS, iPadOS and watchOS 26.
+- For syncing: a Bambuddy server in internal inventory mode (Spoolman mode
+  is not supported), reachable over **HTTPS**, and an API key with
+  inventory read and update and settings read.
+
+## Install
+
+- **Flipper app:** Flipper Apps Catalog, category NFC. Coming soon.
+- **iPhone, iPad and Apple Watch:** App Store. Coming soon.
+- **From source:** see "Flipper app" and "Installing on an iPhone, iPad or
+  Apple Watch" below.
+
+## Privacy
+
+FliBuddy collects no data: no accounts, analytics, tracking or ads. Settings
+stay on your devices (the API key in the iOS Keychain) and data goes only
+between your devices and your own Bambuddy server. See the
+[privacy policy](https://sokogen.github.io/flipperzero-flibuddy/privacy/).
+Help: [support](https://sokogen.github.io/flipperzero-flibuddy/support/) or
+the [issue tracker](https://github.com/sokogen/flipperzero-flibuddy/issues).
+
+## License and disclaimer
+
+MIT, see [LICENSE](LICENSE). The apps are English only in 1.0.
+
+FliBuddy is an independent project. It is not affiliated with, endorsed by
+or sponsored by Bambu Lab, Flipper Devices or Bambuddy.
+
+## For developers
+
+Pointers: `AGENTS.md` (rules for contributors and agents), `host/README.md`
+(Swift package, apps, logging), `flipper/README.md` (the FAP),
+`tools/README.md` (icons, fixtures, bridge) and `protocol/PROTOCOL.md`. The
+rest of this file is the technical overview.
+
+### Overview
 
 FliBuddy keeps a [Bambuddy](https://github.com/maziggy/bambuddy) filament
 inventory accurate with a Flipper Zero instead of SpoolBuddy hardware. The
