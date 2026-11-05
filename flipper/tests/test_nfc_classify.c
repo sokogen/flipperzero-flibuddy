@@ -34,12 +34,15 @@ static void test_sak_unsupported(void) {
 }
 
 static void test_ntag_read_result(void) {
-    CHECK_EQ_INT(tag_ntag_read_result(135, false), TagReadOk);
-    CHECK_EQ_INT(tag_ntag_read_result(1, true), TagReadOk); /* what was read counts */
+    CHECK_EQ_INT(tag_ntag_read_result(135, false, true), TagReadOk);
+    CHECK_EQ_INT(tag_ntag_read_result(1, false, false), TagReadOk); /* what was read counts */
     /* no page and a password: retrying cannot help, the tag stays */
-    CHECK_EQ_INT(tag_ntag_read_result(0, true), TagReadUnsupported);
-    /* no page, no known reason (timeout, lost contact, protocol): retry */
-    CHECK_EQ_INT(tag_ntag_read_result(0, false), TagReadFailed);
+    CHECK_EQ_INT(tag_ntag_read_result(0, true, false), TagReadUnsupported);
+    /* no page, the tag still answers: it stays remembered, so a "retry" would
+     * never happen; call it unreadable */
+    CHECK_EQ_INT(tag_ntag_read_result(0, false, true), TagReadUnsupported);
+    /* no page and the tag is gone: a real, retryable failure */
+    CHECK_EQ_INT(tag_ntag_read_result(0, false, false), TagReadFailed);
 }
 
 static void test_block_text_of_a_bambu_tag(void) {

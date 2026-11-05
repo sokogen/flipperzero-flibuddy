@@ -88,7 +88,10 @@ static TagReadResult read_ntag(TagReader* r, TagDump* out) {
     }
     FURI_LOG_I("FliBuddy", "ntag read: error %d, pages %u", error, out->page_count);
     mf_ultralight_free(data);
-    return tag_ntag_read_result(out->page_count, error == MfUltralightErrorAuth);
+    bool locked = error == MfUltralightErrorAuth;
+    /* as read_mfc does: tells a tag that still lies there from one that left */
+    bool present = out->page_count == 0 && !locked && tag_present(r);
+    return tag_ntag_read_result(out->page_count, locked, present);
 }
 
 TagReadResult tag_reader_read(TagReader* r, TagDump* out) {

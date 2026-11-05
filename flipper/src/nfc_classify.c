@@ -18,9 +18,9 @@ bool tag_type_from_sak(uint8_t sak, TagType* type) {
     }
 }
 
-TagReadResult tag_ntag_read_result(size_t pages, bool password_protected) {
+TagReadResult tag_ntag_read_result(size_t pages, bool password_protected, bool still_present) {
     if(pages > 0) return TagReadOk; /* `scan` needs at least one page */
-    return password_protected ? TagReadUnsupported : TagReadFailed;
+    return (password_protected || still_present) ? TagReadUnsupported : TagReadFailed;
 }
 
 bool tag_block_text(const TagDump* dump, uint8_t block, char out[TAG_BLOCK_TEXT_MAX]) {
