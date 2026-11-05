@@ -89,17 +89,22 @@ def test_the_ios_app_asks_for_local_network_access():
     assert ios_settings()["INFOPLIST_KEY_NSLocalNetworkUsageDescription"].strip()
 
 
-def test_both_apps_allow_plain_http_to_bambuddy():
-    # Bambuddy is self-hosted and usually served over plain HTTP at a URL the
-    # user types in (an IP, a .local or a .lan name). App Transport Security
-    # blocks such loads unless the Info.plist allows them. Xcode merges this
-    # file with the INFOPLIST_KEY_* settings it generates.
-    for name, folder in (("FliBuddyiOS", "iOS"), ("FliBuddyWatch", "Watch")):
+def test_both_apps_talk_https_only():
+    # FliBuddy 1.0 talks to Bambuddy over HTTPS only (owner decision), so
+    # neither app carries an App Transport Security exception. The iOS
+    # Info.plist only adds UIBackgroundModes, which INFOPLIST_KEY_* settings
+    # cannot express; Xcode merges it with the keys it generates. The watch
+    # app has no Info.plist of its own.
+    for name in ("FliBuddyiOS", "FliBuddyWatch"):
         settings = spec()["targets"][name]["settings"]["base"]
         assert settings["GENERATE_INFOPLIST_FILE"] is True
-        assert settings["INFOPLIST_FILE"] == f"{folder}/Info.plist"
-        info = plistlib.loads((APPLE / folder / "Info.plist").read_bytes())
-        assert info["NSAppTransportSecurity"] == {"NSAllowsArbitraryLoads": True}
+        assert not [key for key in settings if "NSAppTransportSecurity" in key]
+    assert ios_settings()["INFOPLIST_FILE"] == "iOS/Info.plist"
+    info = plistlib.loads((APPLE / "iOS" / "Info.plist").read_bytes())
+    assert "NSAppTransportSecurity" not in info
+    assert info["UIBackgroundModes"] == ["bluetooth-central"]
+    assert "INFOPLIST_FILE" not in watch_settings()
+    assert not (APPLE / "Watch" / "Info.plist").exists()
 
 
 def test_the_app_sources_exist():
