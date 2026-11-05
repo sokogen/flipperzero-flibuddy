@@ -18,8 +18,9 @@
 # simulator boots in (portrait), or the one last set in the Simulator app.
 set -eu
 
+# The usage text is the comment block's "tools/sim_shot.sh [...]" lines.
 usage() {
-    sed -n '6,7p' "$0" | sed 's/^# //' >&2
+    sed -n '/^#   tools\/sim_shot.sh/,/^#                     </p' "$0" | sed 's/^# //' >&2
     exit 2
 }
 
@@ -91,6 +92,8 @@ if [ "$watch" = 0 ]; then
     xcrun simctl ui "$udid" content_size "$content_size"
 fi
 if [ "$watch" = 0 ]; then
+    # The override outlives the script: clear it however the script ends.
+    trap 'xcrun simctl status_bar "$udid" clear >/dev/null 2>&1 || true' EXIT
     xcrun simctl status_bar "$udid" override --time 9:41 --dataNetwork wifi --wifiMode active \
         --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 ||
         echo "warning: status bar not overridden" >&2
@@ -101,5 +104,5 @@ xcrun simctl launch --terminate-running-process "$udid" "$bundle" -FliBuddyDemo 
 sleep "$wait_seconds"
 
 mkdir -p "$(dirname "$output")"
-xcrun simctl io "$udid" screenshot --type=png "$output" >/dev/null 2>&1
+xcrun simctl io "$udid" screenshot --type=png "$output" >/dev/null
 echo "$output"
