@@ -7,6 +7,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>FliBuddy talks to the Flipper over Bluetooth.</string>
 </dict>
