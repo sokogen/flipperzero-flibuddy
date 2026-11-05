@@ -267,3 +267,16 @@ Tests that compare against the shared protocol fixtures read them through
 `tests/fixture.h` (the Makefile passes the `protocol/` path) and compare
 after stripping JSON whitespace. Generated C vectors live in
 `tests/vectors/`; see `tools/README.md` for their generators.
+
+## Apps Catalog
+
+The app is published in the Flipper Apps Catalog from this folder
+(`subdir: flipper`). `catalog/manifest.yml` is the draft of the catalog's
+`applications/NFC/flibuddy/manifest.yml` (its `commit_sha` is filled at
+submission); name, id, version, category, author and icon come from
+`application.fam`. The catalog page shows `catalog/description.md` and
+`CHANGELOG.md`, which use only the catalog's Markdown (H1 and H2, bold,
+italic, lists, links), and the qFlipper screenshots in `screenshots/` (see
+its README). `tools/tests/test_catalog.py` checks them; the catalog's own
+check is its `tools/bundle.py --nolint`. A new catalog release raises
+`fap_version` (and `FLIBUDDY_VERSION`) and adds a `CHANGELOG.md` entry.

@@ -1,0 +1,39 @@
+# FliBuddy
+
+FliBuddy turns a Flipper Zero into a spool reader for 3D printing filament. Hold a spool's NFC tag to the back of the Flipper and it shows what the tag holds; with the FliBuddy app on an iPhone, iPad or Apple Watch it also keeps a Bambuddy filament inventory up to date: which spool it is, how much filament is left, and new spools as they arrive.
+
+FliBuddy is an independent open source project. It is not affiliated with Bambu Lab or Flipper Devices.
+
+## On the Flipper alone
+
+- Reads Bambu Lab spool tags (MIFARE Classic 1K, unlocked with the keys derived from each tag's UID) and NTAG213, NTAG215 and NTAG216 tags.
+- Shows what the tag itself says: the material of a Bambu Lab spool (for example PLA Basic), the tag type and the UID; Tag details adds how much of the tag was read.
+- A tag left on the Flipper is not read again until it is taken away.
+- LED and vibration confirm each read, so the screen need not be watched.
+- **Get app** (OK on the start screen) shows a QR code of the project page, where the phone app is.
+
+## With the FliBuddy app and Bambuddy
+
+The Flipper sends each tag over Bluetooth to the FliBuddy app, which looks it up in Bambuddy, a self-hosted filament inventory for Bambu Lab printers. The app does the network work; the Flipper never goes online.
+
+- A spool in Bambuddy shows its material, colour and remaining weight. OK opens a four-digit weight entry, prefilled, for the spool on a scale (gross) or the filament alone (net); OK again saves it to Bambuddy.
+- A Bambu Lab spool Bambuddy does not know yet is saved as new with one press, or by itself after the scan with Auto-save new; a tag can also be linked to a spool in the app.
+- The menu marks a spool as new (full) or empty, with a three second undo, relinks it, shows Tag details or deletes the spool from Bambuddy after a confirmation.
+- Recent lists the spools weighed in this session, to weigh one again without a scan.
+- With After scan set to Weigh, a known spool opens straight on the weight entry.
+
+## Extra requirements
+
+- The FliBuddy app for iPhone and iPad, with its Apple Watch app: see the [project page](https://sokogen.github.io/flipperzero-flibuddy/) for the App Store link.
+- A [Bambuddy](https://github.com/maziggy/bambuddy) server in its internal inventory mode, reachable from the phone, and a Bambuddy API key for the app.
+- Without them FliBuddy still reads tags as described above.
+
+## Settings
+
+- Connection: Auto, USB or Bluetooth. The apps connect over Bluetooth; USB speaks the same protocol to the developer bridge in the source repository. While the app runs on USB, qFlipper cannot use the cable.
+- Auto-save new, After scan (Show or Weigh), Weigh as (Gross or Net), Feedback (Vibro and LED, LED, Off) and Sound.
+- The settings file is the only thing FliBuddy writes, in its own folder under apps data on the SD card.
+
+## Source
+
+FliBuddy is MIT licensed. Source code, the protocol and the issue tracker: [github.com/sokogen/flipperzero-flibuddy](https://github.com/sokogen/flipperzero-flibuddy).
