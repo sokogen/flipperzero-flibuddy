@@ -159,8 +159,8 @@
       <div style="font-size:19px;font-weight:600;margin-top:12px">Per platform</div>
       <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.5;color:#424245">
         <div><b>iPhone</b>: stacked card as shown; one <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">Section</span> per row, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.listSectionSpacing(.compact)</span>.</div>
-        <div><b>iPad</b>: compact tiles in an adaptive grid, min width 300 pt, three columns in both orientations. Net/Gross and Save share one row.</div>
-        <div><b>macOS</b>: one line as iPad, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.controlSize(.large)</span>, field 96 × 34, row 60.</div>
+        <div><b>iPad</b>: compact tiles in an adaptive grid, min width 300 pt, at most three to a row: three on a 13" iPad, two on an 11", in both orientations. Net/Gross and Save share one row; the short readout sits inside the field.</div>
+        <div><b>macOS</b>: one line, <span style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px">.controlSize(.large)</span>, field 96 × 34, row 60.</div>
         <div><b>Watch</b>: list row is swatch 16 · title · remaining · status glyph; the entry lives on the detail screen.</div>
       </div>
     </div>
@@ -242,10 +242,10 @@
 
 <section style="display:flex;flex-direction:column;gap:28px">
   <div style="display:flex;align-items:baseline;gap:16px;border-top:1px solid rgba(0,0,0,.14);padding-top:20px"><span style="font:600 13px ui-monospace,'SF Mono',Menlo,monospace;color:#6E6E73">05</span><h2 style="margin:0;font-size:34px;font-weight:700;letter-spacing:-.015em">Connection and system states</h2></div>
-  <div style="font-size:15px;line-height:1.5;color:#424245;max-width:980px;text-wrap:pretty">macOS and iPad show both connections in a status bar. iPhone shows one compact glass banner under the title: when both are healthy it reads "Flipper connected · Bambuddy ready"; a problem replaces its half and adds one action. Watch shows a single glyph in the top trailing corner; tapping it opens Settings.</div>
+  <div style="font-size:15px;line-height:1.5;color:#424245;max-width:980px;text-wrap:pretty">macOS shows both connections in a status bar, the iPad in landscape in its sidebar. iPhone, and iPad in portrait, show one compact glass banner under the title: when both are healthy it reads "Flipper connected · Bambuddy ready"; a problem replaces its half and adds one action; when both sides have a problem the banner grows to two lines, Flipper first, each with its own action. Watch shows a single glyph in the top trailing corner; tapping it opens Settings.</div>
   <div style="background:#fff;border-radius:18px;padding:12px 24px 20px;display:flex;flex-direction:column">
     <div style="display:grid;grid-template-columns:200px 230px 290px 290px 330px 330px 56px;column-gap:16px;padding:12px 0;font-size:12px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid rgba(0,0,0,.1)"><span>State</span><span>Meaning</span><span>Status bar · light</span><span>Status bar · dark</span><span>iPhone banner · light</span><span>iPhone banner · dark</span><span>Watch</span></div>
-    <sc-for list="{{ conn }}" as="c" hint-placeholder-count="11">
+    <sc-for list="{{ conn }}" as="c" hint-placeholder-count="15">
       <div style="display:grid;grid-template-columns:200px 230px 290px 290px 330px 330px 56px;column-gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(0,0,0,.06)">
         <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:11px;font-weight:600;color:#6E6E73;text-transform:uppercase;letter-spacing:.05em">{{ c.group }}</span><span style="font-size:15px;font-weight:600">{{ c.state }}</span></div>
         <span style="font-size:13.5px;line-height:1.4;color:#424245">{{ c.meaning }}</span>
@@ -263,10 +263,18 @@
             <div style="background:var(--fb-bg);padding:8px;border-radius:14px">
               <sc-if value="{{ c.phoneNA }}"><div style="height:36px;display:flex;align-items:center;padding:0 12px;font-size:13px;color:var(--fb-l3)">USB is macOS only</div></sc-if>
               <sc-if value="{{ c.phoneOK }}">
-                <div style="height:36px;border-radius:18px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:7px;padding:0 6px 0 12px;font-size:13px;font-weight:500;color:var(--fb-l1)">
-                  <sc-if value="{{ c.spin }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
-                  <i class="{{ c.icon }}" title="{{ c.sym }}" style="font-size:15px;color:{{ c.tint }}"></i><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.phone }}</span>
-                  <sc-if value="{{ c.hasAct }}"><span style="height:26px;display:flex;align-items:center;padding:0 12px;border-radius:13px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600">{{ c.act }}</span></sc-if>
+                <div style="min-height:36px;border-radius:18px;background:var(--fb-glass);box-shadow:inset 0 0 0 .5px var(--fb-glassb),0 2px 8px rgba(0,0,0,.06);display:flex;flex-direction:column;justify-content:center;gap:4px;padding:5px 6px 5px 12px;box-sizing:border-box;font-size:13px;font-weight:500;color:var(--fb-l1)">
+                  <div style="height:26px;display:flex;align-items:center;gap:7px">
+                    <sc-if value="{{ c.spin }}"><span style="width:12px;height:12px;border-radius:50%;border:1.5px solid var(--fb-fill2);border-top-color:var(--fb-l2);animation:fb-spin .8s linear infinite;box-sizing:border-box;flex:none"></span></sc-if>
+                    <i class="{{ c.icon }}" title="{{ c.sym }}" style="font-size:15px;color:{{ c.tint }}"></i><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.phone }}</span>
+                    <sc-if value="{{ c.hasAct }}"><span style="height:26px;display:flex;align-items:center;padding:0 12px;border-radius:13px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600">{{ c.act }}</span></sc-if>
+                  </div>
+                  <sc-if value="{{ c.two }}">
+                    <div style="height:26px;display:flex;align-items:center;gap:7px">
+                      <i class="{{ c.icon2 }}" title="{{ c.sym2 }}" style="font-size:15px;color:{{ c.tint2 }}"></i><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.phone2 }}</span>
+                      <sc-if value="{{ c.hasAct2 }}"><span style="height:26px;display:flex;align-items:center;padding:0 12px;border-radius:13px;background:var(--fb-blue);color:#fff;font-size:13px;font-weight:600">{{ c.act2 }}</span></sc-if>
+                    </div>
+                  </sc-if>
                 </div>
               </sc-if>
             </div>
@@ -385,12 +393,17 @@ const CONN = [
   { group: 'Flipper', state: 'BLE advertising', meaning: 'Flipper visible, not connected', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right', tint: 'orange', mac: 'Flipper nearby, not connected', macAct: 'Connect', phone: 'Flipper nearby', act: 'Connect' },
   { group: 'Flipper', state: 'BLE connected', meaning: 'Link open and FliBuddy said hello', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right', tint: 'green', mac: 'Flipper · Bluetooth', phone: 'Flipper connected · Bambuddy ready' },
   { group: 'Flipper', state: 'Connected, no hello', meaning: 'Link open, FliBuddy app not running on the Flipper', icon: 'ph ph-app-window', sym: 'app.dashed', tint: 'orange', mac: 'Open FliBuddy on the Flipper', phone: 'Open FliBuddy on the Flipper' },
+  { group: 'Flipper', state: 'Other version', meaning: 'FliBuddy on the Flipper speaks another protocol version. The tooltip says which side to update', icon: 'ph ph-warning', sym: 'exclamationmark.triangle', tint: 'orange', mac: 'Flipper speaks protocol 1, host speaks 2', phone: 'Flipper speaks protocol 1, host speaks 2' },
+  { group: 'Bambuddy', state: 'Not set up', meaning: 'No URL or API key in Settings yet', icon: 'ph ph-hard-drives', sym: 'server.rack', tint: 'orange', mac: 'Bambuddy not set up', macAct: 'Settings', phone: 'Bambuddy not set up', act: 'Settings' },
   { group: 'Bambuddy', state: 'Not checked yet', meaning: 'No request made since launch', icon: 'ph ph-hard-drives', sym: 'server.rack', tint: 'gray', mac: 'Bambuddy · not checked', phone: 'Bambuddy not checked', act: 'Check' },
   { group: 'Bambuddy', state: 'Ready', meaning: 'Reachable, key has inventory access', icon: 'ph ph-hard-drives', sym: 'server.rack', tint: 'green', mac: 'Bambuddy ready', phone: 'Flipper connected · Bambuddy ready' },
   { group: 'Bambuddy', state: 'Unreachable', meaning: 'No answer from the URL in Settings', icon: 'ph ph-wifi-slash', sym: 'wifi.exclamationmark', tint: 'red', mac: 'Bambuddy unreachable', macAct: 'Retry', phone: 'Bambuddy unreachable', act: 'Retry' },
+  { group: 'Bambuddy', state: 'API key rejected', meaning: 'Bambuddy refused the key: wrong, expired or revoked', icon: 'ph ph-lock-key', sym: 'lock.trianglebadge.exclamationmark', tint: 'red', mac: 'Bambuddy rejected the API key', macAct: 'Settings', phone: 'Bambuddy rejected the API key', act: 'Settings' },
   { group: 'Bambuddy', state: 'API key lacks permission', meaning: 'Key works but cannot read or write inventory', icon: 'ph ph-lock-key', sym: 'lock.trianglebadge.exclamationmark', tint: 'red', mac: 'API key lacks inventory permission', macAct: 'Settings', phone: 'Key lacks inventory permission', act: 'Settings' },
   { group: 'Bambuddy', state: 'Spoolman mode', meaning: 'Blocking. Feed replaced by an explanation until changed', icon: 'ph ph-prohibit', sym: 'nosign', tint: 'red', mac: 'Bambuddy is in Spoolman mode', macAct: 'Retry', phone: 'Bambuddy is in Spoolman mode', act: 'Retry' },
   { group: 'Bambuddy', state: 'Colour names unavailable', meaning: 'Non-blocking. Rows show no colour name', icon: 'ph ph-palette', sym: 'paintpalette', tint: 'orange', mac: 'Colour names unavailable', phone: 'Colour names unavailable' },
+  { group: 'Both', state: 'Both sides down', meaning: 'One line per side, Flipper first, each with its own action. The status bar shows both items anyway', icon: 'ph ph-broadcast', sym: 'antenna.radiowaves.left.and.right.slash', tint: 'gray', spin: 1, mac: 'No Flipper · searching', phone: 'No Flipper · searching',
+    two: { icon: 'ph ph-wifi-slash', sym: 'wifi.exclamationmark', tint: 'red', phone: 'Bambuddy unreachable', act: 'Retry' } },
 ];
 
 class Component extends DCLogic {
@@ -409,6 +422,7 @@ class Component extends DCLogic {
       conn: CONN.map(c => ({
         ...c, spin: !!c.spin, tint: T[c.tint], watchTint: darkT[c.tint], watchIcon: c.icon,
         phoneNA: !!c.na, phoneOK: !c.na, hasAct: !!c.act, hasMacAct: !!c.macAct, themes: themes,
+        two: !!c.two, icon2: c.two ? c.two.icon : '', sym2: c.two ? c.two.sym : '', tint2: c.two ? T[c.two.tint] : '', phone2: c.two ? c.two.phone : '', act2: c.two ? c.two.act : '', hasAct2: !!(c.two && c.two.act),
       })),
       spacing: [[4, 'Symbol ↔ text in a status line'], [8, 'Between controls in a group'], [12, 'Swatch ↔ text; header ↔ entry; between rows'], [16, 'Row padding; list inset (iOS)'], [20, 'Sheet and Form padding'], [24, 'Between Form sections'], [32, 'Empty-state stack']].map(([v, use]) => ({ v, use, w: v + 'px' })),
       radii: [['Swatch', 'Circle()'], ['Row card (iOS)', 'insetGrouped Section · ≈24'], ['Weight field', '.rect(cornerRadius: 14) iOS · 8 macOS'], ['Buttons', '.buttonBorderShape(.capsule)'], ['Banner (iPhone)', 'Capsule() · .glassEffect() on 26+, .regularMaterial below'], ['Sheets, windows, watch platters', 'system']].map(([el, v]) => ({ el, v })),

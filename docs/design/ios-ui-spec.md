@@ -2,16 +2,17 @@
 
 Source: the Claude Design project "FliBuddy mobile app design"
 (`docs/design/source/FliBuddy Spec.dc.html` and
-`docs/design/source/FliBuddy iPhone.dc.html`), imported on 2026-10-27. The
-page imports the shared prototype model `flibuddy-core.js` (session, row
-view-model, connection texts: `docs/design/source/flibuddy-core.js`, saved
-the same day). The row copy comes from the core's `vm`, the banner from its
+`docs/design/source/FliBuddy iPhone.dc.html`), imported on 2026-10-27 and
+synced again on 2026-11-05. The page imports the shared prototype model
+`flibuddy-core.js` (session, row view-model, connection texts:
+`docs/design/source/flibuddy-core.js`). The row copy comes from the core's `vm`, the banner from its
 `statusVM` (`FLIP` / `BAMBU` tables), the Link picker rows from `invVM`, the
 keypad and focus behaviour from its `Session`.
 
 This file is the implementation-ready distillation for the iPhone app
 (`host/Apple/iOS`, views in `host/Sources/FliBuddyUI`). The iPad uses it for
-its portrait (compact) layout, see `ipados-ui-spec.md`; the watch has
+its compact-width layout (a narrow multitasking window) and shares the
+row states with it, see `ipados-ui-spec.md`; the watch has
 `watchos-ui-spec.md`; the Mac has `macos-ui-spec.md`.
 
 Precedence: where this file and the shipped code disagree, this file wins;
@@ -26,23 +27,26 @@ as in the macOS spec.
 ## Assumptions the designer asked the owner to confirm
 
 The Spec page's "Assumptions to confirm" lists eight; the macOS spec
-recorded the owner's answers (2026-10-26) and the decisions below update
-them:
+recorded the owner's first answers (2026-10-26), and the design synced on
+2026-11-05 settles the rest:
 
 1. *The suggestion is gross; switching Net/Gross converts an untouched
    suggestion and keeps a typed number.* The suggestion is gross by default
    (Settings decide). **Overridden:** switching converts the number whether
    typed or not (see "Owner decisions").
-2. *After New the row stays open for a first weight, "Created in Bambuddy"
-   pre-filled to label + core.* Adopted, and extended by Auto-save new.
-   **Overridden (2026-10-27):** a Created row opens no entry until Set
-   weight… (see "Owner decisions").
+2. *After New the spool is simply added at its label weight ("Added to
+   Bambuddy"), with no weight prompt; tap or click the row to weigh it
+   anyway.* Adopted (2026-11-05). It replaces the 2026-10-27 new spool card
+   (Save as new, Save with weight…, Set weight…, a revealed entry with
+   Cancel), which is gone.
 3. *Saved rows reopen on tap for a re-weigh; last save wins; the status
-   says who saved.* Adopted.
-4. *The watch creates Bambu tags in one tap but cannot fill the form; other
-   tags say "Create it on iPhone or Mac".* Adopted, see the watch spec.
-5. *iPhone and iPad settings apply on change; macOS keeps the explicit
-   Save.* Adopted: the iPhone Settings have no Save / Revert row.
+   says who saved.* Adopted; an added row reopens the same way.
+4. *The watch creates Bambu Lab tags in one tap but cannot fill the form;
+   for other tags it says "Create it on iPhone or Mac".* Adopted, see the
+   watch spec.
+5. *Settings apply on change on every platform; there is no Save button.*
+   Adopted on the iPhone and iPad: no Save / Revert row. The Mac still has
+   one (`macos-ui-spec.md`, "Implemented differently").
 6. *Link to existing warns when the chosen spool carries a different tag and
    offers to move the link.* Adopted.
 7. *Watch is dark only; every other surface light and dark.* Adopted: the
@@ -59,25 +63,19 @@ They apply to every platform and override the design where they conflict.
   duplicate row. Several scans per session, every row stays editable.
 - **Auto-save new lives on the Flipper** (protocol v2, `scan.autosave`,
   default Off). The host has no switch of its own.
-  - On: an unknown Bambu tag (one with material) is created at once with the
-    tag's defaults; the row reads `Created in Bambuddy`, the weight entry is
-    pre-filled to label + core and focused; Save records the weight.
-  - Off: the row reads `Not in Bambuddy` with the weight entry pre-filled to
-    label + core and **New** and **Link to existing…** under it. Save
-    creates the spool from the tag, then records the weight. Nothing reaches
-    Bambuddy until New, Link or Save.
-  - **Superseded (owner, 2026-10-27, plan
-    `docs/plans/20261027-new-spool-card.md`): add by default, weight
-    optional.** Off, the row reads `New spool` (`plus.circle`, secondary)
-    and does not wait for a weight: no field, no focus, no number pad.
-    **Save as new** (prominent) creates the spool from the tag, full;
-    **Save with weight…** reveals the entry and focuses it, and its Save
-    creates the spool, then records the weight; **Link to existing…** as
-    before. On, the row reads `Created in Bambuddy` and does not wait
-    either: **Set weight…** (prominent) reveals the entry, whose Save
-    records the weight, and **Link to existing…**. Cancel hides a revealed
-    entry without saving. A Flipper request still makes the asked action
-    prominent.
+  - On: an unknown Bambu tag (one with material) is added at once with the
+    tag's defaults at its label weight; the row reads `Added to Bambuddy`
+    and waits for nothing.
+  - Off: the row reads `Not in Bambuddy` (`questionmark.circle`) with
+    **New** and **Link to existing…**; no field, no focus, no number pad.
+    New adds the spool from the tag at its label weight and the row reads
+    `Added to Bambuddy`. Nothing reaches Bambuddy until New or Link.
+  - An added row reopens on a tap like a saved one: `Enter weight`,
+    pre-filled to label + core, focused; its Save records the weight.
+  - A Flipper request makes the asked action the prominent one (New unless
+    the Flipper asked to link). The Flipper's **Relink on host** on a row
+    this session added offers **Link to existing…** alone, which moves the
+    tag and deletes the spool just added.
 - **Known spools:** a weight that comes in (from the Flipper) is saved at
   once. The Flipper's actions Mark as new (`full`), Mark as empty (`empty`,
   archives) and Delete (`delete`) show on the row. An archived spool
@@ -90,6 +88,8 @@ They apply to every platform and override the design where they conflict.
   not in the row.
 - **Net/Gross converts the number**, typed or not: gross → net subtracts
   the core, net → gross adds it.
+- **The iPhone is portrait only in 1.0** (2026-11-05): landscape was never
+  designed.
 
 ## Stance (from the Spec page)
 
@@ -139,7 +139,8 @@ TextField("Weight", value: $grams, format: .number)
   // select-all on focus via TextSelection (iOS 18+)
 ```
 
-The tab bar hides while the number pad is up and comes back when it lowers.
+The app runs in portrait only. The tab bar hides while the number pad is
+up and comes back when it lowers.
 The Clear button sits at the leading end of the navigation bar, icon only
 (`trash`), accessibility label "Clear feed"; disabled while the feed is
 empty.
@@ -152,7 +153,7 @@ healthy it reads `Flipper connected · Bambuddy ready` with
 problem, as that state's short phrase, symbol, tint and action: one line
 when one side is down, two lines in the same capsule (Flipper first, then
 Bambuddy, each with its own chip) when both are (owner decision
-2026-10-27; the core's `statusVM` shows only the Flipper's).
+2026-10-27; the Spec page draws it since 2026-11-05, "Both sides down").
 
 | Part | Spec |
 |---|---|
@@ -169,9 +170,12 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 | Flipper | adv | `Flipper nearby` | `antenna.radiowaves.left.and.right` | orange | Connect |
 | Flipper | ble | `Flipper connected` | `antenna.radiowaves.left.and.right` | green | |
 | Flipper | nohello | `Open FliBuddy on the Flipper` | `app.dashed` | orange | |
+| Flipper | other version | `Flipper speaks protocol 1, host speaks 2` (the side to update in the hint) | `exclamationmark.triangle` | orange | |
+| Bambuddy | not set up | `Bambuddy not set up` | `server.rack` | orange | Settings |
 | Bambuddy | unchecked | `Bambuddy not checked` | `server.rack` | gray | Check |
 | Bambuddy | ready | `Bambuddy ready` | `server.rack` | green | |
 | Bambuddy | unreachable | `Bambuddy unreachable` | `wifi.exclamationmark` | red | Retry |
+| Bambuddy | key rejected | `Bambuddy rejected the API key` | `lock.trianglebadge.exclamationmark` | red | Settings |
 | Bambuddy | noperm | `Key lacks inventory permission` | `lock.trianglebadge.exclamationmark` | red | Settings |
 | Bambuddy | spoolman | `Bambuddy is in Spoolman mode` | `nosign` | red | Retry |
 | Bambuddy | nocolors | `Colour names unavailable` | `paintpalette` | orange | |
@@ -179,12 +183,11 @@ Short phrases (core `FLIP` / `BAMBU`, field `short`):
 USB is macOS only; the iPhone never shows `Flipper · USB`.
 
 The `ble` and `ready` rows only appear inside the combined healthy text.
-Spoolman mode is blocking anyway (the feed is replaced). The states the shipped `StatusItem` adds beyond the table keep their macOS
-phrases and tints (`Bambuddy not set up` orange + Settings, `Bambuddy
-rejected the API key` red + Settings, `Checking Bambuddy…` with a spinner,
-a link problem such as `Bluetooth is off` orange with the slash symbol, the
-protocol version mismatch). Tapping the banner outside the chip does
-nothing; the detail the phrase leaves out is its accessibility hint.
+Spoolman mode is blocking anyway (the feed is replaced). The states the
+Spec page does not draw keep their macOS phrases and tints: `Checking
+Bambuddy…` with a spinner, a link problem such as `Bluetooth is off` orange
+with the slash symbol. Tapping the banner outside the chip does nothing;
+the detail the phrase leaves out is its accessibility hint.
 Settings switches to the Settings tab.
 
 ## Feed row (stacked card, one `Section` per row)
@@ -212,8 +215,8 @@ the entry states of the table below:
 | Weight field | full width, height 64, `tertiarySystemFill`, `.rect(cornerRadius: 14)`, padding 16; focus ring 2 pt `.tint`. Value `.system(.largeTitle, design: .rounded).bold().monospacedDigit()` scaled to 34 pt; the selected suggestion is highlighted (system selection); an empty field shows `0` in `.tertiary`. Unit `g` `.title2.weight(.semibold)` `.secondary` (22) after the value. The mode word (`gross` / `net`) right-aligned inside the field, `.footnote` `.secondary` (13). Accessibility label `Gross weight, grams` / `Net weight, grams`. |
 | Net / Gross | segmented, full width, height 32, capsule track; labels 14 sb. |
 | Readout | `.footnote.monospacedDigit()` `.secondary` (13): `Saves 590 g left · 832 − 242 g core` (gross), `Saves 590 g left` (net), `Type the scale reading` (empty), `Below the core weight (242 g)` in `.red`. |
-| Save | full width, height 50, `.borderedProminent`, capsule, `.headline` (17 sb): `Save` / `Saving…`; disabled (45 % look) when empty, below the core or saving. |
-| Actions | New spool and Created cards (entry hidden): the lead action (**Save as new** / **Set weight…**) full width, height 50, `.borderedProminent` capsule, 17 sb, over the others (**Save with weight…**, **Link to existing…**) as equal capsules, height 44, 10 apart, 15 sb. A revealed entry: **Cancel** and **Link to existing…** as the 44 pt capsules under Save. Other rows that offer actions (New… / Save as new and Link): a row of two equal 44 pt capsules, the prominent one `.tint` with white text, the other `tertiarySystemFill` with `.tint` text. |
+| Save | full width, height 44, a tinted button (`.bordered`, capsule: the tint at about 14 % with `.tint` text), `.headline` (17 sb): `Save` / `Saving…`; disabled (45 % look) when empty, below the core or saving. Not filled: the weight is the focus. With Increase Contrast it is `.borderedProminent` (the tinted text reaches about 3.4:1). |
+| Actions | rows with no spool (Not in Bambuddy, Flipper asks, Deleted): **New** (**New…** without material) and **Link to existing…** as two equal 44 pt capsules, 10 apart, 15 sb; the prominent one first, `.tint` with white text (New unless the Flipper asked to link), the other `tertiarySystemFill` with `.tint` text. |
 
 A row without an entry block or actions has a minimum height of 76.
 
@@ -232,21 +235,23 @@ Same model and texts as the macOS table; only the entry column differs.
 | Saving | `Saving…` | spinner | secondary | entry, disabled |
 | Saved | `Saved 590 g left · by host` / `· by Flipper` | `checkmark.circle.fill` | green | none; tap reopens |
 | Timeout | `Saved 590 g left · by host` + timeout note | `checkmark.circle.fill` | green | none; tap reopens |
-| Created (Auto-save new on, or after Save as new or New…) | `Created in Bambuddy` | `plus.circle.fill` | green | no entry, never focused; lead **Set weight…** · capsule **Link to existing…** (moves the tag, deletes the created spool). Set weight… reveals the entry, pre-filled label + core, focused; its Save records the weight |
-| Error | `Error: Bambuddy unreachable` (any message) | `exclamationmark.triangle.fill` | red text | entry, value kept for retry; on a New spool or Created card whose entry is hidden, the card's buttons stay as the retry |
-| New spool, Bambu tag (Auto-save new off) | `New spool` | `plus.circle` | secondary | no entry, never focused, no number pad; lead **Save as new** (creates the spool from the tag, full) · capsules **Save with weight…** · **Link to existing…**. Save with weight… reveals the entry, pre-filled label + core, focused; its Save creates the spool, then records the weight |
-| Revealed entry (New spool or Created) | the row's status | as the row | as the row | entry, focused; capsules **Cancel** · **Link to existing…** under Save; Cancel hides the entry without saving |
-| Not in Bambuddy, no material | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | actions **New…** (prominent, opens the form) · **Link to existing…** |
-| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | as New spool (lead **Save as new**), or **New…** prominent without material |
-| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | as New spool or no material, **Link to existing…** first and prominent (the lead on a New spool card) |
+| Not in Bambuddy, Bambu tag (Auto-save new off) | `Not in Bambuddy` | `questionmark.circle` | secondary | no entry, never focused, no number pad; **New** (prominent, adds the spool from the tag at its label weight) · **Link to existing…** |
+| Added to Bambuddy (after New, or Auto-save new on) | `Added to Bambuddy` | `plus.circle.fill` | green | none, never focused; tap reopens it as Enter weight, pre-filled label + core |
+| Not in Bambuddy, no material | `Not in Bambuddy; tag has no material` | `questionmark.circle` | secondary | **New…** (prominent, opens the form) · **Link to existing…** |
+| Flipper asks to create | `Flipper asks to create it here` | `dot.radiowaves.left.and.right` | blue | **New** (or **New…** without material) prominent · **Link to existing…** |
+| Flipper asks to link | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | **Link to existing…** first and prominent · **New** / **New…** |
+| Flipper asks to relink a spool added here | `Flipper asks to link it here` | `dot.radiowaves.left.and.right` | blue | **Link to existing…** alone (moves the tag, deletes the spool just added); no entry |
+| Error | `Error: Bambuddy unreachable` (any message) | `exclamationmark.triangle.fill` | red text | on a spool the entry, value kept for retry; after a failed New or Link the row's actions stay as the retry |
 | Updating (a Flipper action under way) | `Updating…` | spinner | secondary | entry disabled, if it was open |
 | Marked as new | `Marked as new · 1000 g left · by Flipper` | `arrow.counterclockwise.circle.fill` | green | none; tap reopens |
 | Marked as empty | `Marked as empty · archived · by Flipper`; colour line ends `· archived` | `archivebox` | secondary | none; tap reopens (a Save restores the spool) |
-| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | actions **Save as new** (tag with material) or **New…** (without) · **Link to existing…**, no entry |
+| Deleted | `Deleted from Bambuddy · by Flipper` | `trash` | secondary | **New** (tag with material) or **New…** (without) · **Link to existing…**, no entry |
 | Archived spool scanned | `Enter weight`; colour line ends `· archived` | `scalemass` | blue | entry; Save restores the spool, then records the weight |
 
 A weight saved from the Flipper on a row the iPhone shows as waiting turns
-it into `Saved … · by Flipper` and drops the iPhone's draft.
+it into `Saved … · by Flipper` and drops the iPhone's draft. The Flipper's
+**Add and weigh** on a tag not in Bambuddy creates the spool with its
+weight; the row reads `Saving…` meanwhile, with no field and no buttons.
 
 ### Weight rules
 
@@ -263,8 +268,7 @@ it into `Saved … · by Flipper` and drops the iPhone's draft.
   sends today (gross to Bambuddy).
 - After a successful save the row shows `Saved n g left · by host`, keeps
   the value as the new base, and focus moves to the newest row that still
-  waits for a weight (Enter weight, or a revealed New spool or Created
-  entry). With none, the pad lowers.
+  waits for a weight (Enter weight). With none, the pad lowers.
 - Focus never steals from a field the user is typing in (`touched`): the
   new row only gets a 2 pt `.tint` outline and waits.
 
@@ -272,11 +276,10 @@ it into `Saved … · by Flipper` and drops the iPhone's draft.
 
 "Correct suggestion: 1 tap. Otherwise: digits + 1 tap."
 
-1. A row turns Enter weight, or Save with weight… / Set weight… reveals
-   the entry of a New spool or Created card (a New spool or Created row
-   alone raises nothing). The list scrolls it to the top and its field
-   takes focus; the system number pad (`.numberPad`) rises with the
-   suggestion selected.
+1. A row turns Enter weight (a scan of a known spool, or a tap on a saved
+   or added row; a row not in Bambuddy raises nothing). The list scrolls it
+   to the top and its field takes focus; the system number pad
+   (`.numberPad`) rises with the suggestion selected.
 2. The first key replaces the selection (a lone `0` is replaced too); ⌫
    (`delete.left`) deletes one digit; at most four digits (0…9999).
 3. Net/Gross sits under the field and converts the number.
@@ -332,7 +335,7 @@ trailing, `.tint` when a material is chosen, disabled otherwise), title
 - Section "Optional": Subtype (placeholder `Basic, Matte, HF…`), Colour
   (`ColorPicker`, the swatch RGBA), Colour name (placeholder `Lilac`),
   Brand (placeholder `Elegoo`), Label weight (digits, default 1000, `g`).
-- Footer: `FliBuddy creates the spool in Bambuddy, then asks for its weight.`
+- Footer: `FliBuddy adds the spool to Bambuddy at its label weight.`
 
 **Link to existing**: navigation bar with Cancel (`xmark`) and Link
 (`checkmark`, disabled without a pick), title `Link to existing`, the UID
@@ -362,7 +365,7 @@ change also goes to the watch (see "Settings sync to the watch").
 Form {
   Section("Bambuddy") {
     Button("Scan QR code", systemImage: "qrcode.viewfinder")   // first row; .tertiary without a camera
-    TextField("URL")                                           // http://bambuddy.local:8000
+    TextField("URL")                                           // https://bambuddy.example.com
     SecureField("API key")
     Button("Test connection") + trailing result
   } footer: QR footer
@@ -373,8 +376,9 @@ Form {
   Section("Flipper") {
     LabeledContent(name ?? "No Flipper paired") { symbol + state }   // "Workshop" · Bluetooth / Searching…
     Button("Scan for Flipper")
-    Button("Forget this Flipper", role: .destructive)
   } footer: "Bluetooth only on iPhone. The Flipper must be running FliBuddy."
+  Section { Button("Forget This Flipper", role: .destructive) }      // centred
+    footer: "FliBuddy 1.0 (42)"                                        // centred, from the bundle
 }
 ```
 
@@ -382,16 +386,22 @@ QR footer: `Scan the QR code Bambuddy shows when you create an API key.`;
 after a read `Filled from the QR code.` in green; without a camera `This
 device has no camera. Type the URL and API key instead.` and the Scan row is
 dimmed. Test results: `Not tested` · `Testing…` (spinner) · `Ready ·
-inventory access OK` (`checkmark.circle.fill`, green) · `Unreachable:
-<reason>` (`xmark.circle.fill`, red), the shared phrases of the macOS spec
-(the mock-up shortens them to `Ready` / `Unreachable`). Editing the URL or
-the key resets the result to `Not tested`. The Flipper state reads
-`Bluetooth` when connected, `Searching…` with a spinner while scanning.
-The discovered Flippers list under Scan (name, RSSI, a checkmark on the
-chosen one) stays as shipped; the design does not show it. Rows are at
-least 52 pt high. The Empty spool picker lists Bambuddy's spool catalog, as shipped; the
-mock-up's four names (`Bambu reusable + core`, `Bambu cardboard`, `Generic
-1 kg plastic`, `Custom`) are placeholders.
+inventory OK` (`checkmark.circle.fill`, green) · `Unreachable: <reason>`
+(`xmark.circle.fill`, red), one wording on every platform (the Spec page's;
+the mock-up's failure shortens to `Unreachable`). Editing the URL or the
+key resets the result to `Not tested`. The Flipper state reads `Bluetooth`
+when connected, `Searching…` with a spinner in its place while scanning.
+The discovered Flippers list under Scan (name, signal `Nearby · strong` /
+`Nearby` as on the watch, a checkmark on the chosen one) stays as shipped;
+the design does not show it. Rows are at least 52 pt high. The Empty spool
+picker lists Bambuddy's spool catalog, loaded each time Settings opens;
+there is no Reload (the design has none), a failed load shows in red under
+the picker, and Test connection loads it again. The mock-up's four names
+(`Bambu reusable + core`, `Bambu cardboard`, `Generic 1 kg plastic`,
+`Custom`) are placeholders. Forget This Flipper sits in a section of its
+own, centred, in red, disabled while no Flipper is remembered; under it
+the app's version and build, centred (`FliBuddy 1.0 (42)`, from
+`CFBundleShortVersionString` and `CFBundleVersion`).
 
 ## Settings sync to the watch
 
@@ -416,21 +426,22 @@ Type roles (iOS sizes at the default content size): weight 34 bold rounded
 monospaced digits · row title `.headline` 17 sb · colour line
 `.subheadline` 15 · status `.subheadline` 15 · UID (details only)
 `.caption.monospaced()` 12 · readout `.footnote.monospacedDigit()` 13 ·
-banner `.footnote.weight(.medium)` 13 · Save `.headline` 17 sb · unit `g`
+banner `.footnote.weight(.medium)` 13 · Save `.headline` 17 sb on a tinted
+`.bordered` capsule · unit `g`
 `.title2.weight(.semibold)` 22.
 
 Colours: `.primary` titles and the weight · `.secondary` colour line,
 status, readout · `.tertiary` placeholders, empty value · `.tint`
-(systemBlue) Save, focus, Flipper requests · `.red` errors, Forget, Clear ·
-`.green` saved, created, ready · `.orange` warnings (timeout, advertising,
+(systemBlue) Save (its text, and its fill at about 14 %), focus, Flipper
+requests · `.red` errors, Forget, Clear · `.green` saved, added, ready · `.orange` warnings (timeout, advertising,
 no hello) · `.gray` searching, not checked · `systemGroupedBackground` the
 feed and Form · `secondarySystemGroupedBackground` the row card ·
 `tertiarySystemFill` the weight field and segmented track · `.separator`
 the swatch stroke.
 
 SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
-`checkmark.circle.fill`, `plus.circle`, `plus.circle.fill`, `questionmark.circle`,
-`exclamationmark.triangle.fill`, `xmark.circle.fill`,
+`checkmark.circle.fill`, `plus.circle.fill`, `questionmark.circle`,
+`exclamationmark.triangle`, `exclamationmark.triangle.fill`, `xmark.circle.fill`,
 `dot.radiowaves.left.and.right`, `antenna.radiowaves.left.and.right`,
 `antenna.radiowaves.left.and.right.slash`, `app.dashed`, `server.rack`,
 `wifi.exclamationmark`, `lock.trianglebadge.exclamationmark`, `nosign`,
@@ -442,8 +453,10 @@ SF Symbols: `list.bullet`, `gearshape`, `trash`, `scalemass`,
 ## Differences from what ships
 
 None remain. The fourteen differences found on 2026-10-27 were closed by
-the plan `docs/plans/20261027-apple-ui-from-design.md`; where the app
-departs from this file, the next section says how and why. What changed:
+the plan `docs/plans/20261027-apple-ui-from-design.md`, and those found
+after the design sync of 2026-11-05 by Tasks 10 and 11 of
+`docs/plans/20261105-release-1.0.md`; where the app departs from this file,
+the next section says how and why. What changed:
 
 1. Connection banner: the top glass banner (`ConnectionBanner`,
    `ConnectionBannerView`) replaced the bottom macOS status bar on iOS,
@@ -462,11 +475,18 @@ departs from this file, the next section says how and why. What changed:
 11. Link picker: `.searchable`, the move-link alert, toolbar buttons.
 12. Clear: `trash` button, `Clear feed` in the dialog.
 13. Watch sync after each applied change, debounced.
-14. Not-in-Bambuddy rows: New / Link as 44 pt capsules under Save.
-    Superseded on 2026-10-27 by the New spool card (plan
-    `docs/plans/20261027-new-spool-card.md`): see the row table.
+14. A tag not in Bambuddy (2026-11-05): `Not in Bambuddy` with New and
+    Link to existing…; New adds the spool at its label weight (`Added to
+    Bambuddy`), and a tap weighs it. The 2026-10-27 new spool card (Save as
+    new, Save with weight…, Set weight…, Cancel) is gone.
+15. Save (2026-11-05): a 44 pt tinted capsule, filled with Increase
+    Contrast.
+16. Settings (2026-11-05): Forget This Flipper in its own section, the
+    version footer, no Reload catalog, `Ready · inventory OK`, the signal
+    in words.
+17. Portrait only (2026-11-05).
 
-## Implemented differently (2026-10-27)
+## Implemented differently (2026-10-27, updated 2026-11-05)
 
 Where the app departs from this file or fills in what it leaves open, and
 why. Items marked "by eye" still wait for the owner's check on screen.
@@ -483,30 +503,28 @@ Connection banner
   eye.
 - The chip fills with the app tint, not the state's tint. The healthy
   line's accessibility hint is the firmware version. By eye.
-- A portrait iPad shows the same banner; beside the iPad sidebar the
-  banner gives way to the sidebar's status rows (`ipados-ui-spec.md`).
+- A portrait iPad shows the same banner over its tiles; beside the iPad
+  sidebar the banner gives way to the sidebar's status rows
+  (`ipados-ui-spec.md`).
 
 Feed row, number pad and focus
 - The card is the row of its own inset-grouped `Section` with 16 pt row
   insets; the waiting-row hint is a 2 pt `.tint` stroke on the card's row
   background (24 pt continuous corner), not on the field. By eye.
-- Save, the lead button and the capsules are stock `.borderedProminent` /
-  `.bordered` buttons with `.buttonBorderShape(.capsule)` at
-  `.controlSize(.large)`; the label's minimum height (36 / 30) gives about
-  50 / 44 pt rather than an exact frame. The non-prominent capsule is the
-  bordered style's tinted fill rather than `tertiarySystemFill`. By eye.
-- While Save as new, New or Link runs, the buttons dim; there is no
-  spinner and the status keeps its phrase (the design's `Creating in
-  Bambuddy…` row is the watch's only). After Save as new the card reads
-  `Created in Bambuddy` with Set weight… and Link to existing…; a failed
-  one keeps the card for a retry. While the Flipper weighs a New spool
-  the card reads `Saving…` with no field and no buttons.
-- The revealed field takes the keyboard as soon as it appears, also from
-  a row the user is typing in. Cancel drops the draft and moves focus to
-  the next row that waits; a failed save keeps the entry and the value.
-  On a Created row Link to existing… moved from beside the readout to a
-  capsule under Save, next to Cancel. By eye: the pad rises after Save
-  with weight… / Set weight….
+- Save and the capsules are stock `.bordered` / `.borderedProminent`
+  buttons with `.buttonBorderShape(.capsule)` at `.controlSize(.large)`;
+  the label's minimum height (30) gives about 44 pt rather than an exact
+  frame. Save is `.bordered` (`SaveEmphasis.tinted`), and
+  `.borderedProminent` when `colorSchemeContrast` is `.increased`. The
+  non-prominent capsule is the bordered style's tinted fill rather than
+  `tertiarySystemFill`. By eye.
+- While New or Link runs, the buttons dim; there is no spinner and the
+  status keeps its phrase (the design's `Creating in Bambuddy…` row is the
+  watch's only). A failed one keeps the actions for a retry.
+- A reopened row (a re-weigh, or the first weight of an added spool) is
+  focused before its field exists; the field takes the keyboard as it
+  appears (`takesFeedFocusOnAppear`). By eye: the pad rises after a tap on
+  an added row.
 - Select-all on focus sets the field's `TextSelection` to the whole value
   one turn after the field takes the keyboard, so the caret the tap placed
   does not win; a Net/Gross switch reselects a converted suggestion. A tap
@@ -523,7 +541,7 @@ Feed row, number pad and focus
   `sheetClosed()`), and the focused row's field takes the pad back when the
   last one closes.
 - The success haptic plays after a save from the host; the error haptic
-  after any failed host action (save, Save as new, New, Link), as `FeedViewModel.haptic`
+  after any failed host action (save, New, Link), as `FeedViewModel.haptic`
   events. A save from the Flipper plays nothing on the iPhone.
 - The timeout note's symbol and text are a `Label` 4 pt under the status.
 - Tag details opens from the card's context menu and the VoiceOver action
@@ -544,11 +562,19 @@ Settings, QR, sheets and Clear
   setting as typed (`SettingsViewModel.coreWeightText`, at most four, an
   empty field reads 0 and is not applied), so the commit on focus loss
   never sees a stale number; the number pad has no Return.
-- The Flipper row reads `Searching…` while a scan runs (it wins over a
-  connection), `Bluetooth` when connected, and `Not connected` with
-  `antenna.radiowaves.left.and.right.slash` otherwise, which the spec does
-  not name. A Flipper connected without a chosen one is titled `Flipper`.
-  The scan button reads `Stop scanning` while it runs, as shipped.
+- The Flipper row reads `Searching…` with the spinner while a scan runs
+  (it wins over a connection), `Bluetooth` when connected, and `Not
+  connected` with `antenna.radiowaves.left.and.right.slash` otherwise,
+  which the spec does not name. A Flipper connected without a chosen one
+  is titled `Flipper`. The scan button reads `Stop scanning` while it
+  runs, as shipped.
+- The catalog loads each time the Settings form appears
+  (`SettingsViewModel.opened()`); after a committed URL or key fix it
+  reloads only through Test connection or the next visit.
+- The version footer reads the bundle as it is: `FliBuddy 0.1.0 (1)` until
+  the release sets `MARKETING_VERSION` and the build number. The Flipper
+  footer and the version are section footers, so they follow Dynamic Type
+  and the form's margins. By eye.
 - The watch gets the settings 0.5 s after the last applied change
   (`WatchSettingsSender.defaultDebounce`), so a quick run of changes sends
   once, the latest.
@@ -571,4 +597,5 @@ Settings, QR, sheets and Clear
 ## Open questions for the owner
 
 None. Decided 2026-10-27: Net/Gross below the core clamps to 0, as on the
-Flipper; with both sides down the banner shows both.
+Flipper; with both sides down the banner shows both. Decided 2026-11-05:
+New adds the spool with no weight prompt; the iPhone stays in portrait.

@@ -83,9 +83,9 @@ a host a scan shows the tag's local facts only.
 ▶ opens the Flipper's **Settings**: Connection (USB / Bluetooth),
 **Auto-save new** (default Off), Feedback (Vibro+LED / LED / Off) and Sound.
 With Auto-save new on, the host creates a scanned Bambu tag that Bambuddy
-does not know at once ("Added to Bambuddy"); off, the tag shows "New
-spool" and nothing is created until **Add** on the Flipper or **Save as
-new** / **Save with weight…** on the host. See `flipper/README.md`.
+does not know at once ("Added to Bambuddy"); off, the tag shows "Not in
+Bambuddy" and nothing is created until **Add** on the Flipper or **New** on
+the host, which adds it at its label weight. See `flipper/README.md`.
 
 The Flipper and the hosts speak protocol version 2
 (`protocol/PROTOCOL.md`) and ship together: a peer on another version is
@@ -179,10 +179,10 @@ phone pushes the Bambuddy URL, API key, core weight, catalog entry and
 default mode to the watch over WatchConnectivity. The watch keeps them,
 shows them read-only and talks to Bambuddy itself. On the watch the weight
 is entered with the Digital Crown, and a row waiting for a weight opens on
-its own (a New spool or Created row does not: its weight is optional, and
-**With weight** / **Set weight** opens the crown entry). The watch saves
-weights and creates a new item in one tap (**Save as new**) from a tag that
-carries its material; other tags are created, and tags linked
+its own (a row not in Bambuddy or just added does not: **Weigh again**
+opens the crown entry). The watch saves weights and adds a new spool in one
+tap (**New**, at its label weight) from a tag that carries its material;
+other tags are created, and tags linked
 to an existing spool, on the iPhone, iPad or Mac. The iPad has no watch to
 sync to.
 

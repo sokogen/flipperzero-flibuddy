@@ -132,7 +132,6 @@ nozzle range (`TagDetails`).
 | Next / previous row | ⌘↓ / ⌘↑ |
 | Field → mode → Save | ⇥ (⇧⇥ back; the picker and Save need keyboard navigation on) |
 | Switch Net/Gross when the picker has focus | ← → |
-| Hide a revealed weight entry (New spool and Created rows) without saving | Esc |
 | Clear the feed (asks first; nothing changes in Bambuddy) | ⌘⌫ |
 | Settings | ⌘, |
 
@@ -144,15 +143,15 @@ nozzle range (`TagDetails`).
 | Enter weight | a known spool | the weight entry |
 | Saving… | the weight is on its way | the entry, disabled |
 | Saved 590 g left · by host / by Flipper | the last save and who made it; after a host save that came later than the Flipper's 10 s, a note says the Flipper showed a timeout but the save went through | click the row (or the VoiceOver "Re-weigh" action) to weigh again |
-| Created in Bambuddy | an unknown Bambu tag, created on scan (the Flipper's **Auto-save new** is on) with the tag's material, colour and label weight and the core weight from Settings; it does not wait for a weight | **Set weight…** shows the entry, pre-filled with label + core (Esc or **Cancel** hides it again); **Link to existing…** deletes the spool just created and links the tag to the chosen one |
-| New spool | a tag with material and no spool: an unknown Bambu tag with Auto-save new off, or a spool that went away (the link after deleting the created spool failed, or the spool was deleted); the weight is optional and the row does not wait for it | **Save as new** creates the spool from the tag, full; **Save with weight…** shows the entry, whose **Save** creates the spool, then records the weight (Esc or **Cancel** hides it); **Link to existing…** |
+| Not in Bambuddy | a tag with material and no spool: an unknown Bambu tag with Auto-save new off, or a spool that went away (the link after deleting the added spool failed); the row does not wait for a weight | **New** adds the spool from the tag at its label weight; **Link to existing…** |
+| Added to Bambuddy | after **New**, or an unknown Bambu tag created on scan (the Flipper's **Auto-save new** is on) with the tag's material, colour and label weight and the core weight from Settings; it does not wait for a weight | click the row to weigh it (the entry opens pre-filled with label + core); when the Flipper asks to relink it, **Link to existing…** deletes the spool just added and links the tag to the chosen one |
 | Not in Bambuddy; tag has no material | an NTAG or blank tag | **New…** (the New spool form) and **Link to existing…** |
 | Updating… | Mark as new / empty or Delete from the Flipper on its way | the entry, disabled |
 | Marked as new · 1000 g left · by Flipper | the spool is full again (restored first when it was archived) | click the row to weigh |
 | Marked as empty · archived · by Flipper | remaining 0 and archived; the colour column reads `… · archived` | click the row to weigh; a Save restores the spool |
-| Deleted from Bambuddy · by Flipper | the Flipper deleted the spool | **Save as new** (**New…** on a tag without material) and **Link to existing…** |
+| Deleted from Bambuddy · by Flipper | the Flipper deleted the spool | **New** (**New…** on a tag without material) and **Link to existing…** |
 | Flipper asks to create / link it here | the Flipper sent a request for this tag | the requested action is the prominent button |
-| Error: … | the last Bambuddy call failed | on a spool, the entry keeps its value for a retry; after a failed create on scan, the New spool actions and **Link to existing…** |
+| Error: … | the last Bambuddy call failed | on a spool, the entry keeps its value for a retry; after a failed New, Link or create on scan, **New** and **Link to existing…** |
 
 Whether an unknown Bambu tag is created on scan is up to the Flipper: its
 Auto-save new setting travels in every `scan` (`autosave`), and the host has
@@ -163,8 +162,7 @@ that created the spool, the host pushes a fresh `lookup` for the row's scan
 so a Flipper still showing that tag shows the spool.
 
 A rescan of a tag created on scan finds that spool by tag and never creates
-a second one; so does a retried Save on a New spool row whose create
-went through and whose weight failed. If the delete behind **Link to existing…** fails, nothing
+a second one. If the delete behind **Link to existing…** fails, nothing
 changes and the row says so; if the link fails after the delete, the row
 has no spool and offers New and Link again.
 
@@ -301,7 +299,10 @@ key, core weight) apply on `commit()`, that is Return or leaving the field,
 and leaving the Settings tab commits the field being typed. Each change
 applies on top of the last applied settings, in order. A core weight out of
 range stays unapplied and sets `coreWeightError`; the field can be emptied
-while it is edited.
+while it is edited. The catalog loads each time Settings comes on screen
+(`SettingsViewModel.opened()`, the Mac's Settings window too); there is no
+Reload on the iPhone and iPad. Forget This Flipper sits in its own section
+with the app's version and build under it (`appVersionFooter`).
 
 ### Settings sync to the watch
 
