@@ -86,6 +86,22 @@ def test_flipper_workflow_checks_the_sdk_pin_against_the_fetched_sdk():
     assert setup_uv < pin
 
 
+def test_flipper_workflow_names_the_sdk_dir_so_the_pin_check_cannot_skip():
+    # flipper/.env is git-ignored, so CI names the SDK dir itself: ufbt
+    # fetches into it and test_sdk_pin.py, seeing UFBT_HOME, fails rather
+    # than skips when no SDK is there.
+    wf = workflow("flipper")
+    (job,) = wf["jobs"].values()
+    assert job["env"]["UFBT_HOME"] == "${{ github.workspace }}/flipper/.ufbt"
+
+
+def test_flipper_env_is_not_tracked():
+    # A tracked flipper/.env would make the catalog's bundler fetch an SDK
+    # into the app's own folder; each checkout creates its own.
+    ignore = (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert "flipper/.env" in ignore
+
+
 def test_host_workflow_runs_swift_test_on_macos_with_the_lint_and_coverage_gates():
     wf = workflow("host")
     assert set(wf["jobs"]) == {"test", "apple"}

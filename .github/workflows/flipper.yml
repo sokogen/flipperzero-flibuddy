@@ -19,6 +19,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # flipper/.env (dotenv mode) is git-ignored, so the job names the SDK
+    # dir itself; the SDK pin check fails, not skips, without an SDK there.
+    env:
+      UFBT_HOME: ${{ github.workspace }}/flipper/.ufbt
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,7 +30,6 @@ jobs:
           python-version: "3.13"
       - name: Install ufbt
         run: pip install ufbt
-      # flipper/.env keeps the SDK in flipper/.ufbt (dotenv mode).
       - name: Fetch the 1.5.1 SDK
         working-directory: flipper
         run: ufbt update --branch=1.5.1

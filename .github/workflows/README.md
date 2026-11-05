@@ -7,7 +7,10 @@ compare against the generators. `make test` at the repository root runs
 the same three suites locally; `tools/tests/test_ci.py` checks that the
 workflows and the Makefile stay in line.
 
-- `flipper.yml`: ubuntu, `ufbt` pinned to SDK 1.5.1, builds the FAP, runs
+- `flipper.yml`: ubuntu, `ufbt` pinned to SDK 1.5.1 in `flipper/.ufbt`
+  (`UFBT_HOME` is set by the job, as `flipper/.env` is git-ignored), checks
+  the SDK pin (`tools/tests/test_sdk_pin.py`, which fails rather than
+  skips when `UFBT_HOME` names a dir without an SDK), builds the FAP, runs
   the host-compiled C tests, uploads `dist/*.fap` as an artifact.
 - `host.yml`: macOS, two jobs.
   - `test`: `swift build` with warnings as errors, `swift test` with

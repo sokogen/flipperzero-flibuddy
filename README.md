@@ -72,7 +72,8 @@ and `cc` from `/usr/bin` exit with 69. Prefix the commands below with
 
 ```
 cd flipper
-ufbt update --branch=1.5.1    # once; the SDK goes to flipper/.ufbt (.env)
+ufbt dotenv_create            # once; flipper/.env keeps the SDK in flipper/.ufbt
+ufbt update --branch=1.5.1    # once
 ufbt                          # builds dist/flibuddy.fap
 ufbt launch                   # builds, installs and starts it over USB
 ```

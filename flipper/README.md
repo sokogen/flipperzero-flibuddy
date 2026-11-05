@@ -8,7 +8,8 @@ feedback are specified in `docs/design/flipper-ui-spec.md`.
 
 ```
 cd flipper
-ufbt update --branch=1.5.1   # once; dotenv mode keeps the SDK in .ufbt
+ufbt dotenv_create           # once; .env keeps the SDK in .ufbt
+ufbt update --branch=1.5.1   # once
 ufbt                         # builds dist/flibuddy.fap
 ufbt launch                  # builds, installs and starts it on a Flipper
 ```
@@ -23,6 +24,8 @@ see `src/ble_sdk_pin.h`. `cd tools && uv run pytest` fails until the pin
 matches the installed SDK.
 
 `.env` (from `ufbt dotenv_create`) points `UFBT_HOME` at `flipper/.ufbt`.
+It is git-ignored: the catalog's bundler builds the app with its own SDK,
+and CI sets `UFBT_HOME` itself (`.github/workflows/flipper.yml`).
 `application.fam` limits the sources to `src/`, so the tests and the SDK
 stay out of the FAP.
 
