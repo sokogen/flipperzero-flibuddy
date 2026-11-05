@@ -290,6 +290,17 @@ struct HostModelTests {
         #expect(model.settings.baseURL == usbSettings.baseURL)
     }
 
+    @Test func theLinkStartsAtLaunchOnlyForABluetoothRelaunchOrARememberedFlipper() {
+        var fresh = testSettings
+        fresh.transport = .bluetooth
+        #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: fresh))
+        #expect(HostModel.startsAtLaunch(relaunchedForBluetooth: true, settings: fresh))
+        #expect(HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: bluetoothSettings))
+        var usb = bluetoothSettings
+        usb.transport = .usb
+        #expect(!HostModel.startsAtLaunch(relaunchedForBluetooth: false, settings: usb))
+    }
+
     @Test func theHostHelloNamesTheApp() {
         let hello = HostModel.hostHello
         #expect(hello.app == "flibuddy-mac/0.1.0")

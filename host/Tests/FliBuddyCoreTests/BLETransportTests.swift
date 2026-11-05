@@ -231,7 +231,7 @@ struct BLETransportTests {
         central.connectHangs = true
         let transport = makeTransport(central, peripheral: flipperA)
 
-        await #expect(throws: TransportError.peripheralNotFound) { try await transport.connect() }
+        await #expect(throws: TransportError.connectTimedOut) { try await transport.connect() }
         #expect(central.cancelled == [flipperA])
         #expect(transport.state == .closed)
     }
@@ -460,6 +460,7 @@ struct BLETransportTests {
     @Test func bluetoothErrorsReadWell() {
         #expect(TransportError.bluetoothOff.localizedDescription == "Bluetooth is off")
         #expect(TransportError.peripheralNotFound.localizedDescription == "No Flipper found over Bluetooth")
+        #expect(TransportError.connectTimedOut.localizedDescription == "Flipper did not answer")
         #expect(TransportError.bluetoothUnauthorized.localizedDescription.contains("Bluetooth"))
         #expect(TransportError.bluetoothUnsupported.localizedDescription.contains("Bluetooth"))
         #expect(TransportError.serviceNotFound.localizedDescription.contains("FliBuddy"))

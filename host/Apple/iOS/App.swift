@@ -3,8 +3,49 @@ import FliBuddyUI
 import SwiftUI
 import UIKit
 
+/// The one host model, shared by the app and its delegate: on a relaunch
+/// for Bluetooth the delegate needs it before any view appears.
+@MainActor
+enum AppHost {
+    static let model: HostModel = {
+        // Before the host model: loading the settings already logs.
+        Log.bootstrap(appName: "FliBuddy", level: .info)
+        // Bluetooth is the only transport on iOS; there are no serial ports.
+        return HostModel(makeTransport: FlipperLink.defaultTransport, discoverPorts: { [] })
+    }()
+}
+
+/// Starts the link at launch when iOS relaunched the app in the background
+/// for Bluetooth, where SwiftUI may never run the views' tasks; and reads
+/// the API key again once protected data is available.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        let host = AppHost.model
+        let relaunched = CoreBluetoothCentral.restores(launchOptions?[.bluetoothCentrals] as? [String])
+        guard HostModel.startsAtLaunch(relaunchedForBluetooth: relaunched, settings: host.settings) else {
+            Log.info(.app, "launch: link waits for the views")
+            return true
+        }
+        // State restoration delivers the peripherals only to a central that
+        // exists when this returns.
+        _ = CoreBluetoothCentral.shared
+        Log.notice(.app, "launch: link started, bluetooth_relaunch=\(relaunched)")
+        host.start()
+        return true
+    }
+
+    // A launch while the iPhone is locked (Bluetooth restoration) cannot
+    // read the API key; read it again once the data is available.
+    func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
+        Task { await AppHost.model.reloadSettings() }
+    }
+}
+
 @main
 struct FliBuddyiOSApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @ViewState private var host: HostModel
     /// Sends the settings to the Apple Watch after each applied change (not on iPad).
     @ViewState private var watchSync: WatchSettingsSender?
@@ -13,13 +54,7 @@ struct FliBuddyiOSApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        // Before the host model: loading the settings already logs.
-        Log.bootstrap(appName: "FliBuddy", level: .info)
-        // Bluetooth is the only transport on iOS; there are no serial ports.
-        _host = ViewState(initialValue: HostModel(
-            makeTransport: FlipperLink.defaultTransport,
-            discoverPorts: { [] }
-        ))
+        _host = ViewState(initialValue: AppHost.model)
     }
 
     var body: some Scene {
@@ -27,18 +62,13 @@ struct FliBuddyiOSApp: App {
             RootView(host: host, navigation: navigation)
                 .task {
                     if watchSync == nil { watchSync = WatchSettingsSender.start(for: host) }
+                    // Does nothing when the delegate started the link at launch.
                     host.start()
                     await host.feed.observe()
                 }
-                .task {
-                    let unlocked = NotificationCenter.default.notifications(
-                        named: UIApplication.protectedDataDidBecomeAvailableNotification
-                    )
-                    for await _ in unlocked { await host.reloadSettings() }
-                }
         }
-        // A launch while the iPhone is locked (Bluetooth restoration) cannot
-        // read the API key; read it again once the data is available.
+        // The protected data may have become available while no scene was
+        // active; read the key again whenever the app comes to the front.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await host.reloadSettings() } }
         }

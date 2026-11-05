@@ -58,7 +58,8 @@ public final class BLETransport: Transport, @unchecked Sendable {
             if let problem = await central.powerState().problem { throw problem }
             let id = try await findPeripheral()
             do {
-                try await Self.withDeadline(connectTimeout, else: .peripheralNotFound) { [self] in
+                // Found, so a timeout here is a Flipper that does not answer.
+                try await Self.withDeadline(connectTimeout, else: .connectTimedOut) { [self] in
                     try await open(try await central.connect(id))
                 }
                 try Task.checkCancellation()

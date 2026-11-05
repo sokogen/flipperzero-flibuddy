@@ -2,22 +2,99 @@
 import CoreBluetooth
 import Foundation
 
+/// The `CBCentralManager` calls the central makes: `SystemCentralManager`,
+/// or a fake in tests (a real manager needs Bluetooth permission).
+protocol CentralManager: AnyObject {
+    var state: CBManagerState { get }
+    var isScanning: Bool { get }
+    func connect(_ peripheral: any CentralPeripheral)
+    func cancelConnection(_ peripheral: any CentralPeripheral)
+    /// The peripheral the system still knows under `id`.
+    func retrieve(_ id: UUID) -> (any CentralPeripheral)?
+    func scan(services: [CBUUID])
+    func stopScan()
+}
+
+/// A peripheral as the central needs it: a `CBPeripheral`, or a fake.
+protocol CentralPeripheral: AnyObject {
+    var identifier: UUID { get }
+    var state: CBPeripheralState { get }
+    /// The link for a connection that just opened.
+    func makeLink(queue: DispatchQueue) -> any CentralLink
+}
+
+/// A connection the central tells when it is gone.
+protocol CentralLink: BLEPeripheralLink {
+    /// Called on the central's queue when the connection is gone.
+    func connectionLost()
+}
+
+extension CBPeripheral: CentralPeripheral {
+    func makeLink(queue: DispatchQueue) -> any CentralLink {
+        CoreBluetoothPeripheralLink(peripheral: self, queue: queue)
+    }
+}
+
+/// `CentralManager` on a real `CBCentralManager`.
+final class SystemCentralManager: CentralManager {
+    private let manager: CBCentralManager
+
+    init(delegate: any CBCentralManagerDelegate, queue: DispatchQueue) {
+        #if os(iOS)
+        manager = CBCentralManager(
+            delegate: delegate, queue: queue,
+            options: [CBCentralManagerOptionRestoreIdentifierKey: CoreBluetoothCentral.restoreIdentifier]
+        )
+        #else
+        manager = CBCentralManager(delegate: delegate, queue: queue)
+        #endif
+    }
+
+    var state: CBManagerState { manager.state }
+    var isScanning: Bool { manager.isScanning }
+
+    func connect(_ peripheral: any CentralPeripheral) {
+        guard let peripheral = peripheral as? CBPeripheral else { return }
+        manager.connect(peripheral)
+    }
+
+    func cancelConnection(_ peripheral: any CentralPeripheral) {
+        guard let peripheral = peripheral as? CBPeripheral else { return }
+        manager.cancelPeripheralConnection(peripheral)
+    }
+
+    func retrieve(_ id: UUID) -> (any CentralPeripheral)? {
+        manager.retrievePeripherals(withIdentifiers: [id]).first
+    }
+
+    func scan(services: [CBUUID]) {
+        manager.scanForPeripherals(withServices: services)
+    }
+
+    func stopScan() {
+        manager.stopScan()
+    }
+}
+
 /// `BLECentral` on CoreBluetooth, for macOS, iOS and watchOS. All CoreBluetooth
-/// state lives on one serial queue. Checked on hardware, not unit-tested.
+/// state lives on one serial queue. The connection bookkeeping is tested on
+/// a fake `CentralManager`; the CoreBluetooth calls are checked on hardware.
 ///
 /// Creating it asks for Bluetooth permission, so the app should do that only
-/// when Bluetooth is the chosen transport (`shared` is created lazily).
+/// when Bluetooth is the chosen transport (`shared` is created lazily). On a
+/// relaunch for Bluetooth the iOS app delegate creates it at launch, so that
+/// the restored state is delivered.
 public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendable {
     public static let shared = CoreBluetoothCentral()
 
-    private let queue = DispatchQueue(label: "FliBuddy.CoreBluetoothCentral")
-    private var manager: CBCentralManager!
+    let queue = DispatchQueue(label: "FliBuddy.CoreBluetoothCentral")
+    private var manager: (any CentralManager)!
     // Queue-confined state.
     private var stateWaiters: [BLEPromise<BLEPowerState>] = []
     private var scanners: [UUID: (service: CBUUID, continuation: AsyncStream<DiscoveredPeripheral>.Continuation)] = [:]
-    private var peripherals: [UUID: CBPeripheral] = [:]
+    private var peripherals: [UUID: any CentralPeripheral] = [:]
     private var pendingConnects: [UUID: BLEPromise<any BLEPeripheralLink>] = [:]
-    private var links: [UUID: CoreBluetoothPeripheralLink] = [:]
+    private var links: [UUID: (link: any CentralLink, peripheral: any CentralPeripheral)] = [:]
     /// Connections and attempts we cancelled whose `didDisconnect` is still to
     /// come (CoreBluetooth sends it for a cancelled pending attempt too).
     /// Every connection to a peripheral has its identifier, so a connect
@@ -27,18 +104,28 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
 
     /// iOS relaunches the app for a Bluetooth event after it terminated the
     /// app in the background, and hands back the peripherals under this key.
-    static let restoreIdentifier = "com.sokolachko.flibuddy.central"
+    public static let restoreIdentifier = "com.sokolachko.flibuddy.central"
 
-    override public init() {
+    /// Whether the launch options' `bluetoothCentrals` name our central:
+    /// iOS relaunched the app for a Bluetooth event.
+    public static func restores(_ centrals: [String]?) -> Bool {
+        centrals?.contains(restoreIdentifier) == true
+    }
+
+    override public convenience init() {
+        self.init { central, queue in SystemCentralManager(delegate: central, queue: queue) }
+    }
+
+    /// A central on the manager `makeManager` makes, with this central as
+    /// its delegate, on its queue.
+    init(makeManager: (CoreBluetoothCentral, DispatchQueue) -> any CentralManager) {
         super.init()
-        #if os(iOS)
-        manager = CBCentralManager(
-            delegate: self, queue: queue,
-            options: [CBCentralManagerOptionRestoreIdentifierKey: Self.restoreIdentifier]
-        )
-        #else
-        manager = CBCentralManager(delegate: self, queue: queue)
-        #endif
+        manager = makeManager(self, queue)
+    }
+
+    /// Runs `body` on the central's queue (tests deliver callbacks this way).
+    func onQueue(_ body: () -> Void) {
+        queue.sync(execute: body)
     }
 
     public func powerState() async -> BLEPowerState {
@@ -57,7 +144,7 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
     public func knowsPeripheral(_ id: UUID) -> Bool {
         dispatchPrecondition(condition: .notOnQueue(queue))
         return queue.sync {
-            guard let peripheral = manager.retrievePeripherals(withIdentifiers: [id]).first else { return false }
+            guard let peripheral = manager.retrieve(id) else { return false }
             peripherals[id] = peripheral
             return true
         }
@@ -93,6 +180,13 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
             }
             pendingConnects[id]?.resolve(.failure(CancellationError()))
             pendingConnects[id] = promise
+            // A cancelled attempt that never connected may end without any
+            // callback; once the peripheral reads disconnected, nothing of
+            // it is left to wait for.
+            if closing.contains(id), links[id] == nil, peripheral.state == .disconnected {
+                closing.remove(id)
+                Log.notice(.link, "bluetooth central closing cleared: peripheral=\(id.uuidString) (no disconnect came)")
+            }
             if !closing.contains(id) { manager.connect(peripheral) }
         }
         return try await withTaskCancellationHandler {
@@ -104,7 +198,7 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
 
     public func disconnect(_ link: any BLEPeripheralLink) {
         queue.async { [self] in
-            guard let current = links[link.identifier], current === link else { return }
+            guard let current = links[link.identifier], current.link === link else { return }
             close(current.peripheral)
         }
     }
@@ -120,14 +214,14 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
     }
 
     /// Cancels a connection or a pending attempt; `didDisconnect` follows.
-    private func close(_ peripheral: CBPeripheral) {
+    private func close(_ peripheral: any CentralPeripheral) {
         closing.insert(peripheral.identifier)
-        manager.cancelPeripheralConnection(peripheral)
+        manager.cancelConnection(peripheral)
     }
 
     /// Whether `peripheral` was closing: then what we cancelled is gone, and
     /// a connect asked for since goes ahead.
-    private func closed(_ peripheral: CBPeripheral) -> Bool {
+    private func closed(_ peripheral: any CentralPeripheral) -> Bool {
         guard closing.remove(peripheral.identifier) != nil else { return false }
         if pendingConnects[peripheral.identifier] != nil { manager.connect(peripheral) }
         return true
@@ -143,7 +237,7 @@ public final class CoreBluetoothCentral: NSObject, BLECentral, @unchecked Sendab
         } else {
             // Restarting reports peripherals already seen to a new scanner.
             Log.info(.link, "bluetooth central scan start: scanners=\(scanners.count)")
-            manager.scanForPeripherals(withServices: Array(services))
+            manager.scan(services: Array(services))
         }
     }
 
@@ -170,20 +264,7 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     }
 
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        guard let state = Self.powerState(central.state) else { return }
-        Log.info(.link, "bluetooth central power: \(state)")
-        for waiter in stateWaiters { waiter.resolve(.success(state)) }
-        stateWaiters.removeAll()
-        if state == .poweredOn {
-            updateScan()
-            return
-        }
-        // Peripherals are invalid now and no disconnect callback follows.
-        for promise in pendingConnects.values { promise.resolve(.failure(TransportError.bluetoothOff)) }
-        pendingConnects.removeAll()
-        for link in links.values { link.connectionLost() }
-        links.removeAll()
-        closing.removeAll()
+        handleState(central.state)
     }
 
     public func centralManager(
@@ -204,12 +285,60 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        handleConnected(peripheral)
+    }
+
+    public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        Log.error(.link, "bluetooth central connect failed: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
+        handleFailedToConnect(peripheral)
+    }
+
+    public func centralManager(
+        _ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?
+    ) {
+        Log.info(.link, "bluetooth central disconnected: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
+        handleDisconnected(peripheral)
+    }
+}
+
+/// The central's callbacks, on its queue.
+extension CoreBluetoothCentral {
+    /// A known radio state answers the waiters. Off, unauthorized or
+    /// unsupported, and also resetting or unknown (the radio restarts, the
+    /// system's Bluetooth daemon was restarted), drop every connection and
+    /// attempt: the peripherals are invalid then and no disconnect callback
+    /// follows. While resetting or unknown the waiters keep waiting.
+    func handleState(_ managerState: CBManagerState) {
+        guard let state = Self.powerState(managerState) else {
+            Log.notice(.link, "bluetooth central power: \(managerState == .resetting ? "resetting" : "unknown")")
+            dropAll(TransportError.notConnected)
+            return
+        }
+        Log.info(.link, "bluetooth central power: \(state)")
+        for waiter in stateWaiters { waiter.resolve(.success(state)) }
+        stateWaiters.removeAll()
+        if state == .poweredOn {
+            updateScan()
+            return
+        }
+        dropAll(TransportError.bluetoothOff)
+    }
+
+    private func dropAll(_ error: TransportError) {
+        for promise in pendingConnects.values { promise.resolve(.failure(error)) }
+        pendingConnects.removeAll()
+        for entry in links.values { entry.link.connectionLost() }
+        links.removeAll()
+        closing.removeAll()
+    }
+
+    func handleConnected(_ peripheral: any CentralPeripheral) {
         // An attempt cancelled after it connected: its `didDisconnect` follows
         // and starts the attempt that waits, which this one must not answer.
         guard !closing.contains(peripheral.identifier) else { return }
         Log.info(.link, "bluetooth central connected: peripheral=\(peripheral.identifier.uuidString)")
-        let link = CoreBluetoothPeripheralLink(peripheral: peripheral, queue: queue)
-        links[peripheral.identifier] = link
+        let link = peripheral.makeLink(queue: queue)
+        links[peripheral.identifier] = (link, peripheral)
         // A waiter cancelled just now may still be pending here.
         guard let promise = pendingConnects.removeValue(forKey: peripheral.identifier),
             promise.resolve(.success(link))
@@ -220,25 +349,21 @@ extension CoreBluetoothCentral: CBCentralManagerDelegate {
         }
     }
 
-    public func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        Log.error(.link, "bluetooth central connect failed: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
+    func handleFailedToConnect(_ peripheral: any CentralPeripheral) {
         // A cancelled attempt may end this way instead.
         guard !closed(peripheral) else { return }
         pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
     }
 
-    public func centralManager(
-        _ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?
-    ) {
-        Log.info(.link, "bluetooth central disconnected: peripheral=\(peripheral.identifier.uuidString) error=\(describe(error))")
-        links.removeValue(forKey: peripheral.identifier)?.connectionLost()
+    func handleDisconnected(_ peripheral: any CentralPeripheral) {
+        links.removeValue(forKey: peripheral.identifier)?.link.connectionLost()
         guard !closed(peripheral) else { return }
         pendingConnects.removeValue(forKey: peripheral.identifier)?.resolve(.failure(TransportError.notConnected))
     }
 }
 
 /// `BLEPeripheralLink` on a connected `CBPeripheral`; runs on the central's queue.
-final class CoreBluetoothPeripheralLink: NSObject, BLEPeripheralLink, @unchecked Sendable {
+final class CoreBluetoothPeripheralLink: NSObject, CentralLink, @unchecked Sendable {
     let peripheral: CBPeripheral
     let identifier: UUID
     private let queue: DispatchQueue

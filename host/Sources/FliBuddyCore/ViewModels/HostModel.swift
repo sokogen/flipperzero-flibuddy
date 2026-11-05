@@ -50,6 +50,15 @@ public final class HostModel {
         Task { await session.checkBambuddy() }
     }
 
+    /// Whether the iOS app delegate starts the link at launch, before any
+    /// view appears (a relaunch in the background may never show one):
+    /// iOS relaunched the app for a Bluetooth event, or a Bluetooth Flipper
+    /// is remembered. A fresh install leaves it to the views, as creating the
+    /// central asks for Bluetooth permission.
+    public static func startsAtLaunch(relaunchedForBluetooth: Bool, settings: Settings) -> Bool {
+        relaunchedForBluetooth || (settings.transport == .bluetooth && settings.peripheralId != nil)
+    }
+
     /// Runs the startup check again (the status bar's Check and Retry, and
     /// Retry on the blocking Spoolman screen).
     public func checkBambuddy() async {

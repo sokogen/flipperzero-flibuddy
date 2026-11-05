@@ -15,6 +15,8 @@ public enum TransportError: Error, Equatable, Sendable {
     case bluetoothUnauthorized
     case bluetoothUnsupported
     case peripheralNotFound
+    /// A Flipper was found but did not connect or open its service in time.
+    case connectTimedOut
     case serviceNotFound
 }
 
@@ -51,6 +53,7 @@ extension TransportError: LocalizedError {
         case .bluetoothUnauthorized: "FliBuddy is not allowed to use Bluetooth"
         case .bluetoothUnsupported: "This device has no Bluetooth LE"
         case .peripheralNotFound: "No Flipper found over Bluetooth"
+        case .connectTimedOut: "Flipper did not answer"
         case .serviceNotFound: "The Flipper does not offer FliBuddy over Bluetooth; choose Bluetooth in the Flipper app"
         }
     }

@@ -198,8 +198,10 @@ tooltip says which side to update), "Checking Bambuddy…",
 GATT service (UUIDs in `FliBuddyGATT.swift`, the table in
 `flipper/README.md`). `connect()` waits for Bluetooth to power on,
 connects to the remembered peripheral if the system still knows it, else
-scans for the service (scan and connect each give up after 10 s with
-`peripheralNotFound`), discovers RX and TX, subscribes to TX and only then
+scans for the service (a scan that finds nothing gives up after 10 s with
+`peripheralNotFound`, "No Flipper found over Bluetooth"; a Flipper found
+that does not connect and open the service within 10 s fails with
+`connectTimedOut`, "Flipper did not answer"), discovers RX and TX, subscribes to TX and only then
 reports `.open`, so the `hello` the Flipper sends on subscription is kept.
 `BLEChunker` cuts outgoing lines into writes of
 `maximumWriteValueLength(for: .withoutResponse)`, which is ATT MTU - 3 (at
@@ -207,14 +209,30 @@ most 243 bytes), sends one write with response at a time, and reassembles TX not
 with `NDJSONFramer`. A disconnect, a failed write or Bluetooth turning off
 finishes the message stream, and `FlipperLink` reconnects as it does on
 USB. Errors: `bluetoothOff`, `bluetoothUnauthorized`,
-`bluetoothUnsupported`, `peripheralNotFound`, `serviceNotFound`.
+`bluetoothUnsupported`, `peripheralNotFound`, `connectTimedOut`,
+`serviceNotFound`.
 
 CoreBluetooth sits behind two protocols in `Central.swift`: `BLECentral`
 (power, scan, retrieve, connect, cancel) and `BLEPeripheralLink`
 (discovery and subscription, write, events). `CoreBluetoothCentral` is the
-real adapter for macOS, iOS and watchOS and is not unit-tested; the tests
-drive `BLETransport` with a fake central and never create the real one,
-which would ask for Bluetooth permission.
+real adapter for macOS, iOS and watchOS; the tests drive `BLETransport`
+with a fake central and never create the real one, which would ask for
+Bluetooth permission. `CoreBluetoothCentral` itself talks to the manager
+through a thin `CentralManager` protocol (`SystemCentralManager` wraps
+`CBCentralManager`), so its connection bookkeeping is tested on a fake
+manager: a connect waits for the disconnect of an attempt it cancelled,
+unless the peripheral already reads disconnected (iOS may never send that
+callback for a cancelled pending connect); power off, and also resetting
+or unknown, drop every connection and attempt.
+
+On iOS the central carries a restore identifier. When iOS relaunches the
+app in the background for a Bluetooth event, SwiftUI may never run the
+views' tasks, so the app delegate (`Apple/iOS/App.swift`) creates the
+central and starts the link in `didFinishLaunching`, before it returns,
+when the launch is such a relaunch or a Bluetooth Flipper is remembered
+(`HostModel.startsAtLaunch`). A fresh install creates the central later,
+from the views. The delegate also reads the API key again when protected
+data becomes available.
 
 `Settings` holds `transport` (`usb` default on macOS, `bluetooth`
 elsewhere, where USB is not offered), `peripheralId` and `peripheralName`.
@@ -366,8 +384,8 @@ finds them for a short while at best; the file keeps them.
 
 | Category | Records |
 | --- | --- |
-| `app` | the start line, written whatever the level; a log file that cannot be written (unified log only, once) |
-| `link` | connect and disconnect, link state changes with the problem, retries, the serial port opening and closing (with `errno`), Bluetooth scan, peripherals found (name, RSSI), services, MTU, disconnects, the hello handshake |
+| `app` | the start line, written whatever the level; a log file that cannot be written (unified log only, once); on iOS whether the link starts at launch (`bluetooth_relaunch=`) and a background task whose time ran out |
+| `link` | connect and disconnect, link state changes with the problem, retries, the serial port opening and closing (with `errno`), Bluetooth power (also resetting and unknown), scan, peripherals found (name, RSSI), services, MTU, disconnects, a cancelled attempt cleared without its disconnect, the hello handshake |
 | `wire` | each protocol line sent (`tx`) and received (`rx`) at `debug`, cut to 300 characters; dropped lines at `error` with the reason |
 | `session` | Bambuddy state changes, scans, lookups with their outcome and time, intents and results, creating, linking and deleting spools, a spool gone from Bambuddy and looked up again by tag, colour map failures |
 | `bambuddy` | each request's method, path, status and time; errors with Bambuddy's `detail`; response bodies at `debug` |
