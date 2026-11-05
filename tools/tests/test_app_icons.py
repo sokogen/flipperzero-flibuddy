@@ -171,16 +171,19 @@ def test_watch_catalog_has_one_single_size_icon():
 
 
 @pytest.mark.parametrize("catalog", [IOS, WATCH])
-def test_accent_color_is_the_flipper_orange(catalog):
-    color = load(catalog / "AccentColor.colorset/Contents.json")["colors"][0]
-    assert color["idiom"] == "universal"
-    components = color["color"]["components"]
-    assert color["color"]["color-space"] == "srgb"
-    assert [round(float(components[k]) * 255) for k in ("red", "green", "blue")] == [
-        0xFF,
-        0x7A,
-        0x1A,
-    ]
+def test_accent_color_keeps_the_system_blue_tint(catalog):
+    # Orange is only the icon's chip colour; the UI tint stays system blue.
+    colors = load(catalog / "AccentColor.colorset/Contents.json")["colors"]
+
+    def rgb(color):
+        c = color["color"]["components"]
+        return [round(float(c[k]) * 255) for k in ("red", "green", "blue")]
+
+    light = [c for c in colors if "appearances" not in c]
+    dark = [c for c in colors if "appearances" in c]
+    assert [rgb(c) for c in light] == [[0x00, 0x7A, 0xFF]]
+    assert [rgb(c) for c in dark] == [[0x0A, 0x84, 0xFF]]
+    assert dark[0]["appearances"] == [{"appearance": "luminosity", "value": "dark"}]
 
 
 @pytest.mark.parametrize("catalog", [IOS, WATCH])
