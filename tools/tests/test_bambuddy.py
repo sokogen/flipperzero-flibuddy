@@ -316,3 +316,39 @@ def test_color_name(rgba, detailed_type, name):
 def test_color_name_without_a_map_is_none():
     assert bambuddy.color_name(None, "FF9016FF", "PLA Basic") is None
     assert bambuddy.color_name({}, "FF9016FF", "PLA Basic") is None
+
+
+def test_list_spools_asks_for_archived_spools_too():
+    c, rec = client(httpx.Response(200, json=[SPOOL]))
+    assert c.list_spools(include_archived=True) == [SPOOL]
+    request = rec.requests[0]
+    assert request.method == "GET"
+    assert request.url.path == "/api/v1/inventory/spools"
+    assert dict(request.url.params) == {"include_archived": "true"}
+
+
+def test_list_spools_without_archived_sends_no_query():
+    c, rec = client(httpx.Response(200, json=[]))
+    assert c.list_spools() == []
+    assert dict(rec.requests[0].url.params) == {}
+
+
+def test_list_spools_refuses_a_reply_that_is_not_a_list():
+    c, _ = client(httpx.Response(200, json={"detail": "nope"}))
+    with pytest.raises(bambuddy.BambuddyError, match="not a spool list"):
+        c.list_spools()
+
+
+def test_update_spool_patches_the_given_fields():
+    c, rec = client(httpx.Response(200, json={**SPOOL, "core_weight": 242}))
+    assert c.update_spool(42, {"core_weight": 242})["core_weight"] == 242
+    request = rec.requests[0]
+    assert request.method == "PATCH"
+    assert request.url.path == "/api/v1/inventory/spools/42"
+    assert json.loads(request.content) == {"core_weight": 242}
+
+
+def test_update_spool_raises_spool_not_found_on_404():
+    c, _ = client(not_found())
+    with pytest.raises(bambuddy.SpoolNotFound):
+        c.update_spool(42, {"core_weight": 242})

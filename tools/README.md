@@ -104,6 +104,24 @@ Bambu UIDs go to Bambuddy as UID + `00000100`, the AMS form),
 `bambuddy.py` (httpx client), `session.py` (framing and message handling),
 `__main__.py` (CLI and serial loop).
 
+## Core weight fix
+
+FliBuddy before 1.0 created spools with a 325 g core (empty spool); the
+default is now 242 g. `fix_core_weight.py` sets the new core on every spool,
+archived ones included, that still has the old one. A weighed spool that is
+not archived or empty also gets its remaining back: `weight_used` drops by
+the difference, as if the last weighing had used the new core.
+`weight_locked` is sent unchanged. It lists the changes and writes nothing
+unless given `--apply`:
+
+```
+BAMBUDDY_URL=https://bambuddy.example.com BAMBUDDY_API_KEY=... \
+    uv run python fix_core_weight.py [--old 325] [--new 242] [--apply]
+```
+
+The key needs inventory read and update; it is read from the environment
+and never printed.
+
 ## Lint and coverage
 
 `uv run ruff check` lints the tools; `uv run pytest --cov` fails under 80 %

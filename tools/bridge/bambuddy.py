@@ -120,6 +120,20 @@ class BambuddyClient:
     def get_spool(self, spool_id: int) -> dict:
         return self._json(self._request("GET", f"/inventory/spools/{spool_id}"))
 
+    def list_spools(self, include_archived: bool = False) -> list[dict]:
+        """`GET /inventory/spools`, archived spools too when asked."""
+        params = {"include_archived": "true"} if include_archived else {}
+        reply = self._json(self._request("GET", "/inventory/spools", params=params))
+        if not isinstance(reply, list):
+            raise BambuddyError(f"GET /inventory/spools: not a spool list: {str(reply)[:120]}")
+        return reply
+
+    def update_spool(self, spool_id: int, fields: dict) -> dict:
+        """`PATCH /inventory/spools/{id}` with `fields` only. Bambuddy locks
+        the weight when `weight_used` comes without `weight_locked`."""
+        path = f"/inventory/spools/{spool_id}"
+        return self._json(self._spool_write("PATCH", path, spool_id, json=fields))
+
     def update_weight(self, spool_id: int, gross: int) -> dict:
         """Record a gross scale weight; Bambuddy subtracts the core weight."""
         body = {"spool_id": spool_id, "weight_grams": gross}

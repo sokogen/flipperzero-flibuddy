@@ -28,7 +28,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["bambu_keys", "bridge", "fixtures", "swift_coverage"]
+source = ["bambu_keys", "bridge", "fixtures", "fix_core_weight", "swift_coverage"]
 
 [tool.coverage.report]
 fail_under = 80
