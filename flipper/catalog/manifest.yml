@@ -15,7 +15,7 @@ changelog: "@CHANGELOG.md"
 screenshots:
   - screenshots/1_no_app.png
   - screenshots/2_spool.png
-  - screenshots/3_waiting.png
-  - screenshots/4_new_spool.png
-  - screenshots/5_weight.png
-  - screenshots/6_settings.png
+  - screenshots/3_weight.png
+  - screenshots/4_saved.png
+  - screenshots/5_new_spool.png
+  - screenshots/6_get_app.png
