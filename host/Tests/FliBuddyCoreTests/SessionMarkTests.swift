@@ -46,6 +46,19 @@ struct SessionMarkTests {
         #expect(await session.rows.first?.spool?.isArchived == false)
     }
 
+    @Test func markAsNewKeepsAWeightLock() async throws {
+        var locked = knownSpool()
+        locked.weightLocked = true
+        let inventory = FakeInventory(spools: [locked])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+
+        let result = await session.handleIntent(try fixtureIntent("intent_full"))
+
+        #expect(result.ok)
+        #expect(inventory.writes == [.setUsed(spoolId: 42, grams: 0, locked: true)])
+    }
+
     // MARK: Mark as empty
 
     @Test func markAsEmptyUsesTheLabelWeightThenArchives() async throws {
@@ -74,6 +87,19 @@ struct SessionMarkTests {
 
         #expect(result.ok)
         #expect(inventory.writes == [.setUsed(spoolId: 42, grams: 1000)])
+    }
+
+    @Test func markAsEmptyKeepsAWeightLock() async throws {
+        var locked = knownSpool()
+        locked.weightLocked = true
+        let inventory = FakeInventory(spools: [locked])
+        let session = makeSession(inventory)
+        _ = await session.handleScan(try fixtureScan())
+
+        let result = await session.handleIntent(try fixtureIntent("intent_empty"))
+
+        #expect(result.ok)
+        #expect(inventory.writes == [.setUsed(spoolId: 42, grams: 1000, locked: true), .archive(spoolId: 42)])
     }
 
     @Test func aFailedArchiveIsRetriedOnARepeatedId() async throws {

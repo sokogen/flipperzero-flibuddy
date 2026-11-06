@@ -10,7 +10,7 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
         case create(NewSpool)
         case link(spoolId: Int, TagLink)
         case delete(spoolId: Int)
-        case setUsed(spoolId: Int, grams: Int)
+        case setUsed(spoolId: Int, grams: Int, locked: Bool = false)
         case archive(spoolId: Int)
         case restore(spoolId: Int)
         case spoolman
@@ -176,10 +176,13 @@ final class FakeInventory: SpoolInventory, @unchecked Sendable {
     }
 
     /// Answers the spool as Bambuddy's `PATCH` does.
-    func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
-        record(.setUsed(spoolId: spoolId, grams: grams))
+    func setWeightUsed(spoolId: Int, grams: Int, locked: Bool) async throws -> Spool {
+        record(.setUsed(spoolId: spoolId, grams: grams, locked: locked))
         if let setUsedError { throw setUsedError }
-        return try change(spoolId) { $0.weightUsed = Double(grams) }
+        return try change(spoolId) {
+            $0.weightUsed = Double(grams)
+            $0.weightLocked = locked
+        }
     }
 
     func archiveSpool(id: Int) async throws {

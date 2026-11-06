@@ -19,6 +19,9 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
     public var weightUsed: Double
     /// Last gross scale weight in grams.
     public var lastScaleWeight: Int?
+    /// Bambuddy skips a locked spool when it syncs weights from the AMS; it
+    /// locks the weight on a `weight_used` write that leaves this out.
+    public var weightLocked: Bool?
     public var tagUid: String?
     public var trayUuid: String?
     public var tagType: String?
@@ -41,7 +44,7 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         coreWeightCatalogId: Int? = nil, weightUsed: Double, lastScaleWeight: Int? = nil,
         tagUid: String? = nil, trayUuid: String? = nil, tagType: String? = nil, materialNumber: String? = nil,
         dataOrigin: String? = nil, note: String? = nil, archivedAt: String? = nil, archived: Bool? = nil,
-        updatedAt: String? = nil
+        updatedAt: String? = nil, weightLocked: Bool? = nil
     ) {
         self.id = id
         self.material = material
@@ -54,6 +57,7 @@ public struct Spool: Codable, Equatable, Identifiable, Sendable {
         self.coreWeightCatalogId = coreWeightCatalogId
         self.weightUsed = weightUsed
         self.lastScaleWeight = lastScaleWeight
+        self.weightLocked = weightLocked
         self.tagUid = tagUid
         self.trayUuid = trayUuid
         self.tagType = tagType

@@ -105,12 +105,15 @@ public struct BambuddyClient: Sendable {
     }
 
     /// Set the grams used (`PATCH /inventory/spools/{id}`): 0 marks the spool
-    /// full, the label weight marks it empty.
-    public func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
+    /// full, the label weight marks it empty. `locked` goes along as the
+    /// spool had it: Bambuddy locks the weight when it is left out.
+    public func setWeightUsed(spoolId: Int, grams: Int, locked: Bool) async throws -> Spool {
         struct Body: Encodable {
             var weightUsed: Int
+            var weightLocked: Bool
         }
-        let (data, status) = try await send("PATCH", "/inventory/spools/\(spoolId)", body: Body(weightUsed: grams))
+        let body = Body(weightUsed: grams, weightLocked: locked)
+        let (data, status) = try await send("PATCH", "/inventory/spools/\(spoolId)", body: body)
         if status == 404 { throw BambuddyError.spoolNotFound(spoolId) }
         try check(status, data, permission: "inventory:update")
         return try decode(Spool.self, data)

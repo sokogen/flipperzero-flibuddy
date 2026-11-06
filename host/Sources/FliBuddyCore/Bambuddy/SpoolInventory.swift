@@ -8,7 +8,7 @@ public protocol SpoolInventory: Sendable {
     func createSpool(_ spool: NewSpool) async throws -> Spool
     func linkTag(spoolId: Int, _ link: TagLink) async throws -> Spool
     func deleteSpool(id: Int) async throws
-    func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool
+    func setWeightUsed(spoolId: Int, grams: Int, locked: Bool) async throws -> Spool
     func archiveSpool(id: Int) async throws
     func restoreSpool(id: Int) async throws
     func spoolmanEnabled() async throws -> Bool

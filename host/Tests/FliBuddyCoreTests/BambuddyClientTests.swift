@@ -6,13 +6,13 @@ import Testing
 /// plus a few it ignores.
 func spoolJSON(
     id: Int = 42, material: String = "PLA", labelWeight: Int = 1000, coreWeight: Int = 250,
-    weightUsed: Double = 516, lastScaleWeight: Int? = 734
+    weightUsed: Double = 516, lastScaleWeight: Int? = 734, weightLocked: Bool = false
 ) -> String {
     """
     {"id":\(id),"material":"\(material)","subtype":"PLA Basic","color_name":"Jade White",
      "rgba":"FFFFFFFF","brand":"Bambu Lab","label_weight":\(labelWeight),
      "core_weight":\(coreWeight),"core_weight_catalog_id":3,"weight_used":\(weightUsed),
-     "last_scale_weight":\(lastScaleWeight.map(String.init) ?? "null"),
+     "last_scale_weight":\(lastScaleWeight.map(String.init) ?? "null"),"weight_locked":\(weightLocked),
      "tag_uid":"04A1B2C3","tray_uuid":"A1B2C3D4E5F60718293A4B5C6D7E8F90",
      "tag_type":"bambulab","data_origin":"flipper","note":null,"material_number":"10100",
      "created_at":"2026-10-25T12:00:00","updated_at":"2026-10-25T12:00:00","k_profiles":[]}
@@ -73,7 +73,7 @@ struct BambuddyClientTests {
             brand: "Bambu Lab", labelWeight: 1000, coreWeight: 250, coreWeightCatalogId: 3,
             weightUsed: 516, lastScaleWeight: 734, tagUid: "04A1B2C3", trayUuid: trayA,
             tagType: "bambulab", materialNumber: "10100", dataOrigin: "flipper", note: nil,
-            updatedAt: "2026-10-25T12:00:00"
+            updatedAt: "2026-10-25T12:00:00", weightLocked: false
         ))
         #expect(spool.remaining == 484)
     }
@@ -408,21 +408,38 @@ struct BambuddyClientTests {
 
     @Test func setWeightUsedPatchesTheSpool() async throws {
         let server = StubServer { _ in .json(200, spoolJSON(weightUsed: 0)) }
-        let spool = try await server.client().setWeightUsed(spoolId: 42, grams: 0)
+        let spool = try await server.client().setWeightUsed(spoolId: 42, grams: 0, locked: false)
         let request = try #require(server.requests.first)
         #expect(request.method == "PATCH")
         #expect(request.path == "/api/v1/inventory/spools/42")
-        #expect(request.json.count == 1)
+        #expect(request.json.count == 2)
         #expect(request.json["weight_used"] as? Int == 0)
+        #expect(request.json["weight_locked"] as? Bool == false)
         #expect(spool.remaining == 1000)
+    }
+
+    /// Bambuddy locks the weight on a `weight_used` write that leaves
+    /// `weight_locked` out, so the lock always goes along as it was.
+    @Test func setWeightUsedSendsTheWeightLockAsItWas() async throws {
+        let server = StubServer { _ in .json(200, spoolJSON(weightUsed: 1000, weightLocked: true)) }
+        let spool = try await server.client().setWeightUsed(spoolId: 42, grams: 1000, locked: true)
+        let request = try #require(server.requests.first)
+        #expect(request.json["weight_locked"] as? Bool == true)
+        #expect(spool.weightLocked == true)
+    }
+
+    @Test func aSpoolCarriesItsWeightLock() async throws {
+        let server = StubServer { _ in .json(200, spoolJSON()) }
+        let spool = try #require(try await server.client().findSpool(trayUuid: nil, uid: "04A1B2C3"))
+        #expect(spool.weightLocked == false)
     }
 
     @Test func setWeightUsedMaps404And403() async throws {
         let missing = StubServer { _ in .json(404, #"{"detail":"Spool not found"}"#) }
-        await #expect(throws: BambuddyError.spoolNotFound(42)) { try await missing.client().setWeightUsed(spoolId: 42, grams: 0) }
+        await #expect(throws: BambuddyError.spoolNotFound(42)) { try await missing.client().setWeightUsed(spoolId: 42, grams: 0, locked: false) }
         let forbidden = StubServer { _ in .json(403, #"{"detail":"Forbidden"}"#) }
         await #expect(throws: BambuddyError.permissionMissing("inventory:update")) {
-            try await forbidden.client().setWeightUsed(spoolId: 42, grams: 0)
+            try await forbidden.client().setWeightUsed(spoolId: 42, grams: 0, locked: false)
         }
     }
 

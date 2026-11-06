@@ -126,11 +126,17 @@ def test_create_spool_refuses_without_material():
 
 def test_set_weight_used_patches_the_spool():
     c, rec = client(httpx.Response(200, json={**SPOOL, "weight_used": 0}))
-    assert c.set_weight_used(42, 0)["weight_used"] == 0
+    assert c.set_weight_used(42, 0, locked=False)["weight_used"] == 0
     request = rec.requests[0]
     assert request.method == "PATCH"
     assert request.url.path == "/api/v1/inventory/spools/42"
-    assert json.loads(request.content) == {"weight_used": 0}
+    assert json.loads(request.content) == {"weight_used": 0, "weight_locked": False}
+
+
+def test_set_weight_used_sends_the_weight_lock_as_it_was():
+    c, rec = client(httpx.Response(200, json={**SPOOL, "weight_used": 1000, "weight_locked": True}))
+    c.set_weight_used(42, 1000, locked=True)
+    assert json.loads(rec.requests[0].content) == {"weight_used": 1000, "weight_locked": True}
 
 
 @pytest.mark.parametrize("name", ["archive", "restore"])
@@ -151,7 +157,7 @@ def test_delete_spool_sends_delete():
 @pytest.mark.parametrize(
     "call",
     [
-        lambda c: c.set_weight_used(42, 0),
+        lambda c: c.set_weight_used(42, 0, locked=False),
         lambda c: c.archive_spool(42),
         lambda c: c.restore_spool(42),
         lambda c: c.delete_spool(42),

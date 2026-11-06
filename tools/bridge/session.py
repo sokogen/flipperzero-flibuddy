@@ -459,14 +459,16 @@ class Bridge:
         used, then archived) or Delete (a spool already gone counts)."""
         if action == "full":
             restored = self._restore(spool) if is_archived(spool) else spool
-            marked = {**restored, **self.client.set_weight_used(spool["id"], 0)}
+            locked = bool(restored.get("weight_locked", spool.get("weight_locked")))
+            marked = {**restored, **self.client.set_weight_used(spool["id"], 0, locked)}
             if is_archived(spool):
                 marked["archived"] = False
             return self._result(intent_id, True, ["Marked as new", f"{remaining(marked)} g left"],
                                 spool=marked)
         if action == "empty":
             label = spool.get("label_weight") or DEFAULT_LABEL
-            marked = {**spool, **self.client.set_weight_used(spool["id"], label)}
+            locked = bool(spool.get("weight_locked"))
+            marked = {**spool, **self.client.set_weight_used(spool["id"], label, locked)}
             if not is_archived(spool):
                 self.client.archive_spool(spool["id"])
             marked["archived"] = True

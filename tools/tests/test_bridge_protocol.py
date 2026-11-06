@@ -62,8 +62,8 @@ class FakeBambuddy:
             raise bambuddy.SpoolNotFound(spool_id)
         return self.spools[spool_id]
 
-    def set_weight_used(self, spool_id, grams):
-        self.calls.append(("set_weight_used", spool_id, grams))
+    def set_weight_used(self, spool_id, grams, locked):
+        self.calls.append(("set_weight_used", spool_id, grams) + ((True,) if locked else ()))
         self._maybe_fail()
         spool = self._spool(spool_id)
         spool["weight_used"] = grams
@@ -411,6 +411,18 @@ def test_full_marks_the_spool_as_new():
     (reply,) = replies(bridge(fake), load("intent_full.json"))
     assert reply == load("result_full.json")
     assert [c for c in fake.calls if c[0] != "find_by_tag"] == [("set_weight_used", 42, 0)]
+
+
+def test_full_keeps_a_weight_lock():
+    fake = FakeBambuddy([spool_42_on_tag(weight_locked=True)])
+    replies(bridge(fake), load("intent_full.json"))
+    assert ("set_weight_used", 42, 0, True) in fake.calls
+
+
+def test_empty_keeps_a_weight_lock():
+    fake = FakeBambuddy([spool_42_on_tag(weight_locked=True)])
+    replies(bridge(fake), load("intent_empty.json"))
+    assert ("set_weight_used", 42, 1000, True) in fake.calls
 
 
 def test_full_restores_an_archived_spool_first():

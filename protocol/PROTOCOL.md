@@ -249,8 +249,8 @@ Actions:
 |---|---|
 | `weigh` | Records the weight (`POST /spoolbuddy/scale/update-spool-weight`). On an archived spool it restores the spool first (`POST /inventory/spools/{id}/restore`). On a tag Bambuddy does not know ("Add and weigh" on the Flipper, autosave off) it creates the spool from the tag as for `new`, then records the weight. |
 | `new` | Creates a full spool from the tag (**Add**; offered only when `lookup.prefill` is true). |
-| `full` | **Mark as new**: restores an archived spool, then sets `weight_used` to 0 (`PATCH /inventory/spools/{id}`), so `remaining` = `label`. |
-| `empty` | **Mark as empty**: sets `weight_used` to the label weight, then archives the spool (`POST /inventory/spools/{id}/archive`). |
+| `full` | **Mark as new**: restores an archived spool, then sets `weight_used` to 0 (`PATCH /inventory/spools/{id}`, with the spool's `weight_locked` as it was, since Bambuddy locks the weight when it is left out), so `remaining` = `label`. |
+| `empty` | **Mark as empty**: sets `weight_used` to the label weight (`weight_locked` kept the same way), then archives the spool (`POST /inventory/spools/{id}/archive`). |
 | `delete` | **Delete spool**: `DELETE /inventory/spools/{id}`. The tag is free to reuse. |
 | `create_on_host` | Flags the feed row so the owner creates the spool on the host (a tag without material). |
 | `link_on_host` | Flags the row so the owner links the tag to an existing spool on the host. |

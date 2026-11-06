@@ -147,11 +147,13 @@ class BambuddyClient:
             self._json(response)  # raises with the status
         return response
 
-    def set_weight_used(self, spool_id: int, grams: int) -> dict:
+    def set_weight_used(self, spool_id: int, grams: int, locked: bool) -> dict:
         """`PATCH /inventory/spools/{id}`: 0 marks the spool full, the label
-        weight marks it empty."""
+        weight marks it empty. `locked` goes along as the spool had it:
+        Bambuddy locks the weight when it is left out."""
         path = f"/inventory/spools/{spool_id}"
-        return self._json(self._spool_write("PATCH", path, spool_id, json={"weight_used": grams}))
+        body = {"weight_used": grams, "weight_locked": locked}
+        return self._json(self._spool_write("PATCH", path, spool_id, json=body))
 
     def archive_spool(self, spool_id: int) -> None:
         """Move the spool to the archive; the reply's body is not read."""

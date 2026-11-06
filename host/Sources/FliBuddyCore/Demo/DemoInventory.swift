@@ -79,8 +79,11 @@ public final class DemoInventory: SpoolInventory, @unchecked Sendable {
         }
     }
 
-    public func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
-        try change(spoolId) { $0.weightUsed = Double(grams) }
+    public func setWeightUsed(spoolId: Int, grams: Int, locked: Bool) async throws -> Spool {
+        try change(spoolId) {
+            $0.weightUsed = Double(grams)
+            $0.weightLocked = locked
+        }
     }
 
     public func archiveSpool(id: Int) async throws {

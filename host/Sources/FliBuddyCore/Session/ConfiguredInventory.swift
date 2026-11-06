@@ -50,9 +50,9 @@ final class ConfiguredInventory: SpoolInventory, @unchecked Sendable {
         try await base.deleteSpool(id: id)
     }
 
-    func setWeightUsed(spoolId: Int, grams: Int) async throws -> Spool {
+    func setWeightUsed(spoolId: Int, grams: Int, locked: Bool) async throws -> Spool {
         try await beginWrite()
-        return try await base.setWeightUsed(spoolId: spoolId, grams: grams)
+        return try await base.setWeightUsed(spoolId: spoolId, grams: grams, locked: locked)
     }
 
     func archiveSpool(id: Int) async throws {

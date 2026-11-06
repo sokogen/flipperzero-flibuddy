@@ -169,18 +169,22 @@ struct IntentHandler {
         return row
     }
 
-    /// Mark as new: restores an archived spool, then sets `weight_used` to 0.
+    /// Mark as new: restores an archived spool, then sets `weight_used` to 0;
+    /// the weight lock stays as it was.
     func markFull(_ row: FeedRow, _ spool: Spool, by side: FeedRow.Side) async throws -> FeedRow {
         let restored = spool.isArchived ? try await restore(spool) : spool
-        var updated = try await inventory.setWeightUsed(spoolId: restored.id, grams: 0)
+        let locked = restored.weightLocked ?? spool.weightLocked ?? false
+        var updated = try await inventory.setWeightUsed(spoolId: restored.id, grams: 0, locked: locked)
         if spool.isArchived { updated.archived = false }
         return Self.marked(row, updated, .markedNew, by: side)
     }
 
-    /// Mark as empty: sets `weight_used` to the label weight, then archives
+    /// Mark as empty: sets `weight_used` to the label weight (weight lock kept), then archives
     /// the spool (unless it is archived already).
     func markEmpty(_ row: FeedRow, _ spool: Spool, by side: FeedRow.Side) async throws -> FeedRow {
-        var updated = try await inventory.setWeightUsed(spoolId: spool.id, grams: spool.labelWeight)
+        var updated = try await inventory.setWeightUsed(
+            spoolId: spool.id, grams: spool.labelWeight, locked: spool.weightLocked ?? false
+        )
         if !spool.isArchived { try await inventory.archiveSpool(id: spool.id) }
         updated.archived = true
         return Self.marked(row, updated, .markedEmpty, by: side)
