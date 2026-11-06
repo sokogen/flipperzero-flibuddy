@@ -85,12 +85,14 @@ public final class BLETransport: Transport, @unchecked Sendable {
     }
 
     public func send(_ message: Message) throws {
-        let (link, write): ((any BLEPeripheralLink)?, Data?) = try lock.withLock {
+        // Not `let (link, …)`: the Swift in CI's Xcode 26.6 reads the
+        // closure's `link` as the outer one, used before it is declared.
+        let (target, write): ((any BLEPeripheralLink)?, Data?) = try lock.withLock {
             guard isOpen, let link else { throw TransportError.notConnected }
             try chunker.enqueue(message)
             return (link, chunker.nextWrite())
         }
-        if let write { link?.write(write) }
+        if let write { target?.write(write) }
     }
 
     public func disconnect() {
