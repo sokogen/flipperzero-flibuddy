@@ -44,8 +44,6 @@ let package = Package(
         .testTarget(
             name: "FliBuddyCoreTests",
             dependencies: ["FliBuddyCore"],
-            // Fixtures is a symlink to ../../../protocol/fixtures (see README.md).
-            resources: [.copy("Fixtures")],
             swiftSettings: testSwiftSettings
         ),
     ]

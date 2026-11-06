@@ -525,20 +525,12 @@ sync payload is logged.
 
 ## Protocol fixtures
 
-The tests read the shared contract in `protocol/fixtures/` as package
-resources. `Tests/FliBuddyCoreTests/Fixtures` is a committed symlink to
-`../../../protocol/fixtures`, declared as `.copy("Fixtures")` in
-`Package.swift`; SwiftPM follows the symlink and copies the directory into
-the test bundle on every build, picking up added, changed and removed
-fixtures. Tests load it with `Bundle.module.url(forResource: "Fixtures",
-withExtension: nil)`.
-
-If the symlink is lost (for example on a checkout with `core.symlinks=false`),
-recreate it:
-
-```
-cd host/Tests/FliBuddyCoreTests && ln -s ../../../protocol/fixtures Fixtures
-```
+The tests read the shared contract in `protocol/fixtures/` straight from
+the checkout: `Fixtures.root` in `Tests/FliBuddyCoreTests/ProtocolTests.swift`
+walks up from its own `#filePath`, so added, changed and removed fixtures
+count on the next run. There is no resource bundle: an earlier symlink
+copied as a resource worked with Xcode 27's SwiftPM, but the one in CI
+(Xcode 26.6) copied the link itself, which pointed nowhere inside the bundle.
 
 ## swift-testing with the Command Line Tools
 

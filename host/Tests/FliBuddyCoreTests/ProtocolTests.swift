@@ -3,9 +3,17 @@ import Testing
 @testable import FliBuddyCore
 
 enum Fixtures {
+    /// `protocol/fixtures`, found from this file's path: the tests run on
+    /// the Mac from the checkout, so no resource bundle is needed.
     static let root: URL = {
-        guard let url = Bundle.module.url(forResource: "Fixtures", withExtension: nil) else {
-            fatalError("Fixtures resource missing; see host/README.md")
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // FliBuddyCoreTests
+            .deletingLastPathComponent()  // Tests
+            .deletingLastPathComponent()  // host
+            .deletingLastPathComponent()  // repository root
+            .appendingPathComponent("protocol/fixtures", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            fatalError("protocol/fixtures not found at \(url.path); see host/README.md")
         }
         return url
     }()
